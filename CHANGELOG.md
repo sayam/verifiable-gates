@@ -8,6 +8,16 @@ Notable changes to this project. The format follows
 
 ### Added
 
+- **`.zenodo.json`, and a check holding it to `CITATION.cff`.** Zenodo reads it when
+  archiving a release and publishes the result under a permanent DOI, which by the
+  definition of archiving cannot be corrected afterwards. The reference
+  implementation measured what happens without such a check: its two cards and its
+  own register once gave three different numbers for one fact, and the value
+  published under the DOI was the oldest of the three. The licence is held against
+  `LICENSE` rather than only across the two cards, because two cards agreeing with
+  each other and both being wrong is exactly what a cross-check between them cannot
+  see.
+
 - **`CITATION.cff`.** The rules are the artefact somebody would cite, and until now
   there was nothing to cite them with. No DOI yet — that needs a release rather
   than a commit.

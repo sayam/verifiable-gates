@@ -12,6 +12,36 @@
 
 version: 1
 gates:
+  - id: the-cards-still-say-what-the-repo-says
+    title: The two identity cards agree with each other and with the licence on disk
+    kind: test
+    severity: blocking
+    enforced_by: {job: test, tests: [tests/test_identity_cards.py]}
+    layer: internal
+    pillar: devx
+    portable: false
+    born_from: >-
+      `CITATION.cff` and `.zenodo.json` describe this repository to readers who
+      are not us, and Zenodo's copy is published under a permanent DOI, which by
+      the definition of archiving cannot be corrected afterwards. The reference
+      implementation measured what happens without a check: on 2026-08-22 its two
+      cards and its own register gave three different numbers for one fact, and
+      the value published under the DOI was the oldest of the three. The shape of
+      the failure is that the further a statement travels from the repository, the
+      fewer machines watch it — while the furthest destination is the one place it
+      cannot be fixed. The licence is held against `LICENSE` rather than only
+      across the two cards, because two cards agreeing with each other and both
+      being wrong is exactly what a cross-check between them cannot see.
+    proved_by:
+      - kind: mutation
+        ref: pr/13
+        date: 2026-08-26
+        caught: >-
+          Six planted defects red — the title edited on one card only, the licence
+          changed on one card only, a keyword dropped from one, the description
+          reworded away from the abstract, the author renamed on the other, and
+          both cards moved together to a licence this repository does not carry.
+
   - id: english-except-where-it-binds
     title: Everything here is in English, except documents that bind someone legally
     kind: test
