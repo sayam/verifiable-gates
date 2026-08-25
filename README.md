@@ -5,7 +5,7 @@ it, gates that must carry evidence of having gone red on a real defect, and a
 portable rule set that lets an AI coding agent work under the same rules in
 another project.
 
-**Status: extraction in progress (stages 1, 2 and 6 landed).** The tooling still lives in
+**Status: extraction in progress (stages 1, 2 and 6 done).** Some tooling still lives in
 the reference implementation,
 [`sayam/flask-todolist`](https://github.com/sayam/flask-todolist), and moves here
 in stages — the decision, what moves and what stays, is
@@ -21,12 +21,13 @@ there. **Do not depend on this package yet.**
 | 3 | The governance checkers (ratchets, censuses, pending page) | |
 | 4 | The supply-chain checkers | |
 | 5 | The measurement instruments and the comparison data | |
-| 6 | Registry handover · citation · DOI | **rules landed** |
+| 6 | Registry handover · citation · DOI | **here** |
 
 Stage 6 was taken out of order on purpose. The rules are what this project *is*;
 stages 3 to 5 move the machinery that happens to enforce some of them, and a
 bundle that shipped the machinery before the rules would have had nothing to say
-about the ones it cannot enforce.
+about the ones it cannot enforce. What remains of stage 6 is a DOI, which needs
+a release rather than a commit.
 
 ## What is here today
 
@@ -79,7 +80,7 @@ inside an organisation's internal handbook must not require share-alike.
 ทะเบียน gate ที่ถูกบังคับให้ตรงกับความจริงสองทิศ · gate ที่ต้องพกหลักฐานว่าเคยแดง
 ตอนของเสียจริง · และชุดกฎที่ส่งออกไปให้ AI agent ทำงานใต้กติกาเดียวกันในโปรเจกต์อื่นได้
 
-**สถานะ: กำลังถอด (ขั้น 1, 2 และ 6 ลงแล้ว)** — เครื่องมือยังอยู่ที่
+**สถานะ: กำลังถอด (ขั้น 1, 2 และ 6 เสร็จแล้ว)** — เครื่องมือบางส่วนยังอยู่ที่
 [`flask-todolist`](https://github.com/sayam/flask-todolist) และทยอยย้ายมาตาม
 ADR 0075 ข้อ 6 ที่นั่น · **ยังอย่าเพิ่งพึ่งแพ็กเกจนี้**
 
