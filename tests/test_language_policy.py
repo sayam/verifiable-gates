@@ -45,9 +45,16 @@ def tracked_files() -> list[pathlib.Path]:
     bilingual README, is ignored by git, and exists only on machines where the
     package was installed in editable mode. A check that fails on files the
     repository does not contain fails for whoever happens to have built locally.
+
+    Reading only *tracked* files was the second version, and it let a **new** file
+    pass locally and fail in CI — which is what happened while this stage was being
+    written. Untracked-but-not-ignored is the set a developer is one `git add` away
+    from committing, so that is the set worth judging.
     """
     listed = subprocess.run(
-        ["git", "ls-files", "-z"],  # noqa: S607 — git is a hard requirement of this repo
+        # `--cached --others --exclude-standard`: tracked, plus new files that are
+        # not ignored. Ignored files stay out, which is what fixed the first version.
+        ["git", "ls-files", "-z", "--cached", "--others", "--exclude-standard"],  # noqa: S607 — git is required here
         cwd=ROOT,
         capture_output=True,
         text=True,

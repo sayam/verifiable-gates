@@ -38,10 +38,13 @@ gates:
         caught: >-
           Red in all three directions — a Thai comment added to a source file, the
           Thai half stripped from CLA.md, and the allowlist pointed at a file that
-          does not exist. It also caught a defect in itself while being written:
-          walking the filesystem picked up verifiable_gates.egg-info/PKG-INFO, a
-          build artefact embedding the bilingual README that exists only where the
-          package was installed in editable mode. It now reads what git tracks.
+          does not exist. It also caught two defects in itself. Walking the
+          filesystem picked up verifiable_gates.egg-info/PKG-INFO, a build artefact
+          embedding the bilingual README that exists only where the package was
+          installed in editable mode. Then reading only *tracked* files let a new
+          file pass locally and fail in CI, which happened for real in stage 2e —
+          it now reads tracked plus untracked-not-ignored, the set a developer is
+          one `git add` away from committing.
 
   - id: checks-stay-standalone
     title: Every scanner survives being copied out of this package on its own

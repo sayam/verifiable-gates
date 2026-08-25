@@ -79,13 +79,14 @@ def test_the_preamble_comes_from_the_caller() -> None:
 
 
 def test_the_field_headings_can_be_in_another_language() -> None:
-    """The reference implementation writes its sheets in Thai.
+    """The reference implementation writes its sheets in a language that is not English.
 
     A renderer with English headings baked in would force one language on every
-    project, which is the same mistake as baking in the preamble.
+    project, which is the same mistake as baking in the preamble. The example uses
+    non-ASCII headings, since those are the ones likely to break.
     """
-    out = skill.render([a_gate()], PREAMBLE, labels=("กฎ", "เกิดจาก", "ตัวบังคับ"))
-    assert "**กฎ:** A rule that holds" in out
+    out = skill.render([a_gate()], PREAMBLE, labels=("Règle", "Origine", "Appliquée par"))
+    assert "**Règle:** A rule that holds" in out
     assert "**Rule:**" not in out
 
 
@@ -243,10 +244,10 @@ def test_labels_reach_the_render_from_the_command_line(tmp_path: pathlib.Path) -
         "--out",
         str(out),
         "--labels",
-        "กฎ|เกิดจาก|ตัวบังคับ",
+        "Règle|Origine|Appliquée par",
     ]
     assert skill.main(args) == 0
-    assert "**กฎ:**" in out.read_text(encoding="utf-8")
+    assert "**Règle:**" in out.read_text(encoding="utf-8")
 
 
 def test_a_layer_can_be_chosen_from_the_command_line(tmp_path: pathlib.Path) -> None:
