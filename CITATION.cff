@@ -1,0 +1,34 @@
+cff-version: 1.2.0
+title: >-
+  verifiable-gates — a rule catalogue where every rule carries the incident that
+  produced it
+message: >-
+  If you use this work (the rule catalogue, the checkers, or the method), please
+  cite it using the metadata below.
+type: software
+authors:
+  - family-names: Sriphua
+    given-names: Sayam
+    affiliation: Burapha University
+    orcid: null
+repository-code: https://github.com/sayam/verifiable-gates
+url: https://github.com/sayam/verifiable-gates
+abstract: >-
+  A catalogue of production-discipline rules for software projects, extracted
+  from a reference implementation where each one was learned from a real
+  failure. Every rule records the incident behind it, so a reader can judge
+  whether the conditions that produced it still hold; a rule with no incident is
+  a preference, and preferences do not earn a gate. A rule and its enforcement
+  are kept in separate files because they have separate lifetimes. The bundle
+  ships nine standalone checkers that decide part of the catalogue mechanically
+  in a project that has installed nothing, an installer and a doctor that run
+  them, and a renderer that turns the catalogue into rule sheets an AI coding
+  agent can be handed. The reference implementation is held to every rule
+  published here, and a test in that project checks both directions.
+keywords:
+  - software governance
+  - AI-assisted development
+  - continuous integration
+  - secure software development
+  - developer experience
+license: Apache-2.0

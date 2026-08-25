@@ -6,6 +6,12 @@ Notable changes to this project. The format follows
 
 ## [Unreleased]
 
+### Added
+
+- **`CITATION.cff`.** The rules are the artefact somebody would cite, and until now
+  there was nothing to cite them with. No DOI yet — that needs a release rather
+  than a commit.
+
 ### Removed
 
 - **`skill-mirrors-portable-gates` is no longer published.** It said an exported
