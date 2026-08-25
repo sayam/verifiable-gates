@@ -8,6 +8,29 @@ Notable changes to this project. The format follows
 
 ### Added
 
+- **The nine scanners landed (extraction stage 2b)** — ADR index, base-image
+  digest, debug entrypoint, CI tool pinning, service-layer isolation, inline
+  handlers in templates, delete discipline, and action SHA pinning. Each is a
+  single stdlib-only file with `main(root) -> int`, because `install.py` copies
+  one into a project that has installed nothing and runs it under a bare
+  `python3`. `tests/test_checks_are_standalone.py` enforces that property from
+  the AST *and* by copying each scanner somewhere the package cannot be imported
+  and running it there.
+- **Every scanner is proven against a pair** — one tree that breaks its rule, one
+  that keeps it — plus a not-applicable case, because a scanner that finds nothing
+  to check must say so rather than read as a pass. Nine mutations, one per
+  scanner, red every time.
+- **This repository now runs the scanners that apply to it** (`tests/test_dogfood.py`).
+
+### Changed
+
+- **`ci-tools-hash-pinned` no longer flags installing the checkout itself.**
+  `pip install --no-deps -e .` resolves nothing from an index, so there is no hash
+  to pin. **This is a behaviour change from the reference implementation's copy of
+  the scanner**, which never met the case because it uses pipenv. The exemption
+  needs both halves and has a test for each: `--no-deps` alone still reaches the
+  index, and `-e .` alone drags the whole dependency tree in unpinned.
+  Found by the dogfood test failing on its first run, here.
 - **This repository is now in English, and a test says so.** Comments,
   docstrings, commit messages, and anything the tools print — with `README.md`
   and `CLA.md` kept bilingual, English first and Thai below, because a document

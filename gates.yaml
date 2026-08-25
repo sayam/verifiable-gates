@@ -42,3 +42,83 @@ gates:
           walking the filesystem picked up verifiable_gates.egg-info/PKG-INFO, a
           build artefact embedding the bilingual README that exists only where the
           package was installed in editable mode. It now reads what git tracks.
+
+  - id: checks-stay-standalone
+    title: Every scanner survives being copied out of this package on its own
+    kind: test
+    severity: blocking
+    enforced_by: {job: test, tests: [tests/test_checks_are_standalone.py]}
+    layer: internal
+    pillar: devx
+    portable: false
+    born_from: >-
+      A scanner is shipped as a single file into a project that has installed
+      nothing, and run there with a bare python3. That works only while each file
+      imports stdlib only and nothing from this package — a property invisible in
+      normal use, because the tests here import the modules. It is also exactly
+      the shape a well-meaning refactor breaks: three scanners repeat six lines of
+      argv handling, someone lifts them into a shared helper, the suite stays
+      green, and every copied file breaks in a repository nobody here can see.
+    proved_by:
+      - kind: mutation
+        ref: pr/4
+        date: 2026-08-25
+        caught: >-
+          The AST checks and the subprocess runs disagree usefully: the AST pass
+          catches a shared import before it ships, and copying each scanner to a
+          directory where the package cannot be imported catches anything the AST
+          pass would have missed. A misuse must exit 2, never 0, so a wrong call
+          is never filed as a clean run.
+
+  - id: scanners-tell-their-two-answers-apart
+    title: Every scanner is shown a tree that violates it and one that does not
+    kind: test
+    severity: blocking
+    enforced_by: {job: test, tests: [tests/test_checks_behaviour.py]}
+    layer: internal
+    pillar: devx
+    portable: false
+    born_from: >-
+      A scanner that returns 0 for everything is indistinguishable from a clean
+      project: CI stays green and the report says there is nothing to report. The
+      pair — one tree that breaks the rule, one that keeps it — is the only thing
+      that tells those two apart. The third case is the not-applicable one, which
+      has to announce itself, because silence would file "we never looked" under
+      "we looked and it was fine".
+    proved_by:
+      - kind: mutation
+        ref: pr/4
+        date: 2026-08-25
+        caught: >-
+          Nine mutations, one per scanner, each making it too generous — red every
+          time. Coverage then found three behaviours the pairs never reached: the
+          purge-path exemption, the npm branch, and module-level session imports.
+          Each is the part a reader assumes works.
+
+  - id: rules-we-ship-we-keep
+    title: Scanners that apply to this repository are run against this repository
+    kind: test
+    severity: blocking
+    enforced_by: {job: test, tests: [tests/test_dogfood.py]}
+    layer: internal
+    pillar: devx
+    portable: false
+    born_from: >-
+      Governance audit round 23 of the reference implementation measured the gap
+      between the rules a project exports and the rules it keeps, and the answer
+      was 2.7%. The cheapest defence is to point every scanner that can apply here
+      at here, from the day it lands. The test also refuses a not-applicable
+      result: a scanner that finds nothing to check here is not dogfooding
+      anything, and would otherwise sit in the list looking like a pass.
+    proved_by:
+      - kind: ci-red
+        ref: pr/4
+        date: 2026-08-25
+        caught: >-
+          It failed on its first run, on this repository, for a real reason:
+          `pip install --no-deps -e .` installs the checkout itself and resolves
+          nothing from an index, so there is no hash to pin — and the scanner
+          flagged it anyway. The scanner was fixed rather than the repository, and
+          the exemption now needs both halves, with a test for each: `--no-deps`
+          on its own still reaches the index, and `-e .` on its own drags the
+          whole dependency tree in unpinned.

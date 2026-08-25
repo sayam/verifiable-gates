@@ -50,6 +50,16 @@ ignore = [
 ]
 
 [tool.ruff.lint.per-file-ignores]
+# The scanners' entire interface is "print findings to stdout, exit non-zero if
+# there were any", and they are run as `python3 scan_x.py <root>` by a target
+# project that has installed nothing. Both rules below describe that contract
+# rather than a defect, so they are turned off for the directory with a reason
+# here — not sprinkled as 32 per-line suppressions, which would make the
+# suppression count say something untrue about how much is switched off.
+"src/verifiable_gates/checks/*.py" = [
+    "T201",     # print IS the output channel; there is no logger in a copied file
+    "PLR2004",  # `len(sys.argv) != 2` — the argument count is the CLI contract
+]
 "tests/**" = [
     "INP001",   # tests are not a package; pytest finds them via pythonpath
     "S101",     # assert is the whole point of pytest
@@ -81,3 +91,11 @@ branch = true
 # it is a decision someone signs, not a convenience.
 fail_under = 100
 show_missing = true
+exclude_also = [
+    # The `__main__` guard of every scanner IS tested — `test_a_copied_scanner_runs_and_reports`
+    # copies the file somewhere the package cannot be imported from and runs it with the
+    # interpreter, which is the only way to prove the claim that a copied file works. That
+    # happens in a subprocess, which this measurement does not see. Excluding it here, once
+    # and with the reason, beats eight scattered pragmas that each say nothing.
+    'if __name__ == "__main__":',
+]

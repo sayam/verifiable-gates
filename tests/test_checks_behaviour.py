@@ -1,0 +1,387 @@
+"""Each scanner is shown a project that violates it and one that does not.
+
+A scanner that returns 0 for everything is indistinguishable from a clean
+project, and that is the failure mode nobody notices: CI stays green and the
+report says there is nothing to report. So every scanner gets a **pair** — one
+tree that breaks its rule, one that keeps it, differing in exactly the thing the
+scanner is about.
+
+The third case matters as much as the first two: **not-applicable must not read
+as clean**. Pointed at a project with no Dockerfile, a scanner prints `NA:` and
+exits 0, and that has to be visible in the output. Otherwise a whole class of
+"we never looked" gets filed under "we looked and it was fine".
+"""
+
+from __future__ import annotations
+
+import json
+from typing import TYPE_CHECKING, Any, NamedTuple
+
+import pytest
+
+from verifiable_gates.checks import (
+    scan_adr_index,
+    scan_dockerfile_digest,
+    scan_entrypoint_debug,
+    scan_install_pinning,
+    scan_service_layer,
+    scan_templates_inline,
+    scan_workflow_pinning,
+    scan_write_discipline,
+)
+
+if TYPE_CHECKING:
+    import pathlib
+
+
+class Case(NamedTuple):
+    """A scanner plus the smallest pair of trees that tells its two answers apart."""
+
+    module: Any
+    dirty: dict[str, str]
+    clean: dict[str, str]
+    config: dict[str, Any] | None
+    gate: str
+
+
+def build(
+    root: pathlib.Path, files: dict[str, str], config: dict[str, Any] | None = None
+) -> pathlib.Path:
+    """Write a tiny project tree. `config` becomes scaffold.json when given."""
+    if config is not None:
+        (root / "scaffold.json").write_text(json.dumps(config), encoding="utf-8")
+    for name, text in files.items():
+        path = root / name
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(text, encoding="utf-8")
+    return root
+
+
+PINNED_ACTION = "jobs:\n  a:\n    steps:\n      - uses: actions/checkout@" + "a" * 40 + "\n"
+FLOATING_ACTION = "jobs:\n  a:\n    steps:\n      - uses: actions/checkout@v4\n"
+CLEAN_ENTRYPOINT = (
+    '"""No debug=True here — the words in this string must not trip it."""\n'
+    "app = object()\napp.run()\n"
+)
+FLOATING_INSTALL = "jobs:\n  a:\n    steps:\n      - run: pip install ruff\n"
+PINNED_INSTALL = (
+    "jobs:\n  a:\n    steps:\n"
+    "      # pip install ruff <- a comment must not count\n"
+    "      - run: pip install --require-hashes -r pins/dev/requirements.txt\n"
+)
+
+CASES = [
+    pytest.param(
+        Case(
+            scan_workflow_pinning,
+            {".github/workflows/ci.yml": FLOATING_ACTION},
+            {".github/workflows/ci.yml": PINNED_ACTION},
+            None,
+            "actions-sha-pinned",
+        ),
+        id="workflow-pinning",
+    ),
+    pytest.param(
+        Case(
+            scan_dockerfile_digest,
+            {"Dockerfile": "FROM python:3.13-slim\n"},
+            {"Dockerfile": "FROM python@sha256:" + "b" * 64 + "\n"},
+            {"dockerfiles": ["Dockerfile"]},
+            "image-digest-pinned",
+        ),
+        id="dockerfile-digest",
+    ),
+    pytest.param(
+        Case(
+            scan_entrypoint_debug,
+            {"run.py": "app = object()\napp.run(debug=True)\n"},
+            {"run.py": CLEAN_ENTRYPOINT},
+            {"entrypoints": ["run.py"]},
+            "no-debug-entrypoint",
+        ),
+        id="entrypoint-debug",
+    ),
+    pytest.param(
+        Case(
+            scan_install_pinning,
+            {".github/workflows/ci.yml": FLOATING_INSTALL},
+            {".github/workflows/ci.yml": PINNED_INSTALL},
+            None,
+            "ci-tools-hash-pinned",
+        ),
+        id="install-pinning",
+    ),
+    pytest.param(
+        Case(
+            scan_service_layer,
+            {"app/services/todos.py": "from flask import request\n"},
+            {"app/services/todos.py": "from flask import current_app\n"},
+            {"services_path": "app/services"},
+            "logic-knows-no-http",
+        ),
+        id="service-layer",
+    ),
+    pytest.param(
+        Case(
+            scan_templates_inline,
+            {"app/templates/x.html": '<button onclick="go()">go</button>\n'},
+            {"app/templates/x.html": '<button data-go="1">go</button>\n'},
+            {"templates_path": "app/templates"},
+            "csp-no-inline",
+        ),
+        id="templates-inline",
+    ),
+    pytest.param(
+        Case(
+            scan_write_discipline,
+            {"app/routes.py": "db.session.delete(row)\n"},
+            {"app/routes.py": "cache.delete(key)\nrow.deleted_at = now()\n"},
+            {"src_path": "app", "purge_paths": ["app/purge.py"]},
+            "delete-means-soft-delete",
+        ),
+        id="write-discipline",
+    ),
+]
+
+
+@pytest.mark.parametrize("case", CASES)
+def test_a_scanner_finds_the_violation(
+    tmp_path: pathlib.Path, capsys: pytest.CaptureFixture[str], case: Case
+) -> None:
+    root = build(tmp_path, case.dirty, case.config)
+    assert case.module.main(root) == 1, "the violating tree was reported as clean"
+    assert case.gate in capsys.readouterr().out, "the finding does not name its gate"
+
+
+@pytest.mark.parametrize("case", CASES)
+def test_a_scanner_stays_quiet_on_a_clean_tree(
+    tmp_path: pathlib.Path, capsys: pytest.CaptureFixture[str], case: Case
+) -> None:
+    """The other direction — a rule that fires on everything is not a rule."""
+    root = build(tmp_path, case.clean, case.config)
+    assert case.module.main(root) == 0, "a clean tree was reported as a violation"
+    assert case.gate not in capsys.readouterr().out
+
+
+NOT_APPLICABLE = [
+    pytest.param(scan_workflow_pinning, None, id="no-workflows"),
+    pytest.param(scan_dockerfile_digest, {"dockerfiles": ["Dockerfile"]}, id="no-dockerfile"),
+    pytest.param(scan_entrypoint_debug, {"entrypoints": ["run.py"]}, id="no-entrypoint"),
+    pytest.param(scan_install_pinning, None, id="nothing-that-installs"),
+    pytest.param(scan_service_layer, {"services_path": "app/services"}, id="no-service-layer"),
+    pytest.param(scan_templates_inline, {"templates_path": "app/templates"}, id="no-templates"),
+    pytest.param(scan_write_discipline, {"src_path": "app"}, id="no-source"),
+    pytest.param(scan_adr_index, {"adr_path": "docs/adr"}, id="no-adrs"),
+]
+
+
+@pytest.mark.parametrize(("module", "config"), NOT_APPLICABLE)
+def test_nothing_to_check_says_so_out_loud(
+    tmp_path: pathlib.Path,
+    capsys: pytest.CaptureFixture[str],
+    module: Any,  # noqa: ANN401 — the parameter is a module object
+    config: dict[str, Any] | None,
+) -> None:
+    """Silence would file "we never looked" under "we looked and it was fine"."""
+    root = build(tmp_path, {}, config)
+    assert module.main(root) == 0
+    assert capsys.readouterr().out.startswith("NA:"), "a not-applicable run must announce itself"
+
+
+# ---------------------------------------------------------------- the ADR index
+#
+# Four findings from one scanner, so each gets its own case rather than sharing
+# the pair above: a shared case would prove one of them and imply the rest.
+
+ADR_BODY = "# 0001 — a decision\n"
+ADR_CONFIG = {"adr_path": "docs/adr"}
+
+
+def test_adr_index_reports_a_record_missing_from_the_index(
+    tmp_path: pathlib.Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    files = {"docs/adr/0001-a.md": ADR_BODY, "docs/adr/README.md": "| index |\n"}
+    assert scan_adr_index.main(build(tmp_path, files, ADR_CONFIG)) == 1
+    assert "missing from the index" in capsys.readouterr().out
+
+
+def test_adr_index_reports_an_index_entry_whose_file_is_gone(
+    tmp_path: pathlib.Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    files = {
+        "docs/adr/0001-a.md": ADR_BODY,
+        "docs/adr/README.md": "[0001](0001-a.md) [0002](0002-gone.md)\n",
+    }
+    assert scan_adr_index.main(build(tmp_path, files, ADR_CONFIG)) == 1
+    assert "file that is gone" in capsys.readouterr().out
+
+
+def test_adr_index_reports_a_gap_in_the_numbering(
+    tmp_path: pathlib.Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    files = {
+        "docs/adr/0001-a.md": ADR_BODY,
+        "docs/adr/0003-c.md": ADR_BODY,
+        "docs/adr/README.md": "[0001](0001-a.md) [0003](0003-c.md)\n",
+    }
+    assert scan_adr_index.main(build(tmp_path, files, ADR_CONFIG)) == 1
+    assert "gap in the numbering" in capsys.readouterr().out
+
+
+def test_adr_index_reports_records_with_no_index_at_all(
+    tmp_path: pathlib.Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    files = {"docs/adr/0001-a.md": ADR_BODY}
+    assert scan_adr_index.main(build(tmp_path, files, ADR_CONFIG)) == 1
+    assert "no README.md index" in capsys.readouterr().out
+
+
+def test_a_complete_adr_index_is_quiet(
+    tmp_path: pathlib.Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    files = {
+        "docs/adr/0001-a.md": ADR_BODY,
+        "docs/adr/0002-b.md": ADR_BODY,
+        "docs/adr/README.md": "[0001](0001-a.md) [0002](0002-b.md)\n",
+    }
+    assert scan_adr_index.main(build(tmp_path, files, ADR_CONFIG)) == 0
+    assert "adr-index-complete" not in capsys.readouterr().out
+
+
+# ---------------------------------------------------------------- the branches the pairs miss
+#
+# Coverage found these: each is a decision the scanner makes that the pair above
+# never exercises, and every one of them is the part a reader would assume works.
+
+
+def test_a_declared_purge_module_is_allowed_to_delete_for_real(
+    tmp_path: pathlib.Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """The exemption is the whole point — without it the rule would ban deleting at all."""
+    files = {"app/purge.py": "db.session.delete(row)\n"}
+    config = {"src_path": "app", "purge_paths": ["app/purge.py"]}
+    assert scan_write_discipline.main(build(tmp_path, files, config)) == 0
+    assert "delete-means-soft-delete" not in capsys.readouterr().out
+
+
+def test_a_commented_out_delete_is_not_a_finding(
+    tmp_path: pathlib.Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    files = {"app/routes.py": "# db.session.delete(row) — explaining why we do not\n"}
+    config = {"src_path": "app", "purge_paths": ["app/purge.py"]}
+    assert scan_write_discipline.main(build(tmp_path, files, config)) == 0
+    assert "delete-means-soft-delete" not in capsys.readouterr().out
+
+
+def test_npm_install_is_reported_and_names_the_alternative(
+    tmp_path: pathlib.Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """`npm install pkg@x` pins that one package and leaves the tree floating."""
+    files = {
+        ".github/workflows/ci.yml": "jobs:\n  a:\n    steps:\n      - run: npm install pa11y\n"
+    }
+    assert scan_install_pinning.main(build(tmp_path, files)) == 1
+    assert "use npm ci instead" in capsys.readouterr().out, "the finding has to say what to do"
+
+
+def test_a_command_split_over_lines_is_judged_whole(
+    tmp_path: pathlib.Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """`--require-hashes` on the continuation line still counts — otherwise the fix looks broken."""
+    files = {
+        ".github/workflows/ci.yml": (
+            "jobs:\n  a:\n    steps:\n"
+            "      - run: pip install \\\n"
+            "          --require-hashes -r pins/dev/requirements.txt"
+        )
+    }
+    assert scan_install_pinning.main(build(tmp_path, files)) == 0
+    assert "ci-tools-hash-pinned" not in capsys.readouterr().out
+
+
+def test_a_split_command_that_is_still_unpinned_is_reported(
+    tmp_path: pathlib.Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """The other direction, so the joining is not just swallowing everything."""
+    files = {
+        ".github/workflows/ci.yml": (
+            "jobs:\n  a:\n    steps:\n      - run: pip install \\\n          ruff mypy"
+        )
+    }
+    assert scan_install_pinning.main(build(tmp_path, files)) == 1
+    assert "ci-tools-hash-pinned" in capsys.readouterr().out
+
+
+def test_importing_the_session_module_is_a_finding(
+    tmp_path: pathlib.Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """`import flask_login` reaches the request side without naming a forbidden symbol."""
+    files = {"app/services/todos.py": "import flask_login\n"}
+    config = {"services_path": "app/services"}
+    assert scan_service_layer.main(build(tmp_path, files, config)) == 1
+    assert "flask_login" in capsys.readouterr().out
+
+
+def test_importing_the_session_module_by_from_is_also_a_finding(
+    tmp_path: pathlib.Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    files = {"app/services/todos.py": "from flask_login import current_user\n"}
+    config = {"services_path": "app/services"}
+    assert scan_service_layer.main(build(tmp_path, files, config)) == 1
+    assert "flask_login" in capsys.readouterr().out
+
+
+def test_a_command_left_dangling_at_the_end_of_a_file_is_still_judged(
+    tmp_path: pathlib.Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """A file ending on a continuation would otherwise drop its last command unseen."""
+    files = {
+        ".github/workflows/ci.yml": "jobs:\n  a:\n    steps:\n      - run: pip install ruff \\"
+    }
+    assert scan_install_pinning.main(build(tmp_path, files)) == 1
+    assert "ci-tools-hash-pinned" in capsys.readouterr().out
+
+
+def test_an_ordinary_import_in_the_service_layer_is_left_alone(
+    tmp_path: pathlib.Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """The rule is about the request side, not about importing."""
+    files = {"app/services/todos.py": "import datetime\nfrom collections import Counter\n"}
+    config = {"services_path": "app/services"}
+    assert scan_service_layer.main(build(tmp_path, files, config)) == 0
+    assert "logic-knows-no-http" not in capsys.readouterr().out
+
+
+def test_installing_the_checkout_itself_is_not_an_index_install(
+    tmp_path: pathlib.Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """Found by pointing this scanner at its own repository — see tests/test_dogfood.py."""
+    files = {
+        ".github/workflows/ci.yml": (
+            "jobs:\n  a:\n    steps:\n      - run: pip install --no-deps -e .\n"
+        )
+    }
+    assert scan_install_pinning.main(build(tmp_path, files)) == 0
+    assert "ci-tools-hash-pinned" not in capsys.readouterr().out
+
+
+def test_no_deps_alone_does_not_excuse_reaching_the_index(
+    tmp_path: pathlib.Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """Half the exemption is not the exemption — this still fetches from PyPI."""
+    files = {
+        ".github/workflows/ci.yml": (
+            "jobs:\n  a:\n    steps:\n      - run: pip install --no-deps requests\n"
+        )
+    }
+    assert scan_install_pinning.main(build(tmp_path, files)) == 1
+    assert "ci-tools-hash-pinned" in capsys.readouterr().out
+
+
+def test_a_local_install_that_still_resolves_dependencies_is_reported(
+    tmp_path: pathlib.Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """The other half — `-e .` without `--no-deps` pulls the whole tree in unpinned."""
+    files = {".github/workflows/ci.yml": "jobs:\n  a:\n    steps:\n      - run: pip install -e .\n"}
+    assert scan_install_pinning.main(build(tmp_path, files)) == 1
+    assert "ci-tools-hash-pinned" in capsys.readouterr().out
