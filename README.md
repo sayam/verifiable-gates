@@ -1,38 +1,71 @@
 # verifiable-gates
 
-**Status: placeholder — no code here yet.** (2026-08-25)
+A gate registry that is enforced two ways against the tests and CI jobs behind
+it, gates that must carry evidence of having gone red on a real defect, and a
+portable rule set that lets an AI coding agent work under the same rules in
+another project.
 
-This repository reserves the name and the licence for the governance core that is
-being extracted from [`sayam/flask-todolist`](https://github.com/sayam/flask-todolist):
-a gate registry that is enforced two ways against the tests and CI jobs that
-back it, gates that must carry evidence of having gone red on a real defect,
-a portable skill/overlay that lets an AI coding agent work under the same rules
-in another project, and the instruments used to measure whether any of that
-changes the code an agent writes.
-
-The decision to extract, what moves and what stays, and why this licence, are in
+**Status: extraction in progress (stage 1 of 6).** The tooling still lives in
+the reference implementation,
+[`sayam/flask-todolist`](https://github.com/sayam/flask-todolist), and moves here
+in stages — the decision, what moves and what stays, is
 [ADR 0075 §6](https://github.com/sayam/flask-todolist/blob/main/docs/adr/0075-thesis-track-freeze-effort-and-ceilings.md)
-of the source repository. Until the extraction lands, **the source repository is
-the only place the tooling exists** — do not depend on this one yet.
+and the file-by-file census is
+[`extraction.yaml`](https://github.com/sayam/flask-todolist/blob/main/extraction.yaml)
+there. **Do not depend on this package yet.**
+
+| Stage | What lands | Status |
+|---|---|---|
+| 1 | Package skeleton · CI · hash-pinned tools · registry schema | **here** |
+| 2 | The nine checks · the doctor · preflight · the skill generator | next |
+| 3 | The governance checkers (ratchets, censuses, pending page) | |
+| 4 | The supply-chain checkers | |
+| 5 | The measurement instruments and the comparison data | |
+| 6 | Registry handover · citation · DOI | |
+
+## What is here today
+
+```python
+from verifiable_gates import registry
+
+gates = registry.load("gates.yaml")
+for problem in registry.problems(gates):
+    print(problem)
+```
+
+The schema encodes four rules that came from real traps, not from theory:
+
+- a rule whose `layer` is `internal` **cannot** be `portable` — a rule tied to one
+  project's architecture, exported as universal, is an overclaim;
+- anything exported must name the trap that created it (`born_from`), because a
+  rule with no origin is a rule nobody knows when to remove;
+- `proved_by` entries must say what they caught and when — a gate nobody has seen
+  go red is indistinguishable from a gate that checks nothing;
+- the vocabularies for `kind`, `severity`, `layer`, and `pillar` are closed.
 
 ## Licence
 
-- Code: [Apache-2.0](LICENSE). Contributors sign [`CLA.md`](CLA.md) (a one-line
-  grant in the pull request; you keep your copyright).
+- Code: [Apache-2.0](LICENSE). Contributors sign [`CLA.md`](CLA.md) — one line in
+  the pull request; you keep your copyright.
 - Rules and documentation: [CC BY 4.0](LICENSE-docs).
 
-The application this was extracted from stays AGPL-3.0-or-later; the two are
-deliberately different — a CI tool is not a network service, and a rule you want
-adopted inside an organisation's internal handbook must not require share-alike.
+The application this was extracted from stays AGPL-3.0-or-later. The two differ
+on purpose: a CI tool is not a network service, and a rule meant to be adopted
+inside an organisation's internal handbook must not require share-alike.
 
 ---
 
 ## ภาษาไทย
 
-**สถานะ: จองชื่อไว้ ยังไม่มีโค้ด** (2026-08-25) · แกน governance ของ
-[`flask-todolist`](https://github.com/sayam/flask-todolist) — ทะเบียน gate ที่ตรวจสองทิศ ·
-gate ที่ต้องพกหลักฐานว่าเคยแดง · skill/overlay สำหรับ AI agent · เครื่องมือวัดผล —
-กำลังถูกถอดมาที่นี่ตาม ADR 0075 ข้อ 6 ของ repo ต้นทาง · จนกว่าจะถอดเสร็จ
-**เครื่องมือทั้งหมดยังอยู่ที่ต้นทางเท่านั้น**
+ทะเบียน gate ที่ถูกบังคับให้ตรงกับความจริงสองทิศ · gate ที่ต้องพกหลักฐานว่าเคยแดง
+ตอนของเสียจริง · และชุดกฎที่ส่งออกไปให้ AI agent ทำงานใต้กติกาเดียวกันในโปรเจกต์อื่นได้
+
+**สถานะ: กำลังถอด (ขั้น 1 จาก 6)** — เครื่องมือยังอยู่ที่
+[`flask-todolist`](https://github.com/sayam/flask-todolist) และทยอยย้ายมาตาม
+ADR 0075 ข้อ 6 ที่นั่น · **ยังอย่าเพิ่งพึ่งแพ็กเกจนี้**
+
+วันนี้มีแค่ **schema ของทะเบียน** (`verifiable_gates.registry`) ซึ่งเป็นสิ่งที่ทุกขั้น
+ถัดไปต้องอ่าน · `gates.yaml` ของ repo นี้ยังว่างโดยตั้งใจ — **จะไม่มีแถวใดถูกเพิ่ม
+ก่อนที่ตัวบังคับของมันจะมีอยู่จริง**
 
 โค้ด: Apache-2.0 (ผู้ร่วมพัฒนาลงนาม `CLA.md`) · กฎและเอกสาร: CC BY 4.0

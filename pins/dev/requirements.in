@@ -1,0 +1,9 @@
+# เครื่องมือที่ CI ของ repo นี้ติดตั้งเอง — ตรึงด้วย hash ใน requirements.txt
+# regenerate: pip-compile --allow-unsafe --generate-hashes --strip-extras \
+#   --output-file=pins/dev/requirements.txt pins/dev/requirements.in
+ruff
+mypy
+pytest
+pytest-cov
+pyyaml
+types-PyYAML

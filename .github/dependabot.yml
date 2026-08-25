@@ -1,0 +1,14 @@
+# **pin โดยไม่มีใครขยับ = แช่ช่องโหว่ไว้** — ทุกที่ที่ตรึงของไว้ ต้องมีคนคอยขยับ
+# (กติกาเดียวกับ `pins/README.md` ของ reference implementation)
+version: 2
+updates:
+  - package-ecosystem: "pip"
+    directory: "/pins/dev"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 5
+
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"

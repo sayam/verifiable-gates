@@ -1,0 +1,80 @@
+[build-system]
+requires = ["setuptools>=77"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "verifiable-gates"
+version = "0.0.1"
+description = "A gate registry that is enforced two ways, gates that carry evidence of having gone red, and a portable rule set for AI coding agents."
+readme = "README.md"
+requires-python = ">=3.11"
+license = "Apache-2.0"
+license-files = ["LICENSE"]
+authors = [{name = "Sayam Sriphua"}]
+keywords = ["governance", "secure-by-default", "compliance", "ai-agents", "software-supply-chain"]
+classifiers = [
+    "Development Status :: 2 - Pre-Alpha",
+    "Intended Audience :: Developers",
+    "Programming Language :: Python :: 3",
+    "Topic :: Software Development :: Quality Assurance",
+]
+dependencies = ["pyyaml>=6"]
+
+[project.urls]
+Homepage = "https://github.com/sayam/verifiable-gates"
+Source = "https://github.com/sayam/verifiable-gates"
+"Reference implementation" = "https://github.com/sayam/flask-todolist"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+# ---------------------------------------------------------------- ruff
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["ALL"]
+ignore = [
+    # เอกสารในโค้ดเป็นภาษาไทย — กติกา punctuation แบบอังกฤษของ pydocstyle ใช้ไม่ได้
+    "D",
+    # ข้อความไทยใช้ em-dash / อัญประกาศโค้ง โดยตั้งใจ
+    "RUF001", "RUF002", "RUF003",
+    # ข้อความใน raise เขียน inline อ่านง่ายกว่าแยกตัวแปร
+    "EM101", "EM102", "TRY003",
+    # ชนกับ ruff format ตามคำแนะนำ official
+    "COM812", "ISC001",
+    # license ประกาศระดับ repo ไม่ใช่ header ต่อไฟล์
+    "CPY001",
+]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**" = [
+    "INP001",   # tests ไม่ใช่ package
+    "S101",     # assert คือหัวใจของ pytest
+    "PLR2004",  # ตัวเลขดิบในเทสต์คือค่าที่คาดไว้ อ่านตรง ๆ ดีกว่าตั้งชื่อ
+]
+
+# ---------------------------------------------------------------- mypy
+[tool.mypy]
+python_version = "3.11"
+strict = true
+warn_unused_configs = true
+# **strict ตั้งแต่บรรทัดแรกของ repo นี้** — ต่างจาก reference implementation ที่ต้องไล่
+# ยกทีละโมดูล เพราะที่นั่น strict มาทีหลังโค้ด · ratchet ที่เริ่มบนสุดไม่ต้องมีใครหมุน
+
+# ---------------------------------------------------------------- pytest / coverage
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["src"]
+addopts = "--strict-markers --strict-config"
+
+[tool.coverage.run]
+source = ["src/verifiable_gates"]
+branch = true
+
+[tool.coverage.report]
+# พื้นเริ่มที่ 100 เพราะ repo นี้เริ่มจากศูนย์ — ของที่ไม่มีเทสต์ยังไม่เคยถูก commit
+# **ขึ้นทางเดียว** เหมือนทุก ratchet · ลดต้องเป็นคำตัดสินที่มีคนเซ็นชื่อ
+fail_under = 100
+show_missing = true
