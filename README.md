@@ -1,9 +1,17 @@
 # verifiable-gates
 
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.22103110.svg)](https://doi.org/10.5281/zenodo.22103110)
+
 A gate registry that is enforced two ways against the tests and CI jobs behind
 it, gates that must carry evidence of having gone red on a real defect, and a
 portable rule set that lets an AI coding agent work under the same rules in
 another project.
+
+**Archived under a DOI.** The state the claims point at is tagged
+[`evidence-freeze-1`](https://github.com/sayam/verifiable-gates/releases/tag/evidence-freeze-1)
+in both this repository and the reference implementation, and archived at
+[doi:10.5281/zenodo.22103110](https://doi.org/10.5281/zenodo.22103110). That DOI resolves to the
+latest version; each release also gets one of its own.
 
 **Status: extraction in progress (stages 1, 2 and 6 done).** Some tooling still lives in
 the reference implementation,
@@ -79,6 +87,11 @@ inside an organisation's internal handbook must not require share-alike.
 
 ทะเบียน gate ที่ถูกบังคับให้ตรงกับความจริงสองทิศ · gate ที่ต้องพกหลักฐานว่าเคยแดง
 ตอนของเสียจริง · และชุดกฎที่ส่งออกไปให้ AI agent ทำงานใต้กติกาเดียวกันในโปรเจกต์อื่นได้
+
+**เก็บถาวรใต้ DOI แล้ว** — สถานะที่ข้ออ้างชี้ถึงถูกตรึงไว้ที่ tag `evidence-freeze-1`
+ทั้ง repo นี้และ reference implementation · archive อยู่ที่
+[doi:10.5281/zenodo.22103110](https://doi.org/10.5281/zenodo.22103110) ซึ่งชี้รุ่นล่าสุดเสมอ
+(แต่ละ release มี DOI ของตัวเองด้วย)
 
 **สถานะ: กำลังถอด (ขั้น 1, 2 และ 6 เสร็จแล้ว)** — เครื่องมือบางส่วนยังอยู่ที่
 [`flask-todolist`](https://github.com/sayam/flask-todolist) และทยอยย้ายมาตาม
