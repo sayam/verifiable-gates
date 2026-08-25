@@ -8,6 +8,27 @@ Notable changes to this project. The format follows
 
 ### Added
 
+- **The registry scanner arrived (extraction stage 2d)** — the gate that holds a
+  project's index to reality in four directions, and the hand-written YAML reader
+  underneath it. The reader is the riskiest code in the bundle: it cannot use
+  PyYAML, because it runs where nothing is installed. Two defences — anything
+  outside its subset raises, and on this repository's own files it must agree with
+  PyYAML value for value, with the one accepted divergence (block scalar bodies)
+  measured rather than assumed.
+- **A fresh install's registry now has to pass its own check** and must not be
+  skipped as not-applicable.
+
+### Fixed
+
+- **The reader was quietly more permissive than YAML in two places.** An anchor or
+  an unclosed quote in *value* position was read as ordinary text, because the
+  guard only looked at the start of a line. And `portable: false` came back as the
+  string `"false"` — which is truthy, so any rule reading a boolean would have read
+  it backwards and said nothing. Both found by writing the agreement test.
+- **The shipped defaults disagreed with each other.** `gates.yaml.default`
+  declared its rows as `kind: step`, naming steps that `ci-template.yml` does not
+  have. A project that installed the bundle and changed nothing would have failed
+  its own registry check on the first run.
 - **The machinery arrived (extraction stage 2c)** — `gates_doctor.py`,
   `install.py`, a manifest module, and the three files a project starts from
   (`scaffold.json.default`, `gates.yaml.default`, `ci-template.yml`). Installing

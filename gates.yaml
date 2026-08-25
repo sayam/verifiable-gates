@@ -176,3 +176,58 @@ gates:
           script, both went red. Every schema rule has a case that breaks it alone,
           because a validator that only ever sees valid input is one nobody has
           watched work.
+
+  - id: the-shipped-reader-agrees-with-the-real-one
+    title: The hand-written YAML reader agrees with PyYAML on this repository's own files
+    kind: test
+    severity: blocking
+    enforced_by: {job: test, tests: [tests/test_registry_scan.py]}
+    layer: internal
+    pillar: devx
+    portable: false
+    born_from: >-
+      The shipped registry scanner cannot use PyYAML — it runs in projects that
+      have installed nothing — so it carries a hand-written subset reader. That
+      makes it the riskiest code in the bundle: a reader more forgiving than the
+      real one reports green on files it did not understand, and nothing about
+      that looks wrong. Two defences: anything outside the subset raises, and on
+      this repository's own files the two readers must agree value for value. The
+      one accepted divergence, block scalar bodies, is measured rather than waved
+      through — the count of blanked values must equal the count of block scalars.
+    proved_by:
+      - kind: mutation
+        ref: pr/6
+        date: 2026-08-25
+        caught: >-
+          Writing the test found two real defects on the first run. An anchor or
+          an unclosed quote in *value* position was read as ordinary text, because
+          the guard only looked at the start of a line — the reader was quietly
+          more permissive than YAML. And `portable: false` came back as the string
+          "false", which is truthy: any rule that ever read a boolean would have
+          read it backwards, silently. Both fixed in the reader. Nine further
+          mutations across the four directions and the reader went red.
+
+  - id: the-box-opens-already-true
+    title: A fresh install's registry passes its own check, and is not skipped as not-applicable
+    kind: test
+    severity: blocking
+    enforced_by: {job: test, tests: [tests/test_install_and_doctor.py]}
+    layer: internal
+    pillar: manageability
+    portable: false
+    born_from: >-
+      Most rules in this bundle end with "register it in your gates.yaml". If the
+      box does not contain that file, already true about itself, the instruction
+      is prose — governance audit round 23 of the reference implementation is where
+      that gap was first measured. The second half matters as much: the check must
+      not report N/A, or an absent index would look like a satisfied one.
+    proved_by:
+      - kind: ci-red
+        ref: pr/6
+        date: 2026-08-25
+        caught: >-
+          Red on its first run. The shipped starting registry declared its rows as
+          `kind: step` naming steps that the shipped starting workflow does not
+          have, so a project that installed the bundle and changed nothing would
+          have failed its own registry check immediately. The defaults were wrong
+          together and only disagreed once something ran both.

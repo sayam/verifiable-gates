@@ -31,41 +31,46 @@ version: 1
 gates:
   - id: actions-sha-pinned
     title: Every action in a workflow is pinned to a commit SHA
-    kind: step
+    kind: job
     severity: blocking
-    enforced_by: {job: scans, step: actions-sha-pinned}
+    enforced_by: {job: scans}
   - id: adr-index-complete
     title: The ADR index covers every record, numbered without gaps
-    kind: step
+    kind: job
     severity: blocking
-    enforced_by: {job: scans, step: adr-index-complete}
+    enforced_by: {job: scans}
   - id: ci-tools-hash-pinned
     title: Tools CI installs for itself are pinned by hash
-    kind: step
+    kind: job
     severity: blocking
-    enforced_by: {job: scans, step: ci-tools-hash-pinned}
+    enforced_by: {job: scans}
   - id: csp-no-inline
     title: Templates carry no inline handler, style, or script
-    kind: step
+    kind: job
     severity: blocking
-    enforced_by: {job: scans, step: csp-no-inline}
+    enforced_by: {job: scans}
   - id: delete-means-soft-delete
     title: A real delete lives only in the declared purge modules
-    kind: step
+    kind: job
     severity: blocking
-    enforced_by: {job: scans, step: delete-means-soft-delete}
+    enforced_by: {job: scans}
+  - id: gates-registry-total
+    title: The gate index matches reality in both directions
+    kind: job
+    severity: blocking
+    enforced_by: {job: scans}
   - id: image-digest-pinned
     title: A base image is pinned by digest, not only by tag
-    kind: step
+    kind: job
     severity: blocking
-    enforced_by: {job: scans, step: image-digest-pinned}
+    enforced_by: {job: scans}
   - id: logic-knows-no-http
     title: The service layer imports nothing from the request side
-    kind: step
+    kind: job
     severity: blocking
-    enforced_by: {job: scans, step: logic-knows-no-http}
+    enforced_by: {job: scans}
   - id: no-debug-entrypoint
     title: An entrypoint cannot open a debug console, even run wrongly
-    kind: step
+    kind: job
     severity: blocking
-    enforced_by: {job: scans, step: no-debug-entrypoint}
+    enforced_by: {job: scans}

@@ -1,0 +1,497 @@
+"""The registry scanner, and the hand-written YAML reader underneath it.
+
+Two things are being defended here, and the second is easy to forget.
+
+**The scanner** holds a project's gate index to reality in four directions. Most
+rules in this bundle end with "register it in your gates.yaml", and that
+instruction means nothing unless something checks the register — so every one of
+the four directions gets a case that breaks it alone.
+
+**The reader** is hand-written and stdlib-only, because this file is shipped into
+projects that have installed nothing. That makes it the riskiest code in the
+bundle: a reader that is *more forgiving* than the real one reports green on files
+it did not understand, and nothing about that looks wrong. Two defences —
+everything outside the subset must **raise**, and on this repository's own files
+the reader must agree with PyYAML value for value.
+"""
+
+from __future__ import annotations
+
+import json
+import pathlib
+from typing import Any
+
+import pytest
+import yaml
+
+from verifiable_gates.checks import scan_gates_registry as scanner
+
+ROOT = pathlib.Path(__file__).resolve().parent.parent
+
+PINNED = "jobs:\n  test:\n    steps:\n      - name: a step\n        run: true\n"
+
+
+def build(
+    root: pathlib.Path, files: dict[str, str], config: dict[str, Any] | None = None
+) -> pathlib.Path:
+    if config is not None:
+        (root / "scaffold.json").write_text(json.dumps(config), encoding="utf-8")
+    for name, text in files.items():
+        path = root / name
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(text, encoding="utf-8")
+    return root
+
+
+def a_project(root: pathlib.Path, registry: str, **extra: str) -> pathlib.Path:
+    files = {".github/workflows/ci.yml": PINNED, "gates.yaml": registry, **extra}
+    return build(root, files, {"tests_path": "tests"})
+
+
+# ---------------------------------------------------------------- the reader
+
+
+@pytest.mark.parametrize(
+    ("text", "expected"),
+    [
+        ("a: 1\nb: two\n", {"a": "1", "b": "two"}),
+        ("a:\n  b: c\n", {"a": {"b": "c"}}),
+        ("a:\n  - x\n  - y\n", {"a": ["x", "y"]}),
+        ("a: [x, y]\n", {"a": ["x", "y"]}),
+        ("a: {j: test, s: [p, q]}\n", {"a": {"j": "test", "s": ["p", "q"]}}),
+        ('a: "quoted: colon"\n', {"a": "quoted: colon"}),
+        ("a: 1  # trailing comment\n", {"a": "1"}),
+        ('a: "a # b"\n', {"a": "a # b"}),
+        ("# only a comment\n", None),
+        ("a: |\n  prose that is\n  not structure: really\nb: 2\n", {"a": "", "b": "2"}),
+        ("- one\n- two\n", ["one", "two"]),
+        ("a:\n- x\n", {"a": ["x"]}),
+        ("a: {}\nb: []\n", {"a": {}, "b": []}),
+    ],
+    ids=[
+        "flat",
+        "nested",
+        "sequence",
+        "flow-list",
+        "flow-map",
+        "quoted-colon",
+        "comment",
+        "hash-in-quotes",
+        "comment-only",
+        "block-scalar",
+        "top-list",
+        "sequence-at-same-column",
+        "empty-flow",
+    ],
+)
+def test_the_reader_understands_the_subset(text: str, expected: object) -> None:
+    assert scanner.load(text) == expected
+
+
+@pytest.mark.parametrize(
+    ("text", "needle"),
+    [
+        ("a:\tb\n", "tab"),
+        ("a: 1\n---\nb: 2\n", "more than one document"),
+        ("a: &anchor 1\n", "anchor"),
+        ('a: "unclosed\n', "unclosed quote"),
+        ("a: [x, y\n", "flow closed wrongly"),
+        ("a: {x 1}\n", "missing ':'"),
+        ("a: [x] extra\n", "trailing content"),
+        ("a: 1\n   b: 2\n", "inconsistent indentation"),
+    ],
+    ids=[
+        "tab",
+        "multi-document",
+        "anchor",
+        "unclosed-quote",
+        "unclosed-flow",
+        "flow-without-colon",
+        "trailing-after-flow",
+        "ragged-indent",
+    ],
+)
+def test_anything_outside_the_subset_is_loud(text: str, needle: str) -> None:
+    """A reader more forgiving than the real one reports green on what it misread."""
+    with pytest.raises(scanner.SubsetError, match=needle):
+        scanner.load(text)
+
+
+def test_a_block_scalar_body_is_skipped_not_parsed() -> None:
+    """Prose inside `>-` contains colons and dashes; read as structure it invents gates."""
+    text = "gates:\n  - id: a-rule\n    born_from: >-\n      a: not a key\n      - not an item\n"
+    assert scanner.load(text) == {"gates": [{"id": "a-rule", "born_from": ""}]}
+
+
+BLOCK_OPENER = scanner.BLOCK_SCALAR
+
+
+def _count_block_scalars(text: str) -> int:
+    return sum(1 for line in text.splitlines() if BLOCK_OPENER.search(line.split("#")[0].rstrip()))
+
+
+def _key(key: object) -> str:
+    """PyYAML follows YAML 1.1, where the bare key `on` is the boolean True.
+
+    GitHub Actions writes `on:` and means the word. The subset reader keeps the
+    word, which is right here; this puts PyYAML's answer back into the same shape
+    so the comparison is about the reader and not about that quirk.
+    """
+    if isinstance(key, bool):
+        return "on" if key else "off"
+    return str(key)
+
+
+def _walk(value: object, path: str = "") -> dict[str, object]:
+    """Flatten to path → scalar, so a disagreement names where it is."""
+    if isinstance(value, dict):
+        return {
+            k: v
+            for key, item in value.items()
+            for k, v in _walk(item, f"{path}.{_key(key)}").items()
+        }
+    if isinstance(value, list):
+        return {
+            k: v for i, item in enumerate(value) for k, v in _walk(item, f"{path}[{i}]").items()
+        }
+    return {path: None if value is None else str(value)}
+
+
+@pytest.mark.parametrize(
+    "name",
+    ["gates.yaml", ".github/workflows/ci.yml", ".github/dependabot.yml"],
+)
+def test_the_shipped_reader_agrees_with_pyyaml_on_our_own_files(name: str) -> None:
+    """The guard that keeps a hand-written parser honest.
+
+    This bundle has two readers of the same files — PyYAML in the package, this
+    subset reader in the shipped scanner — and nothing stops them drifting apart
+    except a test that reads the same bytes with both. Where they disagree, the
+    shipped one is the one that lies, because it is the one that answers in a
+    project where the other cannot be installed.
+
+    **The reader discards the body of a block scalar on purpose** — it never uses
+    those values, and skipping them correctly is what stops prose being read as
+    structure. That is the one accepted divergence, so it is *measured* rather
+    than waved through: the number of values it blanks must equal the number of
+    block scalars in the file. A reader that started blanking anything else would
+    fail here.
+    """
+    text = (ROOT / name).read_text(encoding="utf-8")
+    ours = _walk(scanner.load(text))
+    theirs = _walk(yaml.safe_load(text))
+
+    assert ours.keys() == theirs.keys(), "the two readers disagree about the shape of the file"
+
+    blanked = [path for path, value in ours.items() if value == "" and theirs[path] != ""]
+    assert len(blanked) == _count_block_scalars(text), (
+        f"the reader blanked {len(blanked)} values but the file has "
+        f"{_count_block_scalars(text)} block scalars: {blanked}"
+    )
+    for path in ours:
+        if path not in blanked:
+            assert ours[path] == theirs[path], f"the readers disagree at {path}"
+
+
+# ---------------------------------------------------------------- forward
+
+
+def test_a_gate_pointing_at_a_job_that_does_not_exist(
+    tmp_path: pathlib.Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    registry = (
+        "version: 1\ngates:\n  - id: a-rule\n    title: t\n    kind: job\n"
+        "    enforced_by: {job: absent}\n"
+    )
+    assert scanner.main(a_project(tmp_path, registry)) == 1
+    assert "no workflow defines" in capsys.readouterr().out
+
+
+def test_a_step_gate_naming_a_step_that_does_not_exist(
+    tmp_path: pathlib.Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    registry = (
+        "version: 1\ngates:\n  - id: a-rule\n    title: t\n    kind: step\n"
+        "    enforced_by: {job: test, step: no such step}\n"
+    )
+    assert scanner.main(a_project(tmp_path, registry)) == 1
+    assert "has no step" in capsys.readouterr().out
+
+
+def test_a_test_gate_naming_a_file_that_does_not_exist(
+    tmp_path: pathlib.Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    registry = (
+        "version: 1\ngates:\n  - id: a-rule\n    title: t\n    kind: test\n"
+        "    enforced_by: {job: test, tests: [tests/test_absent.py]}\n"
+    )
+    assert scanner.main(a_project(tmp_path, registry)) == 1
+    assert "no such file" in capsys.readouterr().out
+
+
+def test_a_test_gate_with_no_files_listed(
+    tmp_path: pathlib.Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    registry = (
+        "version: 1\ngates:\n  - id: a-rule\n    title: t\n    kind: test\n"
+        "    enforced_by: {job: test}\n"
+    )
+    assert scanner.main(a_project(tmp_path, registry)) == 1
+    assert "must list test files" in capsys.readouterr().out
+
+
+# ---------------------------------------------------------------- back
+
+
+def test_a_job_that_no_gate_claims(
+    tmp_path: pathlib.Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """The direction that catches new work: a job arrives, and nothing says why."""
+    registry = (
+        "version: 1\ngates:\n  - id: a-rule\n    title: t\n    kind: job\n"
+        "    enforced_by: {job: test}\n"
+    )
+    project = a_project(tmp_path, registry)
+    (project / ".github" / "workflows" / "extra.yml").write_text(
+        "jobs:\n  brand_new:\n    steps:\n      - run: true\n", encoding="utf-8"
+    )
+    assert scanner.main(project) == 1
+    assert "job with no gate in the index: brand_new" in capsys.readouterr().out
+
+
+def test_a_test_file_that_no_gate_claims(
+    tmp_path: pathlib.Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    registry = (
+        "version: 1\ngates:\n  - id: a-rule\n    title: t\n    kind: test\n"
+        "    enforced_by: {job: test, tests: [tests/test_known.py]}\n"
+    )
+    project = a_project(
+        tmp_path,
+        registry,
+        **{"tests/test_known.py": "", "tests/test_unclaimed.py": ""},
+    )
+    assert scanner.main(project) == 1
+    assert "no gate claims this test file: tests/test_unclaimed.py" in capsys.readouterr().out
+
+
+def test_two_gates_claiming_the_same_test_file(
+    tmp_path: pathlib.Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """A partition, not a covering — two owners means neither is accountable."""
+    registry = (
+        "version: 1\ngates:\n"
+        "  - id: rule-one\n    title: t\n    kind: test\n"
+        "    enforced_by: {job: test, tests: [tests/test_shared.py]}\n"
+        "  - id: rule-two\n    title: t\n    kind: test\n"
+        "    enforced_by: {job: test, tests: [tests/test_shared.py]}\n"
+    )
+    project = a_project(tmp_path, registry, **{"tests/test_shared.py": ""})
+    assert scanner.main(project) == 1
+    assert "the partition is broken" in capsys.readouterr().out
+
+
+def test_the_index_claiming_a_test_file_that_is_gone(
+    tmp_path: pathlib.Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    registry = (
+        "version: 1\ngates:\n  - id: a-rule\n    title: t\n    kind: test\n"
+        "    enforced_by: {job: test, tests: [tests/test_gone.py]}\n"
+    )
+    project = a_project(tmp_path, registry, **{"tests/test_here.py": ""})
+    (project / "tests" / "test_here.py").write_text("", encoding="utf-8")
+    assert scanner.main(project) == 1
+    output = capsys.readouterr().out
+    assert "claims a file that is gone" in output
+
+
+# ---------------------------------------------------------------- shape
+
+
+BAD_ID_ROW = "  - id: Not_Kebab\n    title: t\n    kind: job\n    enforced_by: {job: test}\n"
+GOOD_ROW = "  - id: a-rule\n    title: t\n    kind: job\n    enforced_by: {job: test}\n"
+DUPLICATE_ROWS = GOOD_ROW + GOOD_ROW
+
+
+@pytest.mark.parametrize(
+    ("rows", "needle"),
+    [
+        ("  - just a string\n", "not a mapping"),
+        (
+            "  - id: Not_Kebab\n    title: t\n    kind: job\n    enforced_by: {job: test}\n",
+            "kebab-case",
+        ),
+        (DUPLICATE_ROWS, "duplicate id"),
+        ("  - id: a-rule\n    kind: job\n    enforced_by: {job: test}\n", "no title"),
+        ("  - id: a-rule\n    title: t\n    kind: guess\n    enforced_by: {job: test}\n", "kind"),
+        ("  - id: a-rule\n    title: t\n    kind: job\n", "must name the job"),
+    ],
+    ids=["not-a-mapping", "bad-id", "duplicate-id", "no-title", "bad-kind", "no-enforcer"],
+)
+def test_a_malformed_row_is_reported(
+    tmp_path: pathlib.Path, capsys: pytest.CaptureFixture[str], rows: str, needle: str
+) -> None:
+    assert scanner.main(a_project(tmp_path, f"version: 1\ngates:\n{rows}")) == 1
+    assert needle in capsys.readouterr().out
+
+
+# ---------------------------------------------------------------- the whole file
+
+
+def test_an_index_that_matches_reality_is_quiet(
+    tmp_path: pathlib.Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """The other direction: a rule that fires on everything is not a rule."""
+    registry = (
+        "version: 1\ngates:\n  - id: a-rule\n    title: t\n    kind: test\n"
+        "    enforced_by: {job: test, tests: [tests/test_known.py]}\n"
+    )
+    project = a_project(tmp_path, registry, **{"tests/test_known.py": ""})
+    assert scanner.main(project) == 0
+    assert "gates-registry-total" not in capsys.readouterr().out
+
+
+def test_no_index_is_not_applicable(
+    tmp_path: pathlib.Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    build(tmp_path, {".github/workflows/ci.yml": PINNED}, {})
+    assert scanner.main(tmp_path) == 0
+    assert capsys.readouterr().out.startswith("NA:")
+
+
+def test_an_empty_index_enforces_nothing_and_says_so(
+    tmp_path: pathlib.Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    assert scanner.main(a_project(tmp_path, "version: 1\ngates: []\n")) == 1
+    assert "enforces nothing" in capsys.readouterr().out
+
+
+def test_an_index_missing_its_gates_key(
+    tmp_path: pathlib.Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    assert scanner.main(a_project(tmp_path, "version: 1\n")) == 1
+    assert "must have a 'gates' key" in capsys.readouterr().out
+
+
+def test_an_index_that_cannot_be_read_is_a_finding(
+    tmp_path: pathlib.Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """Unreadable is a finding, never a reason to skip and report clean."""
+    assert scanner.main(a_project(tmp_path, "gates:\n\t- id: x\n")) == 1
+    assert "could not be read" in capsys.readouterr().out
+
+
+def test_a_workflow_that_cannot_be_read_is_a_finding(
+    tmp_path: pathlib.Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    registry = (
+        "version: 1\ngates:\n  - id: a-rule\n    title: t\n    kind: job\n"
+        "    enforced_by: {job: test}\n"
+    )
+    project = a_project(tmp_path, registry)
+    (project / ".github" / "workflows" / "broken.yml").write_text(
+        "jobs:\n\tx: 1\n", encoding="utf-8"
+    )
+    assert scanner.main(project) == 1
+    assert "could not be read" in capsys.readouterr().out
+
+
+def test_a_workflow_that_is_not_a_mapping_is_a_finding(
+    tmp_path: pathlib.Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    registry = (
+        "version: 1\ngates:\n  - id: a-rule\n    title: t\n    kind: job\n"
+        "    enforced_by: {job: test}\n"
+    )
+    project = a_project(tmp_path, registry)
+    (project / ".github" / "workflows" / "list.yml").write_text("- a\n- b\n", encoding="utf-8")
+    assert scanner.main(project) == 1
+    assert "not a mapping" in capsys.readouterr().out
+
+
+def test_the_index_path_can_be_configured(
+    tmp_path: pathlib.Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    registry = (
+        "version: 1\ngates:\n  - id: a-rule\n    title: t\n    kind: job\n"
+        "    enforced_by: {job: test}\n"
+    )
+    build(
+        tmp_path,
+        {".github/workflows/ci.yml": PINNED, "docs/gates.yaml": registry},
+        {"gates_path": "docs/gates.yaml", "tests_path": "tests"},
+    )
+    assert scanner.main(tmp_path) == 0
+    assert capsys.readouterr().out == ""
+
+
+# ---------------------------------------------------------------- the reader's edges
+#
+# Found by coverage, not by imagination. Each is a shape a real file can take,
+# and a reader that mishandles one of them misreads the file *quietly* — which is
+# the whole reason this subset raises instead of guessing.
+
+
+@pytest.mark.parametrize(
+    ("text", "expected"),
+    [
+        ("a:\n  -\n    b: c\n", {"a": [{"b": "c"}]}),
+        ("a:\n  -\n", {"a": [None]}),
+        ('a: [x, "y, z"]\n', {"a": ["x", "y, z"]}),
+        ('a: {k: "v: w"}\n', {"a": {"k": "v: w"}}),
+        ("a: null\n", {"a": None}),
+        ("a: ~\n", {"a": None}),
+        ("a: true\nb: false\n", {"a": True, "b": False}),
+        ('"quoted key": v\n', {"quoted key": "v"}),
+        ("a: {k: [x]}\n", {"a": {"k": ["x"]}}),
+    ],
+    ids=[
+        "dash-then-indented-map",
+        "dash-with-nothing",
+        "quoted-item-in-flow-list",
+        "quoted-value-in-flow-map",
+        "null",
+        "tilde-null",
+        "booleans",
+        "quoted-key",
+        "nested-flow",
+    ],
+)
+def test_the_reader_handles_the_shapes_a_real_file_takes(text: str, expected: object) -> None:
+    assert scanner.load(text) == expected
+
+
+def test_an_anchor_at_the_start_of_a_line_is_loud() -> None:
+    """The value-position check misses this one, and vice versa — both are needed."""
+    with pytest.raises(scanner.SubsetError, match="anchor"):
+        scanner.load("&anchor\n")
+
+
+def test_an_unclosed_quote_inside_a_flow_is_loud() -> None:
+    with pytest.raises(scanner.SubsetError, match="unclosed quote"):
+        scanner.load('a: [x, "y]\n')
+
+
+def test_a_step_gate_that_names_a_step_that_exists_is_quiet(
+    tmp_path: pathlib.Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """The passing branch of the step check — without it, only failure is proven."""
+    registry = (
+        "version: 1\ngates:\n  - id: a-rule\n    title: t\n    kind: step\n"
+        "    enforced_by: {job: test, step: a step}\n"
+    )
+    assert scanner.main(a_project(tmp_path, registry)) == 0
+    assert capsys.readouterr().out == ""
+
+
+def test_a_flow_mapping_can_be_a_list_item() -> None:
+    """`- {id: x}` — the compact way to write a row, and the only shape that makes
+    `_split_key` count brackets. Without the counting it would split at the colon
+    *inside* the braces and read the row as a key nobody wrote."""
+    assert scanner.load("gates:\n  - {id: a-rule, kind: job}\n") == {
+        "gates": [{"id": "a-rule", "kind": "job"}]
+    }
+
+
+def test_a_flow_list_can_be_a_list_item() -> None:
+    assert scanner.load("a:\n  - [x, y]\n") == {"a": [["x", "y"]]}

@@ -3,17 +3,18 @@
   "bundle": "verifiable-gates",
   "ship": [
     "gates_doctor.py",
-    "scaffold.json.default",
-    "gates.yaml.default",
-    "ci-template.yml",
     "checks/scan_adr_index.py",
     "checks/scan_dockerfile_digest.py",
     "checks/scan_entrypoint_debug.py",
+    "checks/scan_gates_registry.py",
     "checks/scan_install_pinning.py",
     "checks/scan_service_layer.py",
     "checks/scan_templates_inline.py",
     "checks/scan_workflow_pinning.py",
-    "checks/scan_write_discipline.py"
+    "checks/scan_write_discipline.py",
+    "ci-template.yml",
+    "gates.yaml.default",
+    "scaffold.json.default"
   ],
   "gates": {
     "actions-sha-pinned": {
@@ -40,6 +41,11 @@
       "kind": "scan",
       "script": "checks/scan_write_discipline.py",
       "title": "A real delete lives only in the declared purge modules"
+    },
+    "gates-registry-total": {
+      "kind": "scan",
+      "script": "checks/scan_gates_registry.py",
+      "title": "The gate index matches reality in both directions"
     },
     "image-digest-pinned": {
       "kind": "scan",

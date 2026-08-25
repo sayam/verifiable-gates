@@ -307,7 +307,13 @@ def test_a_missing_config_is_reported_in_process(
 def test_the_summary_line_names_every_gate_that_found_something(
     installed: pathlib.Path, capsys: pytest.CaptureFixture[str]
 ) -> None:
-    """Two findings, so the count and the list are both exercised rather than implied."""
+    """Several findings, so the count and the list are exercised rather than implied.
+
+    Replacing the workflow with one that pins nothing breaks three gates, not two,
+    and the third is the interesting one: the starting registry points at the
+    `scans` job, which this just removed. A registry is an index of things that
+    exist, so deleting the thing deletes the index's claim with it.
+    """
     (installed / "run.py").write_text("app = object()\napp.run(debug=True)\n", encoding="utf-8")
     workflows = installed / ".github" / "workflows"
     workflows.mkdir(parents=True, exist_ok=True)
@@ -319,9 +325,9 @@ def test_the_summary_line_names_every_gate_that_found_something(
     manifest = str(installed / "tools" / "overlay.json")
     assert gates_doctor.main([str(installed), "--manifest", manifest]) == 1
     output = capsys.readouterr().out
-    assert "scans found problems in 2 gates" in output
-    assert "actions-sha-pinned" in output
-    assert "no-debug-entrypoint" in output
+    assert "scans found problems in 3 gates" in output
+    for gate in ("actions-sha-pinned", "no-debug-entrypoint", "gates-registry-total"):
+        assert gate in output, f"{gate} is broken by this tree but was not named"
 
 
 def test_a_clean_run_returns_zero_in_process(
@@ -340,3 +346,33 @@ def test_a_clean_run_returns_zero_in_process(
     output = capsys.readouterr().out
     assert "[found]" not in output
     assert "waiting on this project's own tests" in output
+
+
+def test_a_fresh_install_starts_with_a_registry_that_is_already_true(
+    tmp_path: pathlib.Path, bundle_copy: pathlib.Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """Opening the box gives a real index, not an instruction to go and make one.
+
+    Most rules in this bundle end with "register it in your gates.yaml". If the
+    box does not contain that file, already true about itself, the instruction is
+    prose. So the shipped registry has to pass the shipped registry scanner on a
+    project that has done nothing yet — **and not be skipped as N/A**, which would
+    let an absent file look like a satisfied one.
+    """
+    project = tmp_path / "project"
+    assert do_install(project, bundle_copy) == 0
+    capsys.readouterr()
+    assert (project / "gates.yaml").is_file(), "installed, but with no gate index"
+
+    scanner = project / "tools" / "checks" / "scan_gates_registry.py"
+    done = subprocess.run(  # noqa: S603 — argv is built here, interpreter is sys.executable
+        [sys.executable, str(scanner), str(project)],
+        capture_output=True,
+        text=True,
+        check=False,
+        timeout=300,
+    )
+    assert done.returncode == 0, f"the starting registry fails its own check:\n{done.stdout}"
+    assert "NA" not in done.stdout, (
+        f"the starting registry was skipped, not checked:\n{done.stdout}"
+    )

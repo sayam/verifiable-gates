@@ -107,6 +107,8 @@ DIRTY_TREE = {
     "app/templates/x.html": '<button onclick="go()">go</button>\n',
     "app/routes.py": "db.session.delete(row)\n",
     "docs/adr/0001-a.md": "# 0001\n",
+    # An index that enforces nothing, next to a job that no gate claims.
+    "gates.yaml": "version: 1\ngates: []\n",
 }
 CONFIG = {
     "src_path": "app",
