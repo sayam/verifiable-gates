@@ -58,21 +58,6 @@ rules:
     job: test
     tests:
     - tests/test_gate_evidence.py
-- id: skill-mirrors-portable-gates
-  layer: baseline
-  pillar: devx
-  title: The exported rule sheet is a shadow of the portable gates — generated, never written alongside
-  title_th: SKILL.md ที่ export เป็นเงาของ portable gate — generate ห้ามเขียนคู่ขนาน
-  born_from: A hand-written skill document becomes a third register that drifts from the index the
-    moment anyone edits one side — and a layer that claims to be universal needs a machine to stop
-    framework names leaking into it.
-  born_from_th: เอกสาร skill ที่เขียนมือจะกลายเป็นทะเบียนที่สามที่ drift จากดัชนี — และชั้นที่ประกาศว่าสากลต้องมีเครื่องกันชื่อ
-    framework รั่วเข้ามา
-  reference:
-    kind: test
-    job: test
-    tests:
-    - tests/test_skill.py
 - id: logic-knows-no-http
   layer: baseline
   pillar: manageability

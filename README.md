@@ -30,7 +30,7 @@ about the ones it cannot enforce.
 
 ## What is here today
 
-**[`rules.yaml`](rules.yaml) — 93 rules, each carrying the incident that produced
+**[`rules.yaml`](rules.yaml) — 92 rules, each carrying the incident that produced
 it.** They are rendered into two sheets an agent can be handed:
 [`SKILL.md`](SKILL.md), the baseline layer, where deviating is a defect; and
 [`SKILL-BUSINESS.md`](SKILL-BUSINESS.md), agreements an application of a given
@@ -83,7 +83,7 @@ inside an organisation's internal handbook must not require share-alike.
 [`flask-todolist`](https://github.com/sayam/flask-todolist) และทยอยย้ายมาตาม
 ADR 0075 ข้อ 6 ที่นั่น · **ยังอย่าเพิ่งพึ่งแพ็กเกจนี้**
 
-วันนี้มี **คลังกฎ 93 ข้อ** (`rules.yaml`) ที่แต่ละข้อพกกับดักจริงที่ให้กำเนิดมันมาด้วย
+วันนี้มี **คลังกฎ 92 ข้อ** (`rules.yaml`) ที่แต่ละข้อพกกับดักจริงที่ให้กำเนิดมันมาด้วย
 · ตัวตรวจ stdlib ล้วนเก้าตัว · ตัวติดตั้งกับ doctor · preflight · ตัวเรนเดอร์แผ่นกฎ
 · และ harness ของ fail-fix loop
 

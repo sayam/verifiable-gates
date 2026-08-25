@@ -6,6 +6,18 @@ Notable changes to this project. The format follows
 
 ## [Unreleased]
 
+### Removed
+
+- **`skill-mirrors-portable-gates` is no longer published.** It said an exported
+  rule sheet must be generated rather than written alongside — true, and nobody
+  enforces it any more. The reference implementation stopped rendering a sheet
+  when the rules moved here, so the catalogue was publishing a rule with no
+  enforcement behind it, which is what the reference implementation's two-way
+  agreement check caught on its first run. The idea is not lost: this repository
+  holds itself to it through `the-sheets-match-the-catalogue`. It can return to
+  the catalogue the day a project renders a sheet of its own and can cite real
+  enforcement for it.
+
 ### Fixed
 
 - **A scanner no longer crashes on a project that configured nothing.** Six of the
