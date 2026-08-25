@@ -14,6 +14,7 @@ person who loses is the one who is not in the room.
 from __future__ import annotations
 
 import pathlib
+import subprocess
 
 import pytest
 
@@ -174,3 +175,87 @@ def test_the_shipped_file_is_the_one_being_tested() -> None:
     """A guard on the guard: tests against a stale copy prove nothing about what ships."""
     source = pathlib.Path(handoff.__file__).read_text(encoding="utf-8")
     assert 'LABEL = "good first issue"' in source
+
+
+# ------------------------------------------------------- talking to the platform
+
+
+def fake_gh(monkeypatch: pytest.MonkeyPatch, payloads: dict[str, str]) -> list[list[str]]:
+    """Stand in for `gh`, recording the argv it was handed.
+
+    The argv matters as much as the answer: this gate's whole claim is that it
+    reads what the platform *will do on merge*, and that claim is carried by the
+    exact `--json` field it asks for. A fake that only returns data would let the
+    field be renamed to something GitHub does not act on, silently.
+    """
+    seen: list[list[str]] = []
+
+    def run(*args: str) -> str:
+        seen.append(list(args))
+        for key, payload in payloads.items():
+            if key in args:
+                return payload
+        raise AssertionError(f"unexpected gh call: {args}")
+
+    monkeypatch.setattr(handoff, "_gh", run)
+    return seen
+
+
+def test_closing_issues_asks_for_what_the_platform_acts_on(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    payload = '{"closingIssuesReferences": [{"number": 171, "title": "add a thing"}]}'
+    seen = fake_gh(monkeypatch, {"closingIssuesReferences": payload})
+
+    found = handoff.closing_issues("9")
+
+    assert found == [{"number": 171, "title": "add a thing"}]
+    assert seen == [["pr", "view", "9", "--json", "closingIssuesReferences"]], (
+        "asked GitHub something other than what it acts on at merge"
+    )
+
+
+def test_a_pull_request_closing_nothing_comes_back_empty(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    fake_gh(monkeypatch, {"closingIssuesReferences": '{"closingIssuesReferences": []}'})
+
+    assert handoff.closing_issues("9") == []
+
+
+def test_labels_are_read_by_name(monkeypatch: pytest.MonkeyPatch) -> None:
+    payload = '{"labels": [{"name": "good first issue"}, {"name": "docs"}]}'
+    seen = fake_gh(monkeypatch, {"labels": payload})
+
+    assert handoff.labels_of(171) == {"good first issue", "docs"}
+    assert seen == [["issue", "view", "171", "--json", "labels"]]
+
+
+def test_an_issue_with_no_labels_comes_back_empty(monkeypatch: pytest.MonkeyPatch) -> None:
+    fake_gh(monkeypatch, {"labels": '{"labels": []}'})
+
+    assert handoff.labels_of(171) == set()
+
+
+def test_the_command_declares_a_time_budget(monkeypatch: pytest.MonkeyPatch) -> None:
+    """A `gh` that never answers would eat the whole job and be blamed on the job.
+
+    This drives the real `_gh`, so the argv, the flags and the timeout are the
+    ones that ship — not a description of them.
+    """
+    captured: dict[str, object] = {}
+
+    class Done:
+        stdout = "{}"
+
+    def fake_run(argv: list[str], **kwargs: object) -> Done:
+        captured["argv"] = argv
+        captured.update(kwargs)
+        return Done()
+
+    monkeypatch.setattr(subprocess, "run", fake_run)
+
+    assert handoff._gh("pr", "view", "9") == "{}"  # noqa: SLF001 — the point is the shipped call
+    assert captured["argv"] == ["gh", "pr", "view", "9"]
+    assert captured["timeout"] == handoff.TOOL_TIMEOUT_SECONDS
+    assert captured["check"] is True, "a gh failure must raise, not be read as an empty answer"
