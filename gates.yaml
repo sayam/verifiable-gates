@@ -122,3 +122,57 @@ gates:
           the exemption now needs both halves, with a test for each: `--no-deps`
           on its own still reaches the index, and `-e .` on its own drags the
           whole dependency tree in unpinned.
+
+  - id: a-bundle-installs-and-answers
+    title: A fresh install gives a project something that runs, and never overwrites its decisions
+    kind: test
+    severity: blocking
+    enforced_by: {job: test, tests: [tests/test_install_and_doctor.py]}
+    layer: internal
+    pillar: manageability
+    portable: false
+    born_from: >-
+      Testing the installer and the doctor apart leaves the only claim that
+      matters proven by nobody: that they fit together in a directory where no
+      package is present. The second property is the one that decays quietly —
+      scaffold.json, gates.yaml and the workflow hold decisions somebody made, and
+      an install that clobbered them would destroy exactly the work the bundle
+      exists to protect while its output still read as success.
+    proved_by:
+      - kind: mutation
+        ref: pr/5
+        date: 2026-08-25
+        caught: >-
+          Red on all of it — overwriting the files that carry decisions, letting an
+          incomplete bundle install anyway, reporting NA as pass, and dropping the
+          count of suite gates still waiting. Coverage then found two branches no
+          test reached: a scan that exists but does not compile, and the clean run
+          returning 0, which had only ever been exercised through a subprocess
+          where a wrong exit code is easy to lose among captured output.
+
+  - id: the-manifest-is-an-input
+    title: The manifest is validated as data, and a rule the bundle cannot decide cannot carry a script
+    kind: test
+    severity: blocking
+    enforced_by: {job: test, tests: [tests/test_manifest.py]}
+    layer: internal
+    pillar: devx
+    portable: false
+    born_from: >-
+      The reference implementation's doctor read overlay.json from the directory
+      beside it, which is right while one tool serves one registry and wrong the
+      moment the tool is a package several projects install. Passing the path in is
+      the seam that lets one doctor answer for many catalogues. The subtle rule the
+      schema enforces is that a gate of kind suite may not carry a script: a suite
+      gate is by definition one this bundle cannot decide, and a script would let it
+      run, pass, and be counted — turning "the project still has to write this test"
+      into "checked".
+    proved_by:
+      - kind: mutation
+        ref: pr/5
+        date: 2026-08-25
+        caught: >-
+          Counting suite entries as scans, and allowing a suite entry to carry a
+          script, both went red. Every schema rule has a case that breaks it alone,
+          because a validator that only ever sees valid input is one nobody has
+          watched work.

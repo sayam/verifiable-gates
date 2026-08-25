@@ -24,8 +24,13 @@ import sys
 
 import pytest
 
-CHECKS = pathlib.Path(__file__).resolve().parent.parent / "src" / "verifiable_gates" / "checks"
+PACKAGE = pathlib.Path(__file__).resolve().parent.parent / "src" / "verifiable_gates"
+CHECKS = PACKAGE / "checks"
 SCANNERS = sorted(p for p in CHECKS.glob("scan_*.py"))
+# The doctor is shipped into `tools/` next to the scans and runs there, so it is
+# under the same constraint. It is listed separately because it takes flags
+# rather than a bare root, which the argv checks below cannot assume.
+SHIPPED_PYTHON = [*SCANNERS, PACKAGE / "gates_doctor.py"]
 # Third-party imports would need installing; a relative import needs the package.
 ALLOWED = frozenset(sys.stdlib_module_names)
 
@@ -39,8 +44,8 @@ def test_there_are_scanners_to_check() -> None:
     assert SCANNERS, f"no scan_*.py found under {CHECKS} — the checks below would prove nothing"
 
 
-@pytest.mark.parametrize("path", SCANNERS, ids=scanner_ids())
-def test_a_scanner_imports_stdlib_only(path: pathlib.Path) -> None:
+@pytest.mark.parametrize("path", SHIPPED_PYTHON, ids=lambda p: p.name)
+def test_a_shipped_file_imports_stdlib_only(path: pathlib.Path) -> None:
     tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
     outside = []
     for node in ast.walk(tree):

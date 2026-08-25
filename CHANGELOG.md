@@ -8,6 +8,24 @@ Notable changes to this project. The format follows
 
 ### Added
 
+- **The machinery arrived (extraction stage 2c)** — `gates_doctor.py`,
+  `install.py`, a manifest module, and the three files a project starts from
+  (`scaffold.json.default`, `gates.yaml.default`, `ci-template.yml`). Installing
+  into an empty directory and running the doctor there is now covered end to end,
+  including the parts that decay quietly: a second install keeps the files that
+  hold decisions, an incomplete bundle refuses to install, and a scan that exists
+  but does not compile is an incomplete install rather than a finding.
+
+### Changed
+
+- **The manifest is an input, not a constant.** The reference implementation's
+  doctor read `overlay.json` from the directory beside it — right while one tool
+  serves one registry, wrong the moment the tool is a package several projects
+  install. `--manifest` is the seam that lets one doctor answer for many
+  catalogues.
+- **`NA` and `pass` are reported separately**, and gates of kind `suite` are
+  counted as waiting rather than folded into the pass count. A rule the bundle
+  cannot decide must not look like one it decided.
 - **The nine scanners landed (extraction stage 2b)** — ADR index, base-image
   digest, debug entrypoint, CI tool pinning, service-layer isolation, inline
   handlers in templates, delete discipline, and action SHA pinning. Each is a

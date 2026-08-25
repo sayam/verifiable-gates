@@ -1,0 +1,24 @@
+# The starting workflow for a project that installs this bundle. `install.py`
+# writes it to .github/workflows/gates.yml and never overwrites it after that.
+#
+# This is a *starting point, not a ceiling*: the gates of kind `suite` in
+# tools/overlay.json need tests the project writes itself, and they are reported
+# as pending on every run until it does.
+name: gates
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  # Runs every gate of kind `scan` in tools/overlay.json, under a bare python3.
+  scans:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      # Pinned by SHA, per this bundle's own actions-sha-pinned rule (v7.0.1)
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - run: python3 tools/gates_doctor.py

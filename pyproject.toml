@@ -28,6 +28,12 @@ Source = "https://github.com/sayam/verifiable-gates"
 [tool.setuptools.packages.find]
 where = ["src"]
 
+# The bundle travels with the package: a manifest, the defaults it installs, and
+# the starting workflow. Without this they are absent from a built wheel and
+# `install.py` fails only for people who installed rather than cloned.
+[tool.setuptools.package-data]
+verifiable_gates = ["overlay.json", "*.default", "ci-template.yml"]
+
 # ---------------------------------------------------------------- ruff
 [tool.ruff]
 line-length = 100
@@ -60,6 +66,11 @@ ignore = [
     "T201",     # print IS the output channel; there is no logger in a copied file
     "PLR2004",  # `len(sys.argv) != 2` — the argument count is the CLI contract
 ]
+# The doctor and the installer are command-line tools whose whole job is to
+# report to a person reading CI output. Same reason as above, same honesty about
+# it being a directory-level decision rather than 30 per-line suppressions.
+"src/verifiable_gates/gates_doctor.py" = ["T201"]
+"src/verifiable_gates/install.py" = ["T201"]
 "tests/**" = [
     "INP001",   # tests are not a package; pytest finds them via pythonpath
     "S101",     # assert is the whole point of pytest

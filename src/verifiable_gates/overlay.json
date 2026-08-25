@@ -1,0 +1,60 @@
+{
+  "_comment": "What this bundle ships and which gates it can decide by itself. kind 'scan' means a script here answers it; kind 'suite' means the bundle names the rule but the project has to write its own test — those are reported as pending, never as passed. The catalogue of suite rules arrives at the registry handover; see the extraction stages in README.md.",
+  "bundle": "verifiable-gates",
+  "ship": [
+    "gates_doctor.py",
+    "scaffold.json.default",
+    "gates.yaml.default",
+    "ci-template.yml",
+    "checks/scan_adr_index.py",
+    "checks/scan_dockerfile_digest.py",
+    "checks/scan_entrypoint_debug.py",
+    "checks/scan_install_pinning.py",
+    "checks/scan_service_layer.py",
+    "checks/scan_templates_inline.py",
+    "checks/scan_workflow_pinning.py",
+    "checks/scan_write_discipline.py"
+  ],
+  "gates": {
+    "actions-sha-pinned": {
+      "kind": "scan",
+      "script": "checks/scan_workflow_pinning.py",
+      "title": "Every action in a workflow is pinned to a commit SHA"
+    },
+    "adr-index-complete": {
+      "kind": "scan",
+      "script": "checks/scan_adr_index.py",
+      "title": "The ADR index covers every record, numbered without gaps"
+    },
+    "ci-tools-hash-pinned": {
+      "kind": "scan",
+      "script": "checks/scan_install_pinning.py",
+      "title": "Tools CI installs for itself are pinned by hash"
+    },
+    "csp-no-inline": {
+      "kind": "scan",
+      "script": "checks/scan_templates_inline.py",
+      "title": "Templates carry no inline handler, style, or script"
+    },
+    "delete-means-soft-delete": {
+      "kind": "scan",
+      "script": "checks/scan_write_discipline.py",
+      "title": "A real delete lives only in the declared purge modules"
+    },
+    "image-digest-pinned": {
+      "kind": "scan",
+      "script": "checks/scan_dockerfile_digest.py",
+      "title": "A base image is pinned by digest, not only by tag"
+    },
+    "logic-knows-no-http": {
+      "kind": "scan",
+      "script": "checks/scan_service_layer.py",
+      "title": "The service layer imports nothing from the request side"
+    },
+    "no-debug-entrypoint": {
+      "kind": "scan",
+      "script": "checks/scan_entrypoint_debug.py",
+      "title": "An entrypoint cannot open a debug console, even run wrongly"
+    }
+  }
+}

@@ -1,0 +1,71 @@
+# This project's gate registry — the starting point that came with the bundle.
+# `install.py` writes it once and never overwrites it, because from here on it
+# holds your decisions.
+#
+# **This file is an index, not a source.** What actually enforces anything are
+# the tests and CI jobs it points at. `tools/checks/scan_gates_registry.py`
+# holds the index to reality in both directions:
+#
+#   - every gate points at a job, step, or test file that exists
+#   - every job in the workflows has a gate, and every test file is claimed by
+#     exactly one gate — a partition, so anything new and unclaimed has to speak
+#
+# Add a job, add a gate here. Add a test file, register it here. Forget either
+# and the check says what is missing: an index nobody holds to reality is an
+# index that lies quietly.
+#
+# `kind:` has three values — `job` (the whole job is the gate), `step` (name the
+# step exactly), and `test` (list files that exist).
+#
+# The rows below are the gates the bundle brought with it, run by the `scans`
+# job on every push. The rest of the catalogue is kind `suite`: rules the bundle
+# names but cannot decide. Write the test, then add a row here:
+#
+#   - id: <the rule id from tools/overlay.json>
+#     title: <what it holds you to>
+#     kind: test
+#     severity: blocking
+#     enforced_by: {job: test, tests: [tests/test_xxx.py]}
+
+version: 1
+gates:
+  - id: actions-sha-pinned
+    title: Every action in a workflow is pinned to a commit SHA
+    kind: step
+    severity: blocking
+    enforced_by: {job: scans, step: actions-sha-pinned}
+  - id: adr-index-complete
+    title: The ADR index covers every record, numbered without gaps
+    kind: step
+    severity: blocking
+    enforced_by: {job: scans, step: adr-index-complete}
+  - id: ci-tools-hash-pinned
+    title: Tools CI installs for itself are pinned by hash
+    kind: step
+    severity: blocking
+    enforced_by: {job: scans, step: ci-tools-hash-pinned}
+  - id: csp-no-inline
+    title: Templates carry no inline handler, style, or script
+    kind: step
+    severity: blocking
+    enforced_by: {job: scans, step: csp-no-inline}
+  - id: delete-means-soft-delete
+    title: A real delete lives only in the declared purge modules
+    kind: step
+    severity: blocking
+    enforced_by: {job: scans, step: delete-means-soft-delete}
+  - id: image-digest-pinned
+    title: A base image is pinned by digest, not only by tag
+    kind: step
+    severity: blocking
+    enforced_by: {job: scans, step: image-digest-pinned}
+  - id: logic-knows-no-http
+    title: The service layer imports nothing from the request side
+    kind: step
+    severity: blocking
+    enforced_by: {job: scans, step: logic-knows-no-http}
+  - id: no-debug-entrypoint
+    title: An entrypoint cannot open a debug console, even run wrongly
+    kind: step
+    severity: blocking
+    enforced_by: {job: scans, step: no-debug-entrypoint}
