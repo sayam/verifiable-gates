@@ -231,3 +231,56 @@ gates:
           have, so a project that installed the bundle and changed nothing would
           have failed its own registry check immediately. The defaults were wrong
           together and only disagreed once something ran both.
+
+  - id: a-shipped-file-declares-what-it-needs
+    title: Shipped files are stdlib-only, or declare their dependency in the manifest — both ways
+    kind: test
+    severity: blocking
+    enforced_by: {job: test, tests: [tests/test_checks_are_standalone.py]}
+    layer: internal
+    pillar: manageability
+    portable: false
+    born_from: >-
+      The scans and the doctor run on a bare CI runner, so they may import nothing
+      but the standard library. preflight is the exception: it reads whole workflow
+      files, which the narrow subset reader in the scans cannot do, and it runs on
+      a developer's machine rather than a runner. The reference implementation
+      shipped it with that dependency undeclared, which means a target project
+      learns the requirement from a traceback in its own CI. The rule here is not
+      "no dependencies" but "no silent ones", and it is checked in both
+      directions: an undeclared import is a surprise for someone else, and a
+      declaration nothing imports is a requirement every project carries forever
+      for a reason that expired.
+    proved_by:
+      - kind: mutation
+        ref: pr/7
+        date: 2026-08-25
+        caught: >-
+          The list of Python files to check is derived from the manifest, so a new
+          shipped file that joins neither tier fails rather than being skipped.
+
+  - id: preflight-loses-no-step
+    title: Every workflow step reaches the plan exactly once, run or skipped with a reason
+    kind: test
+    severity: blocking
+    enforced_by: {job: test, tests: [tests/test_preflight.py]}
+    layer: internal
+    pillar: devx
+    portable: false
+    born_from: >-
+      The value of reading commands out of the workflow is that no second copy
+      exists to drift. That holds only while every step ends up in the plan: one
+      dropped silently gives the same false confidence as a harness reporting green
+      while the tests are red. A step's env travels with it for the same reason —
+      running the same command in a different environment answers a different
+      question from the one CI asked, which is how a coverage step once overwrote
+      the wrong file on a developer's machine.
+    proved_by:
+      - kind: mutation
+        ref: pr/7
+        date: 2026-08-25
+        caught: >-
+          Six mutations red: dropping an unrunnable step instead of skipping it
+          aloud, discarding a step's env, letting the config beat --only, reading
+          jobs from one workflow file instead of all, hiding an uninstalled hook,
+          and returning 0 after a step failed.

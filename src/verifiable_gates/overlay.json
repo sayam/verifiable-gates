@@ -3,6 +3,7 @@
   "bundle": "verifiable-gates",
   "ship": [
     "gates_doctor.py",
+    "preflight.py",
     "checks/scan_adr_index.py",
     "checks/scan_dockerfile_digest.py",
     "checks/scan_entrypoint_debug.py",
@@ -62,5 +63,11 @@
       "script": "checks/scan_entrypoint_debug.py",
       "title": "An entrypoint cannot open a debug console, even run wrongly"
     }
-  }
+  },
+  "requires": {
+    "preflight.py": [
+      "pyyaml"
+    ]
+  },
+  "_requires_why": "Shipped files are stdlib-only so they run in a project that has installed nothing. preflight.py is the exception: it reads whole workflow files, which the narrow subset reader in the scans cannot do, and it runs on a developer's machine rather than a bare CI runner. The dependency is declared here so a target project learns it from the bundle instead of from a traceback, and a test holds this list to what the files actually import."
 }

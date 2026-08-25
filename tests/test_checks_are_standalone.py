@@ -31,6 +31,9 @@ SCANNERS = sorted(p for p in CHECKS.glob("scan_*.py"))
 # under the same constraint. It is listed separately because it takes flags
 # rather than a bare root, which the argv checks below cannot assume.
 SHIPPED_PYTHON = [*SCANNERS, PACKAGE / "gates_doctor.py"]
+# Every Python file the bundle installs. `preflight.py` is here but not above:
+# it is allowed a declared dependency (see the requires test), the others are not.
+SHIPPED_ALL = [*SHIPPED_PYTHON, PACKAGE / "preflight.py"]
 # Third-party imports would need installing; a relative import needs the package.
 ALLOWED = frozenset(sys.stdlib_module_names)
 
@@ -168,3 +171,75 @@ def test_a_copied_scanner_refuses_to_guess_its_argument(
 
     assert _run(copied).returncode == 2, "no argument should be a misuse, not a clean run"
     assert _run(copied, "a", "b").returncode == 2, "too many arguments should be a misuse"
+
+
+# ---------------------------------------------------------------- declared dependencies
+
+
+def _outside_stdlib(path: pathlib.Path) -> set[str]:
+    tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
+    found: set[str] = set()
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Import):
+            found |= {a.name.split(".")[0] for a in node.names}
+        elif isinstance(node, ast.ImportFrom) and not node.level:
+            found.add((node.module or "").split(".")[0])
+    return {name for name in found if name and name not in ALLOWED}
+
+
+# A shipped file's imports must be stdlib, or named here. The mapping lives in the
+# manifest so a target project learns the requirement from the bundle rather than
+# from a traceback in its own CI.
+IMPORT_TO_DISTRIBUTION = {"yaml": "pyyaml"}
+
+
+def _declared() -> dict[str, list[str]]:
+    manifest = json.loads((PACKAGE / "overlay.json").read_text(encoding="utf-8"))
+    requires: dict[str, list[str]] = manifest.get("requires", {})
+    return requires
+
+
+@pytest.mark.parametrize("path", SHIPPED_ALL, ids=lambda p: p.name)
+def test_a_shipped_file_declares_anything_it_needs(path: pathlib.Path) -> None:
+    """Undeclared dependencies fail in someone else's project, where nobody here can see it.
+
+    The rule is not "no dependencies" — it is "no *silent* ones". A file that needs
+    something says so in the manifest, and this holds the declaration to what the
+    file actually imports, in **both** directions: an import nobody declared is a
+    surprise for a target project, and a declaration nothing imports is a
+    requirement that outlived its reason and will be copied forward forever.
+    """
+    name = path.relative_to(PACKAGE).as_posix()
+    needed = {IMPORT_TO_DISTRIBUTION.get(module, module) for module in _outside_stdlib(path)}
+    declared = set(_declared().get(name, []))
+
+    assert needed <= declared, (
+        f"{name} imports {sorted(needed - declared)} without declaring it in overlay.json "
+        "under 'requires' — a target project would find out from a traceback"
+    )
+    assert declared <= needed, (
+        f"{name} declares {sorted(declared - needed)} but does not import it — "
+        "a requirement nobody needs is one every project carries for no reason"
+    )
+
+
+def test_only_the_files_that_ship_are_listed_as_requiring_anything() -> None:
+    """A `requires` entry for a file nobody installs points at nothing."""
+    manifest = json.loads((PACKAGE / "overlay.json").read_text(encoding="utf-8"))
+    shipped = set(manifest["ship"])
+    listed = set(_declared())
+    assert listed <= shipped, (
+        f"requires names files the bundle does not ship: {sorted(listed - shipped)}"
+    )
+
+
+def test_everything_the_bundle_ships_that_is_python_is_checked_here() -> None:
+    """A guard on the guard: a new shipped file must join one of the two lists above."""
+    manifest = json.loads((PACKAGE / "overlay.json").read_text(encoding="utf-8"))
+    shipped_python = {name for name in manifest["ship"] if name.endswith(".py")}
+    checked = {path.relative_to(PACKAGE).as_posix() for path in SHIPPED_ALL}
+    assert shipped_python == checked, (
+        "the bundle ships Python this file does not check: "
+        f"{sorted(shipped_python - checked)} (and checks what it does not ship: "
+        f"{sorted(checked - shipped_python)})"
+    )

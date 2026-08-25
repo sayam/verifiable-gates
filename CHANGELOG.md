@@ -8,6 +8,19 @@ Notable changes to this project. The format follows
 
 ### Added
 
+- **preflight arrived, and the bundle now declares what its files need
+  (extraction stage 2d, part two).** preflight walks the CI gates locally by
+  reading the commands out of the workflow, so no second copy of them exists to
+  drift. Every step reaches the plan exactly once — run, or skipped with its
+  reason printed.
+- **A shipped file is stdlib-only, or says what it needs.** The scans and the
+  doctor run on a bare runner and may import nothing else; preflight needs a YAML
+  reader for whole workflows and runs on a developer's machine, so its dependency
+  is declared in the manifest under `requires`. A test holds that declaration to
+  what the files actually import, in **both** directions — an undeclared import
+  surprises someone else's project, and a declaration nothing imports is a
+  requirement carried forever for a reason that expired. The reference
+  implementation shipped this file with the dependency undeclared.
 - **The registry scanner arrived (extraction stage 2d)** — the gate that holds a
   project's index to reality in four directions, and the hand-written YAML reader
   underneath it. The reader is the riskiest code in the bundle: it cannot use

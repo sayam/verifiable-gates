@@ -70,6 +70,7 @@ ignore = [
 # report to a person reading CI output. Same reason as above, same honesty about
 # it being a directory-level decision rather than 30 per-line suppressions.
 "src/verifiable_gates/gates_doctor.py" = ["T201"]
+"src/verifiable_gates/preflight.py" = ["T201"]
 "src/verifiable_gates/install.py" = ["T201"]
 "tests/**" = [
     "INP001",   # tests are not a package; pytest finds them via pythonpath
