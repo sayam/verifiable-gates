@@ -8,6 +8,17 @@ Notable changes to this project. The format follows
 
 ### Added
 
+- **This repository is now in English, and a test says so.** Comments,
+  docstrings, commit messages, and anything the tools print — with `README.md`
+  and `CLA.md` kept bilingual, English first and Thai below, because a document
+  that binds someone has to be understood by the person bound. Any future licence
+  or notice follows the same shape.
+  `tests/test_language_policy.py` checks both directions: Thai outside the
+  allowlist fails, and so does an allowlisted file with no Thai left in it — an
+  exception that no longer excuses anything is a hole with a label on it.
+- **The registry has its first row**, `english-except-where-it-binds`, which is
+  also the first time the promise in `gates.yaml` holds in practice: the row
+  arrived with the thing that enforces it, not before.
 - **`main` only accepts pull requests, and that now includes the owner.** Branch
   protection matches the reference implementation's posture: the three CI jobs
   are required, admins are not exempt, history stays linear, force-pushes and

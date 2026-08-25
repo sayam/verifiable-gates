@@ -1,8 +1,9 @@
-"""verifiable-gates — ทะเบียน gate ที่ถูกบังคับให้ตรงกับความจริงสองทิศ
+"""verifiable-gates — a gate registry that is enforced two ways against reality.
 
-แกน governance ที่ถอดมาจาก reference implementation (`sayam/flask-todolist`)
-ตาม ADR 0075 ข้อ 6 ของที่นั่น · **ขั้น 1: มีแค่ schema ของทะเบียน** — ตัวบังคับ
-(checks · doctor · preflight) ย้ายเข้ามาในขั้น 2 และตัวตรวจ governance ในขั้น 3
+The governance core extracted from the reference implementation
+(`sayam/flask-todolist`) under its ADR 0075 §6. **Stage 1 shipped the registry
+schema only** — the enforcers (checks, doctor, preflight) arrive in stage 2 and
+the governance checkers in stage 3.
 """
 
 from __future__ import annotations

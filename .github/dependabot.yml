@@ -1,5 +1,5 @@
-# **pin โดยไม่มีใครขยับ = แช่ช่องโหว่ไว้** — ทุกที่ที่ตรึงของไว้ ต้องมีคนคอยขยับ
-# (กติกาเดียวกับ `pins/README.md` ของ reference implementation)
+# **A pin nobody moves is a vulnerability kept on ice.** Everything pinned needs
+# someone moving it — the same rule as the reference implementation's pins/README.md
 version: 2
 updates:
   - package-ecosystem: "pip"

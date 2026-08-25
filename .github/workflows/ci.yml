@@ -1,9 +1,11 @@
-# CI ของ repo นี้เอง — ทุก job ประกาศเพดานเวลาของตัวเอง (กติกาเดียวกับ ADR 0067
-# ของ reference implementation: "ค้าง" กับ "ช้า" เป็นคนละอาการ)
+# This repository's own CI. Every job declares its own time budget — the same
+# rule as the reference implementation's ADR 0067: "hung" and "slow" are
+# different symptoms and must not look alike.
 #
-# **ยังไม่มี job `dogfood`** — ตัวที่จะรัน doctor ใส่ repo นี้เองย้ายเข้ามาในขั้น 2
-# พร้อม `checks/` · job ที่มีชื่อว่า dogfood แต่ยังไม่มีอะไรให้รัน คือ job เขียวเปล่า ๆ
-# ซึ่งเป็นสิ่งที่งานทั้งใบนี้พยายามเลิกทำ
+# **There is deliberately no `dogfood` job.** The thing that would run the doctor
+# against this repository moves in at stage 2 along with `checks/`. A job named
+# after a check it cannot run yet is a job that is green for no reason, which is
+# the exact habit this project exists to break.
 
 name: CI
 
@@ -24,7 +26,7 @@ jobs:
       - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97
         with:
           python-version: "3.13"
-      - name: ติดตั้งเครื่องมือที่ตรึงด้วย hash
+      - name: install the hash-pinned tools
         run: pip install --require-hashes -r pins/dev/requirements.txt
       - run: ruff check .
       - run: ruff format --check .
@@ -38,11 +40,11 @@ jobs:
       - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97
         with:
           python-version: "3.13"
-      - name: ติดตั้งเครื่องมือที่ตรึงด้วย hash
+      - name: install the hash-pinned tools
         run: pip install --require-hashes -r pins/dev/requirements.txt
-      - name: ติดตั้งแพ็กเกจเอง (ไม่มี dependency ให้ resolve นอกจาก pyyaml ที่ pin แล้ว)
+      - name: install this package (no dependency to resolve beyond the pinned pyyaml)
         run: pip install --no-deps -e .
-      - name: pytest — พื้น coverage อยู่ใน pyproject (fail_under)
+      - name: pytest — the coverage floor lives in pyproject (fail_under)
         run: pytest -q --cov
 
   commit-lint:
@@ -52,11 +54,12 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
           fetch-depth: 0
-      # **ตัวตรวจชั่วคราว** — `lint_commits.py` ของ reference implementation ย้ายเข้ามา
-      # ในขั้น 3 แล้วจะมาแทนบล็อกนี้ · เขียนไว้ตรงนี้แทนที่จะสร้างไฟล์ที่รู้อยู่แล้วว่า
-      # จะถูกลบ · เทียบกับ head ของ PR ไม่ใช่ HEAD (HEAD คือ merge commit ที่ GitHub
-      # สร้างให้ ซึ่งข้อความไม่ผ่าน Conventional Commits ทุกใบทั้งที่ไม่ใช่ของใคร)
-      - name: Conventional Commits + DCO ของ commit ที่เพิ่มเข้ามาจริง
+      # **A stand-in.** The reference implementation's `lint_commits.py` moves here
+      # in stage 3 and will replace this block, so writing it inline beats creating
+      # a file already known to be deleted. Compare against the PR head, not HEAD:
+      # on `pull_request` events HEAD is the merge commit GitHub synthesises, whose
+      # subject fails Conventional Commits every time and belongs to nobody.
+      - name: Conventional Commits + DCO on the commits this PR actually adds
         run: |
           set -euo pipefail
           if [ "${{ github.event_name }}" = "pull_request" ]; then
@@ -71,13 +74,13 @@ jobs:
             body=$(git show -s --format=%B "$sha")
             case "$subject" in
               feat*|fix*|docs*|test*|chore*|refactor*|perf*|build*|ci*|style*|revert*) ;;
-              *) echo "FAIL ${sha:0:9}: หัวไม่ใช่ Conventional Commits — $subject"; status=1 ;;
+              *) echo "FAIL ${sha:0:9}: subject is not a Conventional Commit — $subject"; status=1 ;;
             esac
             if [ "${#subject}" -gt 72 ]; then
-              echo "FAIL ${sha:0:9}: หัวยาว ${#subject} ตัว (เกิน 72)"; status=1
+              echo "FAIL ${sha:0:9}: subject is ${#subject} characters (over 72)"; status=1
             fi
             if ! printf '%s' "$body" | grep -q '^Signed-off-by: .* <.*@.*>$'; then
-              echo "FAIL ${sha:0:9}: ไม่มีบรรทัด Signed-off-by — เซ็นด้วย git commit -s"; status=1
+              echo "FAIL ${sha:0:9}: no Signed-off-by line — sign with git commit -s"; status=1
             fi
           done
           exit $status

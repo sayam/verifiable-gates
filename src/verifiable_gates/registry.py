@@ -1,22 +1,28 @@
-"""schema ของทะเบียน gate — สิ่งเดียวที่ทุกขั้นถัดไปต้องพึ่ง
+"""The gate-registry schema — the one thing every later stage depends on.
 
-ทะเบียนคือ *ดัชนี* ไม่ใช่ *แหล่ง* — ตัวบังคับจริงคือเทสต์กับ job ใน CI · หน้าที่ของ
-โมดูลนี้จึงมีข้อเดียว: **ตอบว่าไฟล์ทะเบียนมีรูปที่เครื่องอ่านได้ไหม** ส่วนคำถามว่า
-"แถวนี้ตรงกับความจริงหรือเปล่า" เป็นงานของตัวตรวจในขั้น 2–3 ซึ่งอ่านจากที่นี่
+A registry is an *index*, not a *source*: the things that actually enforce
+anything are the tests and CI jobs it points at. So this module has exactly one
+job — **say whether a registry file has a shape a machine can read**. Whether a
+row still matches reality is the job of the checkers that arrive in stages 2–3,
+and they read from here.
 
-กติกาที่ทำให้ schema นี้ไม่ใช่แค่การจัดรูป (ทุกข้อมาจากกับดักจริงใน reference
-implementation ไม่ใช่จากทฤษฎี):
+The four rules below are not tidiness. Each came from a trap that was paid for
+in the reference implementation:
 
-- **`layer` กับ `portable` ต้องไม่ขัดกัน** — กฎชั้น `internal` คือกฎที่ผูกกับ
-  สถาปัตยกรรมของ repo หนึ่ง ๆ · ส่งออกมันไปบังคับที่อื่นคือการอ้างว่าเป็นสากล
-  ทั้งที่ไม่ใช่ (ADR 0042 · วัดได้จริงในรอบ audit ที่ 23: 5 ข้อติดป้ายผิด)
-- **กฎที่ส่งออกต้องบอกกับดักที่ให้กำเนิดมัน (`born_from`)** — กฎที่ไม่มีที่มา
-  คือกฎที่ไม่มีใครรู้ว่าเมื่อไหร่ควรถอด
-- **`proved_by` เก็บหลักฐานว่าด่านเคยแดงตอนของเสียจริง** — ด่านที่ไม่เคยมีใคร
-  เห็นแดง แยกไม่ออกจากด่านที่ไม่ได้ตรวจอะไร (ADR 0059)
+- **`layer` and `portable` must not contradict each other.** A rule at layer
+  `internal` is tied to one project's architecture; exporting it as universal is
+  an overclaim (ADR 0042 — governance audit round 23 measured five rules
+  carrying the wrong label).
+- **An exported rule must name the trap that created it (`born_from`).** A rule
+  with no origin is a rule nobody knows when to remove.
+- **`proved_by` records that a gate has gone red on a real defect** (ADR 0059).
+  A gate nobody has seen fail is indistinguishable from a gate that checks
+  nothing.
+- **The vocabularies are closed.** A value outside the set is a value nobody has
+  ever decided the meaning of.
 
-`problems()` คืน *รายการปัญหา* ไม่ใช่ raise — เพราะผู้เรียกทุกตัวอยากเห็นทุกข้อ
-พร้อมกัน ไม่ใช่ข้อแรกแล้วหยุด (หลักเดียวกับตัวตรวจ ratchet ของ reference)
+`problems()` returns a *list of problems* rather than raising, because every
+caller wants to see all of them at once instead of the first one and a stop.
 """
 
 from __future__ import annotations
@@ -52,71 +58,77 @@ ISO_DATE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
 
 
 def load(path: str | pathlib.Path) -> list[dict[str, Any]]:
-    """อ่านทะเบียนจากไฟล์ — raise ถ้าอ่านไม่ได้เลย คืนรายการ gate ถ้าอ่านได้
+    """Read a registry file: raise if it is unusable, return its gates if it is.
 
-    "อ่านไม่ได้เลย" กับ "อ่านได้แต่มีแถวผิด" เป็นคนละเรื่อง: อย่างแรกคือไฟล์ที่ใช้
-    ไม่ได้ (raise ทันที) อย่างหลังคือรายงานที่ `problems()` มีหน้าที่บอกทีละข้อ
+    "Unusable" and "usable but with bad rows" are different failures. The first
+    means the file cannot be worked with at all, so it raises. The second is a
+    report, and that is what `problems()` is for.
     """
     raw = yaml.safe_load(pathlib.Path(path).read_text(encoding="utf-8"))
     if not isinstance(raw, dict):
-        raise TypeError(f"{path}: ทะเบียนต้องเป็น mapping ที่มีคีย์ version กับ gates")
+        raise TypeError(f"{path}: a registry must be a mapping with 'version' and 'gates'")
     if raw.get("version") != SCHEMA_VERSION:
-        raise ValueError(f"{path}: version ต้องเป็น {SCHEMA_VERSION} ได้ {raw.get('version')!r}")
+        raise ValueError(f"{path}: version must be {SCHEMA_VERSION}, got {raw.get('version')!r}")
     gates = raw.get("gates")
     if gates is None:
         gates = []
     if not isinstance(gates, list):
-        raise TypeError(f"{path}: gates ต้องเป็นรายการ ได้ {type(gates).__name__}")
+        raise TypeError(f"{path}: 'gates' must be a list, got {type(gates).__name__}")
     return [gate for gate in gates if isinstance(gate, dict)]
 
 
-def _proof_problems(where: str, proofs: Any) -> list[str]:  # noqa: ANN401 — รับของที่ยังไม่รู้รูป
+def _proof_problems(where: str, proofs: Any) -> list[str]:  # noqa: ANN401 — shape is what we check
     if not isinstance(proofs, list):
-        return [f"{where}: proved_by ต้องเป็นรายการ"]
+        return [f"{where}: proved_by must be a list"]
     found: list[str] = []
     for index, proof in enumerate(proofs):
         at = f"{where}: proved_by[{index}]"
         if not isinstance(proof, dict):
-            found.append(f"{at} ต้องเป็น mapping")
+            found.append(f"{at} must be a mapping")
             continue
         if proof.get("kind") not in PROOF_KINDS:
-            found.append(f"{at} kind {proof.get('kind')!r} ไม่อยู่ใน {sorted(PROOF_KINDS)}")
+            found.append(f"{at} kind {proof.get('kind')!r} is not one of {sorted(PROOF_KINDS)}")
         if not str(proof.get("ref", "")).strip():
-            found.append(f"{at} ไม่มี ref — หลักฐานที่ชี้ไปไหนไม่ได้ ไม่ใช่หลักฐาน")
+            found.append(f"{at} has no ref — evidence that points nowhere is not evidence")
         if not ISO_DATE.match(str(proof.get("date", ""))):
-            found.append(f"{at} date ต้องเป็น YYYY-MM-DD ได้ {proof.get('date')!r}")
+            found.append(f"{at} date must be YYYY-MM-DD, got {proof.get('date')!r}")
         if not str(proof.get("caught", "")).strip():
-            found.append(f"{at} caught ว่าง — หลักฐานที่ไม่บอกว่าพิสูจน์อะไร ใช้ไม่ได้")
+            found.append(
+                f"{at} caught is empty — evidence that does not say what it proved is unusable"
+            )
     return found
 
 
 def _vocabulary_problems(gate_id: str, gate: dict[str, Any]) -> list[str]:
-    """คำศัพท์ปิดทุกชุด — ค่าที่ไม่อยู่ในชุดคือค่าที่ไม่มีใครเคยตัดสินว่าแปลว่าอะไร"""
+    """Every closed vocabulary — a value outside the set has no agreed meaning."""
     closed = (("kind", KINDS), ("severity", SEVERITIES), ("layer", LAYERS), ("pillar", PILLARS))
     return [
-        f"{gate_id}: {field} {gate.get(field)!r} ไม่อยู่ใน {sorted(allowed)}"
+        f"{gate_id}: {field} {gate.get(field)!r} is not one of {sorted(allowed)}"
         for field, allowed in closed
         if gate.get(field) not in allowed
     ]
 
 
 def _export_problems(gate_id: str, gate: dict[str, Any]) -> list[str]:
-    """กฎที่อ้างว่าเป็นสากล ต้องเป็นสากลจริงและบอกที่มาของตัวเอง"""
+    """A rule that claims to be universal has to be one, and has to say where it came from."""
     if not gate.get("portable"):
         return []
     found = []
     if gate.get("layer") == "internal":
         found.append(
-            f"{gate_id}: ชั้น internal ส่งออกไม่ได้ — กฎที่ผูกกับสถาปัตยกรรมของ repo "
-            "หนึ่ง ๆ ถูกส่งไปบังคับที่อื่นในฐานะกฎสากล คือการอ้างเกินจริง (ADR 0042)"
+            f"{gate_id}: an internal rule cannot be exported — a rule tied to one project's "
+            "architecture, shipped elsewhere as universal, is an overclaim (ADR 0042)"
         )
     if not str(gate.get("born_from", "")).strip():
-        found.append(f"{gate_id}: กฎที่ส่งออกต้องมี born_from — กฎที่ไม่มีที่มา คือกฎที่ไม่มีใครรู้ว่าเมื่อไหร่ควรถอด")
+        found.append(
+            f"{gate_id}: an exported rule needs born_from — a rule with no origin "
+            "is a rule nobody knows when to remove"
+        )
     return found
 
 
 def problems(gates: list[dict[str, Any]]) -> list[str]:
-    """รายการปัญหาของทะเบียน — ว่าง = รูปถูกต้อง (ไม่ได้แปลว่าตรงกับความจริง)"""
+    """Everything wrong with a registry. Empty means well-formed, not accurate."""
     found: list[str] = []
     seen: set[str] = set()
 
@@ -124,12 +136,12 @@ def problems(gates: list[dict[str, Any]]) -> list[str]:
         gate_id = str(gate.get("id", "?"))
         missing = [field for field in REQUIRED if not gate.get(field)]
         if missing:
-            found.append(f"{gate_id}: ขาดฟิลด์ {missing}")
+            found.append(f"{gate_id}: missing {missing}")
         if gate_id in seen:
-            found.append(f"{gate_id}: id ซ้ำ — ดัชนีที่มี id ซ้ำชี้ไปสองที่พร้อมกัน")
+            found.append(f"{gate_id}: duplicate id — an index with a repeated id points two ways")
         seen.add(gate_id)
         if not GATE_ID.match(gate_id):
-            found.append(f"{gate_id}: id ต้องเป็น kebab-case")
+            found.append(f"{gate_id}: id must be kebab-case")
 
         found.extend(_vocabulary_problems(gate_id, gate))
         found.extend(_export_problems(gate_id, gate))

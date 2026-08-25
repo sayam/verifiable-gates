@@ -1,11 +1,44 @@
-# ทะเบียน gate ของ repo นี้เอง — **ยังว่าง และนั่นเป็นสถานะที่ถูกต้อง ณ ขั้น 1**
+# This repository's own gate registry — **still empty, and that is the correct
+# state at stage 1.**
 #
-# repo นี้เป็นบ้านของ *ทะเบียนที่ตรวจสองทิศ* จึงต้องมีทะเบียนของตัวเองตั้งแต่วันแรก
-# แต่ **ห้ามใส่แถวก่อนที่ตัวบังคับจะมีอยู่จริง** — ทะเบียนที่ประกาศ gate ซึ่งไม่มีใคร
-# บังคับ คือสิ่งเดียวกับที่งานทั้งใบนี้พยายามเลิกทำ · แถวแรกจะมาพร้อมตัวบังคับตัวแรก
-# ในขั้น 2 (ตอนที่ checks/ กับ doctor ย้ายเข้ามา)
+# This is the home of *registries that are checked against reality both ways*, so
+# it has to keep one of its own from day one. But **no row goes in before the
+# thing that enforces it exists** — a registry listing gates nobody enforces is
+# precisely what this whole project exists to stop doing. The first row arrives
+# with the first enforcer, in stage 2, when the checks and the doctor move in.
 #
-# schema ของไฟล์นี้บังคับด้วย `verifiable_gates.registry` + `tests/test_registry.py`
+# The shape of this file is enforced by `verifiable_gates.registry` and
+# `tests/test_registry.py`.
 
 version: 1
-gates: []
+gates:
+  - id: english-except-where-it-binds
+    title: Everything here is in English, except documents that bind someone legally
+    kind: test
+    severity: blocking
+    enforced_by: {job: test, tests: [tests/test_language_policy.py]}
+    layer: internal
+    pillar: devx
+    portable: false
+    born_from: >-
+      This repository is written in English because it is meant to be picked up by
+      people who do not read Thai, while the reference implementation it was
+      extracted from is in Thai throughout. Stages 2 to 5 move code across that
+      boundary repeatedly, so Thai arrives here quietly and by accident rather
+      than by decision. The exception — README and CLA, English first and Thai
+      below — exists because a document that binds someone has to be understood by
+      the person bound, and the maintainer's first language is Thai. The check
+      runs both ways: Thai outside the allowlist fails, and so does an allowlisted
+      file with no Thai left in it, because an exception that no longer excuses
+      anything is a hole with a label on it.
+    proved_by:
+      - kind: mutation
+        ref: pr/3
+        date: 2026-08-25
+        caught: >-
+          Red in all three directions — a Thai comment added to a source file, the
+          Thai half stripped from CLA.md, and the allowlist pointed at a file that
+          does not exist. It also caught a defect in itself while being written:
+          walking the filesystem picked up verifiable_gates.egg-info/PKG-INFO, a
+          build artefact embedding the bilingual README that exists only where the
+          package was installed in editable mode. It now reads what git tracks.

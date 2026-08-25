@@ -36,23 +36,24 @@ target-version = "py311"
 [tool.ruff.lint]
 select = ["ALL"]
 ignore = [
-    # เอกสารในโค้ดเป็นภาษาไทย — กติกา punctuation แบบอังกฤษของ pydocstyle ใช้ไม่ได้
+    # pydocstyle: docstrings here explain *why*, in prose, and its punctuation and
+    # imperative-mood rules fight that. Docstring coverage is a separate concern.
     "D",
-    # ข้อความไทยใช้ em-dash / อัญประกาศโค้ง โดยตั้งใจ
+    # prose uses em-dashes and curly quotes on purpose
     "RUF001", "RUF002", "RUF003",
-    # ข้อความใน raise เขียน inline อ่านง่ายกว่าแยกตัวแปร
+    # a message written inline at the raise reads better than one hoisted to a name
     "EM101", "EM102", "TRY003",
-    # ชนกับ ruff format ตามคำแนะนำ official
+    # conflicts with ruff format, per its own guidance
     "COM812", "ISC001",
-    # license ประกาศระดับ repo ไม่ใช่ header ต่อไฟล์
+    # the licence is declared once for the repository, not in a per-file header
     "CPY001",
 ]
 
 [tool.ruff.lint.per-file-ignores]
 "tests/**" = [
-    "INP001",   # tests ไม่ใช่ package
-    "S101",     # assert คือหัวใจของ pytest
-    "PLR2004",  # ตัวเลขดิบในเทสต์คือค่าที่คาดไว้ อ่านตรง ๆ ดีกว่าตั้งชื่อ
+    "INP001",   # tests are not a package; pytest finds them via pythonpath
+    "S101",     # assert is the whole point of pytest
+    "PLR2004",  # a bare number in a test is the expected value, clearer than a name
 ]
 
 # ---------------------------------------------------------------- mypy
@@ -60,8 +61,9 @@ ignore = [
 python_version = "3.11"
 strict = true
 warn_unused_configs = true
-# **strict ตั้งแต่บรรทัดแรกของ repo นี้** — ต่างจาก reference implementation ที่ต้องไล่
-# ยกทีละโมดูล เพราะที่นั่น strict มาทีหลังโค้ด · ratchet ที่เริ่มบนสุดไม่ต้องมีใครหมุน
+# **strict from this repository's first line** — unlike the reference
+# implementation, which has to raise it module by module because strict arrived
+# after the code. A ratchet that starts at the top needs nobody to turn it.
 
 # ---------------------------------------------------------------- pytest / coverage
 [tool.pytest.ini_options]
@@ -74,7 +76,8 @@ source = ["src/verifiable_gates"]
 branch = true
 
 [tool.coverage.report]
-# พื้นเริ่มที่ 100 เพราะ repo นี้เริ่มจากศูนย์ — ของที่ไม่มีเทสต์ยังไม่เคยถูก commit
-# **ขึ้นทางเดียว** เหมือนทุก ratchet · ลดต้องเป็นคำตัดสินที่มีคนเซ็นชื่อ
+# The floor starts at 100 because this repository started empty: nothing without
+# a test has ever been committed. **One way only**, like every ratchet — lowering
+# it is a decision someone signs, not a convenience.
 fail_under = 100
 show_missing = true

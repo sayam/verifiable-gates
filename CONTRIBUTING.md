@@ -50,5 +50,13 @@ pip install --no-deps -e .
 ruff check . && ruff format --check . && mypy src tests && pytest -q --cov
 ```
 
-Documentation and comments in this repository are in Thai, matching the
-reference implementation; issues and reviews in Thai or English are both fine.
+**This repository is written in English** — comments, docstrings, commit
+messages, changelog entries, and anything the tools print. The two exceptions are
+[`README.md`](README.md) and [`CLA.md`](CLA.md), which are bilingual with English
+first and Thai below, and any future file of that kind: a licence, a notice, or
+anything else that binds someone legally is kept in the maintainer's first
+language as well, so that what was agreed to is what was understood. (The
+reference implementation is the other way round, in Thai; that is deliberate —
+it is one project's record, this is a tool other people are meant to pick up.)
+
+Issues and reviews in Thai or English are both fine.

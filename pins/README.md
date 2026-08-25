@@ -1,18 +1,20 @@
-# `pins/` — เครื่องมือที่ CI ติดตั้ง ถูกตรึงด้วย hash
+# `pins/` — the tools CI installs are pinned by hash
 
-`pip install ruff` หยิบรุ่นล่าสุด ณ วินาทีที่ job รัน — สอง run ที่ห่างกันหนึ่งชั่วโมง
-จึงใช้เครื่องมือคนละตัวได้โดยไม่มีอะไรใน repo เปลี่ยน · และเครื่องมือพวกนี้รันด้วย
-สิทธิ์ของ workflow เรา อ่าน source อ่าน token ที่ job นั้นมี
+`pip install ruff` takes whatever is newest at the second the job runs. Two runs
+an hour apart can therefore use different tools with nothing in the repository
+having changed — and these tools run with our workflow's permissions, reading the
+source and whatever token the job holds.
 
-ตรึงด้วย **รุ่นอย่างเดียวไม่พอ** — `--require-hashes` บังคับสองอย่างที่เลขรุ่นไม่ได้
-บังคับ: ไฟล์ต้องเป็นไบต์ชุดเดิม **และ dependency ทุกตัวในต้นไม้ต้องถูกระบุไว้**
-ล็อกที่ครอบไม่ครบจึงเป็น error ตอนติดตั้ง ไม่ใช่ช่องโหว่ที่เงียบจนถึงวันที่มีคนใช้มัน
+**Pinning a version is not enough.** `--require-hashes` enforces two things a
+version number does not: the file must be the same bytes, **and every dependency
+in the tree must be listed**. A lockfile with a gap becomes an error at install
+time instead of a hole that stays quiet until the day someone walks through it.
 
-| ไดเรกทอรี | ใครใช้ |
+| Directory | Used by |
 |---|---|
-| `dev/` | job `lint` และ `test` (ruff · mypy · pytest · pytest-cov · pyyaml) |
+| `dev/` | jobs `lint` and `test` (ruff · mypy · pytest · pytest-cov · pyyaml) |
 
-## regenerate
+## Regenerating
 
 ```bash
 pip install pip-tools
@@ -20,5 +22,5 @@ pip-compile --allow-unsafe --generate-hashes --strip-extras \
   --output-file=pins/dev/requirements.txt pins/dev/requirements.in
 ```
 
-**pin โดยไม่มีใครขยับ = แช่ช่องโหว่ไว้ตลอดกาล** ซึ่งแย่กว่าไม่ pin เลย —
-ทุกไดเรกทอรีที่นี่จึงมี Dependabot ดูแลใน `.github/dependabot.yml`
+**A pin nobody moves is a vulnerability kept on ice** — worse than no pin at all.
+Every directory here is watched by Dependabot in `.github/dependabot.yml`.
