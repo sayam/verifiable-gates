@@ -39,8 +39,11 @@ ROOT = pathlib.Path(__file__).resolve().parent.parent
 CITATION = ROOT / "CITATION.cff"
 ZENODO = ROOT / ".zenodo.json"
 LICENCE = ROOT / "LICENSE"
+README = ROOT / "README.md"
 
 TAG = re.compile(r"<[^>]+>")
+# A Zenodo concept DOI: the prefix is fixed, the record number is not.
+DOI = re.compile(r"10\.5281/zenodo\.\d+")
 
 
 def citation() -> dict[str, Any]:
@@ -119,3 +122,30 @@ def test_zenodo_carries_every_field_it_needs(field: str) -> None:
 
 def test_the_upload_is_declared_as_software() -> None:
     assert zenodo()["upload_type"] == "software"
+
+
+# ------------------------------------------------------------------ the DOI
+
+
+def test_the_citation_card_carries_a_doi() -> None:
+    """Without it, citation software has only a URL, which is not a citation."""
+    doi = citation().get("doi", "")
+    assert DOI.fullmatch(str(doi)), f"CITATION.cff has no usable DOI: {doi!r}"
+
+
+def test_every_doi_printed_in_the_readme_is_the_one_on_the_card() -> None:
+    """A DOI is a number that lives outside this repository, advertised inside it.
+
+    Nothing about a stale one looks wrong: it resolves, it renders, and it points
+    at somebody's work — just not necessarily at the state being claimed. The
+    reference implementation had four such numbers stale at once before anything
+    read them, so every occurrence is compared rather than only the first.
+    """
+    declared = str(citation()["doi"])
+    found = set(DOI.findall(README.read_text(encoding="utf-8")))
+
+    assert found, "the README advertises no DOI at all"
+    assert found == {declared}, (
+        f"the README prints {sorted(found)} while the citation card says {declared!r} — "
+        "one of them is pointing at a different record"
+    )

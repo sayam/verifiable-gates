@@ -8,6 +8,17 @@ Notable changes to this project. The format follows
 
 ### Added
 
+- **A DOI: [10.5281/zenodo.22103110](https://doi.org/10.5281/zenodo.22103110).**
+  The `evidence-freeze-1` release is archived on Zenodo, which read `.zenodo.json`
+  rather than guessing — the tag was moved onto the commit carrying that file
+  before the release, while nothing yet cited it. The concept DOI resolves to the
+  latest version; each release also gets one of its own.
+- **The advertised DOI is held to the citation card.** Every occurrence in the
+  README is compared, not just the first: nothing about a stale DOI looks wrong —
+  it resolves, it renders, and it points at somebody's work, just not necessarily
+  at the state being claimed. The reference implementation had four such numbers
+  stale at once before anything read them.
+
 - **`.zenodo.json`, and a check holding it to `CITATION.cff`.** Zenodo reads it when
   archiving a release and publishes the result under a permanent DOI, which by the
   definition of archiving cannot be corrected afterwards. The reference
