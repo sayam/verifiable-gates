@@ -60,14 +60,6 @@ a theory) · **Enforced in the reference** (how one project enforces it today).
 
 **Enforced in the reference:** `tests/test_gate_evidence.py`
 
-### `skill-mirrors-portable-gates`
-
-**Rule:** The exported rule sheet is a shadow of the portable gates — generated, never written alongside
-
-**Born from:** A hand-written skill document becomes a third register that drifts from the index the moment anyone edits one side — and a layer that claims to be universal needs a machine to stop framework names leaking into it.
-
-**Enforced in the reference:** `tests/test_skill.py`
-
 ### `logic-knows-no-http`
 
 **Rule:** All logic lives in the service layer and knows nothing about HTTP
