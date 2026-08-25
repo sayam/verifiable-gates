@@ -284,3 +284,59 @@ gates:
           aloud, discarding a step's env, letting the config beat --only, reading
           jobs from one workflow file instead of all, hiding an uninstalled hook,
           and returning 0 after a step failed.
+
+  - id: the-sheet-is-rendered-not-written
+    title: A rule sheet is a pure function of a registry and a preamble, and both are inputs
+    kind: test
+    severity: blocking
+    enforced_by: {job: test, tests: [tests/test_skill_renderer.py]}
+    layer: internal
+    pillar: devx
+    portable: false
+    born_from: >-
+      A hand-written rule sheet is a third register, and it drifts from the
+      registry the moment somebody edits one side. Generating it fixes that only
+      while the render is byte-deterministic, so a project can hold its committed
+      file against a fresh one and see a difference rather than trust there is
+      none. Two things were constants in the reference implementation and are
+      inputs here: the registry, so one renderer serves any project, and the
+      preamble — the opening of a sheet is prose a project writes about itself,
+      and baking one project's paragraphs into the tool would make every other
+      project ship that project's story. The field headings are an input for the
+      same reason: the reference implementation writes its sheets in Thai.
+    proved_by:
+      - kind: mutation
+        ref: pr/8
+        date: 2026-08-25
+        caught: >-
+          Five mutations red — rendering rules that were never marked exportable,
+          leaving born_from unwrapped, making --check always agree, rendering from
+          a registry that did not pass its own schema, and ignoring the caller's
+          headings.
+
+  - id: the-harness-never-passes-what-it-cannot-decide
+    title: The fail-fix harness answers machine-readably, and reports skips rather than hiding them
+    kind: test
+    severity: blocking
+    enforced_by: {job: test, tests: [tests/test_harness.py]}
+    layer: internal
+    pillar: devx
+    portable: false
+    born_from: >-
+      The harness turns a checklist into a loop, and the shape of its answer is
+      the value: gate id, cause, and the trap the rule came from. A loop that
+      knows only what broke will satisfy the letter of a check; one that knows
+      what the rule protected has a chance at the cause. It runs gates of kind
+      test and cannot decide job or step, whose commands live in the workflow —
+      reporting those as anything but "skipped, because" would turn "nobody
+      checked this" into "this passed".
+    proved_by:
+      - kind: mutation
+        ref: pr/8
+        date: 2026-08-25
+        caught: >-
+          Six mutations red, including running job gates as if they were tests,
+          dropping the hint, returning 0 after a gate failed, and treating an
+          unknown gate id as a clean run. A seventh attempt produced a syntax
+          error rather than a behaviour change, which is not a result — it was
+          redone so the code still parsed before drawing any conclusion.

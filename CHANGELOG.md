@@ -8,6 +8,13 @@ Notable changes to this project. The format follows
 
 ### Added
 
+- **The rule-sheet renderer and the fail-fix harness (extraction stage 2e).**
+  `verifiable_gates.skill` renders a sheet from a registry; `verifiable_gates.harness`
+  runs the gates and answers with `(gate id, cause, hint)` so a loop can act on it.
+- **Three things that were constants are now inputs**: the registry, the preamble,
+  and the field headings. A tool that hard-codes one project's opening prose makes
+  every other project ship that project's story — and one that hard-codes English
+  headings forces a language on projects that do not write in it.
 - **preflight arrived, and the bundle now declares what its files need
   (extraction stage 2d, part two).** preflight walks the CI gates locally by
   reading the commands out of the workflow, so no second copy of them exists to
