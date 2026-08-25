@@ -27,7 +27,15 @@ gates:
       boundary repeatedly, so Thai arrives here quietly and by accident rather
       than by decision. The exception — README and CLA, English first and Thai
       below — exists because a document that binds someone has to be understood by
-      the person bound, and the maintainer's first language is Thai. The check
+      the person bound, and the maintainer's first language is Thai. The registry
+      handover added a second kind of exception with a different shape: the rule
+      catalogue keeps each rule's original wording beside the published English,
+      because a translation of an incident report is a retelling and the retelling
+      is not the record. That Thai is data, so it is not excused by file — it is
+      excused only by position, in a `*_th` value, in a cited step name, or inside
+      a string literal in the code that renders those fields. A Thai comment, key
+      or identifier stays forbidden in every file, which is the leak this check
+      was built for. The check
       runs both ways: Thai outside the allowlist fails, and so does an allowlisted
       file with no Thai left in it, because an exception that no longer excuses
       anything is a hole with a label on it.
@@ -289,7 +297,7 @@ gates:
           and returning 0 after a step failed.
 
   - id: the-sheet-is-rendered-not-written
-    title: A rule sheet is a pure function of a registry and a preamble, and both are inputs
+    title: A rule sheet is a pure function of a catalogue, a preamble and a language
     kind: test
     severity: blocking
     enforced_by: {job: test, tests: [tests/test_skill_renderer.py]}
@@ -298,15 +306,17 @@ gates:
     portable: false
     born_from: >-
       A hand-written rule sheet is a third register, and it drifts from the
-      registry the moment somebody edits one side. Generating it fixes that only
+      catalogue the moment somebody edits one side. Generating it fixes that only
       while the render is byte-deterministic, so a project can hold its committed
       file against a fresh one and see a difference rather than trust there is
-      none. Two things were constants in the reference implementation and are
-      inputs here: the registry, so one renderer serves any project, and the
+      none. Three things were constants in the reference implementation and are
+      inputs here: the catalogue, so one renderer serves any set of rules; the
       preamble — the opening of a sheet is prose a project writes about itself,
       and baking one project's paragraphs into the tool would make every other
-      project ship that project's story. The field headings are an input for the
-      same reason: the reference implementation writes its sheets in Thai.
+      project ship that project's story; and the language, because the catalogue
+      carries the published English beside each rule's original wording, and a
+      renderer that could reach only one of them would make the other dead weight
+      in the file. Dead weight is what stops being maintained.
     proved_by:
       - kind: mutation
         ref: pr/8
@@ -316,6 +326,15 @@ gates:
           leaving born_from unwrapped, making --check always agree, rendering from
           a registry that did not pass its own schema, and ignoring the caller's
           headings.
+      - kind: mutation
+        ref: pr/9
+        date: 2026-08-25
+        caught: >-
+          Five more red once the renderer read a catalogue instead of a registry —
+          ignoring the language suffix, dropping the fallback so a missing
+          translation rendered blank instead of the published text, pinning the
+          headings to English whatever the language, writing the file during
+          --check, and ignoring the requested layer.
 
   - id: the-harness-never-passes-what-it-cannot-decide
     title: The fail-fix harness answers machine-readably, and reports skips rather than hiding them
@@ -343,3 +362,69 @@ gates:
           unknown gate id as a clean run. A seventh attempt produced a syntax
           error rather than a behaviour change, which is not a result — it was
           redone so the code still parsed before drawing any conclusion.
+
+  - id: a-published-rule-carries-its-origin
+    title: A published rule names the incident behind it, belongs to a published layer, and names no framework
+    kind: test
+    severity: blocking
+    enforced_by: {job: test, tests: [tests/test_rules_catalogue.py]}
+    layer: internal
+    pillar: devx
+    portable: false
+    born_from: >-
+      The registry handover split what was one file in the reference
+      implementation into two, because a rule and its enforcement have different
+      lifetimes. Enforcement moves whenever a project reorganises its tests and is
+      written in that project's framework; the rule changes only when reality
+      teaches something new. Keeping both in one file worked while there was one
+      project, and stops working the moment a second adopts a rule: its
+      `enforced_by` would point at files that project does not have, and a
+      registry whose rows point at nothing is the thing this bundle exists to
+      prevent. Three invariants are enforced rather than left to a reader, and
+      each is a mistake that is easy to make and silent once made. A rule with no
+      `born_from` is somebody's preference, and years later nobody can tell
+      whether the conditions that created it still hold, so it can never be
+      retired. A rule at layer `internal` is tied to one architecture, and
+      publishing it as universal is an overclaim — a governance audit of the
+      reference implementation measured five rules carrying the wrong label, so
+      the catalogue cannot express the value at all. And a rule naming one stack's
+      library means nothing to a reader on another stack while still claiming to
+      be universal; the `reference` block is exempt on purpose, because naming
+      that project's own files is what makes it evidence.
+    proved_by:
+      - kind: mutation
+        ref: pr/9
+        date: 2026-08-25
+        caught: >-
+          Eight mutations red — admitting `internal` into the published layers,
+          dropping `born_from` from the required fields, disabling the framework
+          scan outright, extending it into the `reference` block so a cited
+          filename became a violation, skipping the duplicate-id check, accepting
+          a `script` the bundle does not ship, allowing `..` in a script path, and
+          reading a catalogue whose version this reader does not speak.
+
+  - id: the-sheets-match-the-catalogue
+    title: The committed sheets are a fresh render, and between them they publish every rule
+    kind: test
+    severity: blocking
+    enforced_by: {job: test, tests: [tests/test_sheets.py]}
+    layer: internal
+    pillar: devx
+    portable: false
+    born_from: >-
+      Generated files that live in git are worth keeping only while something
+      compares them against a fresh render on every run. Without that, a sheet
+      somebody improved by hand looks exactly like a sheet in step with the
+      catalogue, and the reason for generating it is gone. The second half is the
+      one that decays quietly: the sheets have to **partition** the catalogue. A
+      rule belonging to no layer's sheet is published nowhere while still counting
+      as published, and nothing about either file would look wrong — the sheet is
+      shorter and the catalogue is unchanged.
+    proved_by:
+      - kind: mutation
+        ref: pr/9
+        date: 2026-08-25
+        caught: >-
+          Three planted defects red — a sentence added to a sheet by hand, a rule
+          moved to a layer that no sheet renders so it vanished from both, and the
+          "do not edit" banner removed from a generated file.

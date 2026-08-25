@@ -8,6 +8,33 @@ Notable changes to this project. The format follows
 
 ### Added
 
+- **The rule catalogue (extraction stage 6, first part).** `rules.yaml` holds the
+  93 rules this project publishes, each with the incident that produced it, and
+  `verifiable_gates.rules` reads and checks it. A rule and a gate now live in
+  separate files because they have separate lifetimes: enforcement moves whenever
+  a project reorganises its tests and is written in that project's framework,
+  while a rule changes only when reality teaches something new. One file worked
+  while there was one project; it breaks the moment a second adopts a rule, since
+  its `enforced_by` would point at files that project does not have.
+- **Two rendered sheets, `SKILL.md` and `SKILL-BUSINESS.md`**, generated from the
+  catalogue and compared against a fresh render on every test run.
+- **The catalogue carries two languages.** English is the published text; each
+  rule's original wording sits beside it in a `*_th` field, because a translation
+  of an incident report is a retelling, and the retelling is not the record. The
+  renderer can produce either, so the second language is reachable rather than
+  dead weight.
+
+### Changed
+
+- **The sheet renderer reads a catalogue rather than a registry**, and the
+  language is now an input alongside the catalogue and the preamble.
+- **The language rule is enforced by position, not by file.** Thai is allowed in a
+  `*_th` value, in a cited CI step name, and inside a string literal in the code
+  that renders those fields — and nowhere else, in any file. A Thai comment, key
+  or identifier still fails everywhere, which is the leak the check was built for.
+  A cited step name is kept in its own language on purpose: translating it would
+  point the evidence at a step that does not exist.
+
 - **The rule-sheet renderer and the fail-fix harness (extraction stage 2e).**
   `verifiable_gates.skill` renders a sheet from a registry; `verifiable_gates.harness`
   runs the gates and answers with `(gate id, cause, hint)` so a loop can act on it.

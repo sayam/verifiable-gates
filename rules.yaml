@@ -1,0 +1,1576 @@
+# The rule catalogue this bundle publishes.
+#
+# A rule is what was learned; a gate is one project's enforcement of it. They are
+# separate files because they have separate lifetimes: the enforcement moves when a
+# project reorganises its tests, while the rule only changes when reality teaches
+# something new. `gates.yaml` in this repository holds the gates this repository is
+# itself held to. This file holds what it offers to everybody else.
+#
+# Every rule carries two languages. English is the published text — it is what the
+# rule sheets render and what a reader outside this project can act on. `*_th` is the
+# original wording from the reference implementation, kept because a translation of
+# an incident report is a retelling, and the retelling is not the record. Nothing here
+# is free-floating duplication: the reference implementation checks its own Thai
+# against `*_th` byte for byte, so the two cannot drift apart in silence.
+#
+# `born_from` is the part that matters most. A rule with no incident behind it is
+# somebody's preference, and preferences do not deserve a gate.
+#
+# `reference` says how the reference implementation enforces the rule. It is evidence,
+# not instruction: a project adopting a rule writes its own enforcement, and a rule
+# with a `script` is one this bundle can decide on its own.
+version: 1
+rules:
+- id: gates-registry-total
+  layer: baseline
+  pillar: devx
+  title: The gate index matches reality in both directions, and every test file is accounted for
+  title_th: ดัชนี gate ตรงกับความจริงสองทิศ และไฟล์เทสต์ทุกไฟล์ถูกตัดสิน
+  born_from: 'semgrep was scanning only 71 of 136 files because its scope was declared in two places
+    — an index nothing holds to reality is an index that quietly reports things that are not true
+    · audit round 7 added another field (`guards:` — ADR 0062): a gate that is expensive and has never
+    caught anything has to be able to say *which path* it earns its keep on, or the question "is it
+    still worth it" is answered by feel every time.'
+  born_from_th: 'semgrep เคยตรวจแค่ 71/136 ไฟล์เพราะขอบเขตประกาศสองที่ — ดัชนีที่ไม่ถูกบังคับให้ตรงกับความจริงคือดัชนีที่ให้ข้อมูลที่ไม่จริงเงียบ
+    ๆ · audit รอบ 7 ต่ออีกฟิลด์ (`guards:` — ADR 0062): ด่านที่แพงและยังไม่เคยจับอะไรต้องบอกได้ ว่ามันคุ้ม*เส้นทางไหน*
+    ไม่งั้นคำถาม "ยังคุ้มไหม" ตอบด้วยความรู้สึกเสมอ'
+  reference:
+    kind: test
+    job: test
+    tests:
+    - tests/test_gates.py
+  script: checks/scan_gates_registry.py
+- id: gates-carry-red-evidence
+  layer: baseline
+  pillar: devx
+  title: A new gate arrives with evidence that it went red on a real defect — the list of ones that
+    have not can only shrink
+  title_th: gate ใหม่ต้องมาพร้อมหลักฐานว่าเคยแดงตอนของเสียจริง — รายการที่ยังไม่มีหดได้ทางเดียว
+  born_from: Governance audit round 6 (2026-08-17) — measured across the last 200 runs and found **21
+    jobs that had never once gone red**, which from the outside is indistinguishable between "the
+    code really is fine" and "the gate checks nothing" · a gate nobody has seen fail is a gate nobody
+    has proved checks anything — collect the evidence when it happens, not when you need it.
+  born_from_th: audit governance รอบ 6 (2026-08-17) — วัดจาก 200 run ล่าสุดแล้วพบว่า **21 job ไม่เคยแดงเลย**
+    ซึ่งแยกไม่ออกจากภายนอกว่า "ของดีจริงจึงไม่แดง" หรือ "ด่านไม่ได้ตรวจอะไร" · ด่านที่ไม่มีใครเคยเห็นแดงคือด่านที่ยังไม่มี
+    ใครพิสูจน์ว่ามันตรวจอะไร — เก็บหลักฐานตอนที่มันเกิด ไม่ใช่ตอนที่ต้องใช้
+  reference:
+    kind: test
+    job: test
+    tests:
+    - tests/test_gate_evidence.py
+- id: skill-mirrors-portable-gates
+  layer: baseline
+  pillar: devx
+  title: The exported rule sheet is a shadow of the portable gates — generated, never written alongside
+  title_th: SKILL.md ที่ export เป็นเงาของ portable gate — generate ห้ามเขียนคู่ขนาน
+  born_from: A hand-written skill document becomes a third register that drifts from the index the
+    moment anyone edits one side — and a layer that claims to be universal needs a machine to stop
+    framework names leaking into it.
+  born_from_th: เอกสาร skill ที่เขียนมือจะกลายเป็นทะเบียนที่สามที่ drift จากดัชนี — และชั้นที่ประกาศว่าสากลต้องมีเครื่องกันชื่อ
+    framework รั่วเข้ามา
+  reference:
+    kind: test
+    job: test
+    tests:
+    - tests/test_skill.py
+- id: logic-knows-no-http
+  layer: baseline
+  pillar: manageability
+  title: All logic lives in the service layer and knows nothing about HTTP
+  title_th: ตรรกะทั้งหมดอยู่ใน service layer และไม่รู้จัก HTTP
+  born_from: Phase 3 — logic buried in routes makes the HTML and the API diverge the instant a second
+    adapter exists · an AST scan forbids services importing anything from the request side.
+  born_from_th: Phase 3 — ตรรกะที่ฝังใน route ทำให้ HTML กับ API เพี้ยนจากกันทันทีที่มี adapter ที่สอง
+    · AST scan ห้าม service import ของฝั่ง request
+  reference:
+    kind: test
+    job: test
+    tests:
+    - tests/test_service_layer.py
+    - tests/test_services.py
+  script: checks/scan_service_layer.py
+- id: delete-means-soft-delete
+  layer: business
+  pillar: security
+  title: Delete means hide (soft delete) — only purge removes rows for real
+  title_th: ลบ = ซ่อน (soft delete) — ลบจริงได้ที่ purge เท่านั้น
+  born_from: ADR 0014 — a `--dry-run` implemented as a rollback once deleted real data, because purge
+    committed before the savepoint closed · so there must be exactly one place that can delete.
+  born_from_th: ADR 0014 — `--dry-run` ที่ implement เป็น rollback เคยลบข้อมูลจริง เพราะตัว purge
+    commit ก่อน savepoint ปิด · ที่ลบได้จึงต้องมีที่เดียว
+  reference:
+    kind: test
+    job: test
+    tests:
+    - tests/test_write_discipline.py
+    - tests/test_soft_delete.py
+  script: checks/scan_write_discipline.py
+- id: every-write-audited
+  layer: business
+  pillar: security
+  title: Every write lands in an append-only audit trail with a hash chain
+  title_th: ทุกการเขียนลง audit trail แบบเติมได้อย่างเดียว + hash chain
+  born_from: ADR 0015/0035 — an after-flush event catches every insert, update and delete on its own,
+    so feature code calls nothing, because "forgot to call it" is among the quietest bugs there is.
+  born_from_th: ADR 0015/0035 — event หลัง flush ดักให้เองทุก insert/update/delete โค้ดฟีเจอร์ไม่ต้องเรียกอะไร
+    เพราะ "ลืมเรียก" คือบั๊กที่เงียบที่สุด
+  reference:
+    kind: test
+    job: test
+    tests:
+    - tests/test_audit.py
+- id: core-never-names-plugins
+  layer: business
+  pillar: manageability
+  title: The core knows only how to find plugins — no plugin name appears in core code
+  title_th: core รู้แค่วิธีค้นหา plugin — ห้ามมีชื่อ plugin ในโค้ด core
+  born_from: ADR 0023/0025 — the day the core names a plugin is the day removing that directory breaks
+    the system, and the plugin's supply chain is no longer separable from the core's.
+  born_from_th: ADR 0023/0025 — วันที่ core เอ่ยชื่อ plugin คือวันที่ถอดไดเรกทอรีแล้วล้มเหลว และ supply
+    chain ของ plugin ไม่แยกจาก core อีกต่อไป
+  reference:
+    kind: test
+    job: test
+    tests:
+    - tests/test_plugins.py
+- id: every-column-classified
+  layer: baseline
+  pillar: security
+  title: Every column is assigned a data class in DATA-CLASSIFICATION.md
+  title_th: ทุกคอลัมน์ต้องถูกจัดชั้นข้อมูลใน DATA-CLASSIFICATION.md
+  born_from: A data class not decided when the column is added gets decided when the data leaks —
+    and what the audit trail is allowed to record follows from that class.
+  born_from_th: ชั้นข้อมูลที่ไม่ถูกตัดสินตอนเพิ่มคอลัมน์ จะถูกตัดสินเอาตอนข้อมูลรั่ว — audit เก็บอะไรได้ก็ตัดสินจากชั้นนี้
+  reference:
+    kind: test
+    job: test
+    tests:
+    - tests/test_data_classification.py
+- id: every-column-export-decided
+  layer: baseline
+  pillar: security
+  title: 'Every column of an owned table is decided: exported, or listed as not exported with a reason'
+  title_th: ทุกคอลัมน์ของตารางที่มีเจ้าของ ต้องถูกตัดสินว่า export หรือไม่ พร้อมเหตุผล
+  born_from: ADR 0034 — when each caller deleted on its own, the CLI forgot to clear the second-factor
+    secrets entirely · one path plus every column decided means nothing is left behind.
+  born_from_th: ADR 0034 — ตอนที่ต่างคนต่างไล่ลบ CLI ลืมล้างความลับของปัจจัยที่สองทั้งดุ้น · ทางเดียว
+    + ทุกคอลัมน์ถูกตัดสิน = ไม่มีของหลงเหลือ
+  reference:
+    kind: test
+    job: test
+    tests:
+    - tests/test_personal_data.py
+    - tests/test_close_account.py
+- id: models-match-migrations
+  layer: baseline
+  pillar: manageability
+  title: Schema comes only from migrations, and it matches the models exactly
+  title_th: schema มาจาก migration เท่านั้น และต้องตรงกับ model เป๊ะ
+  born_from: An index that lived in a migration but not in the model was nearly dropped, silently,
+    by the next generated migration — while every SELECT in the system depended on it.
+  born_from_th: index ที่อยู่ใน migration แต่ไม่อยู่ใน model เคยเกือบถูก `db migrate` รุ่นถัดไป drop
+    ทิ้งเงียบ ๆ ทั้งที่ทุก SELECT พึ่งมัน
+  reference:
+    kind: test
+    job: test
+    tests:
+    - tests/test_migrations.py
+- id: dialect-discipline
+  layer: baseline
+  pillar: manageability
+  title: Time columns use UTCDateTime (migrations included) · String columns declare a length · written
+    once, runs on three brands
+  title_th: คอลัมน์เวลาใช้ UTCDateTime (รวมใน migration) · String ระบุความยาว · เขียนครั้งเดียวรันได้สามยี่ห้อ
+  born_from: MySQL's DATETIME truncates sub-second precision silently — records created milliseconds
+    apart get the same timestamp and then sort in the wrong order · findable only by firing the suite
+    at a real brand.
+  born_from_th: DATETIME ของ MySQL ตัดเศษวินาทีเงียบ ๆ — งานที่สร้างห่างกันไม่กี่ มิลลิวินาทีได้เวลาเท่ากันแล้วเรียงสลับ
+    · เจอได้ก็ต่อเมื่อยิงยี่ห้อจริง
+  reference:
+    kind: test
+    job: test
+    tests:
+    - tests/test_dialect_parity.py
+    - tests/test_db_backend.py
+    - tests/test_migration_lint.py
+- id: migration-class-declared
+  layer: business
+  pillar: manageability
+  title: Every plugin declares its migration class (live/warm/cold) as its port's rules require
+  title_th: ทุก plugin ประกาศ migration class (live/warm/cold) ตรงตามกฎของ port
+  born_from: '"Swappable" that never says *how* it swaps is a promise the person on shift has to guess
+    at three in the morning — the declared class must be enforced at load time and backed by a measurement.'
+  born_from_th: '"สลับได้" ที่ไม่เคยประกาศว่าสลับแบบไหน คือคำสัญญาที่คนหน้างานต้องเดา ตอนตีสาม — class
+    ที่ประกาศต้องถูกบังคับตอนโหลด และต้องมีตัวเลขวัดรองรับ'
+  reference:
+    kind: test
+    job: test
+    tests:
+    - tests/test_migration_class.py
+- id: fail-fix-harness-honest
+  layer: baseline
+  pillar: devx
+  title: The developer harness reports the truth, never passes silently, and does not keep a second
+    copy of CI's commands
+  title_th: harness ของนักพัฒนารายงานตรงความจริง ไม่ผ่านเงียบ ๆ และไม่ลอกคำสั่งของ CI มาเก็บที่สอง
+  born_from: 'A harness that reports success while tests are red feeds false confidence to the loop
+    that trusts it completely — and the first attempt to prove 11-03 repeated the lesson: a planted
+    defect that landed inside a docstring produced "passes when it should be red" without the gate
+    being blind at all · audit round 6 added a layer (ADR 0060): a preflight that *copies* CI''s commands
+    into itself will drift, and then say "pass" at the exact moment CI is about to say otherwise.'
+  born_from_th: 'harness ที่รายงานผ่านตอนเทสต์แดง ป้อนความมั่นใจผิด ๆ ให้ loop ที่เชื่อมัน สนิท —
+    และการพิสูจน์ 11-03 รอบแรกก็ย้ำบทเรียนเดิม: plant ที่ตกใน docstring ทำให้ "ผ่านทั้งที่ควรแดง"
+    โดยที่ด่านไม่ได้บอด · audit รอบ 6 ต่ออีกชั้น (ADR 0060): preflight ที่ *ลอก* คำสั่งของ CI มาไว้เองจะ
+    drift แล้วบอกว่า "ผ่าน" ในจังหวะที่ CI กำลังจะบอกว่าไม่'
+  reference:
+    kind: test
+    job: test
+    tests:
+    - tests/test_vendored_tooling.py
+- id: csrf-guards-every-form
+  layer: baseline
+  pillar: security
+  title: CSRF protects the whole app and is decided before login, always
+  title_th: CSRF คุมทั้งแอปและตัดก่อน login เสมอ
+  born_from: Ordinary tests switch CSRF off for convenience — without a separate suite that turns
+    it on for real, the day `csrf.init_app()` goes missing nothing would catch it.
+  born_from_th: เทสต์ทั่วไปปิด CSRF เพื่อความสะดวก — ถ้าไม่มีเทสต์แยกที่เปิดจริง วันที่ `csrf.init_app()`
+    หลุดจะไม่มีอะไรจับได้เลย
+  reference:
+    kind: test
+    job: test
+    tests:
+    - tests/test_csrf.py
+- id: session-hardening
+  layer: baseline
+  pillar: security
+  title: Idle and absolute timeouts are checked server-side · the cookie is bound to the current credential
+  title_th: idle/absolute timeout ตรวจฝั่ง server · คุกกี้ผูกกับ credential ปัจจุบัน
+  born_from: ADR 0020 — an expiry stamped on a cookie is something the client can edit · change the
+    password and every cookie issued earlier must die at once, not wait to expire.
+  born_from_th: ADR 0020 — วันหมดอายุบนคุกกี้เป็นของที่ client แก้ได้ · เปลี่ยนรหัสผ่านแล้วคุกกี้ใบเก่าทุกใบต้องตายทันที
+    ไม่ใช่รอหมดอายุ
+  reference:
+    kind: test
+    job: test
+    tests:
+    - tests/test_session_security.py
+- id: login-rate-limited-two-ways
+  layer: baseline
+  pillar: security
+  title: Login quotas apply per IP and per username · once throttled the answer is 429 even for the
+    right password
+  title_th: โควตา login ต่อ IP และต่อชื่อผู้ใช้ · โดนกันแล้วต้อง 429 แม้รหัสถูก
+  born_from: ADR 0021 — the per-IP dimension alone loses to anyone rotating addresses · and if a correct
+    password sails through the gate, whoever is guessing learns immediately that they found it.
+  born_from_th: ADR 0021 — มิติต่อ IP อย่างเดียวแพ้คนเปลี่ยน IP ไปเรื่อย ๆ · และถ้ารหัสถูกทะลุด่านได้
+    คนไล่เดาจะรู้ทันทีว่าเจอรหัสที่ใช่
+  reference:
+    kind: test
+    job: test
+    tests:
+    - tests/test_ratelimit.py
+    - tests/test_api_ratelimit.py
+- id: route-authz-enumerated
+  layer: baseline
+  pillar: security
+  title: Every route is enumerated against the exception list in both directions — a forgotten decorator
+    goes red
+  title_th: ทุก route ถูก enumerate เทียบรายการยกเว้นสองทิศ — ลืม decorator แล้วแดง
+  born_from: Governance audit round 5 (2026-08-17) — the project's first rule was "every route carries
+    login_required" with an exception list annotated "these are all of them", but nothing checked
+    that list and it was not in fact complete (the route serving enhancement files had been public
+    since Phase 4 without being counted) · the old authz test covered the routes its author thought
+    of, not every route that exists — OWASP A01 by omission.
+  born_from_th: audit governance รอบ 5 (2026-08-17) — กฎข้อแรกของโปรเจกต์คือ "ทุก route ต้องมี login_required"
+    พร้อมรายการยกเว้นที่เขียนว่า "มีเท่านี้" แต่ไม่มี ใครตรวจรายการนั้นเลย และมันไม่ครบจริง (route
+    ที่เสิร์ฟไฟล์ของส่วนเสริม เปิดสาธารณะมาตั้งแต่ Phase 4 โดยไม่ถูกนับ) · เทสต์ authz เดิมครอบ route
+    ที่คนเขียนนึกถึง ไม่ใช่ทุก route ที่มีอยู่ — OWASP A01 ที่เกิดจากการลืม
+  reference:
+    kind: test
+    job: test
+    tests:
+    - tests/test_route_authz.py
+- id: authz-in-service-layer
+  layer: baseline
+  pillar: security
+  title: Authorisation is decided in the service layer, not at the route · someone else's row answers
+    404, an insufficient role answers 403
+  title_th: ตรวจสิทธิ์ใน service ไม่ใช่ที่ route · ของคนอื่นตอบ 404 บทบาทไม่ถึงตอบ 403
+  born_from: ADR 0004/0022 — there are three adapters (HTML, API, CLI), and a gate that lives at the
+    route is a gate the next adapter can forget · hiding a menu item is not access control.
+  born_from_th: ADR 0004/0022 — มี adapter สามทาง (HTML/API/CLI) — ด่านที่ route คือด่านที่ adapter
+    ใหม่ลืมได้ · การซ่อนเมนูไม่ใช่การกันสิทธิ์
+  reference:
+    kind: test
+    job: test
+    tests:
+    - tests/test_rbac.py
+- id: password-policy-nist
+  layer: baseline
+  pillar: security
+  title: The NIST-aligned password policy lives in one place, called by both the CLI and the web
+  title_th: นโยบายรหัสผ่านตาม NIST อยู่ที่เดียว ทั้ง CLI และเว็บเรียกตัวเดียวกัน
+  born_from: ADR 0019 — NFKC normalisation has to sit in set and check together; the day it happens
+    on only one side, anyone whose password is in Thai (the sara am vowel) can no longer log in although
+    they typed exactly what they always typed.
+  born_from_th: ADR 0019 — normalize NFKC ต้องอยู่ใน set/check คู่กัน เกิดข้างเดียว เมื่อไหร่ คนตั้งรหัสภาษาไทย
+    (สระอำ) จะ login ไม่ได้ทั้งที่พิมพ์เหมือนเดิม
+  reference:
+    kind: test
+    job: test
+    tests:
+    - tests/test_passwords.py
+- id: logs-carry-no-pii
+  layer: baseline
+  pillar: security
+  title: Logs are JSON, carry a request id, and record the actor as a username rather than a real
+    name
+  title_th: log เป็น JSON มี request id และ actor เป็น username ไม่ใช่ชื่อจริง
+  born_from: ADR 0011 — the path appears on every log line, a class C6 record kept 90 days — so what
+    must never appear in a log needs a test that catches it, not care.
+  born_from_th: ADR 0011 — path อยู่ใน log ทุกบรรทัดชั้น C6 (90 วัน) — อะไรที่ห้ามอยู่ใน log จึงต้องมีเทสต์ดัก
+    ไม่ใช่ความระวังตัว
+  reference:
+    kind: test
+    job: test
+    tests:
+    - tests/test_logging.py
+- id: csp-no-inline
+  layer: baseline
+  pillar: security
+  title: CSP is pure self — no inline script, style, or handler anywhere
+  title_th: CSP เป็น self ล้วน — ไม่มี inline script/style/handler ที่ไหนเลย
+  born_from: ADR 0010 — the browser blocks inline content silently with no server-side error, so the
+    gate has to read the template files directly rather than wait for symptoms.
+  born_from_th: ADR 0010 — browser บล็อก inline เงียบ ๆ ไม่มี error ฝั่ง server — ด่านจึงต้องตรวจไฟล์
+    template ตรง ๆ ไม่ใช่รอดูอาการ
+  reference:
+    kind: test
+    job: test
+    tests:
+    - tests/test_security_headers.py
+  script: checks/scan_templates_inline.py
+- id: config-fails-loud
+  layer: baseline
+  pillar: security
+  title: A missing SECRET_KEY or an unknown scheme means the app does not start — never a silent fallback
+  title_th: ไม่มี SECRET_KEY หรือ scheme ที่ไม่รู้จัก = ไม่ start — ห้ามตกกลับเงียบ ๆ
+  born_from: ADR 0026/0030 — production that is misconfigured yet "works" on SQLite fails on the day
+    somebody asks for the data that was never there · failing loudly at start-up is always cheaper.
+  born_from_th: ADR 0026/0030 — prod ที่ config ผิดแล้ว "ทำงานได้" บน SQLite จะล้มเหลวในวันที่ มีคนถามหาข้อมูลที่หายไป
+    · ล้มเหลวดังตอน start ถูกกว่าเสมอ
+  reference:
+    kind: test
+    job: test
+    tests:
+    - tests/test_config.py
+    - tests/test_secrets.py
+- id: no-debug-entrypoint
+  layer: baseline
+  pillar: security
+  title: No entrypoint file can open a debug console, even when the wrong one is run
+  title_th: ไฟล์ entrypoint ไม่มีทางเปิด debug console ได้แม้รันผิดตัว
+  born_from: The first SAST round pointed at an entrypoint that could enable debug and was being copied
+    into the image — run the wrong one and you have a debug console that executes code from a web
+    page.
+  born_from_th: SAST รอบแรกชี้ entrypoint ที่เปิด debug ได้และถูกก๊อปเข้า image — รันผิดตัวเมื่อไหร่ก็ได้
+    debug console ที่รันโค้ดจากหน้าเว็บ
+  reference:
+    kind: test
+    job: test
+    tests:
+    - tests/test_entrypoint.py
+  script: checks/scan_entrypoint_debug.py
+- id: api-contract-snapshot
+  layer: baseline
+  pillar: manageability
+  title: openapi.json is a photograph of the code — change the API and it must be regenerated
+  title_th: openapi.json คือภาพถ่ายของโค้ด — แก้ API แล้วต้อง regenerate
+  born_from: ADR 0018 — a contract nobody compares against the code is a contract that can change
+    silently · v1 is frozen, so something has to complain when anyone alters it.
+  born_from_th: ADR 0018 — สัญญาที่ไม่มีใครเทียบกับโค้ดคือสัญญาที่เปลี่ยนได้เงียบ ๆ · v1 แก้ไม่ได้
+    จึงต้องมีของที่ฟ้องตอนใครแก้
+  reference:
+    kind: test
+    job: test
+    tests:
+    - tests/test_openapi.py
+- id: api-fuzzed-from-spec
+  layer: baseline
+  pillar: security
+  title: The fuzzer builds requests from the spec itself — new endpoints are covered automatically
+  title_th: fuzz สร้างคำขอจาก spec เอง — endpoint ใหม่ถูกครอบอัตโนมัติ
+  born_from: The first round caught three things the hand-written tests had missed (an id past 64
+    bits returning 500, an unparseable date returning 500, and requests rejected at the routing layer
+    returning HTML).
+  born_from_th: รอบแรกจับได้สามอย่างที่เทสต์ซึ่งคนเขียนเองมองข้าม (id เกิน 64 บิต → 500, วันที่ย่อยไม่ได้
+    → 500, คำขอตกชั้น routing ได้ HTML)
+  reference:
+    kind: test
+    job: test
+    tests:
+    - tests/test_api_fuzz.py
+- id: fk-enforced-measured
+  layer: baseline
+  pillar: security
+  title: Foreign keys are genuinely enforced — measured by the outcome (IntegrityError), not by reading
+    a pragma
+  title_th: FK ถูกบังคับจริง — วัดที่ผล (IntegrityError) ไม่ใช่อ่านค่า pragma
+  born_from: SQLite disables foreign keys by default, per connection — remove the line that loads
+    the backend and there is no error at all, just data going quietly wrong · a gate that reads the
+    pragma stays green in exactly that state.
+  born_from_th: SQLite ปิด FK เป็นค่าเริ่มต้นต่อ connection — ถอดบรรทัด load backend ออกแล้วไม่มี
+    error ใดเลย แค่ข้อมูลเสียเงียบ ๆ · ด่านที่อ่าน pragma ยังเขียวอยู่ในสภาพนั้น
+  reference:
+    kind: test
+    job: test
+    tests:
+    - tests/test_db_integrity.py
+- id: a11y-structural
+  layer: baseline
+  pillar: security
+  title: WCAG structure is checked on every test run (labels present, fallback buttons, target size)
+  title_th: โครงสร้าง WCAG ตรวจทุกครั้งที่รันเทสต์ (label ครบ, ปุ่มสำรอง, target size)
+  born_from: ADR 0012 — a form that relies on data-auto-submit alone is unusable when JS does not
+    run, and nobody notices until they are the person with JS switched off.
+  born_from_th: ADR 0012 — ฟอร์มที่พึ่ง data-auto-submit อย่างเดียวใช้ไม่ได้เลยเมื่อ JS ไม่ทำงาน และไม่มีใครเห็นจนกว่าจะเป็นคนที่ปิด
+    JS
+  reference:
+    kind: test
+    job: test
+    tests:
+    - tests/test_a11y.py
+- id: i18n-catalog-integrity
+  layer: baseline
+  pillar: manageability
+  title: The catalogue has no empty or fuzzy entries and covers every msgid present in the code
+  title_th: catalog ไม่มีช่องว่าง/fuzzy และครอบ msgid ที่มีในโค้ดครบ
+  born_from: The whole SSO/LDAP message set had never been extracted into the catalogue — Thai-speaking
+    users saw English throughout and nothing said so (P7-03b) · and pybabel once guessed "First name"
+    as the Thai for "task name".
+  born_from_th: ข้อความ SSO/LDAP ทั้งชุดไม่เคยถูก extract เข้า catalog — ผู้ใช้ภาษาไทย เห็นอังกฤษมาตลอดโดยไม่มีอะไรฟ้อง
+    (P7-03b) · และ pybabel เคยเดา "First name" เป็น "ชื่องาน"
+  reference:
+    kind: test
+    job: test
+    tests:
+    - tests/test_i18n.py
+- id: asvs-evidence-real
+  layer: baseline
+  pillar: security
+  title: Every piece of evidence in ASVS.md points at something that exists · the standard is pinned
+    by checksum
+  title_th: หลักฐานทุกชิ้นใน ASVS.md ชี้ไปหาของที่มีจริง · มาตรฐานตรึงด้วย checksum
+  born_from: A standard that shifts underfoot makes yesterday's "pass" not today's, without any commit
+    saying so · evidence nobody checks the existence of is the first thing to go stale.
+  born_from_th: มาตรฐานที่เปลี่ยนใต้เท้าทำให้ "ผ่าน" ของเมื่อวานไม่ใช่ของวันนี้โดยไม่มี commit ไหนบอก
+    · หลักฐานที่ไม่ถูกตรวจว่ามีจริงจะล้าสมัยเป็นรายการแรก
+  reference:
+    kind: test
+    job: test
+    tests:
+    - tests/test_asvs.py
+- id: declared-prohibitions-enforced
+  layer: baseline
+  pillar: devx
+  title: A prohibition a machine can check has a machine checking it — and the gate must quote a rule
+    that still exists
+  title_th: ข้อห้ามที่เครื่องตรวจได้ ต้องมีเครื่องตรวจ — และด่านต้องอ้างกฎที่ยังมีอยู่จริง
+  born_from: 'Audit round 14 counted 61 prohibitions in CLAUDE.md · 51 were machine-checkable · 19
+    were sentences only — and none of those 19 had been violated, which means the rules were being
+    followed by discipline rather than by mechanism: enough for the person who wrote them, not for
+    the next one · the first batch caught something real on its first run: tests/test_metrics_multiproc.py
+    created its own tables with no teardown, which on the dialects job means leaving rows behind for
+    the next test · audit round 15 added three more and put a ratchet on the register (`enforced_prohibitions`
+    in pyproject), because nothing was shrinking the remaining pile and nothing prevented backsliding.'
+  born_from_th: 'audit รอบ 14 นับข้อห้ามใน CLAUDE.md ได้ 61 ข้อ · 51 ข้อเครื่องตรวจได้ · 19 ข้อมีแค่ประโยค
+    — และทั้ง 19 ข้อยังไม่ถูกละเมิด แปลว่ากติกาถูกทำตามด้วย วินัยไม่ใช่กลไก ซึ่งพอสำหรับคนที่เขียนกฎเอง
+    ไม่พอสำหรับคนถัดไป · ด่านชุดแรกจับของจริงตั้งแต่รันครั้งแรก: tests/test_metrics_multiproc.py สร้างตารางเองแล้วไม่มี
+    teardown ซึ่งบน job dialects คือการทิ้งแถวค้างไว้ ให้เทสต์ตัวถัดไป · audit รอบ 15 เพิ่มอีก 3 ข้อและใส่
+    ratchet ให้ทะเบียน (`enforced_prohibitions` ใน pyproject) เพราะไม่มีอะไรทำให้กองที่เหลือ หดลงเอง
+    และไม่มีอะไรกันการถอยกลับ'
+  reference:
+    kind: test
+    job: test
+    tests:
+    - tests/test_declared_prohibitions.py
+- id: stack-images-pinned-and-moved
+  layer: baseline
+  pillar: security
+  title: Stack images are pinned by digest · something moves them · and the mover asks only for digests,
+    not new versions
+  title_th: image ของ stack ตรึงด้วย digest · มีตัวขยับ · และตัวขยับขอแค่ digest ไม่ใช่รุ่นใหม่
+  born_from: 'Audit round 15 — the project had three gates enforcing pinning (action to SHA, base
+    image to digest, CI tools by hash) and none of them opened a compose file · measured: 11 images
+    pulled by tag, running in 11 of 25 jobs on every push · among them ghcr.io/zaproxy/zaproxy:stable,
+    a floating tag that decides a security outcome — so last week''s green dast run cannot be reproduced
+    · Dependabot separates docker-compose from docker (which reads only the Dockerfile) and we had
+    declared only the latter, so pinning without a mover would have frozen the vulnerabilities in
+    place; this gate enforces both halves together · audit round 16 added a third: the mover must
+    ignore major and minor bumps — the first batch this ecosystem opened proposed mysql 8 → 26, redis
+    7 → 8 and vault 1.18 → 2.0 among nine at once · the reasoning for the ignore rules had lived only
+    in a comment, and it was measured that they could be removed with nothing complaining.'
+  born_from_th: 'audit รอบ 15 — โปรเจกต์มีด่านบังคับการ pin สามตัว (action → SHA · base image → digest
+    · เครื่องมือ CI → hash) และไม่มีตัวไหนเปิดไฟล์ compose · วัดได้ 11 image ถูกดึงด้วย tag และรันใน
+    11 จาก 25 job ทุก push · ในนั้นมี ghcr.io/zaproxy/zaproxy:stable ซึ่งเป็น tag ลอยและเป็นตัวตัดสินผลด้าน
+    ความปลอดภัย — ผลเขียวของ dast เมื่อสัปดาห์ก่อนจึงทำซ้ำไม่ได้ · Dependabot แยก docker-compose ออกจาก
+    docker (ซึ่งอ่านแค่ Dockerfile) เราประกาศไว้แค่ตัวหลังมาตลอด การตรึงโดยไม่มีตัวขยับจึงจะเป็นการแช่
+    ช่องโหว่ ด่านนี้บังคับสองข้อคู่กัน · audit รอบ 16 เพิ่มข้อที่สาม: ตัวขยับ ต้อง ignore major/minor
+    — ใบแรกที่ ecosystem นี้เปิดให้เสนอ mysql 8 → 26, redis 7 → 8, vault 1.18 → 2.0 พร้อมกันเก้าตัว
+    · เหตุผลของการตั้ง ignore เคยอยู่ในคอมเมนต์อย่างเดียว และวัดแล้วว่าถอดออกได้โดยไม่มีอะไรฟ้อง'
+  reference:
+    kind: test
+    job: test
+    tests:
+    - tests/test_stack_image_pinning.py
+- id: test-databases-must-be-throwaway
+  layer: baseline
+  pillar: security
+  title: A test suite's target must declare itself disposable — a suite that drops the schema in every
+    fixture must have no way to point at a real database
+  title_th: ปลายทางของชุดเทสต์ต้องประกาศตัวว่าเป็นของทิ้ง — ชุดที่ drop schema ทุก fixture ต้องไม่มีทางชี้ฐานจริง
+  born_from: 'A review question after audit round 26 — ISO/IEC 27001 `A.8.31`/`A.8.33` had long been
+    declared **passing** on the claim that "the fixture refuses real databases" · checking found that
+    the thing actually refusing was `scripts/a11y_fixture.py`, which **(a)** is a different path from
+    the test suite, **(b)** tests `"instance" in uri` and so catches only the dev SQLite shape, and
+    **(c)** declares its own role as `helper`, defined as "decides nothing and is never cited as evidence"
+    · meanwhile the most dangerous path — `TEST_DATABASE_URL`, which `CLAUDE.md` tells people to set
+    themselves, with every fixture calling `create_all()`/`drop_all()` through it — **had nothing
+    guarding it at all**: one typo in the database name permanently drops every table in it · the
+    criterion is an allowlist ("the database name must say it is for testing") rather than a blocklist,
+    because guessing what a real database looks like is never complete, whereas an allowlist errs
+    toward safety.'
+  born_from_th: คำถามทบทวนหลัง audit รอบ 26 — ISO/IEC 27001 `A.8.31`/`A.8.33` ถูกประกาศว่า **ผ่าน**
+    มานาน โดยอ้างว่า "fixture ปฏิเสธฐานข้อมูลจริง" · ไปตรวจแล้วพบว่าตัวที่ ปฏิเสธจริงคือ `scripts/a11y_fixture.py`
+    ซึ่ง **(ก)** เป็นคนละเส้นทางกับชุดเทสต์ **(ข)** เกณฑ์ของมันคือ `"instance" in uri` จึงจับได้เฉพาะรูป
+    sqlite ของ dev และ **(ค)** ประกาศบทบาทตัวเองว่า `helper` ซึ่งนิยามคือ "ไม่ตัดสินและไม่ถูกอ้างเป็น
+    หลักฐาน" · ขณะที่เส้นทางที่อันตรายที่สุด — `TEST_DATABASE_URL` ที่ `CLAUDE.md` บอกให้คนตั้งเอง
+    แล้วทุก fixture เรียก `create_all()`/`drop_all()` ผ่านมัน — **ไม่เคยมีอะไรกันเลย** พิมพ์ชื่อฐานผิดครั้งเดียวคือ
+    drop ตารางทั้งฐานอย่างถาวร · เกณฑ์เป็น allowlist ("ชื่อฐานต้องบอกเองว่าเป็นของทดสอบ") ไม่ใช่ blocklist
+    เพราะการเดาว่าฐานจริงหน้าตาอย่างไรไม่มีวันครบ ส่วน allowlist ผิดไปทางปลอดภัย
+  reference:
+    kind: test
+    job: test
+    tests:
+    - tests/test_throwaway_database.py
+- id: data-health-is-checkable
+  layer: baseline
+  pillar: manageability
+  title: One command answers which rules the data in the database is breaking *right now* — read-only
+  title_th: มีคำสั่งเดียวที่ตอบว่าข้อมูลในฐาน *ตอนนี้* ผิดกติกาข้อไหนบ้าง — อ่านอย่างเดียว
+  born_from: 'Audit round 19 — the eighteen preceding rounds examined code, config, documentation,
+    CI, registers, and even the tools that check the tools; all of it lives in git · **the data is
+    the one thing that is not in git and the one thing users see** · a defect was planted at the data
+    layer in a freshly migrated database and measured: an orphaned row passed every command, every
+    healthcheck and every job · the string `foreign_key_check` appeared nowhere in the repo, not once
+    · of 26 CLI commands, exactly one asked the data whether it was still sound, and it checked only
+    the audit chain.'
+  born_from_th: 'audit รอบ 19 — สิบแปดรอบก่อนหน้าตรวจโค้ด · config · เอกสาร · CI · ทะเบียน และแม้แต่เครื่องมือที่ตรวจเครื่องมือ
+    ทั้งหมดอยู่ใน git · **ข้อมูลเป็นสิ่งเดียว ที่ไม่อยู่ใน git และเป็นสิ่งเดียวที่ผู้ใช้เห็น** · ปลูกความผิดที่ชั้นข้อมูลลงใน
+    ฐานที่ migrate สดแล้ววัด: แถวกำพร้าผ่านทุกคำสั่ง ทุก healthcheck และทุก job · คำว่า `foreign_key_check`
+    ไม่ปรากฏที่ไหนใน repo แม้แต่ครั้งเดียว · CLI 26 คำสั่ง มีตัวที่ถามข้อมูลว่ายังดีอยู่ไหมอยู่ตัวเดียว
+    และมันตรวจแค่สาย audit'
+  reference:
+    kind: test
+    job: test
+    tests:
+    - tests/test_data_doctor.py
+- id: scripts-declare-their-role
+  layer: baseline
+  pillar: devx
+  title: Every script declares its own kind · someone touches it · and what it generates still works
+  title_th: สคริปต์ทุกตัวประกาศชนิดของตัวเอง · มีคนแตะ · และของที่ generate มายังใช้ได้จริง
+  born_from: Audit round 17 — 83 of 105 gates were decided by code in scripts/, yet its coverage was
+    43.8% and 14 files sat at 0% · among them run_gates.py, deliberately tested through a subprocess,
+    and generators checked by their output — **so coverage was the wrong instrument for half the files**
+    · classifying by kind made it possible to demand the right sort of evidence, and revealed three
+    files touched by no test, no workflow and no hook at all (build_eol_table · build_password_blocklist
+    · measure_generated).
+  born_from_th: audit รอบ 17 — 83 จาก 105 gate ตัดสินด้วยโค้ดใน scripts/ แต่ coverage ของ มันคือ 43.8%
+    และ 14 ไฟล์อยู่ที่ 0% · ในนั้นมี run_gates.py ที่ถูกทดสอบผ่าน subprocess โดยตั้งใจ และ generator
+    ที่ถูกตรวจที่ผลลัพธ์ — **coverage จึงเป็น เครื่องมือวัดที่ผิดชนิดสำหรับครึ่งหนึ่งของไฟล์** · การจำแนกชนิดทำให้เรียกร้อง
+    หลักฐานได้ถูกแบบ และเผยว่ามีสามไฟล์ที่ไม่มีเทสต์ ไม่มี workflow ไม่มี hook แตะเลย (build_eol_table
+    · build_password_blocklist · measure_generated)
+  reference:
+    kind: test
+    job: test
+    tests:
+    - tests/test_script_roles.py
+    - tests/test_generated_tables.py
+    - tests/test_measure_generated.py
+- id: adr-index-complete
+  layer: baseline
+  pillar: devx
+  title: The ADR index covers every record, numbered without repeats or gaps · and supersessions are
+    recorded in both directions
+  title_th: ดัชนี ADR ครอบทุกใบ เลขไม่ซ้ำไม่มีรู · และการแทนที่ถูกบันทึกสองทิศ
+  born_from: 'The index once stopped at 0026 while the files ran to 0033 — seven records from the
+    phase that decided the biggest questions, invisible · audit round 14 added the second direction:
+    ADR 0035 had superseded item 1 of 0032 since 2026-08-12, but 0032''s own page did not know for
+    seven days, while the module docstring at the head of app/audit.py still pointed at 0032 as the
+    current mechanism, which CLAUDE.md explicitly forbids returning to.'
+  born_from_th: 'ดัชนีเคยหยุดที่ 0026 ขณะที่ไฟล์มีถึง 0033 — เจ็ดใบจากเฟสที่ตัดสินใจ เรื่องใหญ่ที่สุดหายจากสายตา
+    · audit รอบ 14 เพิ่มทิศที่สอง: ADR 0035 แทน ข้อ 1 ของ 0032 ตั้งแต่ 2026-08-12 แต่หน้าของ 0032
+    ไม่รู้ตัวเจ็ดวัน ขณะที่ docstring หัวไฟล์ของ app/audit.py ชี้มาที่ 0032 ในฐานะกลไกปัจจุบัน ทั้งที่
+    CLAUDE.md ห้ามกลับไปใช้กลไกนั้นตรง ๆ'
+  reference:
+    kind: test
+    job: test
+    tests:
+    - tests/test_adr_index.py
+  script: checks/scan_adr_index.py
+- id: cadence-not-overdue
+  layer: baseline
+  pillar: security
+  title: The periodic-review schedule is genuinely read; more than 7 days overdue is red · and the
+    register of deliberate deferrals keeps up with the ADRs
+  title_th: ตารางตรวจตามรอบถูกอ่านจริง เลยกำหนดเกิน 7 วัน = แดง · และทะเบียนของที่จงใจเลื่อนตามทัน
+    ADR
+  born_from: Periodic work with nothing to chase it is work that quietly stops happening — a due date
+    must be a date or a decidable condition, never "when we're ready".
+  born_from_th: งานตามรอบที่ไม่มีเครื่องทวงคืองานที่เงียบหายไปเฉย ๆ — กำหนดต้องเป็นวันที่ หรือเงื่อนไขที่ตัดสินได้
+    ไม่ใช่ "เมื่อพร้อม"
+  reference:
+    kind: test
+    job: test
+    tests:
+    - tests/test_cadence.py
+- id: ropa-current
+  layer: business
+  pillar: security
+  title: The ROPA, the log inventory and the runbook match the real system
+  title_th: ROPA + บัญชี log + runbook ตรงกับระบบจริง
+  born_from: An application processing personal data has to be able to say what it keeps, where, and
+    for how long — a ROPA that does not match the system is a document that is quietly wrong · raised
+    to the business layer per ADR 0057.
+  born_from_th: แอปที่ประมวลผลข้อมูลส่วนบุคคลต้องตอบได้ว่าเก็บอะไร ที่ไหน นานเท่าไหร่ — ROPA ที่ไม่ตรงระบบจริงคือเอกสารที่ผิดเงียบ
+    ๆ · ยกขึ้น business ตาม ADR 0057
+  reference:
+    kind: test
+    job: test
+    tests:
+    - tests/test_ropa.py
+- id: risk-method-and-register-current
+  layer: baseline
+  pillar: security
+  title: The risk method exists, levels match the formula, the mechanisms behind high rows point at
+    real things, and the full cycle is chased
+  title_th: วิธีประเมินความเสี่ยงมีจริง ระดับตรงสูตร กลไกของแถวสูงชี้ของจริง และรอบเต็มถูกทวง
+  born_from: Closing ISO 27001 backlog items 6.1/8.2 (owner's instruction, 2026-08-16) — risk decisions
+    had been scattered across individual ADRs with no shared method · a level computed by a fixed
+    formula moves the argument to the input scores rather than to the conclusion.
+  born_from_th: ปิด backlog 6.1/8.2 ของ ISO 27001 (เจ้าของสั่ง 2026-08-16) — การตัดสิน ความเสี่ยงเคยกระจายใน
+    ADR รายใบโดยไม่มีวิธีกลาง · ระดับที่คำนวณจากสูตร ตายตัวทำให้เถียงกันที่คะแนนตั้งต้น ไม่ใช่ที่ผลลัพธ์
+  reference:
+    kind: test
+    job: test
+    tests:
+    - tests/test_risk_assessment.py
+- id: backup-restore-drilled-every-push
+  layer: baseline
+  pillar: security
+  title: The backup → damage → restore drill runs for real on every push, and the drill genuinely
+    detects damage
+  title_th: การซ้อม backup → เสียหาย → restore รันจริงทุก push และตัวซ้อมจับความเสียหายได้จริง
+  born_from: Closing ISO 27001 backlog items A.5.30/A.8.13 — a restore never rehearsed is a hope,
+    not a plan · so the drill is a test rather than an annual ceremony, and the drill itself is proved
+    in both directions (a restore that lost data must be reported).
+  born_from_th: ปิด backlog A.5.30/A.8.13 ของ ISO 27001 — restore ที่ไม่เคยซ้อมคือ ความหวัง ไม่ใช่แผน
+    · การซ้อมจึงเป็นเทสต์ ไม่ใช่พิธีปีละครั้ง และตัวซ้อม ถูกพิสูจน์สองทิศ (restore ที่ข้อมูลหายต้องถูกรายงาน)
+  reference:
+    kind: test
+    job: test
+    tests:
+    - tests/test_backup_drill.py
+- id: design-doc-matches-the-ui
+  layer: business
+  pillar: devx
+  title: docs/DESIGN.md matches the real UI — every full page has a declared mode, and the colour
+    variables match base.css in both directions
+  title_th: docs/DESIGN.md ตรงกับ UI จริง — ทุกหน้าเต็มถูกตัดสินโหมด และตัวแปรสีตรงกับ base.css สองทิศ
+  born_from: CR#4 — captions floated centred on several pages because the reading axis of the page
+    as a whole had never been written down, so new pages inherited the browser's defaults · a design
+    document with no gate is a document that goes stale and then misleads the next page.
+  born_from_th: CR#4 — caption ลอยกึ่งกลางหลายหน้าเพราะแนวอ่านของทั้งหน้าไม่เคยถูกเขียน หน้าใหม่จึงเกิดตามค่าเริ่มต้นของ
+    browser · เอกสาร design ที่ไม่มีด่าน คือเอกสารที่ล้าสมัยแล้วพาหน้าถัดไปหลงทาง
+  reference:
+    kind: test
+    job: test
+    tests:
+    - tests/test_design_doc.py
+- id: admin-masking-by-classification
+  layer: business
+  pillar: security
+  title: Admin pages show user data masked according to its data class, and unmasking is audited
+  title_th: หน้า admin เห็นข้อมูลผู้ใช้แบบ mask ตามชั้นข้อมูล และ unmask ต้องลง audit
+  born_from: ADR 0045 (phase 14-02) — a data class that has no effect on what an administrator sees
+    on screen is a data class on paper · this can become portable once an overlay checker can actually
+    check it in another project.
+  born_from_th: ADR 0045 (เฟส 14-02) — ชั้นข้อมูลที่ไม่มีผลกับสิ่งที่ admin เห็นบนจอ คือชั้นข้อมูลบนกระดาษ
+    · ยกเป็น portable ได้ต่อเมื่อมี checker ของ overlay ที่ตรวจเรื่องนี้ในโปรเจกต์อื่นได้จริง
+  reference:
+    kind: test
+    job: test
+    tests:
+    - tests/test_masking.py
+- id: admin-panels-read-real-state
+  layer: business
+  pillar: security
+  title: Admin system panels read live runtime and disk state, answer truthfully, and are for administrators
+    only
+  title_th: panel ระบบของ admin อ่านจาก runtime/ดิสก์จริง ตอบตามจริง และ admin เท่านั้น
+  born_from: 'Phases 14-04/14-06 — the lesson from the documentation reviews: a number not read from
+    the real thing is already wrong, so an admin page showing system state must be compared against
+    the real source, and whatever cannot be read must say so plainly rather than guess.'
+  born_from_th: 'เฟส 14-04/14-06 — บทเรียนรอบตรวจเอกสาร: เลขที่ไม่ได้อ่านจากของจริงคือ เลขที่ผิดอยู่แล้ว
+    หน้า admin ที่แสดงสถานะระบบจึงต้องถูกเทียบกับแหล่งจริง และของที่อ่านไม่ได้ต้องพูดตรง ๆ ไม่ใช่เดา'
+  reference:
+    kind: test
+    job: test
+    tests:
+    - tests/test_admin_panels.py
+- id: secrets-encrypted-at-rest
+  layer: business
+  pillar: security
+  title: Secrets that must be readable again are encrypted on disk, and a missing or wrong key fails
+    loudly with the reason
+  title_th: ความลับที่ต้องอ่านคืนได้ ถูก encrypt บนดิสก์ และคีย์หาย/ผิดต้องดังพร้อมเหตุผล
+  born_from: ADR 0046 (phase 15) — a single database dump used to yield every TOTP secret, because
+    it was the one class C1 value that has to be stored in the clear · decryption must fail loudly
+    when the key is missing or wrong rather than return garbage — and those two messages must point
+    at different remedies.
+  born_from_th: ADR 0046 (เฟส 15) — dump ฐานข้อมูลใบเดียวเคยได้ความลับ TOTP ทั้งหมด เพราะมันเป็น C1
+    ตัวเดียวที่ต้องเก็บค่าจริง · การถอดต้องล้มดังเมื่อคีย์ หาย/ผิด ไม่ใช่คืนขยะ — และข้อความสองกรณีนั้นต้องบอกทางแก้คนละทาง
+  reference:
+    kind: test
+    job: test
+    tests:
+    - tests/test_totp_encryption.py
+- id: legal-pdpa-worksheet-honest
+  layer: business
+  pillar: security
+  title: The PDPA worksheet cites evidence that exists, and every gap is in the backlog
+  title_th: worksheet PDPA อ้างหลักฐานที่มีจริงทุกชิ้น และช่องว่างทุกข้ออยู่ใน backlog
+  born_from: The pilot for the legal layer (ADR 0042 · phase 13-04) — a document mapping the law whose
+    evidence nobody checks will be used to make a decision on the day something real happens, which
+    is too late to fix it.
+  born_from_th: pilot ของชั้น legal (ADR 0042 · เฟส 13-04) — เอกสาร map กฎหมายที่ไม่มี ใครตรวจหลักฐาน
+    จะถูกใช้ตัดสินใจในวันที่มีเรื่องจริง ซึ่งสายเกินแก้
+  reference:
+    kind: test
+    job: test
+    tests:
+    - tests/test_pdpa.py
+- id: licensing-no-copyleft
+  layer: baseline
+  pillar: security
+  title: The LICENSE is the real text the ADR declares · the core carries no dependency with a copyleft
+    obligation
+  title_th: LICENSE เป็นของจริงตามที่ ADR ประกาศ · core ไม่มี dependency ที่แบกภาระ copyleft
+  born_from: That library was LGPLv3 and happened to sit in the group of optional dependencies — separating
+    the supply chain separated the legal obligation too, without anyone designing it that way · "not
+    found" is not the same as "unreadable, therefore not found" · ADR 0070 (2026-08-19) changed the
+    licences to AGPL-3.0 and CC BY-SA 4.0 — so this gate checks the body of the AGPL (including clause
+    13 on network use, which is the entire reason that licence was chosen) and that LICENSE-docs exists
+    · **the dependency-copyleft half is unchanged**, because that obligation belongs to the downstream
+    user, not to us.
+  born_from_th: ไลบรารีตัวนั้นเป็น LGPLv3 และอยู่ในกลุ่ม dependency ที่ไม่บังคับพอดี — การแยก supply
+    chain แยกภาระทางกฎหมายไปด้วยโดยไม่มีใครออกแบบ · "ไม่พบ" ≠ "อ่านไม่ได้จึงไม่พบ" · ADR 0070 (2026-08-19)
+    เปลี่ยนสัญญาอนุญาตเป็น AGPL-3.0 + CC BY-SA 4.0 — ด่านนี้จึงตรวจเนื้อของ AGPL (รวมข้อ 13 เรื่องการให้บริการผ่านเครือข่าย
+    ซึ่งเป็นเหตุผลทั้งหมดที่เลือกใบนั้น) และตรวจว่า LICENSE-docs มีจริง · **ส่วนที่ตรวจ copyleft ของ
+    dependency ไม่เปลี่ยน** เพราะภาระนั้นเป็นของ ผู้ใช้ปลายทาง ไม่ใช่ของเรา
+  reference:
+    kind: test
+    job: test
+    tests:
+    - tests/test_licensing.py
+- id: security-policy-consistent
+  layer: baseline
+  pillar: security
+  title: The timeframes quoted in SECURITY.md agree across every copy, and no email address appears
+    in the file
+  title_th: ตัวเลขกรอบเวลาใน SECURITY.md ตรงกันทุกสำเนา และไม่มีอีเมลในไฟล์
+  born_from: A policy whose numbers disagree in three places is a policy where the reporter can always
+    choose whichever copy suits them.
+  born_from_th: นโยบายที่เลขไม่ตรงกันสามที่ คือนโยบายที่ผู้รายงานเลือกอ่านฉบับที่ตัวเอง ได้ประโยชน์ได้เสมอ
+  reference:
+    kind: test
+    job: test
+    tests:
+    - tests/test_security_policy.py
+- id: contributor-docs-truthful
+  layer: baseline
+  pillar: devx
+  title: The numbers advertised in the docs are read from the real source (job count, ADR count, coverage
+    floor, version on the badge answer)
+  title_th: ตัวเลขที่โฆษณาใน docs อ่านจากแหล่งจริง (จำนวน job, ADR, coverage floor, เลขรุ่นในใบตอบ
+    badge)
+  born_from: 'Three documents said "CI: 21 jobs" while the workflow defined 20 — nobody was being
+    untruthful, but nobody was checking · 2026-08-17 repeated it a layer up: the badge answer still
+    said v1.5.0 three days after v1.6.0 shipped, although the runbook had a step for updating it —
+    **a step with no test reading alongside it goes stale exactly like a number with no test reading
+    alongside it**.'
+  born_from_th: 'เอกสารสามที่บอก "CI 21 job" ขณะที่ workflow นิยาม 20 — ไม่มีใครให้ข้อมูลที่ไม่จริง
+    แต่ไม่มีใครตรวจ · 2026-08-17 ซ้ำอีกชั้น: ใบตอบ badge ยังเขียน v1.5.0 สามจุดหลังออก v1.6.0 แล้ว
+    ทั้งที่ runbook มีขั้นตอนให้อัปเดต — **ขั้นตอน ที่ไม่มีเทสต์อ่านคู่ ก็ล้าสมัยเหมือนตัวเลขที่ไม่มีเทสต์อ่านคู่**'
+  reference:
+    kind: test
+    job: test
+    tests:
+    - tests/test_contributor_docs.py
+- id: changelog-tracks-version
+  layer: baseline
+  pillar: devx
+  title: The CHANGELOG is tied to the application's __version__
+  title_th: CHANGELOG ผูกกับ __version__ ของแอป
+  born_from: The declared version and the version the code reports have been free to drift apart,
+    silently, since the first release.
+  born_from_th: เวอร์ชันที่ประกาศกับเวอร์ชันที่โค้ดรายงานแยกกันได้เงียบ ๆ ตั้งแต่ release แรก
+  reference:
+    kind: test
+    job: test
+    tests:
+    - tests/test_changelog.py
+- id: actions-sha-pinned
+  layer: baseline
+  pillar: security
+  title: Every action is pinned to a commit SHA with the version in a comment
+  title_th: ทุก action ถูก pin ด้วย commit SHA + คอมเมนต์เลขรุ่น
+  born_from: Tags move, commits do not — upload-artifact once sat on @v4 at a single call site for
+    ten days with CI green throughout.
+  born_from_th: tag ย้ายได้ commit ย้ายไม่ได้ — upload-artifact เคยค้าง @v4 จุดเดียว สิบวันโดย CI
+    เขียวตลอด
+  reference:
+    kind: test
+    job: test
+    tests:
+    - tests/test_workflow_pinning.py
+  script: checks/scan_workflow_pinning.py
+- id: image-digest-pinned
+  layer: baseline
+  pillar: security
+  title: The base image is pinned to a manifest-index digest and Dependabot moves it
+  title_th: base image ถูก pin ด้วย digest ของ manifest index และ Dependabot ขยับให้
+  born_from: Pinning with nobody to move it freezes the vulnerabilities in place — the two must always
+    arrive together, and the test enforces that the pair is not separated.
+  born_from_th: pin โดยไม่มีใครขยับคือการแช่ช่องโหว่ไว้ — สองอย่างนี้ต้องมาคู่กันเสมอ และเทสต์บังคับว่าคู่นั้นไม่แยกจากกัน
+  reference:
+    kind: test
+    job: test
+    tests:
+    - tests/test_dockerfile_pinning.py
+  script: checks/scan_dockerfile_digest.py
+- id: ci-tools-hash-pinned
+  layer: baseline
+  pillar: security
+  title: Tools CI installs for itself are pinned by hash, on both the Python and the Node side
+  title_th: เครื่องมือที่ CI ติดตั้งเองถูกตรึงด้วย hash ทั้ง python และ node
+  born_from: An unpinned install command takes whatever is newest at the second the job runs, and
+    it runs with our workflow's privileges · pinning one package at a time pins only that package
+    while the rest of the tree still floats.
+  born_from_th: คำสั่งติดตั้งเครื่องมือแบบไม่ตรึง หยิบรุ่นล่าสุด ณ วินาทีที่ job รัน และมันรันด้วยสิทธิ์ของ
+    workflow เรา · การตรึงทีละ package ตรึงได้แค่ ตัวเดียว ที่เหลือทั้งต้นไม้ยังลอย
+  reference:
+    kind: test
+    job: test
+    tests:
+    - tests/test_ci_pinning.py
+  script: checks/scan_install_pinning.py
+- id: checkers-proven-two-way
+  layer: baseline
+  pillar: security
+  title: A script that decides pass or fail has tests with a planted violation and with clean input
+    · and its report may not contradict itself
+  title_th: สคริปต์ที่ตัดสินผ่าน/ไม่ผ่าน ต้องมีเทสต์ planted violation + clean input · และรายงานต้องไม่ขัดกันเอง
+  born_from: 'Governance audit round 4 (2026-08-17) — the three deciders of the supply-chain axis
+    (`audit_pins` · `audit_image` · `check_semgrep`) had matching test files, but those tests checked
+    only the index and the wiring · invert a line of set arithmetic and everything stayed green while
+    CI reported "nothing new" forever without deciding anything — the rules we export to others (the
+    overlay''s eight checkers) had always been tested in both directions; the deciders we use ourselves
+    must not be held to less · **audit round 27, item 3**: `bestpractices.dev` is the one row in the
+    provider register that answers "no machine check", and the clock is entirely theirs — they can
+    change the criteria while we do nothing and the badge quietly drops a level, with only a 12-month
+    review row to chase it · `audit_posture.py` reads the live JSON answer and compares it with the
+    percentage table in the documentation (setting the gate up immediately found a real staleness:
+    the document said gold 26% while the site answered 57%).'
+  born_from_th: 'audit governance รอบ 4 (2026-08-17) — ตัวตัดสินของแกน supply chain สามตัว (`audit_pins`
+    · `audit_image` · `check_semgrep`) มีไฟล์เทสต์ชื่อคู่กันจริง แต่เทสต์เหล่านั้นตรวจแค่ดัชนีกับ
+    wiring · กลับเงื่อนไข set arithmetic สักบรรทัดแล้วทุกอย่างยังเขียว และ CI รายงาน "ไม่มีอะไรใหม่"
+    ตลอดไปโดยไม่ได้ ตัดสินอะไร — กฎที่ export ให้คนอื่น (checker 8 ตัวของ overlay) ถูกทดสอบ สองทิศมาตลอด
+    ตัวตัดสินที่เราใช้เองต้องไม่ต่ำกว่านั้น · **audit รอบ 27 ข้อ 3**: `bestpractices.dev` เป็นแถวเดียวในทะเบียนผู้ให้บริการ
+    ที่ตอบว่า "ไม่มีเครื่องตรวจ" และนาฬิกาเป็นของเขาล้วน ๆ — เขาแก้เกณฑ์ได้โดยที่เรา ไม่ได้ทำอะไร
+    แล้ว badge ลดระดับเงียบ ๆ โดยมีแต่แถวรอบ 12 เดือนคอยทวง · `audit_posture.py` อ่านใบตอบ JSON สดแล้วเทียบกับตารางเปอร์เซ็นต์ในเอกสาร
+    (ตอนตั้งด่านก็พบของค้างจริง: เอกสารเขียน gold 26% ขณะที่เว็บตอบ 57%)'
+  reference:
+    kind: test
+    job: test
+    tests:
+    - tests/test_checker_logic.py
+- id: pins-exceptions-honest
+  layer: baseline
+  pillar: security
+  title: The advisory exception list is checked in both directions, and every ID has a documented
+    reason
+  title_th: รายการยกเว้น advisory ตรวจสองทิศ และทุก ID มีเหตุผลในเอกสาร
+  born_from: '`--ignore-vuln` is silent whenever the ID disappears — an exception list nobody removes
+    entries from becomes a real muzzle on the day that package gets a new advisory.'
+  born_from_th: '`--ignore-vuln` เงียบเสมอเมื่อ ID หายไป — รายการยกเว้นที่ไม่มีใครถอด จะกลายเป็นตัวปิดของจริงในวันที่
+    package นั้นมี advisory ใหม่'
+  reference:
+    kind: test
+    job: test
+    tests:
+    - tests/test_pins_audit.py
+- id: semgrep-scope-proven
+  layer: baseline
+  pillar: security
+  title: semgrep must prove what it scanned — the real file set is compared against git ls-files
+  title_th: semgrep ต้องพิสูจน์ว่าสแกนอะไร — เทียบเซตไฟล์จริงกับ git ls-files
+  born_from: semgrep's defaults exclude tests/ — 61 of 136 files had never been scanned, with no line
+    anywhere in the repo saying so · "found nothing" looks exactly like "checked nothing".
+  born_from_th: ค่าเริ่มต้นของ semgrep ตัด tests/ ทิ้ง — 61/136 ไฟล์ไม่เคยถูกสแกน โดยไม่มีบรรทัดไหนใน
+    repo บอก · "ไม่เจอ" หน้าตาเหมือน "ไม่ได้ตรวจ" เป๊ะ
+  reference:
+    kind: test
+    job: test
+    tests:
+    - tests/test_semgrep_gate.py
+- id: dependabot-fits-the-gates
+  layer: baseline
+  pillar: security
+  title: Dependabot's prefix is a type commit-lint accepts, and pip is constrained by path
+  title_th: prefix ของ Dependabot เป็นชนิดที่ commit-lint รับ และ pip ถูกจำกัดด้วย path
+  born_from: A machine's pull requests that are red from the first one teach the maintainer to ignore
+    all of the machine's pull requests — which is worse than not enabling it.
+  born_from_th: PR ของเครื่องที่แดงตั้งแต่ใบแรก สอนคนดูแลให้เมิน PR ของเครื่องทั้งหมด — ซึ่งแย่กว่าไม่เปิดมันเลย
+  reference:
+    kind: test
+    job: test
+    tests:
+    - tests/test_dependabot.py
+- id: suite-on-three-brands
+  layer: business
+  pillar: manageability
+  title: The whole test suite passes on MySQL 8 and MariaDB 11 for real, not only on SQLite
+  title_th: ชุดเทสต์ทั้งชุดผ่านบน MySQL 8 และ MariaDB 11 จริง ไม่ใช่แค่ SQLite
+  born_from: '"Supports several brands" that has never been fired at a real brand is advertising —
+    the audit chain''s deadlock is findable only on real InnoDB (ADR 0032/0035).'
+  born_from_th: '"รองรับหลายยี่ห้อ" ที่ไม่เคยยิงยี่ห้อจริงคือคำโฆษณา — deadlock ของสาย audit เจอได้เฉพาะบน
+    InnoDB จริงเท่านั้น (ADR 0032/0035)'
+  reference:
+    kind: job
+    job: dialects
+- id: bare-clone-still-green
+  layer: baseline
+  pillar: manageability
+  title: A bare clone (with none of the optional extras installed) must be green — "remove it and
+    the system still works" is measurable
+  title_th: สภาพหลัง clone เปล่า ๆ (ยังไม่ติดตั้งของเสริมที่ไม่บังคับ) ต้องเขียว — "ถอดแล้วระบบยังทำงานได้"
+    วัดได้
+  born_from: ADR 0025 — importorskip is forbidden because it makes the main job skip that test silently
+    when the library is missing, which is precisely the case we most want to be red.
+  born_from_th: ADR 0025 — ห้ามใช้ importorskip เพราะมันทำให้ job หลักข้ามเทสต์เงียบ ๆ ตอนไลบรารีหาย
+    ซึ่งคือกรณีที่ต้องการให้แดงที่สุด
+  reference:
+    kind: job
+    job: bare
+- id: changed-lines-fully-tested
+  layer: baseline
+  pillar: devx
+  title: Lines a pull request changes must be 100% covered — a whole-file coverage floor cannot answer
+    that question
+  title_th: บรรทัดที่ PR แก้ต้องถูกเทสต์ครอบ 100% — coverage floor ทั้งไฟล์ตอบคำถามนี้ไม่ได้
+  born_from: Governance audit round 6 (2026-08-17) — the gate that went red most often in this repo
+    (5 of the 13 failing runs in the last 200) had no row in the index at all, because the rule "every
+    job has a gate" treated job `test` as covered by the gates of the test files · an already-high
+    repo-wide coverage figure will always hide new lines that nobody tested.
+  born_from_th: audit governance รอบ 6 (2026-08-17) — ด่านที่แดงบ่อยที่สุดของ repo นี้ (5 จาก 13 run
+    ที่ล้มใน 200 run ล่าสุด) กลับไม่มีแถวในดัชนีเลย เพราะกฎ "ทุก job ต้องมี gate" ถือว่า job `test`
+    ถูกครอบด้วย gate ของไฟล์เทสต์แล้ว · coverage รวมของ repo ที่สูงอยู่แล้วกลบบรรทัดใหม่ที่ไม่มีใครเทสต์ได้เสมอ
+  reference:
+    kind: step
+    job: test
+    step: diff-cover (บรรทัดที่แก้ต้องมีเทสต์ 100%)
+- id: static-quality-battery
+  layer: baseline
+  pillar: devx
+  title: ruff + format + xenon + interrogate + mypy + the ASVS worksheet — ratchets that only move
+    up
+  title_th: ruff + format + xenon + interrogate + mypy + asvs-worksheet — ratchet ขึ้นทางเดียว
+  born_from: Every step carries if !cancelled() because xenon once went red first and hid a mypy failure
+    behind it — the first gate to go red must not mask the ones after it.
+  born_from_th: ทุก step มี if !cancelled() เพราะ xenon เคยแดงก่อนแล้วบัง mypy ที่แดงอยู่ — ด่านที่แดงตัวแรกห้ามบังตัวหลัง
+  reference:
+    kind: job
+    job: lint
+- id: n-minus-one-served
+  layer: baseline
+  pillar: manageability
+  title: The code at the latest tag must genuinely serve traffic on HEAD's schema (expand–contract)
+  title_th: โค้ดของ tag ล่าสุดต้องให้บริการบน schema ของ HEAD ได้จริง (expand–contract)
+  born_from: A rolling deploy always has a window where two versions run against one schema — a migration
+    that is correct for the new code but kills the old one is downtime nobody announced · a promise
+    with no gate running behind it is a promise waiting to go stale (ADR 0048).
+  born_from_th: rolling deploy มีจังหวะที่สองรุ่นรันพร้อมกันบน schema เดียวเสมอ — migration ที่ถูกต้องสำหรับโค้ดใหม่แต่ฆ่าโค้ดเก่าคือ
+    downtime ที่ไม่มีใคร ประกาศ · สัญญาที่ไม่มีด่านรันหนุนคือสัญญาที่รอวันล้าสมัย (ADR 0048)
+  reference:
+    kind: job
+    job: n-1
+- id: schema-drift-zero
+  layer: baseline
+  pillar: manageability
+  title: Run the migrations on an empty database and compare with the models — drift must be zero
+  title_th: เดิน migration บนฐานเปล่าแล้วเทียบกับ model — drift ต้องเป็นศูนย์
+  born_from: Tests use create_all from the models and therefore cannot see a migration that has gone
+    wrong — there has to be a gate that runs the real migrations on an empty database.
+  born_from_th: เทสต์ใช้ create_all จาก model จึงมองไม่เห็น migration ที่เพี้ยน — ต้องมีด่านที่เดิน
+    migration จริงบนฐานเปล่า
+  reference:
+    kind: job
+    job: schema
+- id: openapi-regen-clean
+  layer: baseline
+  pillar: manageability
+  title: Regenerate the spec and git diff must be empty
+  title_th: generate spec ใหม่แล้ว git diff ต้องว่าง
+  born_from: A photograph not compared against the code on every push is a photograph of the past.
+  born_from_th: ภาพถ่ายที่ไม่ถูกเทียบกับโค้ดทุก push คือภาพถ่ายของอดีต
+  reference:
+    kind: job
+    job: openapi
+- id: conventional-commits
+  layer: baseline
+  pillar: devx
+  title: Commits are Conventional Commits of at most 72 characters and carry Signed-off-by (DCO),
+    checked only on what the branch actually adds
+  title_th: commit เป็น Conventional Commits ≤72 ตัว และมี Signed-off-by (DCO) ตรวจเฉพาะที่เพิ่มจริง
+  born_from: 'A required check that gets skipped on a pull request leaves it BLOCKED forever with
+    nothing red to see — and the merge commit from the Update branch button once failed the gate itself
+    · **ADR 0073 brought the DCO signature into the same gate**: the project had never asked contributors
+    to certify their legal right to what they send, which was the one unmet item of the 19 in OSPS
+    Baseline level 2, and the same reason the badge''s silver-level `dco` criterion had been Unmet
+    from the start.'
+  born_from_th: 'required check ที่ถูก skip บน PR ทำให้ PR ค้าง BLOCKED ตลอดกาลโดยไม่มี อะไรแดงให้เห็น
+    — และ merge commit ของปุ่ม Update branch เคยตกด่านเอง · **ADR 0073 เพิ่มลายเซ็น DCO เข้ามาในด่านเดียวกัน**:
+    โปรเจกต์ไม่เคยขอให้ ผู้ส่งโค้ดรับรองสิทธิ์ตามกฎหมายของสิ่งที่ส่งเลย ซึ่งเป็นข้อเดียวจาก 19 ข้อ
+    ของ OSPS Baseline ระดับ 2 ที่ไม่ผ่าน และเป็นเหตุผลเดียวกับที่เกณฑ์ `dco` ของ badge ระดับ silver
+    เป็น Unmet มาตั้งแต่ต้น'
+  reference:
+    kind: job
+    job: commit-lint
+- id: core-deps-cve-audit
+  layer: baseline
+  pillar: security
+  title: pip-audit over the core — a CVE in something that cannot be removed must be able to stop
+    the pipeline
+  title_th: pip-audit ของ core — CVE ที่ถอดไม่ได้ต้องหยุด pipeline ได้
+  born_from: The core's supply chain cannot be removed — a CVE here has no way out but a fix, so it
+    can go red without apology, unlike an optional dependency where the answer is to remove it.
+  born_from_th: supply chain ของ core ถอดไม่ได้ — CVE ที่นี่ไม่มีทางออกอื่นนอกจากแก้ จึงแดงได้เต็มปาก
+    ต่างจาก dependency ที่ไม่บังคับ ซึ่งคำตอบคือถอด
+  reference:
+    kind: step
+    job: security
+    step: pip-audit ของ core (ตรึงรุ่น pip ใน venv ก่อน — ตัว pip เองก็ถูก audit)
+- id: deploy-deps-cve-audit
+  layer: baseline
+  pillar: security
+  title: The deploy category is audited — nobody else watches the server that takes real requests
+  title_th: audit หมวด deploy — server ที่รับคำขอจริงไม่มีใครเฝ้าให้ที่อื่น
+  born_from: The deploy category is invisible to every tool installed with the dev set — found twice
+    in one day from two different directions · the component handling every real request had nobody
+    watching it.
+  born_from_th: หมวด deploy มองไม่เห็นจากทุกเครื่องมือที่ติดตั้งชุด dev — เจอสองครั้ง ในวันเดียวจากคนละทาง
+    · ตัวที่รับคำขอจริงทุกใบกลับไม่มีใครเฝ้า
+  reference:
+    kind: step
+    job: security
+    step: pip-audit ของ deploy (gunicorn ฯลฯ — ไม่มีใครเฝ้าให้ที่อื่น)
+- id: ci-tools-cve-audit
+  layer: baseline
+  pillar: security
+  title: pins/ is audited on both the Python side (pip-audit) and the Node side (npm audit), in both
+    directions
+  title_th: audit ของ pins/ ทั้ง python (pip-audit) และ node (npm audit) สองทิศ
+  born_from: A gate covering one language in a directory that holds two is a gate whose name makes
+    people believe it is covered — more dangerous than no gate at all.
+  born_from_th: ด่านที่ครอบภาษาเดียวในไดเรกทอรีที่มีสองภาษา คือด่านที่ชื่อของมันชวนให้ เข้าใจว่าครอบแล้ว
+    — อันตรายกว่าไม่มีด่านเลย
+  reference:
+    kind: step
+    job: security
+    step: audit ของ pins/ (เครื่องมือของ CI เอง — ทั้ง python และ node)
+- id: semgrep-sast
+  layer: baseline
+  pillar: security
+  title: SAST with the framework and language rulesets — decided by the report, not by the exit code
+  title_th: SAST ด้วย ruleset ของ framework และภาษา — ตัดสินด้วยรายงาน ไม่ใช่ exit code
+  born_from: A scan that passes silently looks exactly like a scan that checked nothing — the decider
+    is check_semgrep.py, which compares the set of files actually scanned.
+  born_from_th: การสแกนที่ผ่านแบบเงียบ ๆ หน้าตาเหมือนการสแกนที่ไม่ได้ตรวจอะไร — ตัวตัดสินคือ check_semgrep.py
+    ที่เทียบเซตไฟล์ที่สแกนจริง
+  reference:
+    kind: step
+    job: security
+    step: semgrep (flask + python rulesets)
+- id: plugin-deps-cve-decided
+  layer: business
+  pillar: security
+  title: Every CVE in a plugin's libraries must have been decided (upgraded · removed · or accepted
+    with a reason)
+  title_th: CVE ในไลบรารีของ plugin ต้องถูกตัดสินแล้วทุกตัว (อัปเกรด · ถอด · หรือรับไว้พร้อมเหตุผล)
+  born_from: 'ADR 0025 — a CVE in something removable always has a faster way out than waiting for
+    a patch, so it should not stop the core''s pipeline · **but the second half of that sentence ("it
+    must be loud enough to notice") was not true**: audit round 13 measured that the signal was an
+    annotation on a job that was already green, which nobody reads — so the time to *know* was 90
+    days while the remediation window for critical is 7 days from the day you know · two of our own
+    policies could not both hold · the fix is not "no CVEs allowed" but "someone must decide", which
+    takes minutes down all three paths.'
+  born_from_th: 'ADR 0025 — CVE ของของที่ถอดได้ มีทางออกที่เร็วกว่ารอ patch เสมอ จึงไม่ควร หยุด pipeline
+    ของ core · **แต่ครึ่งหลังของประโยคนั้น ("ต้องดังพอให้เห็น") ไม่เป็นจริง**: audit รอบ 13 วัดได้ว่าสัญญาณดังใส่
+    annotation ของ job ที่เขียว อยู่ ซึ่งไม่มีใครอ่าน — เวลาที่จะ*รู้*จึงเป็น 90 วัน ขณะที่กรอบแก้ของ
+    critical คือ 7 วันนับจากวันที่รู้ · สองนโยบายของเราเองพร้อมกันไม่ได้ · ทางแก้ไม่ใช่ "ห้ามมี CVE"
+    แต่คือ "ต้องมีคนตัดสิน" ซึ่งใช้เวลาไม่กี่นาทีทั้งสามทาง'
+  reference:
+    kind: job
+    job: plugin-audit
+- id: good-first-issue-not-taken-silently
+  layer: baseline
+  pillar: devx
+  title: A pull request closing an issue still labelled good first issue must state why
+  title_th: PR ที่ปิด issue ซึ่งยังติดป้าย good first issue ต้องประกาศเหตุผล
+  born_from: 2026-08-20 — the issue was labelled good first issue at 12:14Z · the maintainer opened
+    their own pull request for the same issue at 16:40Z and merged it at 16:51Z · an outside contributor
+    opened theirs at 17:39Z, having started hours earlier · the label stayed on throughout, with no
+    assignee and no comment — they lost an afternoon to work that was already closed.
+  born_from_th: 2026-08-20 — issue ถูกติดป้าย good first issue เวลา 12:14Z · ผู้ดูแลเปิด PR ของตัวเองทำ
+    issue เดียวกัน 16:40Z แล้ว merge 16:51Z · ผู้ร่วมพัฒนาภายนอก เปิด PR ของเขา 17:39Z โดยลงมือมาก่อนหลายชั่วโมง
+    · ป้ายยังติดอยู่ตลอด ไม่มี assign ไม่มีคอมเมนต์ — เขาเสียเวลาไปทั้งบ่ายกับงานที่ปิดไปแล้ว
+  reference:
+    kind: step
+    job: lint
+    step: issue ที่เปิดให้คนใหม่ ต้องไม่ถูกปิดเงียบ ๆ
+- id: a11y-real-browser
+  layer: baseline
+  pillar: security
+  title: pa11y with a real Chromium, scanning dark mode, the optional themes and Thai as well
+  title_th: pa11y + Chromium จริง สแกนรวมโหมดมืด ธีมเสริม และภาษาไทย
+  born_from: Contrast after the CSS has run, against the names assistive technology actually computes,
+    cannot be checked from template files — it needs a real browser, and dark mode and other languages
+    have different contrast.
+  born_from_th: contrast หลัง CSS ทำงานกับชื่อที่ AT คำนวณได้จริง ตรวจจากไฟล์ template ไม่ได้ — ต้อง
+    browser จริง และธีมมืด/ภาษาอื่น contrast ต่างกัน
+  reference:
+    kind: job
+    job: a11y
+- id: image-built-and-probed
+  layer: baseline
+  pillar: security
+  title: The image is really built and then probed — not running as root, code not writable, answers
+    200
+  title_th: build image จริงแล้วยิงใส่มัน — ไม่รัน root, โค้ดเขียนทับไม่ได้, ตอบ 200
+  born_from: A Dockerfile nobody ever builds is an ordinary text file — and the venv's shebang once
+    failed in a way whose error message untruthfully claimed the file did not exist.
+  born_from_th: Dockerfile ที่ไม่มีใครเคย build คือไฟล์ข้อความธรรมดา — และ shebang ของ venv เคยล้มเหลวแบบที่ข้อความ
+    error ให้ข้อมูลที่ไม่จริงว่าไฟล์ไม่มีอยู่
+  reference:
+    kind: job
+    job: image
+- id: dockerfile-linted
+  layer: baseline
+  pillar: security
+  title: The Dockerfile passes hadolint at every level including info — exceptions carry reasons in
+    one config
+  title_th: Dockerfile ผ่าน hadolint ทุกระดับรวม info — ข้อยกเว้นมีเหตุผลที่ config เดียว
+  born_from: Governance audit 2026-08-16 (ADR 0055) — the code passed SAST on two engines, while the
+    file defining the environment that code runs in was checked by nothing except the fact that it
+    worked · CIS Docker-class misconfiguration is something a machine checks for free.
+  born_from_th: audit governance 2026-08-16 (ADR 0055) — โค้ดผ่าน SAST สองเครื่องยนต์ แต่ไฟล์ที่นิยามสภาพแวดล้อมที่โค้ดรันไม่ถูกตรวจอะไรเลยนอกจากการที่มัน
+    ใช้งานได้ · misconfig ชั้น CIS Docker คือของที่เครื่องตรวจได้ฟรี
+  reference:
+    kind: step
+    job: lint
+    step: lint Dockerfile (hadolint — ADR 0055)
+- id: image-os-cve-audit
+  layer: baseline
+  pillar: security
+  title: The image's OS layer is scanned for CVEs and decided against an exception list, in both directions
+  title_th: OS layer ของ image ถูกสแกน CVE และตัดสินเทียบรายการยกเว้นสองทิศ
+  born_from: 'Governance audit 2026-08-16 (ADR 0054) — the image''s SBOM had eight files and nobody
+    scanned the OS layer at all: having an SBOM is not the same as having a reader · a CVE in the
+    glibc or openssl inside the image is something we would learn about only when somebody else told
+    us.'
+  born_from_th: 'audit governance 2026-08-16 (ADR 0054) — SBOM ของ image มี 8 ไฟล์แต่ ไม่มีใครสแกน
+    OS layer เลย: มี SBOM ไม่เท่ากับมีคนอ่าน CVE ของ glibc/openssl ใน image คือของที่เราจะรู้ก็ต่อเมื่อคนอื่นบอก'
+  reference:
+    kind: step
+    job: image
+    step: ตัดสินผลสแกนเทียบรายการยกเว้น — สองทิศ
+- id: image-exceptions-honest
+  layer: baseline
+  pillar: security
+  title: The image's CVE exception list is checked in both directions, and every ID has a documented
+    reason
+  title_th: รายการยกเว้น CVE ของ image ตรวจสองทิศ และทุก ID มีเหตุผลในเอกสาร
+  born_from: The same principle as pins-exceptions-honest — an exception list nobody removes entries
+    from becomes a real muzzle one day, and a scan scope (severity, unfixed) that quietly goes missing
+    is a gate that changed meaning with no commit saying so.
+  born_from_th: หลักเดียวกับ pins-exceptions-honest — รายการยกเว้นที่ไม่มีใครถอดจะ กลายเป็นตัวปิดของจริงในวันหนึ่ง
+    และขอบเขตการสแกน (severity/unfixed) ที่หายไปเงียบ ๆ คือด่านที่เปลี่ยนความหมายโดยไม่มี commit ไหนบอก
+  reference:
+    kind: test
+    job: test
+    tests:
+    - tests/test_image_audit.py
+- id: perf-regression-tripwire
+  layer: baseline
+  pillar: performance
+  title: A real journey against a real image on every push — a loose threshold (2× the target) catches
+    step-change regressions
+  title_th: journey จริงบน image จริงทุก push — เกณฑ์หลวม (2×เป้า) จับ regression ก้าวกระโดด
+  born_from: Governance audit 2026-08-16 (ADR 0056) — the charter's second pillar had no per-push
+    latency gate at all; a step-change regression (a new N+1, a lost index) could reach main silently
+    until the next time somebody ran a load test by hand.
+  born_from_th: audit governance 2026-08-16 (ADR 0056) — pillar อันดับสองของธรรมนูญ ไม่มีด่าน latency
+    ต่อ push เลย regression ก้าวกระโดด (N+1 ใหม่ · index หาย) เข้า main ได้เงียบ ๆ จนกว่าจะมีคนรัน
+    load test มือครั้งถัดไป
+  reference:
+    kind: job
+    job: perf-smoke
+- id: tls-modern-protocols-only
+  layer: baseline
+  pillar: security
+  title: Only TLS 1.2 and 1.3 are accepted — proving the server refuses, not that the client refused
+    on its own
+  title_th: รับเฉพาะ TLS 1.2/1.3 — พิสูจน์ว่า server ปฏิเสธ ไม่ใช่ client ปฏิเสธเอง
+  born_from: openssl 3 already disables TLS 1.0/1.1 on the client side — a gate that does not set
+    SECLEVEL=0 proves only that openssl refuses itself, and passes every time even with ssl_protocols
+    deleted.
+  born_from_th: openssl 3 ปิด TLS 1.0/1.1 ฝั่ง client อยู่แล้ว — ด่านที่ไม่เปิด SECLEVEL=0 พิสูจน์แค่ว่า
+    openssl ปฏิเสธตัวเอง ผ่านทุกครั้งแม้ลบ ssl_protocols ทิ้ง
+  reference:
+    kind: step
+    job: stack
+    step: รับเฉพาะ TLS 1.2 กับ 1.3
+- id: tls-forward-secrecy
+  layer: baseline
+  pillar: security
+  title: TLS offers forward secrecy on every reachable path — forcing a weak suite must be refused
+  title_th: TLS ให้ PFS ทุกทางที่เข้าถึงได้ — บังคับชุดอ่อนแล้วต้องถูกปฏิเสธ
+  born_from: Ordinary negotiation yields ECDHE and looks perfectly safe, but a client asking for RSA
+    key exchange directly was served too — a gate that looks only at "what gets negotiated" reports
+    a pass while the path without forward secrecy is still open (measured 2026-08-13).
+  born_from_th: การต่อรองปกติได้ ECDHE ดูปลอดภัยดี แต่ไคลเอนต์ที่ขอชุด RSA-kx ตรง ๆ ก็ได้รับ — ด่านที่ดูแค่
+    "ต่อรองได้อะไร" รายงานว่าผ่านทั้งที่ทางไม่มี PFS ยังเปิดอยู่ (วัดจริง 2026-08-13)
+  reference:
+    kind: step
+    job: stack
+    step: TLS ต้องให้ perfect forward secrecy ทุกทางที่เข้าถึงได้
+- id: alerts-fire-for-real
+  layer: baseline
+  pillar: security
+  title: Alert rules in the Loki ruler must actually fire when events are fired at them, not merely
+    have the stack come up
+  title_th: กฎแจ้งเตือนใน Loki ruler ต้องดังจริงเมื่อยิงเหตุการณ์ใส่ ไม่ใช่แค่ stack ขึ้น
+  born_from: ADR 0037 — a rule counting only 401s falls silent exactly when the attack is heaviest,
+    because the quota cuts in at 5 and the rest become 429 · what must be proved is that the alert
+    fires, not that a rule exists.
+  born_from_th: ADR 0037 — กฎที่นับแต่ 401 เงียบพอดีตอนที่การโจมตีหนักที่สุด เพราะโควตา ตัดที่ 5 ที่เหลือกลายเป็น
+    429 · ต้องพิสูจน์ว่า alert ดัง ไม่ใช่ว่ามีกฎ
+  reference:
+    kind: job
+    job: siem
+- id: zap-authenticated-scan
+  layer: baseline
+  pillar: security
+  title: ZAP baseline fires at the real stack while logged in — and the app's own logs measure that
+    it really scanned
+  title_th: ZAP baseline ยิง stack จริงแบบ login แล้ว — วัดว่าสแกนจริงจาก log ของแอป
+  born_from: Scanning without logging in sees only the login page — such a gate is green forever without
+    checking anything · and on the day the alerts are all fixed, checking the report would turn "found
+    nothing" into "did not scan".
+  born_from_th: สแกนโดยไม่ login เห็นแค่หน้า login — ด่านแบบนั้นเขียวตลอดโดยไม่ได้ตรวจ อะไร · และวันที่แก้จนไม่เหลือ
+    alert การเช็คจากรายงานจะกลายเป็น "ไม่เจอ = ไม่ได้สแกน"
+  reference:
+    kind: job
+    job: dast
+- id: purge-timer-real-systemd
+  layer: baseline
+  pillar: security
+  title: The expiry-purge job is installed on a real scheduler (here systemd) and its failures are
+    visible
+  title_th: งานลบข้อมูลพ้นระยะติดตั้งบน scheduler จริง (ที่นี่ systemd) และความล้มเหลวมองเห็นได้
+  born_from: 'Retention periods become real only when something runs purge on a schedule — and periodic
+    work that goes quiet when it fails is worse than none · `$?` inside an if! branch is always 0
+    · audit round 10 item 4 added a layer: this gate''s idea of "visible" covered only **the exit
+    code the script hands systemd**, while what happens after that is a state somebody has to walk
+    over and ask about — so the unit needs an OnFailure that leaves a machine-searchable line, and
+    the job has to check that it still points somewhere and that the target unit was installed too.'
+  born_from_th: 'ระยะเก็บรักษาจะเป็นจริงก็ต่อเมื่อมีอะไรรัน purge ตามรอบ — และงานตามรอบ ที่เงียบตอนล้มเหลวแย่กว่าไม่มีเลย
+    · `$?` ในกิ่ง if! เป็น 0 เสมอ · audit รอบ 10 ข้อ 4 ต่ออีกชั้น: คำว่า "มองเห็นได้" ของ gate นี้เคยครอบแค่
+    **exit code ที่สคริปต์คืนให้ systemd** ส่วนสิ่งที่เกิดหลังจากนั้นคือสถานะที่ ต้องมีคนเดินไปถาม
+    — หน่วยจึงต้องมี OnFailure ที่ทิ้งบรรทัดซึ่งค้นเจอด้วย เครื่อง และ job ต้องตรวจว่ามันยังชี้อยู่และหน่วยปลายทางถูกติดตั้งมาด้วย'
+  reference:
+    kind: job
+    job: purge-timer
+- id: push-secret-scan
+  layer: baseline
+  pillar: security
+  title: gitleaks checks the commits in that push (a separate periodic script covers the whole history)
+  title_th: gitleaks ตรวจ commit ที่อยู่ใน push นั้น (ทั้งประวัติมีสคริปต์แยกตามรอบ)
+  born_from: A secret that reaches history cannot truly be deleted on GitHub — old objects are still
+    served by SHA · stopping it on the way in is always cheaper.
+  born_from_th: ความลับที่หลุดเข้า history ลบไม่ได้จริงบน GitHub — object เก่ายังถูก เสิร์ฟตาม SHA
+    · กันตั้งแต่ขาเข้าถูกกว่าเสมอ
+  reference:
+    kind: job
+    job: secret-scan
+- id: release-signed-and-attested
+  layer: baseline
+  pillar: security
+  title: A release's SBOM is generated in CI, signed keyless with provenance, and verified in both
+    directions before it is attached
+  title_th: SBOM ของ release ถูก generate ใน CI เซ็น keyless + provenance และ verify สองทิศก่อนแนบ
+  born_from: 'Governance audit 2026-08-16 (ADR 0058) — releases had attached an SBOM since v1.0.0
+    with no file signed: a downloader could not verify it came from CI at all, and something built
+    outside CI cannot say what it was built from even if signed.'
+  born_from_th: 'audit governance 2026-08-16 (ADR 0058) — release แนบ SBOM มาตั้งแต่ v1.0.0 โดยไม่มีไฟล์ไหนถูกเซ็น:
+    คนโหลดไป verify ไม่ได้ว่ามาจาก CI จริง และของที่ build นอก CI ต่อให้เซ็นก็ตอบไม่ได้ว่าสร้างจากอะไร'
+  reference:
+    kind: job
+    job: release-sign
+- id: sbom-per-category
+  layer: business
+  pillar: security
+  title: SBOMs are split per category — able to answer which components disappear when a plugin is
+    removed
+  title_th: SBOM แยกต่อ category — ตอบได้ว่าถอด plugin แล้ว component ไหนหาย
+  born_from: A single SBOM cannot answer the first question of the day a CVE lands — "if I remove
+    this, what goes with it?"
+  born_from_th: SBOM ก้อนเดียวตอบคำถามแรกของวันที่ CVE ออกไม่ได้ — "ถอดตัวนี้แล้วอะไรหายไปบ้าง"
+  reference:
+    kind: job
+    job: sbom
+- id: codeql-sast
+  layer: baseline
+  pillar: security
+  title: CodeQL security-extended for both Python and JavaScript — as a job, not the default setup
+  title_th: CodeQL security-extended ทั้ง python และ javascript — เป็น job ไม่ใช่ default setup
+  born_from: Something clicked into place in a UI cannot be reviewed and can disappear silently (the
+    ADR 0037 principle) · the first round found two real things, including a debugger that was shipping
+    inside the image.
+  born_from_th: ของที่คลิกไว้ใน UI ไม่มีใคร review ได้และหายเงียบ ๆ ได้ (หลัก ADR 0037) · รอบแรกเจอของจริงสองอย่างรวม
+    debugger ที่ติดไปกับ image
+  reference:
+    kind: job
+    job: codeql
+- id: platform-posture-verified
+  layer: baseline
+  pillar: security
+  title: The platform-side posture (branch protection · required checks · auto-merge · alerts left
+    standing on the Security tab) is machine-checked, not merely written down
+  title_th: ท่าทีฝั่งแพลตฟอร์ม (branch protection · required check · auto-merge · alert ที่ค้างบนหน้า
+    Security) ถูกเครื่องตรวจ ไม่ใช่แค่เขียนไว้
+  born_from: Governance audit round 7 (2026-08-17) — the rules everything else leans on ("main takes
+    changes only through pull requests · enforce_admins on · required checks for every job that runs
+    on a pull request" — ADR 0053) are provider-side settings that **nothing in the repository reads**
+    · switch them off in the settings page and the documentation still claims otherwise · checking
+    the API that day also found `sha_pinning_required` switched off, although we enforce SHA pinning
+    with our own test.
+  born_from_th: audit governance รอบ 7 (2026-08-17) — กติกาที่ทุกอย่างพิงอยู่ ("main รับของ ทาง PR
+    เท่านั้น · enforce_admins เปิด · required check ครบทุก job ที่รันบน PR" — ADR 0053) เป็น setting
+    ฝั่งผู้ให้บริการที่**ไม่มีอะไรในเรโปอ่านเลย** · กดปิดในหน้า settings แล้วเอกสารยังอ้างเหมือนเดิม
+    · ตรวจ API วันนั้นยังพบว่า `sha_pinning_required` ปิดอยู่ ทั้งที่เราบังคับ SHA pinning ด้วยเทสต์ของตัวเอง
+  reference:
+    kind: job
+    job: posture
+- id: watched-promises-are-measured
+  layer: baseline
+  pillar: manageability
+  title: A declared `within_days` must be measured against reality, not merely checked for shape
+  title_th: '`within_days` ที่ประกาศไว้ต้องถูกวัดกับความจริง ไม่ใช่ตรวจแค่รูปแบบ'
+  born_from: 'Audit round 11 item 2 — ADR 0066 made every non-blocking gate declare within how many
+    days somebody sees it, but the only thing checked was the *shape* (a number, at most 90) · measured
+    over the same 4-day window: redness that blocked somebody stood for 0.4 hours, redness that blocked
+    nobody stood for 14.6 — 36 times longer, with nothing comparing that figure against what was promised.'
+  born_from_th: 'audit รอบ 11 ข้อ 2 — ADR 0066 ให้ทุก gate ที่บล็อกไม่ได้ประกาศว่าใครเห็นภายใน กี่วัน
+    แต่สิ่งเดียวที่ตรวจคือ *รูปแบบ* (เป็นเลข · ไม่เกิน 90) · วัดจริงบน หน้าต่างเดียวกัน 4 วัน: ความแดงที่บล็อกใครยืนอยู่
+    0.4 ชม. ส่วนที่ไม่บล็อกใคร ยืนอยู่ 14.6 ชม. — ต่างกัน 36 เท่า และไม่มีอะไรเทียบตัวเลขนั้นกับที่สัญญาไว้'
+  reference:
+    kind: step
+    job: posture
+    step: คำสัญญาของผู้เฝ้าต้องทำได้จริง
+- id: schedules-still-fire
+  layer: baseline
+  pillar: manageability
+  title: A declared schedule must be provably still firing — "no runs at all" must not look as quiet
+    as "no run went red"
+  title_th: ตารางเวลาที่ประกาศไว้ต้องพิสูจน์ได้ว่ายังยิงอยู่ — "ไม่มี run เลย" ต้องไม่เงียบเท่า "ไม่มี
+    run ไหนแดง"
+  born_from: 'Audit round 10 item 2 — ADR 0064 closed the layer "a workflow that never started = 0
+    jobs", but the layer above it was still open: **a workflow never triggered = 0 runs**, which looks
+    exactly like "no run went red" in every tool there is · the cron in `scorecard.yml` had fired
+    exactly once in the repository''s lifetime, and if it stopped today no test, job or cadence row
+    would know · GitHub also disables schedules for repositories quiet for 60 days, which is silence
+    arriving from outside.'
+  born_from_th: 'audit รอบ 10 ข้อ 2 — ADR 0064 ปิดชั้น "workflow ที่ไม่ได้ start = 0 job" ไปแล้ว แต่ชั้นถัดขึ้นไปยังเปิด:
+    **workflow ที่ไม่เคยถูกทริกเกอร์ = 0 run** ซึ่งหน้าตาเหมือน "ไม่มี run ไหนแดง" เป๊ะในทุกเครื่องมือที่มี
+    · cron ของ `scorecard.yml` ยิงจริงมาแล้วครั้งเดียวตลอดอายุ repo และถ้ามันหยุดวันนี้ ไม่มีเทสต์
+    job หรือแถว cadence ไหนรู้เลย · GitHub ยังปิด schedule อัตโนมัติให้ repo ที่เงียบเกิน 60 วันด้วย
+    ซึ่งเป็นความเงียบที่มาจากข้างนอก'
+  reference:
+    kind: step
+    job: posture
+    step: ตารางเวลาที่ประกาศไว้ต้องยังยิงอยู่จริง
+- id: watcher-windows-fit-platform-silence
+  layer: baseline
+  pillar: manageability
+  title: A watcher's promise must be shorter than the platform's silence window — a watcher that arrives
+    after the machine is switched off is not a watcher
+  title_th: คำสัญญาของผู้เฝ้าต้องสั้นกว่าหน้าต่างเงียบของแพลตฟอร์ม — ผู้เฝ้าที่มาถึงหลังเครื่องถูกปิด
+    ไม่ใช่ผู้เฝ้า
+  born_from: 'Audit round 26 item 1 — `schedules-still-fire` was built specifically to catch the rule
+    "GitHub disables schedules for public repositories after 60 days of silence", but it was enforced
+    by a job running inside that very cron — **the watcher sat underneath the thing it watched** and
+    died in the same second it had something to report · worse, its promise at the time was 90 days,
+    **longer than the window that creates the failure**: the watcher could arrive at least a month
+    after the thing it watches without breaking a single promise · this rule enforces one thing —
+    among the workflows that only a cron can save, at least one promise must be shorter than that
+    window, because acting once resets the platform''s clock for the whole repository at once.'
+  born_from_th: 'audit รอบ 26 ข้อ 1 — `schedules-still-fire` ถูกสร้างมาเพื่อจับกฎ "GitHub ปิด schedule
+    ให้ repo สาธารณะที่เงียบครบ 60 วัน" โดยเฉพาะ แต่มันถูกบังคับด้วย job ที่รันอยู่ใน cron ตัวนั้นเอง
+    — **ตัวเฝ้าอยู่ใต้สิ่งที่มันเฝ้า** และตายในวินาที เดียวกับที่มีเรื่องให้รายงาน · ที่แย่กว่าคือคำสัญญาของมันตอนนั้นเป็น
+    90 วัน ซึ่ง**ยาวกว่าหน้าต่างที่สร้างความล้มเหลว**: ผู้เฝ้ามาถึงช้ากว่าของที่เฝ้าอย่างน้อย หนึ่งเดือนโดยไม่ผิดสัญญาสักข้อ
+    · กฎนี้บังคับข้อเดียว — ในบรรดา workflow ที่รอดได้ ด้วย cron อย่างเดียว ต้องมีคำสัญญาอย่างน้อยหนึ่งข้อที่สั้นกว่าหน้าต่างนั้น
+    เพราะการลงมือครั้งเดียวรีเซ็ตนาฬิกาของแพลตฟอร์มให้ทั้ง repo พร้อมกัน'
+  reference:
+    kind: test
+    job: test
+    tests:
+    - tests/test_watcher_windows.py
+- id: instruction-file-under-a-declared-ceiling
+  layer: baseline
+  pillar: devx
+  title: A file people read constantly has a declared ceiling, and the ceiling may not float above
+    reality
+  title_th: ไฟล์ที่คนอ่านบ่อยมีเพดานที่ประกาศไว้ และเพดานลอยเหนือของจริงไม่ได้
+  born_from: 'A file an agent reads in full every session is unlike every other document — its cost
+    is paid over and over, not when somebody opens it · measured when the rule was set (audit r8):
+    22 lines on the project''s first day, grown to **1,240 lines and 8,488 words in 16 days**, with
+    66 commits in the last 7 touching it — it grew every time there was governance work, and nobody
+    had ever decided how much it was allowed to grow · the right answer is a two-way ratchet rather
+    than a ban on growth: when it is full, move content out and link back, and **on the day content
+    moves out the ceiling must come down with it**, or the space just freed gets quietly filled again
+    next round.'
+  born_from_th: 'ไฟล์ที่ agent อ่านทั้งไฟล์ทุก session ต่างจากเอกสารอื่นทุกฉบับ — ต้นทุนของมัน จ่ายซ้ำตลอดไป
+    ไม่ใช่จ่ายตอนมีคนเปิดอ่าน · วัดตอนตั้งกติกา (audit r8): 22 บรรทัดในวันแรกของโปรเจกต์ โตเป็น **1,240
+    บรรทัด / 8,488 คำ ใน 16 วัน** และ 66 commit ใน 7 วันล่าสุดแตะมัน — โตทุกครั้งที่มีงาน governance
+    โดยไม่มี ใครเคยตัดสินว่าโตได้แค่ไหน · ทางที่ถูกคือ ratchet สองทิศ ไม่ใช่ห้ามโต: เต็มแล้วย้ายเนื้อออกแล้วลิงก์กลับ
+    และ **วันที่ย้ายออก เพดานต้องถูกลดตาม** ไม่งั้นที่ว่างที่เพิ่งได้จะถูกถมกลับเงียบ ๆ ในรอบถัดไป'
+  reference:
+    kind: test
+    job: test
+    tests:
+    - tests/test_instruction_budget.py
+- id: exception-registers-are-reasoned
+  layer: baseline
+  pillar: security
+  title: A file that silences a gate needs a reason on every line, must actually be used, and may
+    not relax a whole class at once
+  title_th: แฟ้มที่ปิดเสียงด่านต้องมีเหตุผลทุกบรรทัด ถูกใช้จริง และผ่อนเกณฑ์ทั้งชั้นไม่ได้
+  born_from: Audit r9 — `pins/accepted-advisories.txt` had two-way tests from the beginning, but the
+    other two files doing the same job (silencing what a security tool reports) **were read by no
+    test at all**, although the documentation declared for both that every line needs a reason · the
+    risk is not the lines that exist today, all of which have reasons, but the next line somebody
+    adds in a hurry with nothing to complain — and relaxing a whole class by editing one word (FAIL
+    → WARN), which appears in no report anywhere.
+  born_from_th: audit r9 — `pins/accepted-advisories.txt` มีเทสต์สองทิศคุมมาตั้งแต่ต้น แต่แฟ้ม อีกสองใบที่ทำหน้าที่เดียวกัน
+    (ปิดเสียงสิ่งที่เครื่องมือความปลอดภัยรายงาน) **ไม่มีเทสต์ไฟล์ไหนอ่านเลย** ทั้งที่เอกสารประกาศกฎไว้ทั้งคู่ว่าทุกบรรทัดต้อง
+    มีเหตุผล · ความเสี่ยงไม่ใช่บรรทัดที่มีอยู่วันนี้ซึ่งครบเหตุผลทุกบรรทัด แต่คือบรรทัดถัดไปที่ใครสักคนเติมตอนรีบแล้วไม่มีอะไรฟ้อง
+    — และการผ่อนเกณฑ์ ทั้งชั้นด้วยการแก้คำเดียว (FAIL → WARN) ซึ่งไม่มีใครเห็นในรายงานฉบับไหน
+  reference:
+    kind: test
+    job: test
+    tests:
+    - tests/test_exception_registers.py
+- id: ratchets-do-not-drift-below-reality
+  layer: baseline
+  pillar: devx
+  title: A ratchet's floor stays against reality in both directions · and what is removed has to be
+    signed for
+  title_th: พื้นของ ratchet ติดกับของจริงสองทิศ · และของที่ถูกถอดออกต้องมีคนเซ็นชื่อ
+  born_from: 'Audit round 12 — `pyproject.toml` was annotated "moves up only" in both places, but
+    nothing was moving it · six days after the number was set, real coverage had climbed to 97.11%
+    while the floor was still 96 (set when it measured 96.31%) — that 1.11 points of slack was roughly
+    54 covered lines that could vanish with nothing going red · the right mechanism already existed
+    in this project (`LINE_SLACK` from ADR 0065), it had simply never been applied to any other ratchet
+    · audit round 14 added mypy''s strict list — a ratchet written as a sentence survived the first
+    chaser, because that chaser read only numeric floors in tool config · reality covered 34 of 72
+    modules while the annotated target had expired sixteen phases earlier · audit round 16 added the
+    pile guarding against *removal* (ADR 0069): measured by really deleting things 11 times, and found
+    that a gate could be removed with CI fully green if you tidied 6 places, and that 37 rows across
+    three paper registers could be deleted in complete silence, because deleting both sides at once
+    still counts as "matching".'
+  born_from_th: 'audit รอบ 12 — `pyproject.toml` เขียนกำกับว่า "ขยับขึ้นได้อย่างเดียว" ทั้งสองที่
+    แต่ไม่มีอะไรทำให้มันขยับ · หกวันหลังตั้งเลข coverage จริงไต่ไป 97.11% ขณะที่พื้น ยังเป็น 96 (ตั้งตอนวัดได้
+    96.31%) — ที่ว่าง 1.11 จุดคือโค้ดที่มีเทสต์คุมราว 54 บรรทัดซึ่งหายไปได้โดยไม่มีอะไรแดง · กลไกที่ถูกมีอยู่แล้วในโปรเจกต์นี้
+    (`LINE_SLACK` ของ ADR 0065) แค่ยังไม่เคยถูกเอาไปใช้กับ ratchet ตัวอื่น · audit รอบ 14 เพิ่ม strict
+    list ของ mypy เข้ามา — ratchet ที่เขียนเป็น ประโยครอดจากตัวทวงรุ่นแรกได้ เพราะตัวทวงอ่านเฉพาะพื้นที่เป็นตัวเลขใน
+    config ของเครื่องมือ · ของจริงครอบ 34/72 โมดูล ขณะที่เป้าที่เขียนกำกับ หมดอายุไปสิบหกเฟส · audit
+    รอบ 16 เพิ่มกองที่กันการ *ถอด* (ADR 0069): วัดด้วยการลบของจริง 11 ครั้งแล้วพบว่าถอด gate ทิ้งได้โดย
+    CI เขียวครบถ้าเก็บกวาด 6 ที่ และ 37 แถวในสามทะเบียนกระดาษลบได้เงียบสนิท เพราะการลบทั้งสองข้างพร้อมกันยังนับว่า
+    "ตรงกัน" อยู่ดี'
+  reference:
+    kind: step
+    job: test
+    step: พื้นของ ratchet ต้องไม่ลอยต่ำกว่าของจริง
+- id: jobs-declare-a-time-budget
+  layer: baseline
+  pillar: manageability
+  title: Every job, and every command our own tools fire outward, declares a time budget — "hung"
+    and "slow" must be distinguishable
+  title_th: ทุก job และทุกคำสั่งที่เครื่องมือของเรายิงออกไป ประกาศเพดานเวลา — "ค้าง" กับ "ช้า" ต้องแยกออกจากกันได้
+  born_from: 'Audit round 11 — not one job set `timeout-minutes` (0 of 28), so the ceiling was GitHub''s
+    default of 6 hours, which is not a ceiling anybody chose · the price is paid in decisions, not
+    machine time: a job that has genuinely hung and a job merely slower than usual give identical
+    signals · it happened for real the same day — `dialect (mysql-8)` was cancelled while running
+    at 92% because the reviewer could not tell the two apart · later in the same round it was extended
+    to all 11 `subprocess.run` call sites in the checkers, none of which had `timeout=` — one unanswering
+    command eats the job''s whole budget and then reports "job timed out", which points at the wrong
+    place.'
+  born_from_th: 'audit รอบ 11 — ไม่มี job ไหนตั้ง `timeout-minutes` เลย (0 จาก 28) เพดานจึงเป็น ค่าเริ่มต้น
+    6 ชั่วโมงของ GitHub ซึ่งไม่ใช่เพดานที่ใครเลือก · ราคาที่จ่ายคือ ความสามารถในการตัดสินใจ ไม่ใช่เวลาเครื่อง:
+    job ที่ค้างจริงกับ job ที่แค่ช้ากว่า ปกติให้สัญญาณเหมือนกันทุกอย่าง · เกิดขึ้นแล้วจริงวันเดียวกัน
+    — `dialect (mysql-8)` ถูกยกเลิกทิ้งทั้งที่เดินอยู่ที่ 92% เพราะผู้ตรวจแยกสองอย่างนี้ไม่ออก · ต่อมาในรอบเดียวกันขยายไปถึง
+    `subprocess.run` ของ checker ทั้ง 11 จุด ซึ่ง ไม่มี `timeout=` เลย — เพดานของ job จะถูกกินทั้งก้อนโดยคำสั่งเดียวที่ไม่ตอบ
+    แล้วรายงานว่า "job หมดเวลา" ซึ่งชี้ผิดที่'
+  reference:
+    kind: test
+    job: test
+    tests:
+    - tests/test_job_timeouts.py
+- id: workflows-are-startable
+  layer: baseline
+  pillar: security
+  title: Every workflow must genuinely start — scope, triggers and jobs are what GitHub accepts
+  title_th: ทุก workflow ต้อง start ได้จริง — scope/ทริกเกอร์/job ตรงกับที่ GitHub รับ
+  born_from: 'Audit r9 — the pinning checkers were all present, but none checked whether the platform
+    would agree to start the file · a YAML parser accepts any key that is syntactically well spelled,
+    while GitHub rejects keys outside its schema and **fails the whole run before creating a single
+    job** · it happened and lasted more than a day: a `permissions:` block asking for a scope that
+    does not exist made the entire workflow fail on every run, and the jobs inside it **never ran
+    once** · it stayed quiet because that job was not a required check, so no pull request ever showed
+    red — **a gate that does not run behaves exactly like a gate that does not exist, except that
+    documentation says it is there**.'
+  born_from_th: 'audit r9 — ตัวตรวจการตรึงเวอร์ชันมีครบ แต่ไม่มีตัวไหนตรวจว่าแพลตฟอร์มจะยอม start
+    ไฟล์นั้นไหม · ตัวแยกวิเคราะห์ YAML ยอมรับทุกคีย์ที่สะกดถูกตามไวยากรณ์ ส่วน GitHub ปฏิเสธคีย์ที่ไม่อยู่ใน
+    schema แล้ว**ล้มทั้ง run ตั้งแต่ก่อนสร้าง job** · เกิดจริงและอยู่ข้ามวัน: `permissions:` ที่ขอ
+    scope ซึ่งไม่มีอยู่จริง ทำให้ทั้ง workflow ล้มทุก run และ job ที่อยู่ในนั้น **ไม่เคยรันเลยสักครั้ง**
+    · มันเงียบได้เพราะ job นั้นไม่ใช่ required check จึงไม่มีสีแดงบนหน้า PR ใบไหน — **ด่านที่ไม่ได้รัน
+    ให้ผลเหมือนด่านที่ไม่มีอยู่ ต่างกันแค่มีเอกสารบอกว่ามันมี**'
+  reference:
+    kind: test
+    job: test
+    tests:
+    - tests/test_workflow_validity.py

@@ -1,21 +1,26 @@
-"""Render a rule sheet from a registry — the rules are data, the prose is an input.
+"""Render a rule sheet from the catalogue — the rules are data, the prose is an input.
 
-A hand-written rule sheet is a third register, and it drifts from `gates.yaml` the
+A hand-written rule sheet is a third register, and it drifts from the catalogue the
 moment somebody edits one side. So the whole body is **generated**: the rule is a
-gate's `title`, the lesson is its `born_from`, and what enforces it is its
-`enforced_by` — every field already held to reality by the registry's own checks.
+rule's `title`, the lesson is its `born_from`, and what enforces it in the reference
+implementation is its `reference` — every field already held to shape by the
+catalogue's own checks.
 
-**Two things are inputs rather than constants**, and both were constants in the
-reference implementation:
+**Three things are inputs rather than constants**, and all three were constants in
+the reference implementation:
 
-- **the registry**, so one renderer serves any project's rules;
+- **the catalogue**, so one renderer serves any set of rules;
 - **the preamble**, because the opening of a rule sheet is prose a project writes
-  about itself — which framework its enforcers live in, which decisions it made,
-  what the layers mean there. Baking one project's paragraphs into the tool would
-  make every other project ship that project's story.
+  about itself — what the layers mean there, which decisions it made. Baking one
+  project's paragraphs into the tool would make every other project ship that
+  project's story;
+- **the language**, because the catalogue carries the published English and the
+  original wording side by side. A renderer that could only reach one of them would
+  make the other dead weight in the file, and dead weight is what stops being
+  maintained.
 
-Rendering is a pure function of those two, so the same inputs produce the same
-bytes and a project can hold its committed file against a fresh render.
+Rendering is a pure function of those, so the same inputs produce the same bytes and
+a project can hold its committed file against a fresh render.
 """
 
 from __future__ import annotations
@@ -26,71 +31,74 @@ import re
 import sys
 from typing import Any
 
-from verifiable_gates import registry
+from verifiable_gates import rules as catalogue
 
-__all__ = ["main", "portable_gates", "render"]
+__all__ = ["LANGUAGES", "main", "render"]
 
 EXPECTED_LABELS = 3
 
+# Suffix appended to a field name to reach that language. English is the published
+# text and carries no suffix; every other language is an addition to it.
+LANGUAGES = {"en": "", "th": "_th"}
 
-def portable_gates(gates: list[dict[str, Any]], layer: str | None = None) -> list[dict[str, Any]]:
-    """The exportable gates, optionally of one layer, in the order the file lists them.
-
-    Order comes from the file rather than from sorting, because a registry is
-    written to be read: the neighbours of a rule are part of what it means.
-    """
-    return [
-        gate
-        for gate in gates
-        if gate.get("portable") and (layer is None or gate.get("layer") == layer)
-    ]
+DEFAULT_LABELS = {
+    "en": ("Rule", "Born from", "Enforced in the reference"),
+    "th": ("กฎ", "เกิดจาก", "ตัวบังคับใน reference"),
+}
 
 
-def _enforcement(gate: dict[str, Any]) -> str:
-    """Point at what actually enforces the rule, rather than restating the command."""
-    enforced = gate["enforced_by"]
-    if gate["kind"] == "test":
-        return " · ".join(f"`{name}`" for name in enforced["tests"])
-    if gate["kind"] == "step":
-        return f'job `{enforced["job"]}` step "{enforced["step"]}"'
-    return f"job `{enforced['job']}`"
+def _field(rule: dict[str, Any], name: str, language: str) -> str:
+    """One field in one language, whitespace flattened to single spaces."""
+    value = rule.get(f"{name}{LANGUAGES[language]}") or rule.get(name, "")
+    return re.sub(r"\s+", " ", str(value)).strip()
+
+
+def _enforcement(rule: dict[str, Any]) -> str:
+    """Point at what enforces the rule in the reference, rather than restating a command."""
+    reference = rule["reference"]
+    if reference["kind"] == "test":
+        return " · ".join(f"`{name}`" for name in reference["tests"])
+    if reference["kind"] == "step":
+        return f'job `{reference["job"]}` step "{reference["step"]}"'
+    return f"job `{reference['job']}`"
 
 
 def render(
-    gates: list[dict[str, Any]],
+    rules: list[dict[str, Any]],
     preamble: str,
     layer: str | None = None,
-    labels: tuple[str, str, str] = ("Rule", "Born from", "Enforced in the reference"),
+    language: str = "en",
+    labels: tuple[str, str, str] | None = None,
 ) -> str:
-    """Assemble one sheet. Byte-identical for the same inputs, every time.
-
-    `labels` exists because the reference implementation writes its sheets in
-    Thai. A renderer that hard-coded English headings would force every project
-    into one language, which is the same mistake as hard-coding the preamble.
-    """
-    rule, born_from, enforced = labels
+    """Assemble one sheet. Byte-identical for the same inputs, every time."""
+    rule_label, born_label, enforced_label = labels or DEFAULT_LABELS[language]
     lines = [preamble]
-    for gate in portable_gates(gates, layer):
-        born = re.sub(r"\s+", " ", str(gate.get("born_from", ""))).strip()
-        lines.append(f"### `{gate['id']}`\n")
-        lines.append(f"**{rule}:** {gate['title']}\n")
-        lines.append(f"**{born_from}:** {born}\n")
-        lines.append(f"**{enforced}:** {_enforcement(gate)}\n")
+    for rule in catalogue.by_layer(rules, layer):
+        lines.append(f"### `{rule['id']}`\n")
+        lines.append(f"**{rule_label}:** {_field(rule, 'title', language)}\n")
+        lines.append(f"**{born_label}:** {_field(rule, 'born_from', language)}\n")
+        lines.append(f"**{enforced_label}:** {_enforcement(rule)}\n")
     return "\n".join(lines)
 
 
 def main(argv: list[str] | None = None) -> int:
-    parser = argparse.ArgumentParser(description="Render a rule sheet from a gate registry.")
-    parser.add_argument("--registry", default="gates.yaml", help="the registry to read")
+    parser = argparse.ArgumentParser(description="Render a rule sheet from a rule catalogue.")
+    parser.add_argument("--catalogue", default="rules.yaml", help="the catalogue to read")
     parser.add_argument(
         "--preamble", required=True, help="the file holding this sheet's opening prose"
     )
     parser.add_argument("--out", required=True, help="where to write the sheet")
-    parser.add_argument("--layer", default=None, help="only gates of this layer")
+    parser.add_argument("--layer", default=None, help="only rules of this layer")
+    parser.add_argument(
+        "--language",
+        default="en",
+        choices=sorted(LANGUAGES),
+        help="which of the catalogue's languages to render (default: en)",
+    )
     parser.add_argument(
         "--labels",
         default=None,
-        help="three field headings separated by | (default: English)",
+        help="three field headings separated by | (default: this language's headings)",
     )
     parser.add_argument(
         "--check",
@@ -99,22 +107,23 @@ def main(argv: list[str] | None = None) -> int:
     )
     args = parser.parse_args(argv)
 
-    gates = registry.load(args.registry)
-    problems = registry.problems(gates)
+    rules = catalogue.load(args.catalogue)
+    problems = catalogue.problems(rules)
     if problems:
         for problem in problems:
-            print(f"registry: {problem}", file=sys.stderr)
+            print(f"catalogue: {problem}", file=sys.stderr)
         return 2
 
-    preamble = pathlib.Path(args.preamble).read_text(encoding="utf-8")
+    labels = None
     if args.labels:
         parts = args.labels.split("|")
         if len(parts) != EXPECTED_LABELS:
             print(f"--labels needs {EXPECTED_LABELS} headings separated by |", file=sys.stderr)
             return 2
-        fresh = render(gates, preamble, args.layer, (parts[0], parts[1], parts[2]))
-    else:
-        fresh = render(gates, preamble, args.layer)
+        labels = (parts[0], parts[1], parts[2])
+
+    preamble = pathlib.Path(args.preamble).read_text(encoding="utf-8")
+    fresh = render(rules, preamble, args.layer, args.language, labels)
 
     out = pathlib.Path(args.out)
     if args.check:
