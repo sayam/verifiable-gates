@@ -8,6 +8,14 @@ Notable changes to this project. The format follows
 
 ### Added
 
+- **`main` only accepts pull requests, and that now includes the owner.** Branch
+  protection matches the reference implementation's posture: the three CI jobs
+  are required, admins are not exempt, history stays linear, force-pushes and
+  deletions are refused, and conversations must be resolved. Required approving
+  reviews are **0** on purpose — one maintainer cannot review their own work, and
+  pretending otherwise would make the number a formality rather than a control
+  (the compensating controls are in the reference implementation's ADR 0053).
+  Verified by trying: a direct push to `main` is rejected with `GH006`.
 - **The repository has a skeleton and a schema (extraction stage 1).** A
   `src/verifiable_gates/` package, `pyproject.toml` with ruff · mypy `strict` ·
   pytest · coverage at 100%, hash-pinned CI tools under `pins/dev/` with

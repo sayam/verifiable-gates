@@ -5,6 +5,14 @@ This repository is the governance core extracted from
 [ADR 0075 §6](https://github.com/sayam/flask-todolist/blob/main/docs/adr/0075-thesis-track-freeze-effort-and-ceilings.md)).
 The extraction is in progress; see the README for what has landed.
 
+## `main` only accepts pull requests
+
+Including from the maintainer — branch protection has `enforce_admins` on, so
+there is no path that skips the checks. `lint`, `test`, and `commit-lint` are all
+required, history is linear (rebase, not merge commits), and force-pushing or
+deleting `main` is refused. Required approving reviews are 0, which is honest
+rather than aspirational: a single maintainer cannot review their own work.
+
 ## Two things every pull request needs
 
 1. **`git commit -s` on every commit** — the DCO sign-off. Job `commit-lint`
