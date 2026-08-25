@@ -59,6 +59,11 @@ Notable changes to this project. The format follows
 
 ### Changed
 
+- **The language check now reads tracked *and* new files.** Reading only what git
+  tracks let a new file with Thai in it pass locally and fail in CI — which is what
+  happened while stage 2e was being written. Untracked-but-not-ignored is the set a
+  developer is one `git add` away from committing, so that is the set it judges.
+  Ignored files stay out, which is what the earlier fix was for.
 - **The manifest is an input, not a constant.** The reference implementation's
   doctor read `overlay.json` from the directory beside it — right while one tool
   serves one registry, wrong the moment the tool is a package several projects
