@@ -33,7 +33,12 @@ SCANNERS = sorted(path for path in CHECKS.glob("scan_*.py"))
 SHIPPED_PYTHON = [*SCANNERS, BUNDLE / "gates_doctor.py"]
 # Every Python file the bundle installs. `preflight.py` is here but not above:
 # it is allowed a declared dependency, the others are not.
-SHIPPED_ALL = [*SHIPPED_PYTHON, BUNDLE / "preflight.py"]
+SHIPPED_ALL = [
+    *SHIPPED_PYTHON,
+    BUNDLE / "preflight.py",
+    BUNDLE / "lint_commits.py",
+    BUNDLE / "check_issue_handoff.py",
+]
 
 # Third-party imports would need installing; a relative import needs the package.
 ALLOWED = frozenset(sys.stdlib_module_names)

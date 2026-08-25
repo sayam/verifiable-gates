@@ -74,6 +74,8 @@ ignore = [
 "src/verifiable_gates/skill.py" = ["T201"]
 "src/verifiable_gates/harness.py" = ["T201"]
 "src/verifiable_gates/install.py" = ["T201"]
+"src/verifiable_gates/lint_commits.py" = ["T201"]
+"src/verifiable_gates/check_issue_handoff.py" = ["T201"]
 "tests/**" = [
     "INP001",   # tests are not a package; pytest finds them via pythonpath
     "S101",     # assert is the whole point of pytest
