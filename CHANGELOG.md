@@ -6,6 +6,27 @@ Notable changes to this project. The format follows
 
 ## [Unreleased]
 
+### Fixed
+
+- **A scanner no longer crashes on a project that configured nothing.** Six of the
+  seven scanners that read `scaffold.json` read it unguarded, so pointing one at a
+  project without that file raised `FileNotFoundError` out of `main()`. A traceback
+  is the worst of the three answers, because it is neither a finding, nor N/A, nor
+  a pass. Missing configuration now falls back to the defaults, which report N/A.
+- **This repository keeps `gates-registry-total`, a rule it publishes.** It had
+  five findings against itself: two jobs with no gate, one unregistered test file,
+  and two test files each claimed by two gates. The test files are split so every
+  gate owns one, and the three missing gates are registered.
+
+### Changed
+
+- **The dogfood list is computed rather than written.** It used to name the two
+  scanners that applied here, and its docstring said "only two apply today" — true
+  when `gates.yaml` was empty, false from its first row, and unnoticed for four
+  stages. Every shipped scanner now runs, each answering for itself whether it had
+  anything to check, with a floor on how many must find real work so an all-N/A
+  suite cannot pass as a clean one.
+
 ### Added
 
 - **The rule catalogue (extraction stage 6, first part).** `rules.yaml` holds the

@@ -222,7 +222,7 @@ gates:
     title: A fresh install's registry passes its own check, and is not skipped as not-applicable
     kind: test
     severity: blocking
-    enforced_by: {job: test, tests: [tests/test_install_and_doctor.py]}
+    enforced_by: {job: test, tests: [tests/test_box_opens_true.py]}
     layer: internal
     pillar: manageability
     portable: false
@@ -247,7 +247,7 @@ gates:
     title: Shipped files are stdlib-only, or declare their dependency in the manifest — both ways
     kind: test
     severity: blocking
-    enforced_by: {job: test, tests: [tests/test_checks_are_standalone.py]}
+    enforced_by: {job: test, tests: [tests/test_shipped_requirements.py]}
     layer: internal
     pillar: manageability
     portable: false
@@ -428,3 +428,78 @@ gates:
           Three planted defects red — a sentence added to a sheet by hand, a rule
           moved to a layer that no sheet renders so it vanished from both, and the
           "do not edit" banner removed from a generated file.
+
+  - id: the-schema-is-read-the-way-it-is-written
+    title: The registry schema is proved against both a well-formed registry and a broken one
+    kind: test
+    severity: blocking
+    enforced_by: {job: test, tests: [tests/test_registry.py]}
+    layer: internal
+    pillar: devx
+    portable: false
+    born_from: >-
+      Everything else in this bundle reads a registry through this module, so a
+      permissive reader is a hole under every other check at once. It had no row of
+      its own until the registry handover went looking, which is itself the lesson:
+      the first file written in a repository is the one nobody thinks to register,
+      because at the time there was no index to register it in.
+    proved_by:
+      - kind: mutation
+        ref: pr/10
+        date: 2026-08-25
+        caught: >-
+          Four mutations red — accepting a gate at layer internal that also claims
+          to be portable, accepting one with no origin, opening the pillar
+          vocabulary, and accepting proof of a kind nobody defined. Two earlier
+          attempts reported "not red" and were the author's error rather than the
+          suite's: one patched a line that does not exist, and one widened the
+          vocabulary with a value no test uses.
+
+  - id: every-commit-is-shaped-and-signed
+    title: Every commit added by a branch is a Conventional Commit and carries a sign-off
+    kind: job
+    severity: blocking
+    enforced_by: {job: commit-lint}
+    layer: internal
+    pillar: devx
+    portable: false
+    born_from: >-
+      The reference implementation learned both halves the hard way. A required
+      check that gets skipped leaves a pull request BLOCKED forever with nothing red
+      to see, so the job runs on what the branch actually adds rather than on the
+      whole history. And the sign-off is the one thing a project cannot add
+      retroactively: it is a statement by the person who wrote the commit, at the
+      time they wrote it, and it was the single unmet item of OSPS Baseline level 2
+      there.
+    proved_by:
+      - kind: ci-red
+        ref: pr/7
+        date: 2026-08-25
+        caught: >-
+          It refused commit 3a08fd10c — a subject of 73 characters, one over the
+          limit — and held the pull request until it was rewritten.
+
+  - id: the-static-battery-runs-on-every-push
+    title: Lint, formatting and types are decided by CI, not by whoever remembered to run them
+    kind: job
+    severity: blocking
+    enforced_by: {job: lint}
+    layer: internal
+    pillar: devx
+    portable: false
+    born_from: >-
+      A check that only runs where somebody remembers to run it is a check that
+      stops running on the busiest day. The battery is one job so that a single red
+      answer names every static problem at once, rather than one per push over three
+      pushes.
+
+      **This gate has never gone red, and carries no `proved_by` because of it.**
+      It has run on every push since the repository's first, and every finding it
+      would have caught was caught locally first — the rule catalogue's branch had
+      six, and `ruff` reported all six before the branch was pushed. That is a good
+      outcome and a weak proof: a job that has never failed is indistinguishable
+      from a job that checks nothing, which is the very thing
+      `gates-carry-red-evidence` says out loud. The honest record is this
+      paragraph, not a citation of a run that did not happen. The two real red runs
+      in this repository's history are on `test` and `commit-lint`, and they are
+      cited by the gates that own them.
