@@ -1,9 +1,11 @@
 {
-  "_comment": "What this bundle ships and which gates it can decide by itself. kind 'scan' means a script here answers it; kind 'suite' means the bundle names the rule but the project has to write its own test — those are reported as pending, never as passed. The catalogue of suite rules arrives at the registry handover; see the extraction stages in README.md.",
+  "_comment": "What this bundle ships and which gates it can decide by itself. kind 'scan' means a script here answers it when pointed at a project root; kind 'suite' means the bundle names the rule but the project has to write its own test — those are reported as pending, never as passed. Some shipped files are neither: gates_doctor.py, preflight.py, lint_commits.py and check_issue_handoff.py are tools a project runs with context only its CI has (a commit range, a pull request number), so they take flags rather than a root and the doctor does not run them. The rules they enforce are published in rules.yaml like any other.",
   "bundle": "verifiable-gates",
   "ship": [
     "gates_doctor.py",
     "preflight.py",
+    "check_issue_handoff.py",
+    "lint_commits.py",
     "checks/scan_adr_index.py",
     "checks/scan_dockerfile_digest.py",
     "checks/scan_entrypoint_debug.py",

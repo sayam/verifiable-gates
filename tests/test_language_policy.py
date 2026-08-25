@@ -62,6 +62,10 @@ THAI_IN_LITERALS = (
     "src/verifiable_gates/skill.py",
     "tests/test_skill_renderer.py",
     "tests/test_rules_catalogue.py",
+    # A subject line in Thai is the test data that proves the length limit counts
+    # characters rather than bytes. In Latin script the test cannot fail, so the
+    # non-Latin string is the evidence, not decoration.
+    "tests/test_lint_commits.py",
 )
 
 THAI = range(0x0E01, 0x0E5C)  # Thai block, U+0E01..U+0E5B

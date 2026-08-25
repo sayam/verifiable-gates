@@ -8,6 +8,16 @@ Notable changes to this project. The format follows
 
 ### Added
 
+- **Two CI deciders moved in from the reference implementation (extraction stage
+  3a): the commit gate and the newcomer-issue gate.** Both are stdlib-only and
+  shipped, so a project gets them in `tools/`.
+- **A third kind of shipped file is now named for what it is.** `gates_doctor.py`,
+  `preflight.py` and these two are tools a project runs with context only its CI
+  has — a commit range, a pull request number — so they take flags rather than a
+  project root, and the doctor does not run them. Registering the new pair as
+  scanners made the doctor report findings that were only the wrong argument
+  shape; the manifest now says which files are which and why.
+
 - **A DOI: [10.5281/zenodo.22103110](https://doi.org/10.5281/zenodo.22103110).**
   The `evidence-freeze-1` release is archived on Zenodo, which read `.zenodo.json`
   rather than guessing — the tag was moved onto the commit carrying that file

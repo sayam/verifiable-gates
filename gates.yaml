@@ -42,6 +42,74 @@ gates:
           reworded away from the abstract, the author renamed on the other, and
           both cards moved together to a licence this repository does not carry.
 
+  - id: commit-messages-are-shaped-and-signed
+    title: Every commit a branch adds is a Conventional Commit and carries a DCO sign-off
+    kind: test
+    severity: blocking
+    enforced_by: {job: test, tests: [tests/test_lint_commits.py]}
+    layer: internal
+    pillar: devx
+    portable: false
+    born_from: >-
+      This decider blocks every commit on a developer's machine and every pull
+      request in CI, so both directions are expensive: a false red teaches people
+      to reach for `--no-verify`, and a false green lets malformed history in
+      permanently. The reference implementation learned three separate lessons
+      into it — a required check that gets skipped leaves a pull request BLOCKED
+      with nothing red to see, so it runs on what the branch actually adds; a
+      merge commit's message is the platform's rather than a person's, so those
+      are excluded or the "Update branch" button turns the gate red with nobody
+      having typed anything wrong; and the sign-off is the one thing a project
+      cannot add retroactively on somebody's behalf.
+    proved_by:
+      - kind: ci-red
+        ref: pr/7
+        date: 2026-08-25
+        caught: >-
+          Running in this repository's own CI it refused commit 3a08fd10c — a
+          subject of 73 characters, one over the limit — and held the pull request
+          until it was rewritten.
+      - kind: mutation
+        ref: pr/15
+        date: 2026-08-26
+        caught: >-
+          Six mutations red — counting the subject in bytes rather than characters
+          (which shortens the limit to a third for anybody writing in a non-Latin
+          script), holding merge commits to the format, accepting a sign-off with
+          no address to reply to, separating log records by newline so a multiline
+          body became several commits, skipping the sign-off check in hook mode,
+          and returning zero whatever was found.
+
+  - id: newcomer-issues-are-not-taken-silently
+    title: A pull request closing an issue still labelled for newcomers has to say why
+    kind: test
+    severity: blocking
+    enforced_by: {job: test, tests: [tests/test_issue_handoff.py]}
+    layer: internal
+    pillar: devx
+    portable: false
+    born_from: >-
+      From a real incident in the reference implementation on 2026-08-20: an issue
+      was labelled `good first issue` at 12:14Z, the maintainer opened and merged
+      their own pull request for it by 16:51Z, and an outside contributor opened
+      theirs at 17:39Z having started hours earlier. The label stayed on
+      throughout, with no assignee and no comment — so they lost an afternoon to
+      work already closed. A promise made in a comment on a closed pull request is
+      a promise nobody can find again, which is why this is a machine rather than
+      a line in a contributing guide. It reads what the platform will actually do
+      on merge rather than grepping the body for "Closes #N", because a gate that
+      reads something other than what the platform acts on is right only while the
+      two happen to agree.
+    proved_by:
+      - kind: mutation
+        ref: pr/15
+        date: 2026-08-26
+        caught: >-
+          Red on every direction — a bare override marker with no reason, one
+          indented so it is not a declaration line, one buried mid-sentence, an
+          absent body read as an excuse rather than as no declaration, and a
+          report naming only the first offending issue instead of all of them.
+
   - id: english-except-where-it-binds
     title: Everything here is in English, except documents that bind someone legally
     kind: test
