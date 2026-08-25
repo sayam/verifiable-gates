@@ -20,7 +20,11 @@ DIGEST = re.compile(r"@sha256:[0-9a-f]{64}$")
 
 
 def main(root: pathlib.Path) -> int:
-    config = json.loads((root / "scaffold.json").read_text(encoding="utf-8"))
+    config_path = root / "scaffold.json"
+    # A project that has not configured the bundle is not a misuse — the paths
+    # below fall back to their defaults, and a path that is not there reports NA.
+    # Reading it unguarded turned "not configured yet" into a traceback.
+    config = json.loads(config_path.read_text(encoding="utf-8")) if config_path.is_file() else {}
     names = config.get("dockerfiles", ["Dockerfile"])
     dockerfiles = [root / n for n in names if (root / n).is_file()]
     if not dockerfiles:

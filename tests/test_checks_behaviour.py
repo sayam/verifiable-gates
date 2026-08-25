@@ -14,9 +14,11 @@ exits 0, and that has to be visible in the output. Otherwise a whole class of
 
 from __future__ import annotations
 
+import importlib
 import json
 from typing import TYPE_CHECKING, Any, NamedTuple
 
+import bundle
 import pytest
 
 from verifiable_gates.checks import (
@@ -385,3 +387,31 @@ def test_a_local_install_that_still_resolves_dependencies_is_reported(
     files = {".github/workflows/ci.yml": "jobs:\n  a:\n    steps:\n      - run: pip install -e .\n"}
     assert scan_install_pinning.main(build(tmp_path, files)) == 1
     assert "ci-tools-hash-pinned" in capsys.readouterr().out
+
+
+# ------------------------------------------------- a project that configured nothing
+
+
+@pytest.mark.parametrize("name", bundle.scanner_ids(), ids=lambda n: n)
+def test_a_scanner_survives_a_project_with_no_scaffold_file(
+    name: str, tmp_path: pathlib.Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """No `scaffold.json` means "nothing configured", never a traceback.
+
+    Six of the seven scanners that read the file read it unguarded, so pointing
+    one at a project that had not configured the bundle raised FileNotFoundError
+    out of `main()`. The dogfood check found it by running them here, where there
+    is no scaffold file — and a traceback is the worst of the three answers,
+    because it is neither a finding, nor N/A, nor a pass, and the exit code that
+    reaches a caller is whatever the shell made of the crash.
+    """
+    module = importlib.import_module(f"verifiable_gates.checks.{name.removesuffix('.py')}")
+    assert not (tmp_path / "scaffold.json").exists()
+
+    result = module.main(tmp_path)
+    output = capsys.readouterr().out
+
+    assert result == 0, f"an unconfigured project is not a finding:\n{output}"
+    assert output.startswith("NA:"), (
+        f"with nothing configured there is nothing to check, so the answer is N/A: {output!r}"
+    )

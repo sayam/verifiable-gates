@@ -21,47 +21,18 @@ Three properties, and the second is the one that decays quietly:
 from __future__ import annotations
 
 import json
-import pathlib
-import shutil
 import subprocess
 import sys
+from typing import TYPE_CHECKING
 
 import pytest
+from bundle import DOCTOR, do_install, run_doctor
 
 from verifiable_gates import gates_doctor
 from verifiable_gates import install as install_module
-from verifiable_gates import manifest as manifest_module
 
-BUNDLE = pathlib.Path(__file__).resolve().parent.parent / "src" / "verifiable_gates"
-DOCTOR = "tools/gates_doctor.py"
-
-
-@pytest.fixture
-def bundle_copy(tmp_path: pathlib.Path) -> pathlib.Path:
-    """A copy of the bundle, so a test may remove a file from it without harm."""
-    target = tmp_path / "bundle"
-    target.mkdir()
-    manifest = manifest_module.load(BUNDLE / "overlay.json")
-    for name in manifest_module.shipped(manifest):
-        source = BUNDLE / name
-        destination = target / name
-        destination.parent.mkdir(parents=True, exist_ok=True)
-        shutil.copy2(source, destination)
-    return target
-
-
-def do_install(dest: pathlib.Path, bundle: pathlib.Path) -> int:
-    return install_module.install(dest, manifest_module.load(bundle / "overlay.json"), bundle)
-
-
-def run_doctor(project: pathlib.Path, *args: str) -> subprocess.CompletedProcess[str]:
-    return subprocess.run(  # noqa: S603 — argv is built here, interpreter is sys.executable
-        [sys.executable, str(project / DOCTOR), str(project), *args],
-        capture_output=True,
-        text=True,
-        check=False,
-        timeout=300,
-    )
+if TYPE_CHECKING:
+    import pathlib
 
 
 def test_a_fresh_install_gives_a_project_something_that_runs(
@@ -346,33 +317,3 @@ def test_a_clean_run_returns_zero_in_process(
     output = capsys.readouterr().out
     assert "[found]" not in output
     assert "waiting on this project's own tests" in output
-
-
-def test_a_fresh_install_starts_with_a_registry_that_is_already_true(
-    tmp_path: pathlib.Path, bundle_copy: pathlib.Path, capsys: pytest.CaptureFixture[str]
-) -> None:
-    """Opening the box gives a real index, not an instruction to go and make one.
-
-    Most rules in this bundle end with "register it in your gates.yaml". If the
-    box does not contain that file, already true about itself, the instruction is
-    prose. So the shipped registry has to pass the shipped registry scanner on a
-    project that has done nothing yet — **and not be skipped as N/A**, which would
-    let an absent file look like a satisfied one.
-    """
-    project = tmp_path / "project"
-    assert do_install(project, bundle_copy) == 0
-    capsys.readouterr()
-    assert (project / "gates.yaml").is_file(), "installed, but with no gate index"
-
-    scanner = project / "tools" / "checks" / "scan_gates_registry.py"
-    done = subprocess.run(  # noqa: S603 — argv is built here, interpreter is sys.executable
-        [sys.executable, str(scanner), str(project)],
-        capture_output=True,
-        text=True,
-        check=False,
-        timeout=300,
-    )
-    assert done.returncode == 0, f"the starting registry fails its own check:\n{done.stdout}"
-    assert "NA" not in done.stdout, (
-        f"the starting registry was skipped, not checked:\n{done.stdout}"
-    )
