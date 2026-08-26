@@ -262,6 +262,40 @@ gates:
           test give the same signal, which is the reason this project makes every
           command declare a time budget.
 
+  - id: a-rerun-cannot-erase-a-failure-from-the-count
+    title: Failures a rerun turned green are still counted, and classified by who broke
+    kind: test
+    severity: blocking
+    enforced_by: {job: test, tests: [tests/test_rerun_census.py]}
+    layer: internal
+    pillar: manageability
+    portable: false
+    born_from: >-
+      The platform reports the latest attempt only, so pressing rerun until a run
+      goes green removes the original failure from every listing — and "never
+      red" is what decides whether a gate carries evidence and whether a flaky
+      review has anything to look at. Measured on a real repository: eleven
+      visible failures, three more hidden underneath. Two further mistakes were
+      made in earnest. Classifying by **step name** read a scanning action's
+      setup failure as ours four times on a day the platform was answering 503 —
+      a step name says where it broke, not who. And walking failures job by job
+      lost every run the platform rejected before creating any job: zero jobs,
+      zero failures, invisible — which is how one workflow failed on every run
+      for days while a check that verifies the platform's own settings had never
+      run once.
+    proved_by:
+      - kind: mutation
+        ref: pr/26
+        date: 2026-08-26
+        caught: >-
+          Five mutations red — reading the step name before the message so
+          somebody else's action is blamed on us, letting a bare status number
+          count as the platform's (a project's own tests assert on 503, so its
+          failures would leave the count), calling every failure visible so a
+          rerun really does erase one, dropping the run that never started, and
+          keeping the matrix suffix on a check name so one report can say
+          `dialect` failed and `dialects` never went red.
+
   - id: a-threshold-sits-against-reality-both-ways
     title: A ratchet's threshold is held to what is true today, in both directions
     kind: test
