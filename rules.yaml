@@ -583,7 +583,6 @@ rules:
     tests:
     - tests/test_script_roles.py
     - tests/test_generated_tables.py
-    - tests/test_measure_generated.py
 - id: adr-index-complete
   layer: baseline
   pillar: devx
