@@ -110,6 +110,92 @@ gates:
           absent body read as an excuse rather than as no declaration, and a
           report naming only the first offending issue instead of all of them.
 
+  - id: one-reader-for-workflow-triggers
+    title: There is one reader for `on:`, and it covers all three shapes GitHub accepts
+    kind: test
+    severity: blocking
+    enforced_by: {job: test, tests: [tests/test_workflow_reader.py]}
+    layer: internal
+    pillar: devx
+    portable: false
+    born_from: >-
+      A parser is a command like any other, and a second copy of it drifts just as
+      fast. The reference implementation had this idiom copied in **five places**,
+      three of them broken the same way — `on: [push, pull_request]` used the
+      value as a dict key, which a list cannot be — and the copies had already
+      drifted: one guarded itself with `isinstance`, two did not. The shape nobody
+      expects is that the key is usually the boolean `True`: YAML 1.1 reads an
+      unquoted `on:` as a boolean, so a reader looking only for the string finds
+      nothing in almost every real workflow, and answers as though no triggers
+      were declared.
+    proved_by:
+      - kind: mutation
+        ref: pr/16
+        date: 2026-08-26
+        caught: >-
+          Five mutations red — reading only the string key so every unquoted `on:`
+          vanished, restoring the idiom that breaks on a list, letting an empty
+          file read as None instead of an empty mapping, reading `on: [schedule]`
+          as though it carried a cron, and accepting only `.yml` so every
+          `.yaml` workflow disappeared from the census.
+
+  - id: one-wrapper-for-the-github-cli
+    title: There is one `gh` wrapper, and it fails loudly rather than answering empty
+    kind: test
+    severity: blocking
+    enforced_by: {job: test, tests: [tests/test_gh_wrapper.py]}
+    layer: internal
+    pillar: devx
+    portable: false
+    born_from: >-
+      The reference implementation counted this call copied in five places, two of
+      them identical character for character, each carrying its own `S603`
+      suppression — five exemptions for one command. What the copies risk getting
+      wrong is not the call but the failure: with `check=False` and no return-code
+      test, a `gh` that failed hands back an empty string, and an empty answer
+      reads as data all the way down. The cause is nearly always scope or an
+      expired token, and `gh` usually says which, so its message is attached whole
+      rather than summarised.
+    proved_by:
+      - kind: mutation
+        ref: pr/16
+        date: 2026-08-26
+        caught: >-
+          Four mutations red — not testing the return code so a failure came back
+          as an empty string, discarding gh's own message so the reader lost the
+          only line saying what to fix, dropping the timeout, and not stripping
+          the output so every comparison downstream saw a trailing newline.
+
+  - id: the-surface-reader-reports-its-own-saving
+    title: The API-surface reader is honest about how much it saved, including when it saved nothing
+    kind: test
+    severity: blocking
+    enforced_by: {job: test, tests: [tests/test_skeleton.py]}
+    layer: internal
+    pillar: devx
+    portable: false
+    born_from: >-
+      The ratio at the end is the reason the tool exists: it is the only thing
+      that says which files are worth asking about this way and which are faster
+      to read whole. Three separate reviews of the reference implementation caught
+      it being subtly wrong in ways nothing else would have shown — a doubled
+      parse invisible on one file and a doubling of the work on a directory, a
+      denominator one line too large for every file ending in a newline, and a
+      `UnicodeDecodeError` escaping an `except OSError` because it inherits from
+      `ValueError`, printing a traceback that never said which file. A figure over
+      100% is the answer rather than a bug, and clamping it would hide the one
+      case the tool exists to identify.
+    proved_by:
+      - kind: mutation
+        ref: pr/16
+        date: 2026-08-26
+        caught: >-
+          Five mutations red — the off-by-one denominator, clamping the ratio to
+          100% so "read it whole" stopped being sayable, letting
+          UnicodeDecodeError escape the handler, dropping decorators from the
+          surface though they bind the caller, and walking the whole tree so
+          functions nested inside functions were reported as callable surface.
+
   - id: english-except-where-it-binds
     title: Everything here is in English, except documents that bind someone legally
     kind: test
