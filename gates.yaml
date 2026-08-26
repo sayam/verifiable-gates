@@ -405,6 +405,82 @@ gates:
           could observe, because substituting into text that does not match is
           already no change — it was removed rather than left to look load-bearing.
 
+  - id: a-check-name-is-not-a-job-id
+    title: The names a repository's checks will appear under are computed, not assumed
+    kind: test
+    severity: blocking
+    enforced_by: {job: test, tests: [tests/test_check_names.py]}
+    layer: internal
+    pillar: manageability
+    portable: false
+    born_from: >-
+      Branch protection is a list of check *names*, and a name is not a job id: a
+      job declaring `name:` uses that instead, and a job with a matrix produces one
+      check per row. Two failures follow, and they look opposite. **A required name
+      no job can produce leaves every pull request waiting for a check that never
+      arrives** — nothing is red, the pull request simply never becomes mergeable.
+      **A check nobody requires** runs, goes red, and merges anyway. Both are
+      invisible from inside a repository unless something works out the names the
+      platform is going to use. The reference implementation shipped a report saying
+      `dialect` had failed ten times and, in the same breath, that `dialects` had
+      never gone red: the same jobs, one named by its check and one by its id, with
+      no reader able to see they were one thing. The wider "everything this
+      repository can produce" set exists for the same reason a register does: held
+      against the pull-request set instead, a "not required, and here is why" entry
+      can never appear in it, so nothing consults it and it becomes a text file.
+    proved_by:
+      - kind: mutation
+        ref: pr/20
+        date: 2026-08-26
+        caught: >-
+          Six mutations red — reading the job id where a name was declared,
+          collapsing matrix rows whose values do not appear in the name, requiring
+          scheduled workflows on pull requests, narrowing the everything-set to the
+          pull-request one so a register could never be consulted, counting a matrix
+          as one run, and counting distinct names where the advertised number counts
+          runs.
+
+  - id: platform-settings-are-held-to-what-was-declared
+    title: The settings every other gate leans on are checked, not merely written down
+    kind: test
+    severity: blocking
+    enforced_by: {job: test, tests: [tests/test_posture.py]}
+    layer: internal
+    pillar: security
+    portable: false
+    born_from: >-
+      Every gate in a repository rests on settings that live somewhere else — that
+      the default branch takes changes only through a pull request, that
+      administrators are not exempt, that the required checks are the ones that
+      actually run — and **nothing inside a repository can see any of it**. Switch
+      one off in a web form and the documents keep saying what they always said. It
+      is the control every other control leans on and the one nobody watches. Three
+      rules make the check worth running. **Cannot read is not the same as switched
+      off**: reporting the first as the second sends somebody to fix what was never
+      broken, and reporting it as fine is worse, so it gets a third answer. **A
+      value nobody can read still has a declared value** — the reference
+      implementation lost one setting entirely because it lived in the unreadable
+      class, so its register recorded that no machine could see it and nothing
+      anywhere recorded what it should be; the rule it carried was then kept by one
+      person's memory and forgotten about thirty times running. **Both directions**,
+      because an exemption goes quiet exactly when the thing it excuses disappears —
+      and an exemption register held against the wrong set can never match anything,
+      which is how that project's own sat unread from the day it was written.
+    proved_by:
+      - kind: mutation
+        ref: pr/20
+        date: 2026-08-26
+        caught: >-
+          Ten mutations red — holding the exemption register against the
+          pull-request set so it could never be consulted, never reporting a stale
+          exemption, missing a required check no job can produce (the failure where
+          nothing is red and the pull request simply never merges), reporting an
+          unreadable field as switched off, absorbing any empty field as expected,
+          demanding a register line for an alert the platform had fixed, counting a
+          dismissal with no reason as a judgement, reading "no permission to look"
+          as "no alerts", losing the link between a matrix row and the job it
+          belongs to, and freezing the wording so it could no longer be an input.
+
   - id: english-except-where-it-binds
     title: Everything here is in English, except documents that bind someone legally
     kind: test
