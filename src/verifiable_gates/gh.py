@@ -30,12 +30,17 @@ __all__ = ["NETWORK_TIMEOUT_SECONDS", "api", "run"]
 NETWORK_TIMEOUT_SECONDS = 60
 
 
-def run(args: list[str]) -> str:
+def run(args: list[str], *, timeout: int = NETWORK_TIMEOUT_SECONDS) -> str:
     """Call `gh <args>` and hand back stdout, stripped.
 
     A failure is always a `PermissionError`, because in practice the cause is
     almost always insufficient scope or an expired token — and `gh`'s own message
     is attached whole rather than summarised, since it usually says which.
+
+    `timeout` is a parameter rather than a constant because one endpoint is not
+    like the others: a job's log can be enormous, and giving every call the
+    ceiling that endpoint needs would let a hung question about a single field
+    sit for minutes. The ceiling belongs to the caller that knows what it asked.
     """
     binary = shutil.which("gh")
     if not binary:
@@ -45,7 +50,7 @@ def run(args: list[str]) -> str:
         capture_output=True,
         text=True,
         check=False,
-        timeout=NETWORK_TIMEOUT_SECONDS,
+        timeout=timeout,
     )
     if done.returncode != 0:
         raise PermissionError(f"`gh {' '.join(args)}` failed: {done.stderr.strip()}")
