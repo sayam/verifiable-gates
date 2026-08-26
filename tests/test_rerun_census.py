@@ -445,7 +445,7 @@ def test_harvest_reads_a_log_only_for_our_own_failures(
         return "FAILED tests/test_a.py::test_one"
 
     monkeypatch.setattr(gh, "run", fake_run)
-    records = [
+    records: list[dict[str, Any]] = [
         {
             "id": 1,
             "attempt": 1,
@@ -456,9 +456,10 @@ def test_harvest_reads_a_log_only_for_our_own_failures(
         }
     ]
     census.harvest(records)
+    ours, theirs = records[0]["failures"]
 
-    assert records[0]["failures"][0]["tests"] == ["tests/test_a.py"]
-    assert "tests" not in records[0]["failures"][1], "read a log for a platform failure"
+    assert ours["tests"] == ["tests/test_a.py"]
+    assert "tests" not in theirs, "read a log for a platform failure"
     assert len(asked) == 1
 
 
