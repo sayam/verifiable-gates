@@ -481,6 +481,75 @@ gates:
           as "no alerts", losing the link between a matrix row and the job it
           belongs to, and freezing the wording so it could no longer be an input.
 
+  - id: every-advisory-has-been-judged
+    title: Every finding has been decided about, and every decision still describes something
+    kind: test
+    severity: blocking
+    enforced_by: {job: test, tests: [tests/test_advisories.py]}
+    layer: internal
+    pillar: security
+    portable: false
+    born_from: >-
+      A scanner that fails on anything it finds gets switched off. Some findings
+      genuinely cannot be acted on — a pinned transitive dependency upstream has
+      not moved, a distribution patch that does not exist — and a check red from
+      its first day and red forever is one somebody silences inside a fortnight,
+      taking the real findings with it. So the rule is not "no findings" but
+      **every finding has been decided about**, which makes the register of
+      accepted ones the thing that has to be right. It is held **both ways**, and
+      the second way is the one that rots: the tools never mention an id they did
+      not need to ignore, so an entry outlives its subject in silence and sits
+      there excusing nothing, until the day it silently excuses something real.
+      Two readers carry their own lesson — a package audit groups by affected
+      package rather than by advisory, so counting headlines gives six where the
+      cause is one; and the id has to be the public one, never a registry's
+      internal number, or nobody reviewing the register can look an entry up.
+    proved_by:
+      - kind: mutation
+        ref: pr/22
+        date: 2026-08-26
+        caught: >-
+          Five mutations red — never reporting a stale entry (the direction the
+          tools are silent about), counting a package audit by headline so one
+          cause became six, using the registry's internal number as the id,
+          collapsing "no fix exists" into "a fix exists we cannot take", and
+          reading the register's own comments as entries.
+
+  - id: a-scan-proves-it-scanned
+    title: A run that found nothing is told apart from a run that read nothing
+    kind: test
+    severity: blocking
+    enforced_by: {job: test, tests: [tests/test_scan_coverage.py]}
+    layer: internal
+    pillar: security
+    portable: false
+    born_from: >-
+      Exit zero from a static analyser means "no findings", which is
+      indistinguishable from "no files". A whole directory can drop out — a
+      default exclude nobody read, a working directory that was not what somebody
+      assumed — and the result is green, quiet and permanent, with **nothing in
+      the output differing from the day it worked**. It happened: a scanner's own
+      built-in defaults excluded the reference implementation's test tree, so 61
+      of 136 files were never scanned while the workflow named two directories it
+      excluded itself. Nobody lied and nobody measured. A minimum count is not the
+      answer — a floor catches "everything vanished" and misses "one directory
+      vanished", which is the shape the bug took. What is checked is the set of
+      files the run reports reading against the set that should have been read,
+      plus three things that each fail green on their own: no rules loaded, a rule
+      skipped, an error the tool reported about itself. Reading *more* than
+      expected is safety, not a fault, so only the missing direction is red.
+    proved_by:
+      - kind: mutation
+        ref: pr/22
+        date: 2026-08-26
+        caught: >-
+          Six mutations red — flipping the direction of the set difference so
+          reading extra became the fault and reading nothing became fine, passing
+          an empty rule set, passing a skipped rule, swallowing the scanner's own
+          errors, matching a declared skip as a name prefix rather than a
+          directory so `apple/` vanished with `app/`, and dropping the pattern
+          that decides what counts as code.
+
   - id: english-except-where-it-binds
     title: Everything here is in English, except documents that bind someone legally
     kind: test
