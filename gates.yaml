@@ -334,6 +334,77 @@ gates:
           was missing, and reading interrogate's figure from anywhere in its output
           rather than from its own label.
 
+  - id: what-left-is-told-from-what-was-reworded
+    title: A census of removals separates what went from what was only renamed
+    kind: test
+    severity: blocking
+    enforced_by: {job: test, tests: [tests/test_removals.py]}
+    layer: internal
+    pillar: manageability
+    portable: false
+    born_from: >-
+      The record of every removal is already in the version history, so nothing is
+      lost in the strict sense — what is missing is anybody reading it, and that
+      shape recurs: a project does not need another place to write things down, it
+      needs a place to read them from. The difficulty is that a removal and a
+      rewrite are the same diff. Asking the reference implementation's history for
+      deleted lines under one document returned 31 over the repository's lifetime,
+      and no eye could tell rows taken away from rows reworded without opening each
+      change one at a time, which is why nobody did. Both entries that ever vanished
+      from its gate register turned out to be renames. The similarity threshold that
+      tells them apart is an interpretation rather than a fact, so what it dismisses
+      is printed instead of dropped — a census that quietly discards what it could
+      not classify reports good news it did not earn.
+    proved_by:
+      - kind: mutation
+        ref: pr/19
+        date: 2026-08-26
+        caught: >-
+          Eight mutations red — counting every rewrite as a removal, loosening the
+          threshold until every removal read as a rewrite, dropping the filter that
+          keeps a renamed file from counting as a deleted one, ignoring the window
+          the caller asked about, letting an empty pile leave the report so that
+          "nothing removed" and "nobody watching" looked alike, printing a clean
+          page when the manifest was empty, not naming the missing tool, and letting
+          the history command wait without a deadline.
+
+  - id: an-advertised-number-is-made-true-by-one-command
+    title: A number several documents quote is synchronised in one place, prose untouched
+    kind: test
+    severity: blocking
+    enforced_by: {job: test, tests: [tests/test_advertised.py]}
+    layer: internal
+    pillar: devx
+    portable: false
+    born_from: >-
+      Every advertised number already has a test holding it against reality; what
+      stays manual is making it true again. The reference implementation measured
+      the bill: one new decision record turned three files red, one new gate turned
+      two more, and **25 of its last 200 commits were nothing but numbers copied
+      from one file to another**. The version outside the repository is worse — a
+      description field on the hosting platform produces no diff, so no test ever
+      runs and nobody sees it age; that number was wrong twice in one session, each
+      time by exactly one, because the step was one somebody had to remember. Two
+      rules keep this honest: a pattern matching nothing is reported rather than
+      passed over, since going quiet means claiming agreement having read nothing;
+      and a field is patched in place rather than rebuilt, since rebuilding deletes
+      whatever prose a person wrote there and nobody would see it go.
+    proved_by:
+      - kind: mutation
+        ref: pr/19
+        date: 2026-08-26
+        caught: >-
+          Nine mutations red — replacing the whole match instead of the group so the
+          sentence around the value was destroyed, going quiet when a pattern found
+          nothing, not reporting a place that had fallen behind, accepting a fact
+          nobody measured, rebuilding the outside field from its values instead of
+          patching it, inventing a claim the field never made, replacing every
+          occurrence rather than the first, and reporting a claim missing from the
+          field as agreement. **A tenth stayed green and changed the code**: a guard
+          skipping places that could not be found turned out to be a branch nothing
+          could observe, because substituting into text that does not match is
+          already no change — it was removed rather than left to look load-bearing.
+
   - id: english-except-where-it-binds
     title: Everything here is in English, except documents that bind someone legally
     kind: test
