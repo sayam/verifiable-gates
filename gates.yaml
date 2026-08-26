@@ -262,6 +262,78 @@ gates:
           test give the same signal, which is the reason this project makes every
           command declare a time budget.
 
+  - id: a-threshold-sits-against-reality-both-ways
+    title: A ratchet's threshold is held to what is true today, in both directions
+    kind: test
+    severity: blocking
+    enforced_by: {job: test, tests: [tests/test_ratchets.py]}
+    layer: internal
+    pillar: devx
+    portable: false
+    born_from: >-
+      The direction everyone watches needs no help: a coverage tool refuses to
+      pass beneath its own floor. The direction that matters is the other one —
+      **nobody raises the floor after the code gets better** — and a floor left
+      behind quietly permits every line of that improvement to be given back. The
+      reference implementation measured it: six days after setting a floor of 96
+      at a measured 96.31%, reality had reached 97.11% and the floor had not
+      moved, a full point of slack worth roughly fifty covered lines. Three
+      further shapes had to be kept apart because the advice that fixes one is
+      wrong for the others: a ceiling travels the same way in reverse, a removal
+      guard exists to catch deletion and must grow freely or the cost of bumping a
+      number teaches people to stop reading the check, and a floor some other tool
+      already enforces downward must not be reported here as well or a reader gets
+      two instructions for one problem.
+    proved_by:
+      - kind: mutation
+        ref: pr/18
+        date: 2026-08-26
+        caught: >-
+          Seven mutations red — reporting a fall a tool already owns so the reader
+          got contradictory advice, taking a removal guard's free growth away,
+          watching a ceiling only upward so space won was never banked, reporting
+          a removal as a threshold regressing, freezing the wording so it could no
+          longer be an input, letting one overridden message blank the four a
+          project did not mention, and accepting a misspelled kind that then
+          behaved like a floor.
+
+  - id: a-number-comes-from-the-thing-itself
+    title: Every figure a threshold is held against is read from the source, never from a summary
+    kind: test
+    severity: blocking
+    enforced_by: {job: test, tests: [tests/test_measure.py]}
+    layer: internal
+    pillar: devx
+    portable: false
+    born_from: >-
+      A reader that guesses, or that quietly answers zero when it cannot see, turns
+      a red check green at exactly the moment the check was needed. Two failures in
+      the reference implementation set the shape. Its first ratchet checker read
+      only numbers that lived in a tool's own config, so a ratchet written as an
+      English sentence — mypy's strict list, which had said "may grow, never
+      shrink" for sixteen phases — survived it untouched. And a second parser,
+      written beside the one that already existed because that was easier, gave 24
+      where the real reader gave 23 on the same day. The suppression counter is
+      tested hardest because **its total cannot prove its own logic**: a test
+      watching only the count stays green through a change that stops telling
+      "which rule is off" from "why", which are the two questions the count exists
+      to keep apart.
+    proved_by:
+      - kind: mutation
+        ref: pr/18
+        date: 2026-08-26
+        caught: >-
+          Twelve mutations red — calling every switched-off line justified,
+          ignoring a skipped directory, counting a file twice when two globs
+          overlapped, passing in silence when the measurement file was absent,
+          reading a package's `__init__` as a module of its own, ignoring the
+          excluded tree in the strict count, answering zero instead of raising when
+          mypy's strict list was gone, accepting prose as a coverage figure,
+          letting a register that had stopped being a literal through, answering
+          zero for a register that was not there at all, not naming the binary that
+          was missing, and reading interrogate's figure from anywhere in its output
+          rather than from its own label.
+
   - id: english-except-where-it-binds
     title: Everything here is in English, except documents that bind someone legally
     kind: test
