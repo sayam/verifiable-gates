@@ -8,6 +8,18 @@ Notable changes to this project. The format follows
 
 ### Added
 
+- **The two censuses that watch what CI cannot (extraction stage 3b, second
+  part).** `schedule_census` asks when each declared cron last actually fired —
+  a workflow never triggered counts zero runs, and "no runs" looks exactly like
+  "no failures" in every tool there is. `red_streak_census` measures how long
+  redness stood on the default branch and holds each `watched_by` promise against
+  it, because checking the *shape* of a promised number is not checking the
+  promise.
+- **Both take the project root and the registry as inputs**, and both answer
+  "cannot see" as a third outcome distinct from pass and fail: a watcher that
+  goes quiet when it cannot read reports everything as healthy at exactly the
+  wrong moment.
+
 - **The surface reader, the `gh` wrapper and the workflow reader move in
   (extraction stage 3b, first part).** All three are helpers the reference
   implementation had already collapsed from copies: the `on:` idiom had been

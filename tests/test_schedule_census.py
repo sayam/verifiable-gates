@@ -1,0 +1,248 @@
+"""A schedule that stopped firing must be louder than one that never existed.
+
+The failure this exists for is that **zero runs looks exactly like zero failures**
+in every tool there is. A census counting what happened cannot see it; only a
+census that starts from what was *declared* can.
+
+Two directions matter equally. Going red when a schedule really has gone quiet is
+the obvious one. The other is that when the run history cannot be read at all,
+the answer must be neither pass nor fail but a distinct third thing — a watcher
+that goes quiet on the day it can see nothing reports every schedule as healthy
+at exactly the wrong moment.
+"""
+
+from __future__ import annotations
+
+from typing import TYPE_CHECKING, Any
+
+import pytest
+
+from verifiable_gates import gh
+from verifiable_gates import schedule_census as census
+
+if TYPE_CHECKING:
+    import pathlib
+
+NOW = "2026-08-26T12:00:00+00:00"
+
+
+def a_workflow(directory: pathlib.Path, name: str, cron: str) -> None:
+    directory.mkdir(parents=True, exist_ok=True)
+    (directory / name).write_text(
+        f"on:\n  schedule:\n    - cron: '{cron}'\njobs:\n  x:\n    runs-on: ubuntu-latest\n",
+        encoding="utf-8",
+    )
+
+
+# ---------------------------------------------------------------- reading the cron
+
+
+@pytest.mark.parametrize(
+    ("cron", "hours", "why"),
+    [
+        ("0 * * * *", census.HOUR, "nothing pinned but the minute"),
+        ("0 3 * * *", census.DAY, "an hour is pinned"),
+        ("0 3 1 * *", census.MONTH, "a day of the month is pinned"),
+        ("0 3 * * 1", census.WEEK, "a day of the week is pinned"),
+        ("0 3 1 * 1", census.WEEK, "day-of-week wins, being the coarsest pinned"),
+    ],
+)
+def test_the_period_comes_from_the_coarsest_pinned_field(cron: str, hours: int, why: str) -> None:
+    assert census.period_hours(cron) == hours, why
+
+
+def test_a_short_cron_line_does_not_raise() -> None:
+    """Malformed input from a file is a normal condition, not a crash."""
+    assert census.period_hours("0 3") == census.DAY
+
+
+# ---------------------------------------------------------------- what is declared
+
+
+def test_only_workflows_with_a_cron_are_watched(tmp_path: pathlib.Path) -> None:
+    a_workflow(tmp_path, "nightly.yml", "0 3 * * *")
+    (tmp_path / "ci.yml").write_text("on: push\njobs: {}\n", encoding="utf-8")
+
+    assert census.declared_schedules(tmp_path) == {"nightly.yml": census.DAY}
+
+
+def test_the_shortest_period_wins_when_several_crons_are_declared(
+    tmp_path: pathlib.Path,
+) -> None:
+    """Watching by the slowest would let the fast one go quiet unnoticed."""
+    tmp_path.mkdir(parents=True, exist_ok=True)
+    (tmp_path / "many.yml").write_text(
+        "on:\n  schedule:\n    - cron: '0 3 * * 1'\n    - cron: '0 * * * *'\njobs: {}\n",
+        encoding="utf-8",
+    )
+
+    assert census.declared_schedules(tmp_path) == {"many.yml": census.HOUR}
+
+
+# ---------------------------------------------------------------- the judgement
+
+
+def test_a_schedule_that_never_fired_is_caught() -> None:
+    """The case this whole census exists for — and it must say why it is ambiguous."""
+    found = census.problems({"nightly.yml": census.DAY}, {"nightly.yml": None}, NOW, 2)
+
+    assert len(found) == 1
+    assert "never had a run" in found[0]
+    assert "disabled for inactivity" in found[0], "does not name the second possible cause"
+
+
+def test_a_schedule_firing_on_time_is_not_caught() -> None:
+    found = census.problems(
+        {"nightly.yml": census.DAY}, {"nightly.yml": "2026-08-26T03:00:00+00:00"}, NOW, 2
+    )
+
+    assert found == []
+
+
+def test_a_schedule_late_beyond_tolerance_is_caught() -> None:
+    found = census.problems(
+        {"nightly.yml": census.DAY}, {"nightly.yml": "2026-08-20T03:00:00+00:00"}, NOW, 2
+    )
+
+    assert len(found) == 1
+    assert "6.4 days ago" in found[0]
+
+
+def test_tolerance_is_honoured_rather_than_ignored() -> None:
+    """A run 1.5 periods late is within a tolerance of 2 and outside a tolerance of 1."""
+    last = {"nightly.yml": "2026-08-25T00:00:00+00:00"}
+
+    assert census.problems({"nightly.yml": census.DAY}, last, NOW, 2) == []
+    assert census.problems({"nightly.yml": census.DAY}, last, NOW, 1) != []
+
+
+def test_a_workflow_nobody_asked_about_is_ignored() -> None:
+    """Extra rows in the fetched state are not this census's business."""
+    assert census.problems({}, {"other.yml": None}, NOW, 2) == []
+
+
+# ---------------------------------------------------------------- what cannot be checked
+
+
+def test_dependabot_is_named_rather_than_guessed(tmp_path: pathlib.Path) -> None:
+    """No public endpoint says when it last ran, so it is labelled, not judged."""
+    (tmp_path / ".github").mkdir()
+    (tmp_path / ".github" / "dependabot.yml").write_text(
+        "version: 2\nupdates:\n  - package-ecosystem: pip\n    schedule:\n      interval: weekly\n",
+        encoding="utf-8",
+    )
+
+    found = census.unverifiable_schedules(tmp_path)
+
+    assert found == ["dependabot pip (weekly)"]
+
+
+def test_a_project_without_dependabot_reports_nothing(tmp_path: pathlib.Path) -> None:
+    assert census.unverifiable_schedules(tmp_path) == []
+
+
+# ---------------------------------------------------------------- the command line
+
+
+def test_a_project_with_no_schedules_says_so(
+    tmp_path: pathlib.Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    assert census.main(["--root", str(tmp_path)]) == 0
+    assert "nothing to watch" in capsys.readouterr().out
+
+
+def test_a_healthy_project_passes(
+    tmp_path: pathlib.Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    a_workflow(tmp_path / ".github" / "workflows", "nightly.yml", "0 3 * * *")
+    state = tmp_path / "state.json"
+    state.write_text(
+        '{"last_scheduled_run": {"nightly.yml": "2026-08-26T03:00:00+00:00"}}', encoding="utf-8"
+    )
+
+    code = census.main(["--root", str(tmp_path), "--input", str(state), "--now", NOW])
+
+    assert code == 0
+    assert "still firing" in capsys.readouterr().out
+
+
+def test_a_quiet_schedule_returns_a_blocking_code(
+    tmp_path: pathlib.Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    a_workflow(tmp_path / ".github" / "workflows", "nightly.yml", "0 3 * * *")
+    state = tmp_path / "state.json"
+    state.write_text('{"last_scheduled_run": {"nightly.yml": null}}', encoding="utf-8")
+
+    code = census.main(["--root", str(tmp_path), "--input", str(state), "--now", NOW])
+
+    assert code == 1
+    assert "never had a run" in capsys.readouterr().err
+
+
+def test_an_unreadable_history_is_its_own_answer(
+    tmp_path: pathlib.Path, capsys: pytest.CaptureFixture[str], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Neither pass nor fail — exit 2, because "cannot see" is a third thing.
+
+    A watcher that reports success when it cannot read anything is at its most
+    misleading exactly when something is wrong.
+    """
+    a_workflow(tmp_path / ".github" / "workflows", "nightly.yml", "0 3 * * *")
+
+    def refuse(_files: list[str]) -> dict[str, Any]:
+        raise PermissionError("HTTP 403")
+
+    monkeypatch.setattr(census, "fetch", refuse)
+
+    assert census.main(["--root", str(tmp_path), "--now", NOW]) == 2
+    assert "never become a silent skip" in capsys.readouterr().err
+
+
+def test_the_fetcher_asks_for_scheduled_runs_only(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Counting runs of any event would answer a different question entirely."""
+    asked: list[str] = []
+
+    def fake_api(path: str) -> dict[str, Any]:
+        asked.append(path)
+        return {"workflow_runs": [{"created_at": "2026-08-26T03:00:00+00:00"}]}
+
+    monkeypatch.setattr(gh, "api", fake_api)
+
+    found = census.fetch(["nightly.yml"])
+
+    assert found["last_scheduled_run"]["nightly.yml"] == "2026-08-26T03:00:00+00:00"
+    assert "event=schedule" in asked[0], "asked for runs of every event, not scheduled ones"
+
+
+def test_a_workflow_with_no_runs_yet_comes_back_as_never(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(gh, "api", lambda _path: {"workflow_runs": []})
+
+    assert census.fetch(["nightly.yml"])["last_scheduled_run"]["nightly.yml"] is None
+
+
+def test_what_cannot_be_checked_is_printed_beside_what_can(
+    tmp_path: pathlib.Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """The label has to reach the report, not just exist as a function.
+
+    A row that is computed and never printed is the same as a row nobody wrote:
+    the reader still cannot tell "checked and fine" from "not checkable at all".
+    """
+    a_workflow(tmp_path / ".github" / "workflows", "nightly.yml", "0 3 * * *")
+    (tmp_path / ".github" / "dependabot.yml").write_text(
+        "version: 2\nupdates:\n  - package-ecosystem: pip\n    schedule:\n      interval: weekly\n",
+        encoding="utf-8",
+    )
+    state = tmp_path / "state.json"
+    state.write_text(
+        '{"last_scheduled_run": {"nightly.yml": "2026-08-26T03:00:00+00:00"}}', encoding="utf-8"
+    )
+
+    code = census.main(["--root", str(tmp_path), "--input", str(state), "--now", NOW])
+    out = capsys.readouterr().out
+
+    assert code == 0
+    assert "not checkable by machine" in out
+    assert "dependabot pip (weekly)" in out
