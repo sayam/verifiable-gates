@@ -49,6 +49,10 @@ those are fetched belongs to the caller.
 from __future__ import annotations
 
 import dataclasses
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from collections.abc import Mapping, Sequence
 
 __all__ = [
     "MESSAGES",
@@ -104,7 +108,7 @@ MESSAGES = {
 }
 
 
-def _text(messages: dict[str, str] | None) -> dict[str, str]:
+def _text(messages: Mapping[str, str] | None) -> dict[str, str]:
     return {**MESSAGES, **(messages or {})}
 
 
@@ -117,8 +121,8 @@ def check_problems(
     required: set[str],
     on_pull_requests: set[str],
     produced: set[str],
-    exempt: dict[str, str],
-    messages: dict[str, str] | None = None,
+    exempt: Mapping[str, str],
+    messages: Mapping[str, str] | None = None,
 ) -> list[str]:
     """Three directions at once, because each is invisible to the other two.
 
@@ -150,9 +154,9 @@ def check_problems(
 
 
 def setting_problems(
-    state: dict[str, object],
-    declared: dict[str, Setting],
-    messages: dict[str, str] | None = None,
+    state: Mapping[str, object],
+    declared: Mapping[str, Setting],
+    messages: Mapping[str, str] | None = None,
 ) -> list[str]:
     """Every declared switch whose value is not the declared one.
 
@@ -171,9 +175,9 @@ def setting_problems(
 
 
 def unreadable(
-    state: dict[str, object],
-    declared: dict[str, Setting],
-    messages: dict[str, str] | None = None,
+    state: Mapping[str, object],
+    declared: Mapping[str, Setting],
+    messages: Mapping[str, str] | None = None,
 ) -> list[str]:
     """Switches the answer did not carry — reported as their own third outcome.
 
@@ -190,9 +194,9 @@ def unreadable(
 
 
 def alert_problems(
-    alerts: list[dict[str, object]] | None,
-    accepted: dict[str, str],
-    messages: dict[str, str] | None = None,
+    alerts: Sequence[Mapping[str, object]] | None,
+    accepted: Mapping[str, str],
+    messages: Mapping[str, str] | None = None,
 ) -> list[str]:
     """Every alert has been judged, and every register line still matches one.
 
