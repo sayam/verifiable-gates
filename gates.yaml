@@ -196,6 +196,72 @@ gates:
           surface though they bind the caller, and walking the whole tree so
           functions nested inside functions were reported as callable surface.
 
+  - id: declared-schedules-are-still-firing
+    title: Every declared schedule is measured against when it last actually fired
+    kind: test
+    severity: blocking
+    enforced_by: {job: test, tests: [tests/test_schedule_census.py]}
+    layer: internal
+    pillar: manageability
+    portable: false
+    born_from: >-
+      A workflow that never started counts zero jobs, and that layer is closable.
+      The layer above it is not: a workflow never triggered counts **zero runs**,
+      and "no runs at all" looks exactly like "no run went red" in every tool
+      there is — including any census counting what happened rather than what
+      should have. In the reference implementation a scheduled workflow had fired
+      exactly once in the repository's lifetime, and if it had stopped that day no
+      test, job or cadence row would have known. GitHub also disables schedules
+      for repositories quiet for 60 days, which is silence arriving from outside.
+      Things that cannot be checked by machine — Dependabot has no public endpoint
+      saying when it last ran — are labelled as such rather than guessed either way.
+    proved_by:
+      - kind: mutation
+        ref: pr/17
+        date: 2026-08-26
+        caught: >-
+          Five mutations red — turning an unreadable history into a silent pass
+          (the failure this census exists to prevent, at the moment it is most
+          misleading), treating "never fired" as acceptable, ignoring the
+          tolerance, watching by the longest declared period instead of the
+          shortest so the fast schedule could go quiet unseen, and asking the
+          platform for runs of every event rather than scheduled ones.
+
+  - id: watcher-promises-are-measured-against-reality
+    title: A declared `within_days` is measured, not merely checked for shape
+    kind: test
+    severity: blocking
+    enforced_by: {job: test, tests: [tests/test_red_streak_census.py]}
+    layer: internal
+    pillar: manageability
+    portable: false
+    born_from: >-
+      A gate that cannot block declares who sees it within how many days, and the
+      only thing checking that was its *shape* — an integer, under a cap. A
+      promise with no instrument behind it expires in silence. Measured on one
+      4-day window in the reference implementation: redness that blocked somebody
+      stood 0.4 hours, redness that blocked nobody stood 14.6 — 36 times longer,
+      with nothing comparing that against what was promised. Two subtleties made
+      the first attempt wrong by a factor of seven, and neither shows up as an
+      error: runs the platform rejected are named by **path** rather than by
+      declared name, so grouping by name splits one history in two; and a run's
+      conclusion belongs to the whole **file**, so a file containing blocking jobs
+      cannot answer for a watched one.
+    proved_by:
+      - kind: mutation
+        ref: pr/17
+        date: 2026-08-26
+        caught: >-
+          Five mutations red — grouping by name so one history split in two,
+          dropping redness that is still standing now (which makes a workflow red
+          at this moment report zero), judging files that run on pull_request
+          where the figure is dominated by blocking redness, taking the longest
+          promise in a file rather than the narrowest, and never stopping at an
+          empty page. That last one first made the tests **hang rather than
+          fail**, so both fakes now refuse after a few calls: a hang and a slow
+          test give the same signal, which is the reason this project makes every
+          command declare a time budget.
+
   - id: english-except-where-it-binds
     title: Everything here is in English, except documents that bind someone legally
     kind: test
