@@ -80,6 +80,7 @@ ignore = [
 "src/verifiable_gates/schedule_census.py" = ["T201"]
 "src/verifiable_gates/red_streak_census.py" = ["T201"]
 "src/verifiable_gates/removals.py" = ["T201"]
+"src/verifiable_gates/measure_apps.py" = ["T201"]
 "tests/**" = [
     "INP001",   # tests are not a package; pytest finds them via pythonpath
     "S101",     # assert is the whole point of pytest

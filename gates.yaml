@@ -550,6 +550,73 @@ gates:
           directory so `apple/` vanished with `app/`, and dropping the pattern
           that decides what counts as code.
 
+  - id: the-instrument-is-measured-first
+    title: The probe that judges generated apps is itself judged, both ways, per item
+    kind: test
+    severity: blocking
+    enforced_by: {job: test, tests: [tests/test_asvs_probe.py]}
+    layer: internal
+    pillar: devx
+    portable: false
+    born_from: >-
+      A claim that a bundle of rules changes what agents write is worth exactly
+      what its instrument can distinguish. **A probe answering "passed" for
+      everything reports that the rules made no difference** — a wrong conclusion
+      with nothing to contradict it. So a pair of apps is planted, one violating
+      every item and one satisfying every item, and each item has to tell them
+      apart. The harder direction is subtler: an instrument tied to one idiom
+      measures "written like our example?" and leans by construction toward
+      whichever arm read our own rules. The first version reported the rules arm as
+      *worse* on three items, and all three were its own fault — it read a web
+      session accessor as a database lookup, punished a shared lookup whose callers
+      all checked ownership, and matched a fixture's fake key as a hardcoded
+      secret. **When the person measuring owns what is measured, the dangerous
+      error is not the flattering number — it is the one that contradicts them and
+      gets believed at once because it looks honest.**
+    proved_by:
+      - kind: mutation
+        ref: pr/151
+        date: 2026-08-19
+        caught: >-
+          Pointed at a real repository for the first time, 4,171 of the 4,299 files
+          it read were library sources. Six directions red — no longer excluding
+          environments, no longer stripping comments, counting a role check as a
+          missing owner check, ignoring the scope enclosing a nested function,
+          treating a module constant as request input, and letting the line counter
+          use a different filter from the probe.
+
+  - id: one-battery-across-every-arm
+    title: Every arm of a comparison is measured with the same instrument, unchanged
+    kind: test
+    severity: blocking
+    enforced_by: {job: test, tests: [tests/test_measure_apps.py]}
+    layer: internal
+    pillar: devx
+    portable: false
+    born_from: >-
+      A comparison stops being one the moment the instrument differs between arms,
+      and the ways that happens are quiet. A different configuration is a different
+      gate. A skipped scanner reported as zero is indistinguishable in a table from
+      a scanner that found nothing. And **the arm that installed the bundle
+      receives tooling, a config and a starting workflow** — counting those as its
+      own output adds the measurer's work to one side of the measurer's own
+      experiment. Removing them is the direction that costs the bundle, which is
+      the correct direction when the person measuring has a stake in the answer, and
+      it is the rule most tempting to skip. The line counter has to read the same
+      tree the probe reads, or "lines the agent wrote" silently swallows an
+      environment somebody left in the directory.
+    proved_by:
+      - kind: mutation
+        ref: pr/23
+        date: 2026-08-26
+        caught: >-
+          The tests hold each of those open directly: the installer's artefacts are
+          removed while the app's own work survives, an arm that installed nothing
+          loses nothing, the original is never edited, `na` never collapses into
+          `ok`, one configuration reaches every app, a scanner that was not asked
+          for reports skipped rather than zero, a scanner that broke is loud rather
+          than zero, and an environment in the tree does not enter the line count.
+
   - id: english-except-where-it-binds
     title: Everything here is in English, except documents that bind someone legally
     kind: test
@@ -577,6 +644,16 @@ gates:
       runs both ways: Thai outside the allowlist fails, and so does an allowlisted
       file with no Thai left in it, because an exception that no longer excuses
       anything is a hole with a label on it.
+
+      The comparison reports added a third kind, the same principle one level up —
+      at whole files rather than fields. A research report is *thought* in one
+      language and *published* in another, so the original is kept beside the
+      published English, and that allowance is held three ways because each rots
+      differently: an original translated in place stops being an original · an
+      original with no active counterpart is a document with no owner · and an
+      allowance widened from one directory to a whole tree changes nothing the day
+      it is written while silently admitting everything written under that tree
+      afterwards.
     proved_by:
       - kind: mutation
         ref: pr/3
