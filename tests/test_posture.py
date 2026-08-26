@@ -158,7 +158,9 @@ def test_a_field_that_could_not_be_read_is_not_reported_as_switched_off() -> Non
     state = {"enforce_admins": True, "allow_squash_merge": False, "delete_branch_on_merge": None}
 
     assert posture.setting_problems(state, DECLARED) == []
-    assert "delete_branch_on_merge" in only(posture.unreadable(state, DECLARED))
+    said = only(posture.unreadable(state, DECLARED))
+    assert "delete_branch_on_merge" in said
+    assert "True" in said, "a reader told only that it is unreadable has nothing to act on"
 
 
 def test_a_readable_field_that_came_back_empty_is_not_absorbed_as_normal() -> None:
