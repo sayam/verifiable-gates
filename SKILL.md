@@ -274,7 +274,7 @@ a theory) · **Enforced in the reference** (how one project enforces it today).
 
 **Born from:** Audit round 17 — 83 of 105 gates were decided by code in scripts/, yet its coverage was 43.8% and 14 files sat at 0% · among them run_gates.py, deliberately tested through a subprocess, and generators checked by their output — **so coverage was the wrong instrument for half the files** · classifying by kind made it possible to demand the right sort of evidence, and revealed three files touched by no test, no workflow and no hook at all (build_eol_table · build_password_blocklist · measure_generated).
 
-**Enforced in the reference:** `tests/test_script_roles.py` · `tests/test_generated_tables.py` · `tests/test_measure_generated.py`
+**Enforced in the reference:** `tests/test_script_roles.py` · `tests/test_generated_tables.py`
 
 ### `adr-index-complete`
 
