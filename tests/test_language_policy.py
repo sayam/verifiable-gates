@@ -16,6 +16,15 @@ Why that exception exists at all: a licence or an agreement has to be understood
 by the person bound by it, and the maintainer's first language is Thai. English
 first, Thai below — both halves saying the same thing.
 
+There is a **third** kind, and it is the same principle at the level of a whole
+file rather than a field: a research report is *thought* in one language and
+*published* in another. The published English lives beside the original, and the
+original is kept unchanged under `docs/comparison/reference/` — because a
+translation of a record is a retelling, and the retelling is not the record. That
+directory is checked three ways: Thai is allowed there, **every file there must
+still contain Thai**, and **every file there must have an active counterpart** —
+an original nobody maintains a current version of is a document with no owner.
+
 There is a **second** kind of exception, and it is a different shape. The catalogue
 keeps each rule's original wording alongside the published English, because a
 translation of an incident report is a retelling and the retelling is not the
@@ -48,6 +57,14 @@ CATALOGUE = "rules.yaml"
 # Generated from the catalogue. Any Thai in them comes from a cited step name,
 # and `test_the_only_thai_in_a_sheet_is_a_cited_step_name` holds that boundary.
 SHEETS = ("SKILL.md", "SKILL-BUSINESS.md")
+
+# Where an original is kept beside its published translation. A file here is
+# named `<stem>.th.md` and must have `../<stem>.md` as its active counterpart.
+# **Narrow on purpose**: widened to all of `docs/`, the next Thai document written
+# anywhere under it would pass unnoticed — which is what
+# `test_a_thai_document_elsewhere_under_docs_is_still_caught` holds open.
+REFERENCE = "docs/comparison/reference"
+REFERENCE_SUFFIX = ".th.md"
 
 # The one other place Thai belongs: the name of a CI step in the reference
 # implementation. `reference` is a citation, and a citation keeps the name the
@@ -108,25 +125,35 @@ def tracked_files() -> list[pathlib.Path]:
     return sorted(ROOT / name for name in listed.split("\0") if name)
 
 
-def test_the_allowlist_names_files_that_exist() -> None:
-    missing = [name for name in BILINGUAL if not (ROOT / name).is_file()]
-    assert not missing, f"the bilingual allowlist names files that are gone: {missing}"
-
-
-def test_no_thai_outside_the_bilingual_files() -> None:
-    offenders = []
+def thai_offenders() -> list[str]:
+    """Every tracked-or-new file holding Thai outside the places that allow it."""
+    found = []
     for path in tracked_files():
         relative = path.relative_to(ROOT).as_posix()
-        if relative in BILINGUAL or relative == CATALOGUE or relative in THAI_IN_LITERALS:
-            continue
-        if relative in SHEETS:  # bounded by its own check below, not exempt
+        if (
+            relative in BILINGUAL
+            or relative == CATALOGUE
+            or relative in THAI_IN_LITERALS
+            or relative in SHEETS
+            or relative.startswith(f"{REFERENCE}/")
+        ):
             continue
         try:
             text = path.read_text(encoding="utf-8")
         except UnicodeDecodeError:
             continue
         if has_thai(text):
-            offenders.append(relative)
+            found.append(relative)
+    return found
+
+
+def test_the_allowlist_names_files_that_exist() -> None:
+    missing = [name for name in BILINGUAL if not (ROOT / name).is_file()]
+    assert not missing, f"the bilingual allowlist names files that are gone: {missing}"
+
+
+def test_no_thai_outside_the_bilingual_files() -> None:
+    offenders = thai_offenders()
     assert not offenders, (
         "Thai outside the places that allow it — translate it. If it belongs to a "
         "document that binds someone legally, add it to BILINGUAL; if it is a rule's "
@@ -143,6 +170,68 @@ def test_every_bilingual_file_really_is_bilingual(name: str) -> None:
         "Either restore the Thai half or drop the file from BILINGUAL — an "
         "exception that excuses nothing is a hole with a label on it."
     )
+
+
+def reference_files() -> list[pathlib.Path]:
+    return sorted((ROOT / REFERENCE).glob(f"*{REFERENCE_SUFFIX}"))
+
+
+def test_the_reference_directory_is_not_empty_if_it_exists() -> None:
+    """A directory that exists and holds nothing is an exemption with no subject."""
+    if not (ROOT / REFERENCE).is_dir():
+        pytest.skip("no reference directory in this repository")
+    assert reference_files(), (
+        f"{REFERENCE}/ exists but holds no originals — either put them back or "
+        "remove the directory and its allowance in the same change"
+    )
+
+
+def test_every_reference_file_really_is_the_original() -> None:
+    """The other direction — an original translated in place is no longer an original."""
+    for path in reference_files():
+        assert has_thai(path.read_text(encoding="utf-8")), (
+            f"{path.name} sits in {REFERENCE}/ and has no Thai left in it. It is "
+            "either the published text in the wrong place, or an allowance that "
+            "has stopped excusing anything."
+        )
+
+
+def test_every_reference_file_has_an_active_counterpart() -> None:
+    """An original nobody keeps a current version of is a document with no owner."""
+    published = (ROOT / REFERENCE).parent
+    orphans = [
+        path.name
+        for path in reference_files()
+        if not (published / (path.name.removesuffix(REFERENCE_SUFFIX) + ".md")).is_file()
+    ]
+    assert not orphans, (
+        f"originals with no active document beside them: {orphans} — publish the "
+        "translation, or take the original out in the same change"
+    )
+
+
+def test_a_thai_document_elsewhere_under_docs_is_still_caught(tmp_path: pathlib.Path) -> None:
+    """**The boundary, not the current contents.**
+
+    Widening the allowance from one directory to all of `docs/` changes nothing
+    today, because there is no other Thai under `docs/` — a mutation doing exactly
+    that stayed green. What it would change is the day somebody writes one. So the
+    boundary is tested by planting a document rather than by trusting the tree.
+    """
+    del tmp_path  # planted inside the repository on purpose: that is where the scan looks
+    planted = ROOT / "docs" / "planted-by-a-test.md"
+    # **Assembled, never written out.** This file is the enforcer; a Thai literal
+    # in it would make it an instance of what it checks, and the fix for that
+    # would be to widen the very allowlist under test. Same reason the suppression
+    # counter elsewhere builds its examples instead of spelling them.
+    planted.write_text(f"# {chr(0x0E01)}\n", encoding="utf-8")
+    try:
+        assert "docs/planted-by-a-test.md" in thai_offenders(), (
+            "a Thai document outside the reference directory went unnoticed — the "
+            "allowance is wider than one directory"
+        )
+    finally:
+        planted.unlink()
 
 
 # ---------------------------------------------------------- Thai kept as data
