@@ -96,7 +96,12 @@ MESSAGES = {
         "excused disappears"
     ),
     "wrong_value": "{name} = {said!r}, but this project declares {want!r} ({why})",
-    "unreadable": "{name} = cannot be read ({why})",
+    # **`want` is a field here on purpose.** A report saying only that a value
+    # could not be read leaves the reader with nothing to act on; saying what it
+    # should be turns an unreadable setting back into something a person can check
+    # by hand. That is the whole of the "a value nobody can read still has a
+    # declared value" rule, at the point where it becomes visible.
+    "unreadable": "{name} = cannot be read, and should be {want!r} ({why})",
     "unjudged_alert": (
         "alert {name} ({state}) has not been judged — fix it, dismiss it with a reason, "
         "or enter it in the register"
@@ -187,7 +192,7 @@ def unreadable(
     """
     text = _text(messages)
     return [
-        text["unreadable"].format(name=name, why=setting.why)
+        text["unreadable"].format(name=name, want=setting.want, why=setting.why)
         for name, setting in declared.items()
         if not setting.readable and state.get(name) is None
     ]
