@@ -8,6 +8,22 @@ Notable changes to this project. The format follows
 
 ### Added
 
+- **The surface reader, the `gh` wrapper and the workflow reader move in
+  (extraction stage 3b, first part).** All three are helpers the reference
+  implementation had already collapsed from copies: the `on:` idiom had been
+  duplicated in five places and three were broken the same way, and the `gh` call
+  in five more, each with its own suppression for the same command.
+- **The workflow directory is an input.** Baking one project's layout in would
+  make the reader usable only from a checkout of that project.
+
+### Fixed
+
+- **The workflow reader's declared types no longer say something untrue.** They
+  claimed `dict[str, Any]`, while the whole reason the reader exists is that YAML
+  1.1 turns an unquoted `on:` into the boolean `True` — so a real workflow's
+  top-level mapping has a non-string key in it. The type checker had been
+  reporting that contradiction; the type was wrong, not the code.
+
 - **Two CI deciders moved in from the reference implementation (extraction stage
   3a): the commit gate and the newcomer-issue gate.** Both are stdlib-only and
   shipped, so a project gets them in `tools/`.
