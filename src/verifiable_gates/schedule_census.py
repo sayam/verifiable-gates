@@ -14,6 +14,11 @@ Two criteria:
   `schedule`. A cron declared but never fired is the shape of a workflow the
   platform rejected outright, or of a repository whose schedules were disabled
   for inactivity — GitHub does that after 60 days, and announces that it does.
+  **A file younger than one allowance is the third case**: a weekly cron added on
+  a Thursday has not been rejected, it has not come round yet, and calling that
+  red teaches the reader that this census cries wolf whenever a schedule is
+  added. It is named and printed, and it turns red on its own once the wait
+  passes `period x tolerance` measured from the commit that added the file.
 - The most recent run must not be older than the declared period times
   `--tolerance` (2 by default), because platform crons drift by tens of minutes
   in busy hours.
@@ -39,12 +44,14 @@ from typing import Any
 
 import yaml
 
-from verifiable_gates import gh, workflows
+from verifiable_gates import gh, removals, workflows
 
 __all__ = [
     "declared_schedules",
     "fetch",
+    "first_seen",
     "main",
+    "not_due_yet",
     "period_hours",
     "problems",
     "unverifiable_schedules",
@@ -118,11 +125,78 @@ def fetch(files: list[str]) -> dict[str, dict[str, str | None]]:
     return {"last_scheduled_run": last}
 
 
+def first_seen(root: pathlib.Path, files: list[str]) -> dict[str, str | None]:
+    """When each workflow file first appeared in history — `None` when git cannot say.
+
+    A file that has never had a scheduled run is ambiguous, and the history is the
+    only thing on this machine that can separate "the platform refused it" from
+    "it was added on Thursday and fires on Monday". When git is unavailable or the
+    file is not committed yet, this returns `None` and the caller stays strict —
+    an unknown birthday must not become a free pass.
+    """
+    born: dict[str, str | None] = {}
+    for name in files:
+        try:
+            raw = removals._git(  # noqa: SLF001 — one git caller in the package, reused
+                root,
+                "log",
+                "--diff-filter=A",
+                "--format=%aI",
+                "--",
+                f".github/workflows/{name}",
+            )
+        except RuntimeError:
+            return dict.fromkeys(files)
+        stamps = [line.strip() for line in raw.splitlines() if line.strip()]
+        born[name] = stamps[-1] if stamps else None
+    return born
+
+
+def _waited_hours(born: dict[str, Any], name: str, moment: datetime.datetime) -> float | None:
+    """How long since the file was added — `None` when its birthday is unknown."""
+    birth = born.get(name)
+    if birth is None:
+        return None
+    return (moment - datetime.datetime.fromisoformat(birth)).total_seconds() / 3600
+
+
+def not_due_yet(
+    schedules: dict[str, int],
+    last: dict[str, Any],
+    born: dict[str, Any],
+    now: str,
+    tolerance: int,
+) -> list[str]:
+    """Crons that have never fired *and* are too young to have been expected to.
+
+    These are printed rather than counted, next to the rows no machine can check:
+    a reader has to be able to see that the census knows about them, and the line
+    says the date they stop being excused so nobody has to work it out later.
+    """
+    moment = datetime.datetime.fromisoformat(now)
+    rows = []
+    for name, hours in sorted(schedules.items()):
+        if last.get(name) is not None:
+            continue
+        waited = _waited_hours(born, name, moment)
+        if waited is None or waited > hours * tolerance:
+            continue
+        deadline = datetime.datetime.fromisoformat(born[name]) + datetime.timedelta(
+            hours=hours * tolerance
+        )
+        rows.append(
+            f"{name}: declared {waited / 24:.1f} days ago and has not come round yet — "
+            f"red from {deadline:%Y-%m-%d %H:%M %Z} if it still has not fired by then"
+        )
+    return rows
+
+
 def problems(
     schedules: dict[str, int],
     last: dict[str, Any],
     now: str,
     tolerance: int,
+    born: dict[str, Any] | None = None,
 ) -> list[str]:
     """A schedule that stopped firing must be louder than one that never existed."""
     moment = datetime.datetime.fromisoformat(now)
@@ -130,6 +204,9 @@ def problems(
     for name, hours in sorted(schedules.items()):
         stamp = last.get(name)
         if stamp is None:
+            waited = _waited_hours(born or {}, name, moment)
+            if waited is not None and waited <= hours * tolerance:
+                continue
             found.append(
                 f"{name}: declares a cron but has **never had a run of type schedule** — "
                 "a workflow the platform rejected outright and a repository whose "
@@ -178,7 +255,12 @@ def main(argv: list[str] | None = None) -> int:
         return 2
 
     now = args.now or datetime.datetime.now(datetime.UTC).isoformat()
-    found = problems(schedules, state.get("last_scheduled_run") or {}, now, args.tolerance)
+    last = state.get("last_scheduled_run") or {}
+    born = first_seen(pathlib.Path(args.root), list(schedules))
+    found = problems(schedules, last, now, args.tolerance, born)
+
+    for line in not_due_yet(schedules, last, born, now, args.tolerance):
+        print(f"  declared but not due yet: {line}")
 
     for line in unverifiable_schedules(pathlib.Path(args.root)):
         print(f"  not checkable by machine (no public endpoint): {line}")
