@@ -13,11 +13,13 @@ at exactly the wrong moment.
 
 from __future__ import annotations
 
+import datetime
+import subprocess
 from typing import TYPE_CHECKING, Any
 
 import pytest
 
-from verifiable_gates import gh
+from verifiable_gates import gh, removals
 from verifiable_gates import schedule_census as census
 
 if TYPE_CHECKING:
@@ -246,3 +248,118 @@ def test_what_cannot_be_checked_is_printed_beside_what_can(
     assert code == 0
     assert "not checkable by machine" in out
     assert "dependabot pip (weekly)" in out
+
+
+# ------------------------------------------- a cron that has not come round yet
+#
+# Adding a weekly cron on a Thursday used to turn this census red until Monday.
+# The message it printed — "rejected outright, or disabled for inactivity" — was
+# false in a way the reader could not act on, and a check that cries wolf every
+# time a schedule is added is one people learn to wave through. The history says
+# which case it is: a file younger than one allowance has not been refused, it
+# has not been asked to run yet.
+
+
+def test_a_cron_younger_than_its_allowance_is_not_called_rejected() -> None:
+    born = {"weekly.yml": "2026-08-25T00:00:00+00:00"}
+
+    assert census.problems({"weekly.yml": census.WEEK}, {"weekly.yml": None}, NOW, 2, born) == []
+
+
+def test_a_cron_past_its_allowance_is_still_caught() -> None:
+    """The teeth stay in: silence outlasting the allowance is the case this exists for."""
+    born = {"weekly.yml": "2026-07-01T00:00:00+00:00"}
+
+    found = census.problems({"weekly.yml": census.WEEK}, {"weekly.yml": None}, NOW, 2, born)
+
+    assert len(found) == 1
+    assert "never had a run" in found[0]
+
+
+def test_an_unknown_birthday_stays_strict() -> None:
+    """No history is not a free pass — that would be the silent skip in another coat."""
+    found = census.problems({"weekly.yml": census.WEEK}, {"weekly.yml": None}, NOW, 2, {})
+
+    assert len(found) == 1
+
+
+def test_the_young_cron_is_named_with_the_date_it_stops_being_excused() -> None:
+    """Printed, not swallowed — and the reader must not have to work out the deadline."""
+    born = {"weekly.yml": "2026-08-25T00:00:00+00:00"}
+
+    rows = census.not_due_yet({"weekly.yml": census.WEEK}, {"weekly.yml": None}, born, NOW, 2)
+
+    assert len(rows) == 1
+    assert "has not come round yet" in rows[0]
+    assert "2026-09-08" in rows[0], "the date it turns red is not in the line"
+
+
+@pytest.mark.parametrize(
+    ("last", "born", "why"),
+    [
+        ({"weekly.yml": "2026-08-25T00:00:00+00:00"}, {"weekly.yml": NOW}, "it has fired"),
+        ({"weekly.yml": None}, {"weekly.yml": "2026-07-01T00:00:00+00:00"}, "past its allowance"),
+        ({"weekly.yml": None}, {}, "birthday unknown"),
+    ],
+)
+def test_only_the_young_and_silent_are_excused(
+    last: dict[str, Any], born: dict[str, Any], why: str
+) -> None:
+    assert census.not_due_yet({"weekly.yml": census.WEEK}, last, born, NOW, 2) == [], why
+
+
+def test_first_seen_reads_the_commit_that_added_the_file(tmp_path: pathlib.Path) -> None:
+    directory = tmp_path / ".github" / "workflows"
+    a_workflow(directory, "weekly.yml", "0 5 * * 1")
+    for command in (
+        ["git", "init", "-q"],
+        ["git", "config", "user.email", "t@example.com"],
+        ["git", "config", "user.name", "t"],
+        ["git", "add", "-A"],
+        ["git", "commit", "-qm", "add a weekly cron"],
+    ):
+        subprocess.run(command, cwd=tmp_path, check=True, capture_output=True)  # noqa: S603
+
+    born = census.first_seen(tmp_path, ["weekly.yml"])
+
+    assert born["weekly.yml"] is not None
+    assert census.not_due_yet(
+        {"weekly.yml": census.WEEK},
+        {"weekly.yml": None},
+        born,
+        datetime.datetime.now(datetime.UTC).isoformat(),
+        2,
+    ), "a file committed a moment ago should still be inside its allowance"
+
+
+def test_first_seen_without_a_history_says_unknown(tmp_path: pathlib.Path) -> None:
+    """An uncommitted file has no birthday, and guessing one would excuse it forever."""
+    assert census.first_seen(tmp_path, ["weekly.yml"]) == {"weekly.yml": None}
+
+
+def test_first_seen_without_git_says_unknown(
+    tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    def no_git(*_args: object, **_kwargs: object) -> str:
+        raise RuntimeError("git is not on this machine")
+
+    monkeypatch.setattr(removals, "_git", no_git)
+
+    assert census.first_seen(tmp_path, ["a.yml", "b.yml"]) == {"a.yml": None, "b.yml": None}
+
+
+def test_the_young_cron_reaches_the_report(
+    tmp_path: pathlib.Path, capsys: pytest.CaptureFixture[str], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A row computed and never printed is the same as a row nobody wrote."""
+    a_workflow(tmp_path / ".github" / "workflows", "weekly.yml", "0 5 * * 1")
+    state = tmp_path / "state.json"
+    state.write_text('{"last_scheduled_run": {"weekly.yml": null}}', encoding="utf-8")
+    monkeypatch.setattr(
+        census, "first_seen", lambda _root, _files: {"weekly.yml": "2026-08-25T00:00:00+00:00"}
+    )
+
+    code = census.main(["--root", str(tmp_path), "--input", str(state), "--now", NOW])
+
+    assert code == 0
+    assert "declared but not due yet" in capsys.readouterr().out
