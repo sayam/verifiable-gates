@@ -30,6 +30,30 @@ Notable changes to this project. The format follows
 
 ### Fixed
 
+- **A shallow clone cannot say when a file was added.** The cron allowance reads
+  the commit that introduced a workflow to tell "added on Thursday, fires on
+  Monday" from "the platform refused this". A `--depth 1` clone reports *every*
+  file as added by the graft commit, so every workflow looked newborn and every
+  silent cron was excused — the free pass the function exists to refuse, handed
+  out by the code meant to withhold it. `actions/checkout` clones depth 1 by
+  default, so that was the normal state of a CI run, not a corner case.
+  `first_seen` now asks `git rev-parse --is-shallow-repository` first and returns
+  unknown birthdays for everything when the answer is yes; a caller that wants the
+  allowance has to fetch the history it rests on.
+
+- **A service container is not on the developer's machine.** A job may declare
+  `services:`, and CI then hands its steps an address for a container it started.
+  preflight passed that address on verbatim — correct as a rule, and itself a
+  past fix — so on a machine with no such service the suite dialled a refused port
+  and reported failures that said nothing about the change under test. Published
+  service ports are now probed: something answering means the env is used exactly
+  as CI uses it; nothing answering means only the variables carrying that port are
+  withheld and **the step still runs**. Skipping it would throw away a whole suite
+  to protect the two tests that need the service, and the tests behind a withheld
+  address take the skip they already declare for themselves. Such runs are
+  reported apart from clean ones, because a run missing what CI provides must not
+  read like a run that had everything.
+
 - **The workflow reader's declared types no longer say something untrue.** They
   claimed `dict[str, Any]`, while the whole reason the reader exists is that YAML
   1.1 turns an unquoted `on:` into the boolean `True` — so a real workflow's
