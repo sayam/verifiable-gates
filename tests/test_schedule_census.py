@@ -308,9 +308,8 @@ def test_only_the_young_and_silent_are_excused(
     assert census.not_due_yet({"weekly.yml": census.WEEK}, last, born, NOW, 2) == [], why
 
 
-def test_first_seen_reads_the_commit_that_added_the_file(tmp_path: pathlib.Path) -> None:
-    directory = tmp_path / ".github" / "workflows"
-    a_workflow(directory, "weekly.yml", "0 5 * * 1")
+def _a_git_repo(root: pathlib.Path) -> None:
+    """A repository with one commit — the shortest history that can date a file."""
     for command in (
         ["git", "init", "-q"],
         ["git", "config", "user.email", "t@example.com"],
@@ -318,7 +317,12 @@ def test_first_seen_reads_the_commit_that_added_the_file(tmp_path: pathlib.Path)
         ["git", "add", "-A"],
         ["git", "commit", "-qm", "add a weekly cron"],
     ):
-        subprocess.run(command, cwd=tmp_path, check=True, capture_output=True)  # noqa: S603
+        subprocess.run(command, cwd=root, check=True, capture_output=True)  # noqa: S603
+
+
+def test_first_seen_reads_the_commit_that_added_the_file(tmp_path: pathlib.Path) -> None:
+    a_workflow(tmp_path / ".github" / "workflows", "weekly.yml", "0 5 * * 1")
+    _a_git_repo(tmp_path)
 
     born = census.first_seen(tmp_path, ["weekly.yml"])
 
@@ -363,3 +367,29 @@ def test_the_young_cron_reaches_the_report(
 
     assert code == 0
     assert "declared but not due yet" in capsys.readouterr().out
+
+
+def test_a_shallow_clone_cannot_say_when_a_file_was_added(tmp_path: pathlib.Path) -> None:
+    """The generous failure: `--depth 1` reports every file as added by the graft.
+
+    Left unhandled, every workflow reads as newborn and every silent cron is
+    excused — and since `actions/checkout` clones depth 1 by default, that is the
+    normal state of a CI run. The reference implementation's seam test caught this
+    on the first run after the allowance shipped.
+    """
+    origin = tmp_path / "origin"
+    a_workflow(origin / ".github" / "workflows", "weekly.yml", "0 5 * * 1")
+    _a_git_repo(origin)
+    clone = tmp_path / "clone"
+    subprocess.run(  # noqa: S603 — a fixed git command, written out in a test
+        ["git", "clone", "--depth", "1", "-q", f"file://{origin}", str(clone)],  # noqa: S607
+        check=True,
+        capture_output=True,
+    )
+
+    born = census.first_seen(clone, ["weekly.yml"])
+
+    assert born == {"weekly.yml": None}, "a shallow clone was allowed to date a file"
+    assert census.problems({"weekly.yml": census.WEEK}, {"weekly.yml": None}, NOW, 2, born), (
+        "a shallow clone excused a schedule that has never fired"
+    )
