@@ -13,6 +13,8 @@ counts the entries against the steps, not just the ones it cares about.
 from __future__ import annotations
 
 import json
+import socket
+import unittest.mock
 from typing import TYPE_CHECKING
 
 import pytest
@@ -105,6 +107,178 @@ def test_jobs_are_walked_in_the_order_they_were_asked_for() -> None:
     workflow = a_workflow(lint={"steps": [{"run": "a"}]}, test={"steps": [{"run": "b"}]})
     entries = preflight.plan(workflow, ("test", "lint"), "main")
     assert [e["job"] for e in entries] == ["test", "lint"]
+
+
+# ------------------------------------------------- services CI has and you do not
+
+
+def a_job_with_redis(env: dict[str, str], published: str = "6379:6379") -> dict[str, object]:
+    """A job shaped like the one that found this: a service container plus a suite."""
+    return {
+        "services": {"redis": {"image": "redis:7", "ports": [published]}},
+        "steps": [{"name": "pytest", "run": "pytest -q", "env": env}],
+    }
+
+
+def nothing_listens(_port: int) -> bool:
+    """A machine with no service containers running — the ordinary developer's machine."""
+    return False
+
+
+def everything_listens(_port: int) -> bool:
+    """The developer who started the service, so preflight owes them full fidelity."""
+    return True
+
+
+def test_env_naming_an_absent_service_is_withheld_not_the_whole_step() -> None:
+    """The failure this exists for: CI's address for a container nobody started here.
+
+    Skipping the step instead would throw away a whole suite to protect the two
+    tests that need the service — the gap preflight exists to close.
+    """
+    workflow = a_workflow(test=a_job_with_redis({"TEST_REDIS_URL": "redis://127.0.0.1:6379/0"}))
+    entries = preflight.plan(workflow, ("test",), "main", probe=nothing_listens)
+
+    assert "skip" not in entries[0], "the suite must still run; only the address is withheld"
+    assert entries[0]["env"] == {}, "the address points at nothing and was passed on anyway"
+    assert "TEST_REDIS_URL" in entries[0]["reduced"], "what was withheld has to be named"
+    assert "redis" in entries[0]["reduced"], "the reason has to name the service"
+
+
+def test_a_service_running_locally_is_used_exactly_as_ci_uses_it() -> None:
+    """The other direction — start redis yourself and preflight must not degrade anything."""
+    address = {"TEST_REDIS_URL": "redis://127.0.0.1:6379/0"}
+    workflow = a_workflow(test=a_job_with_redis(address))
+    entries = preflight.plan(workflow, ("test",), "main", probe=everything_listens)
+
+    assert entries[0]["env"] == address, "the service is up, so the step must run as CI runs it"
+    assert "reduced" not in entries[0], "nothing was withheld, so nothing was reduced"
+
+
+def test_env_that_has_nothing_to_do_with_the_service_still_travels() -> None:
+    """Withholding is per variable. A step's other env is why `env:` is honoured at all."""
+    job = a_job_with_redis({"TEST_REDIS_URL": "redis://127.0.0.1:6379/0", "COVERAGE_FILE": "/t/c"})
+    entries = preflight.plan(a_workflow(test=job), ("test",), "main", probe=nothing_listens)
+
+    assert entries[0]["env"] == {"COVERAGE_FILE": "/t/c"}
+
+
+def test_a_port_inside_a_longer_number_is_not_a_match() -> None:
+    """`:63790` is not `:6379`, and withholding an unrelated address would be silent damage."""
+    job = a_job_with_redis({"OTHER_URL": "redis://127.0.0.1:63790/0"})
+    entries = preflight.plan(a_workflow(test=job), ("test",), "main", probe=nothing_listens)
+
+    assert entries[0]["env"] == {"OTHER_URL": "redis://127.0.0.1:63790/0"}
+    assert "reduced" not in entries[0]
+
+
+def test_a_service_with_no_published_port_is_left_alone() -> None:
+    """Reachable in CI by service name on the runner's network — no local equivalent at all."""
+    job = {
+        "services": {"redis": {"image": "redis:7"}},
+        "steps": [{"run": "pytest", "env": {"TEST_REDIS_URL": "redis://redis:6379/0"}}],
+    }
+    entries = preflight.plan(a_workflow(test=job), ("test",), "main", probe=nothing_listens)
+
+    assert entries[0]["env"] == {"TEST_REDIS_URL": "redis://redis:6379/0"}
+    assert "reduced" not in entries[0]
+
+
+def test_a_job_with_no_services_never_asks_the_network() -> None:
+    """The common case must not pay for this, and must not depend on a probe at all."""
+
+    def refuse(_port: int) -> bool:
+        raise AssertionError("a job without services has no port to probe")
+
+    entries = preflight.plan(
+        a_workflow(lint={"steps": [{"run": "ruff check ."}]}), ("lint",), "main", probe=refuse
+    )
+    assert entries[0]["run"] == "ruff check ."
+
+
+@pytest.mark.parametrize(
+    ("published", "expected"),
+    [
+        # The asymmetric one carries the whole claim: `16379:6379` publishes 16379
+        # on the host and CI's env names *that* side. With `6379:6379` both halves
+        # are the same string, so it proves nothing about which one is read.
+        ("16379:6379", {16379: "redis"}),
+        ("6379:6379", {6379: "redis"}),
+        ("6379", {6379: "redis"}),
+        (5432, {5432: "redis"}),
+    ],
+    ids=["host-differs-from-container", "mapped", "string", "integer"],
+)
+def test_the_published_host_port_is_read_however_it_is_written(
+    published: object, expected: dict[int, str]
+) -> None:
+    job = {"services": {"redis": {"ports": [published]}}}
+    assert preflight.host_ports(job) == expected
+
+
+def test_a_port_that_is_not_a_number_is_ignored_rather_than_crashing() -> None:
+    """A `${{ }}` port would otherwise take the whole run down over a service."""
+    job = {"services": {"redis": {"ports": ["${{ env.PORT }}:6379"]}}}
+    assert preflight.host_ports(job) == {}
+
+
+def test_a_service_declared_with_nothing_under_it_is_not_a_crash() -> None:
+    """`redis:` with an empty body is valid YAML and parses to None."""
+    assert preflight.host_ports({"services": {"redis": None}}) == {}
+
+
+def test_the_probe_reports_a_port_that_nobody_is_serving() -> None:
+    """The real probe, not a stub — a closed port is the whole basis of the decision."""
+    with socket.socket() as taken:
+        taken.bind((preflight.PROBE_HOST, 0))
+        port = taken.getsockname()[1]
+    assert preflight.listening(port) is False
+
+
+def test_the_probe_finds_a_port_that_is_being_served() -> None:
+    """Proved against a real listener, so the two directions cannot both be one bug."""
+    with socket.socket() as server:
+        server.bind((preflight.PROBE_HOST, 0))
+        server.listen(1)
+        assert preflight.listening(server.getsockname()[1]) is True
+
+
+def test_a_reduced_step_is_reported_apart_from_a_clean_pass(
+    tmp_path: pathlib.Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """A run missing what CI provides must not read like a run that had everything."""
+    write(
+        tmp_path,
+        "ci.yml",
+        "jobs:\n"
+        "  test:\n"
+        "    services:\n"
+        "      redis:\n"
+        "        ports: ['6379:6379']\n"
+        "    steps:\n"
+        "      - name: suite\n"
+        "        run: 'true'\n"
+        "        env:\n"
+        "          TEST_REDIS_URL: redis://127.0.0.1:6379/0\n",
+    )
+
+    with unittest.mock.patch.object(preflight, "listening", return_value=False):
+        assert preflight.main(["--root", str(tmp_path), "--only", "test"]) == 0
+
+    output = capsys.readouterr().out
+    assert "~  [test] suite" in output, "a reduced step must not print as a plain pass"
+    assert "TEST_REDIS_URL" in output, "the developer has to be told what was missing"
+    assert "1 ran without a service CI provides" in output, "the summary hides it otherwise"
+
+
+def test_an_ordinary_run_says_nothing_about_services(
+    tmp_path: pathlib.Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """The counter only appears when it has something to say — noise every run is ignored noise."""
+    write(tmp_path, "ci.yml", "jobs:\n  lint:\n    steps:\n      - name: ok\n        run: 'true'\n")
+
+    assert preflight.main(["--root", str(tmp_path), "--only", "lint"]) == 0
+    assert "ran without a service" not in capsys.readouterr().out
 
 
 # ---------------------------------------------------------------- which jobs

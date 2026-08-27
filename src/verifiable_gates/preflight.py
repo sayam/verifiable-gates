@@ -13,6 +13,14 @@ developer's machine is **skipped with its reason printed**, never dropped
 silently: a preflight that quietly loses a step gives the same false confidence as
 a harness that reports green while the tests are red.
 
+**A job's `services:` are the one thing a developer's machine cannot conjure.**
+CI hands such a job an address for a container it started; here that address
+points at nothing. Rather than skip the step — throwing away a whole test suite to
+protect the two tests that need the service — preflight withholds only the
+variables naming an absent service, so those tests take the skip they already
+declare, and reports the step apart from a clean pass. Start the service locally
+and it is used exactly as CI uses it.
+
 **This file ships with the bundle**, so it must not know the name of any one
 project's jobs or workflow files. Which jobs to walk comes from `scaffold.json`
 under `preflight_jobs`, and jobs are looked up across every workflow file, since
@@ -39,10 +47,15 @@ import os
 import pathlib
 import re
 import shutil
+import socket
 import subprocess
 import sys
 import tempfile
-from typing import Any
+from typing import TYPE_CHECKING, Any
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
+
 
 import yaml
 
@@ -64,6 +77,37 @@ SKIP_RUNS = (
 )
 
 EXPRESSION = re.compile(r"\$\{\{[^}]*\}\}")
+
+# How long to wait for a service container's port before calling it absent. This
+# is a loopback connect to a port that is either open or refused immediately, so
+# the wait only matters when something is filtering the port; a quarter second is
+# long enough to be sure and short enough that nobody notices it.
+PROBE_TIMEOUT_SECONDS = 0.25
+PROBE_HOST = "127.0.0.1"
+
+
+def listening(port: int, host: str = PROBE_HOST) -> bool:
+    """Is anything answering on that port right now?"""
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as probe:
+        probe.settimeout(PROBE_TIMEOUT_SECONDS)
+        return probe.connect_ex((host, port)) == 0
+
+
+def host_ports(job: dict[str, Any]) -> dict[int, str]:
+    """host port → the service container that publishes it, from the job's `services:`.
+
+    Only published ports are readable this way. A service with no `ports:` is
+    reachable in CI by its service name on the runner's container network, which
+    has no local equivalent at all — those are left alone here rather than guessed
+    at, and the step keeps whatever env names them.
+    """
+    found: dict[int, str] = {}
+    for name, spec in (job.get("services") or {}).items():
+        for mapping in (spec or {}).get("ports") or []:
+            head = str(mapping).split(":")[0]
+            if head.isdigit():
+                found[int(head)] = str(name)
+    return found
 
 
 def _substitute(text: str, base: str, temp: str) -> str:
@@ -100,8 +144,45 @@ def wanted_jobs(root: pathlib.Path, chosen: list[str]) -> tuple[str, ...]:
     return DEFAULT_JOBS
 
 
+def _absent_services(job: dict[str, Any], probe: Callable[[int], bool]) -> dict[int, str]:
+    """Declared service containers with nothing listening on their port here."""
+    return {port: name for port, name in host_ports(job).items() if not probe(port)}
+
+
+def _withhold(env: dict[str, str], absent: dict[int, str]) -> tuple[dict[str, str], str | None]:
+    """Split a step's env into what still means something locally, and what cannot.
+
+    A variable is tied to a service when it carries that service's port. The match
+    is on the port alone, not on the host beside it: CI writes these as
+    `127.0.0.1:6379`, but a value pointing somewhere else that happens to use the
+    same port would also be withheld. That direction is the safe one — the name is
+    printed every time, so a wrong guess is visible rather than silent.
+    """
+    kept, lost = {}, {}
+    for name, value in env.items():
+        # The literal `:` already rules out a longer number ending in these digits
+        # (`:16379` has no colon before `6379`); the trailing guard rules out one
+        # starting with them, so `:63790` is not read as `:6379`.
+        port = next((p for p in absent if re.search(rf":{p}(?!\d)", value)), None)
+        if port is None:
+            kept[name] = value
+        else:
+            lost[name] = absent[port]
+    if not lost:
+        return env, None
+    named = ", ".join(f"{n} (service `{s}`)" for n, s in sorted(lost.items()))
+    return kept, (
+        f"{named} withheld — nothing is listening on the port the job publishes for it, "
+        "so the tests that need it will skip themselves rather than fail on a refused connection"
+    )
+
+
 def plan(
-    workflow: dict[str, Any], jobs: tuple[str, ...], base: str, temp: str | None = None
+    workflow: dict[str, Any],
+    jobs: tuple[str, ...],
+    base: str,
+    temp: str | None = None,
+    probe: Callable[[int], bool] | None = None,
 ) -> list[dict[str, Any]]:
     """Turn the chosen jobs' steps into entries to run, or to skip with a reason.
 
@@ -113,10 +194,28 @@ def plan(
     of another on the developer's machine — CI sets `COVERAGE_FILE` outside the
     workspace precisely to stop that. Running the same command in a different
     environment answers a different question from the one CI asked.
+
+    **The exception is env that names a service container.** A job may declare
+    `services:`, and CI then hands its steps an address like
+    `TEST_REDIS_URL=redis://127.0.0.1:6379/0`. That address means nothing on a
+    machine with no such service: passing it on makes the suite dial a port nobody
+    is answering and report a failure that says nothing about the change under
+    test. Withholding the variable instead puts the suite into the reduced state it
+    already declares for itself — the tests behind it are guarded by their own
+    skip, because a test that skips when it cannot connect would never run in CI
+    either. The alternative, skipping the whole step, throws away the entire local
+    signal to protect a fraction of it, which is the gap preflight exists to close.
+    Reduced entries are reported apart from clean ones so the two cannot be
+    confused, and a service that *is* running locally is used exactly as CI uses it.
     """
     temp = tempfile.gettempdir() if temp is None else temp
+    # Resolved here rather than as a default, so the name is looked up when the
+    # plan is made — a default binds the function object at import and a test
+    # replacing it would be patching something nobody reads.
+    probe = listening if probe is None else probe
     made: list[dict[str, Any]] = []
     for job in jobs:
+        absent = _absent_services(workflow["jobs"][job], probe)
         for step in workflow["jobs"][job]["steps"]:
             entry = {"job": job, "label": _label(step)}
             command = step.get("run")
@@ -145,12 +244,18 @@ def plan(
                     {**entry, "skip": f"env holds a CI expression with no local value: {where}"}
                 )
                 continue
-            made.append({**entry, "run": resolved, "env": env})
+            env, reduced = _withhold(env, absent)
+            planned = {**entry, "run": resolved, "env": env}
+            made.append(planned if reduced is None else {**planned, "reduced": reduced})
     return made
 
 
 def execute(entries: list[dict[str, Any]], root: pathlib.Path) -> int:
-    """Run the plan, printing as it goes. Returns how many steps failed."""
+    """Run the plan, printing as it goes. Returns how many steps failed.
+
+    A reduced step prints what was withheld *before* it runs, so the reason is on
+    screen while the command is working rather than buried above its output.
+    """
     # GitHub's runner executes a step with `bash -e {0}`, so this needs real bash —
     # not the `/bin/sh` that `shell=True` would give, since the commands in a
     # workflow are written to bash's rules.
@@ -165,6 +270,8 @@ def execute(entries: list[dict[str, Any]], root: pathlib.Path) -> int:
         if "skip" in entry:
             print(f"-  {head}\n   skipped: {entry['skip']}")
             continue
+        if "reduced" in entry:
+            print(f"~  {head}\n   reduced: {entry['reduced']}")
         result = subprocess.run(  # noqa: S603 — the command comes from this repo's own workflow
             [bash, "-e", "-c", entry["run"]],
             cwd=root,
@@ -173,7 +280,7 @@ def execute(entries: list[dict[str, Any]], root: pathlib.Path) -> int:
             env={**os.environ, **entry.get("env", {})},
         )
         if result.returncode == 0:
-            print(f"OK  {head}")
+            print(f"{'~~' if 'reduced' in entry else 'OK'}  {head}")
         else:
             failed += 1
             print(f"XX  {head}  (exit {result.returncode})")
@@ -242,8 +349,10 @@ def main(argv: list[str] | None = None) -> int:
     entries = plan(workflow, jobs, args.base)
     failed = execute(entries, root)
     skipped = sum(1 for e in entries if "skip" in e)
+    reduced = sum(1 for e in entries if "reduced" in e)
     passed = len(entries) - skipped - failed
-    print(f"\n{passed} passed · {failed} failed · {skipped} skipped with a reason")
+    tail = f" · {reduced} ran without a service CI provides" if reduced else ""
+    print(f"\n{passed} passed · {failed} failed · {skipped} skipped with a reason{tail}")
     return 1 if failed else 0
 
 
