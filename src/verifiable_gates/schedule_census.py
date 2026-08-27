@@ -130,14 +130,30 @@ def first_seen(root: pathlib.Path, files: list[str]) -> dict[str, str | None]:
 
     A file that has never had a scheduled run is ambiguous, and the history is the
     only thing on this machine that can separate "the platform refused it" from
-    "it was added on Thursday and fires on Monday". When git is unavailable or the
-    file is not committed yet, this returns `None` and the caller stays strict —
-    an unknown birthday must not become a free pass.
+    "it was added on Thursday and fires on Monday". When git is unavailable, the
+    file is not committed yet, **or the clone is shallow**, this returns `None`
+    and the caller stays strict — an unknown birthday must not become a free pass.
+
+    The shallow case is the dangerous one: it fails in the generous direction
+    without looking like a failure. A `--depth 1` clone reports every file as
+    added by the graft commit, so *every* workflow reads as newborn and every
+    silent cron gets excused — and `actions/checkout` clones depth 1 by default,
+    so that is the normal state of a CI run rather than a corner case.
     """
     born: dict[str, str | None] = {}
-    for name in files:
-        try:
-            raw = removals._git(  # noqa: SLF001 — one git caller in the package, reused
+    try:
+        shallow = removals._git(  # noqa: SLF001 — one git caller in the package, reused
+            root, "rev-parse", "--is-shallow-repository"
+        )
+        if shallow.strip() == "true":
+            # A shallow clone shows every file as added by the graft commit, so
+            # every workflow would look newborn and the allowance would excuse all
+            # of them — the free pass this function exists to refuse.
+            # `actions/checkout` clones depth 1 by default, which is exactly where
+            # that would go unnoticed.
+            return dict.fromkeys(files)
+        for name in files:
+            raw = removals._git(  # noqa: SLF001 — the same one, for the same reason
                 root,
                 "log",
                 "--diff-filter=A",
@@ -145,10 +161,10 @@ def first_seen(root: pathlib.Path, files: list[str]) -> dict[str, str | None]:
                 "--",
                 f".github/workflows/{name}",
             )
-        except RuntimeError:
-            return dict.fromkeys(files)
-        stamps = [line.strip() for line in raw.splitlines() if line.strip()]
-        born[name] = stamps[-1] if stamps else None
+            stamps = [line.strip() for line in raw.splitlines() if line.strip()]
+            born[name] = stamps[-1] if stamps else None
+    except RuntimeError:
+        return dict.fromkeys(files)
     return born
 
 
