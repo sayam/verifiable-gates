@@ -8,6 +8,14 @@ Notable changes to this project. The format follows
 
 ### Added
 
+- **The `gh` wrapper pages, and lends a token per call.** `api_pages()` walks a
+  list endpoint until the first empty page, unwraps by `key` when the endpoint
+  wraps its rows, and trims to `limit` — the loop the reference implementation
+  carried in three places (two censuses here and a posture checker there), one of
+  which stopped at page one on the endpoint whose whole point was the 101st row.
+  `token_env` names the variable holding the token for *that question*: branch
+  protection wants a PAT, code-scanning alerts want the job's own, and a wrapper
+  that only knows one forces the broader scope onto both.
 - **The two censuses that watch what CI cannot (extraction stage 3b, second
   part).** `schedule_census` asks when each declared cron last actually fired —
   a workflow never triggered counts zero runs, and "no runs" looks exactly like
@@ -27,6 +35,12 @@ Notable changes to this project. The format follows
   in five more, each with its own suppression for the same command.
 - **The workflow directory is an input.** Baking one project's layout in would
   make the reader usable only from a checkout of that project.
+
+### Changed
+
+- **`rerun_census` and `red_streak_census` page through the wrapper** instead of
+  each carrying its own copy of the loop. Their `PAGE_SIZE` now aliases
+  `gh.PAGE_SIZE`; the URLs they ask for are byte-for-byte what they were.
 
 ### Fixed
 
