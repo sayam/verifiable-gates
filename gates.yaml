@@ -1152,3 +1152,34 @@ gates:
       paragraph, not a citation of a run that did not happen. The two real red runs
       in this repository's history are on `test` and `commit-lint`, and they are
       cited by the gates that own them.
+
+  - id: the-worksheet-keeps-its-verdicts
+    title: The ASVS worksheet is refreshed from a pinned standard, and the crosswalk is derived — neither ever writes a verdict
+    kind: test
+    severity: blocking
+    enforced_by: {job: test, tests: [tests/test_asvs_worksheet.py, tests/test_gates_crosswalk.py]}
+    layer: internal
+    pillar: devx
+    portable: false
+    born_from: >-
+      The reference implementation's first worksheet generator did not cut the
+      head of the document before reading rows — and the preamble held a backlog
+      table whose rows begin with the very same requirement ids. It rewrote those
+      rows in the assessment table's shape, silently, because the result was
+      still a valid markdown table. The generator's whole contract is that a
+      refresh is not a reset: every status and evidence a person wrote survives,
+      a requirement the standard dropped leaves, a new one arrives *unassessed*
+      rather than passed. The crosswalk is the same contract from the other
+      side — it is derived one way from the rows' evidence through the registry's
+      partition, so a mapping written by hand (a third place to drift) never
+      exists, and a row nothing runs for is listed as such rather than folded in.
+    proved_by:
+      - kind: mutation
+        ref: pr/32
+        date: 2026-08-28
+        caught: >-
+          Five mutations red — a rebuild that drops existing verdicts, a reader
+          that does not cut the preamble above the marker (the original bug), a
+          crosswalk that stops mapping `ci:job` evidence, a render that ignores
+          the levels in scope, and a passed-rows reader that answers empty
+          instead of loud when nothing passes.

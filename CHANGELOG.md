@@ -8,6 +8,16 @@ Notable changes to this project. The format follows
 
 ### Added
 
+- **The ASVS worksheet and the gate↔requirement crosswalk move in (extraction
+  stage 5, last part).** `asvs_worksheet` refreshes a worksheet from a standard
+  pinned in the repository — the digest moves only when a requirement does —
+  and never writes a verdict: every status a person wrote survives, a dropped
+  requirement leaves, a new one arrives unassessed. `gates_crosswalk` derives
+  which gates back which passing rows from the rows' own evidence through the
+  registry's partition, so no hand-written mapping exists to drift. The words
+  of the document (its marker, its header, its status for an unjudged row) and
+  the levels in scope are inputs — a worksheet in another language is still a
+  worksheet.
 - **The `gh` wrapper pages, and lends a token per call.** `api_pages()` walks a
   list endpoint until the first empty page, unwraps by `key` when the endpoint
   wraps its rows, and trims to `limit` — the loop the reference implementation
