@@ -42,6 +42,16 @@ teaches rules it does not follow, and the answer was 2.7%.
   project's architecture, exported as universal, is an overclaim. The schema
   refuses it.
 
+## Where the work happens
+
+Since the extraction closed (2026-08-28) this repository is developed in its
+own checkout, never inside a consumer's `vendor/verifiable-gates` submodule.
+That directory is a read-only pin: a change lands here first, merges to `main`,
+and reaches the reference implementation through its Dependabot `gitsubmodule`
+bump (or a manual `git submodule update --remote` opened as a pull request).
+A consumer must never pin a commit that is not on this `main` — the extraction
+period, when both moved in one day, is the exception that has ended.
+
 ## Running everything locally
 
 ```bash
