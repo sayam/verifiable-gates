@@ -17,11 +17,12 @@ as evidence.
 from __future__ import annotations
 
 import json
+import os
 import shutil
 import subprocess
 from typing import Any
 
-__all__ = ["NETWORK_TIMEOUT_SECONDS", "api", "run"]
+__all__ = ["NETWORK_TIMEOUT_SECONDS", "PAGE_SIZE", "api", "api_pages", "run"]
 
 # Every command fired outward declares a ceiling. `subprocess.run` without a
 # `timeout=` waits forever, and these run inside CI jobs: a `gh` that never
@@ -29,8 +30,35 @@ __all__ = ["NETWORK_TIMEOUT_SECONDS", "api", "run"]
 # as "the job timed out", which points at the wrong place.
 NETWORK_TIMEOUT_SECONDS = 60
 
+# **A page tops out at 100.** Asking for 200 returns 100 in silence, which means
+# a window somebody configured as 200 was half the width they wrote down, with
+# nothing to say so. The reference implementation found this the hard way: a
+# checker that read one page declared "no alerts outstanding" while the 101st
+# was open.
+PAGE_SIZE = 100
 
-def run(args: list[str], *, timeout: int = NETWORK_TIMEOUT_SECONDS) -> str:
+
+def _environment(token_env: str | None) -> dict[str, str] | None:
+    """The environment for one call — a borrowed token when the caller names one.
+
+    `token_env` names the variable holding the token for *this question*; unset
+    or empty, the call falls back to whatever `gh` already has, which is what
+    happens on a maintainer's machine. Two questions in one job can need two
+    tokens (branch protection wants a PAT, code-scanning alerts want the job's
+    own), and a wrapper that only knows one forces the broader scope onto both.
+    """
+    borrowed = os.environ.get(token_env or "")
+    if not borrowed:
+        return None
+    return {**os.environ, "GH_TOKEN": borrowed, "GITHUB_TOKEN": borrowed}
+
+
+def run(
+    args: list[str],
+    *,
+    timeout: int = NETWORK_TIMEOUT_SECONDS,
+    token_env: str | None = None,
+) -> str:
     """Call `gh <args>` and hand back stdout, stripped.
 
     A failure is always a `PermissionError`, because in practice the cause is
@@ -50,6 +78,7 @@ def run(args: list[str], *, timeout: int = NETWORK_TIMEOUT_SECONDS) -> str:
         capture_output=True,
         text=True,
         check=False,
+        env=_environment(token_env),
         timeout=timeout,
     )
     if done.returncode != 0:
@@ -57,6 +86,41 @@ def run(args: list[str], *, timeout: int = NETWORK_TIMEOUT_SECONDS) -> str:
     return done.stdout.strip()
 
 
-def api(path: str) -> Any:  # noqa: ANN401 — the shape is whatever that endpoint returns
+def api(path: str, *, token_env: str | None = None) -> Any:  # noqa: ANN401 — the shape is whatever that endpoint returns
     """Ask the GitHub API and hand back parsed JSON."""
-    return json.loads(run(["api", path]))
+    return json.loads(run(["api", path], token_env=token_env))
+
+
+def api_pages(
+    path: str,
+    *,
+    limit: int | None = None,
+    key: str | None = None,
+    token_env: str | None = None,
+) -> list[Any]:
+    """Every row behind a list endpoint — **paged**, because the API hands over 100 at a time.
+
+    The reference implementation carried this loop in three places, one of them
+    a checker whose whole point was not to stop at page one. `key` names the
+    field holding the rows when the endpoint wraps them (`workflow_runs`); left
+    unset, the answer itself is the list. `limit` is the caller's ceiling — the
+    last page is trimmed to it, and no page past it is asked for. Paging stops at
+    the first empty page: an empty page means the history ended, and asking
+    again never returns.
+
+    `token_env` is forwarded only when set, so a test that replaces `api` with a
+    one-argument fake keeps working — the fakes are part of the contract here.
+    """
+    rows: list[Any] = []
+    page = 1
+    joiner = "&" if "?" in path else "?"
+    while limit is None or len(rows) < limit:
+        size = PAGE_SIZE if limit is None else min(PAGE_SIZE, limit - len(rows))
+        url = f"{path}{joiner}per_page={size}&page={page}"
+        answer = api(url) if token_env is None else api(url, token_env=token_env)
+        batch = answer.get(key, []) if key else answer
+        if not batch:
+            break
+        rows.extend(batch)
+        page += 1
+    return rows if limit is None else rows[:limit]

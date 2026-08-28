@@ -237,25 +237,13 @@ def startup_failure(
     ]
 
 
-# **A page tops out at 100.** Asking for 200 returns 100 in silence, which means
-# a window somebody configured as 200 was half the width they wrote down, with
-# nothing to say so.
-PAGE_SIZE = 100
+# The page ceiling lives with the wrapper now — one loop, not three.
+PAGE_SIZE = gh.PAGE_SIZE
 
 
 def _recent_runs(limit: int) -> list[dict[str, Any]]:
-    """The most recent runs — **paged**, because the API hands over 100 at a time."""
-    runs: list[dict[str, Any]] = []
-    page = 1
-    while len(runs) < limit:
-        size = min(PAGE_SIZE, limit - len(runs))
-        batch = gh.api(f"repos/:owner/:repo/actions/runs?per_page={size}&page={page}")
-        got = batch.get("workflow_runs", [])
-        if not got:
-            break
-        runs.extend(got)
-        page += 1
-    return runs[:limit]
+    """The most recent runs — paged by the wrapper, trimmed to `limit`."""
+    return gh.api_pages("repos/:owner/:repo/actions/runs", limit=limit, key="workflow_runs")
 
 
 def collect(limit: int, *, messages: Mapping[str, str] | None = None) -> list[dict[str, Any]]:

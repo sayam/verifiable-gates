@@ -48,7 +48,8 @@ from verifiable_gates import gh, workflows
 
 __all__ = ["longest_red_hours", "main", "problems", "promised_days"]
 
-PAGE_SIZE = 100
+# The page ceiling lives with the wrapper now — one loop, not three.
+PAGE_SIZE = gh.PAGE_SIZE
 HOURS_PER_DAY = 24
 
 
@@ -127,19 +128,10 @@ def problems(promised: dict[str, int], measured: dict[str, float]) -> list[str]:
 
 
 def _fetch(limit: int) -> list[dict[str, Any]]:
-    """Runs on the default branch, newest first, paged up to the limit."""
-    runs: list[dict[str, Any]] = []
-    page = 1
-    while len(runs) < limit:
-        size = min(PAGE_SIZE, limit - len(runs))
-        batch = gh.api(
-            f"repos/:owner/:repo/actions/runs?branch=main&per_page={size}&page={page}"
-        ).get("workflow_runs", [])
-        if not batch:
-            break
-        runs += batch
-        page += 1
-    return runs
+    """Runs on the default branch, newest first — paged by the wrapper up to the limit."""
+    return gh.api_pages(
+        "repos/:owner/:repo/actions/runs?branch=main", limit=limit, key="workflow_runs"
+    )
 
 
 def main(argv: list[str] | None = None) -> int:
