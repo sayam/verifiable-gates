@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "verifiable-gates"
-version = "0.0.1"
+version = "0.1.0"
 description = "A gate registry that is enforced two ways, gates that carry evidence of having gone red, and a portable rule set for AI coding agents."
 readme = "README.md"
 requires-python = ">=3.11"
@@ -13,7 +13,7 @@ license-files = ["LICENSE"]
 authors = [{name = "Sayam Sriphua"}]
 keywords = ["governance", "secure-by-default", "compliance", "ai-agents", "software-supply-chain"]
 classifiers = [
-    "Development Status :: 2 - Pre-Alpha",
+    "Development Status :: 3 - Alpha",
     "Intended Audience :: Developers",
     "Programming Language :: Python :: 3",
     "Topic :: Software Development :: Quality Assurance",

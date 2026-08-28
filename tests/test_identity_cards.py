@@ -114,7 +114,10 @@ def test_the_description_says_what_the_abstract_says() -> None:
     assert flat(zenodo()["description"]) == flat(citation()["abstract"])
 
 
-@pytest.mark.parametrize("field", ["title", "upload_type", "license", "creators", "description"])
+@pytest.mark.parametrize(
+    "field",
+    ["title", "upload_type", "license", "creators", "description", "version", "publication_date"],
+)
 def test_zenodo_carries_every_field_it_needs(field: str) -> None:
     """A missing field is filled in by Zenodo's guesses, which nobody reviewed."""
     assert zenodo().get(field), f".zenodo.json has no {field}"

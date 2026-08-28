@@ -6,7 +6,25 @@ Notable changes to this project. The format follows
 
 ## [Unreleased]
 
+_Nothing yet — the next change goes here._
+
+## [0.1.0] - 2026-08-28
+
+The first release, cut at the point where this repository and the reference
+implementation separate. Everything below it landed during the extraction
+(2026-08-25 to 2026-08-28) under a single unreleased heading; it is kept in the
+order it happened.
+
 ### Added
+
+- **The extraction is closed.** The reference implementation's census
+  (`extraction.yaml`) records nothing outstanding — 0 to move, 58 that stayed,
+  13 split — after three of the last five candidates were re-decided as `stay`
+  on 2026-08-28 and the other two arrived in the entry below.
+- **Development moves to this repository's own checkout.** `CONTRIBUTING.md`
+  says where the work happens: a consumer's `vendor/verifiable-gates` is a
+  read-only pin, a change lands here first, and no consumer pins a commit that
+  is not on `main`.
 
 - **The ASVS worksheet and the gate↔requirement crosswalk move in (extraction
   stage 5, last part).** `asvs_worksheet` refreshes a worksheet from a standard
@@ -116,8 +134,8 @@ Notable changes to this project. The format follows
   see.
 
 - **`CITATION.cff`.** The rules are the artefact somebody would cite, and until now
-  there was nothing to cite them with. No DOI yet — that needs a release rather
-  than a commit.
+  there was nothing to cite them with. The DOI came with `evidence-freeze-1`,
+  recorded above.
 
 ### Removed
 
@@ -155,7 +173,7 @@ Notable changes to this project. The format follows
 ### Added
 
 - **The rule catalogue (extraction stage 6, first part).** `rules.yaml` holds the
-  93 rules this project publishes, each with the incident that produced it, and
+  92 rules this project publishes (93 at the time; one was unpublished below), each with the incident that produced it, and
   `verifiable_gates.rules` reads and checks it. A rule and a gate now live in
   separate files because they have separate lifetimes: enforcement moves whenever
   a project reorganises its tests and is written in that project's framework,
@@ -300,9 +318,5 @@ Notable changes to this project. The format follows
 - **`gates.yaml`, deliberately empty.** This repository will not list a gate
   before the thing that enforces it exists.
 
-### Not here yet
-
-- The checks, the doctor, and the preflight tool arrive in stage 2 — which is
-  also when a `dogfood` job can run the doctor against this repository. There is
-  no such job today, because a job with nothing to run is a job that is green
-  for no reason.
+[Unreleased]: https://github.com/sayam/verifiable-gates/compare/v0.1.0...HEAD
+[0.1.0]: https://github.com/sayam/verifiable-gates/releases/tag/v0.1.0

@@ -13,7 +13,7 @@ in both this repository and the reference implementation, and archived at
 [doi:10.5281/zenodo.22103110](https://doi.org/10.5281/zenodo.22103110). That DOI resolves to the
 latest version; each release also gets one of its own.
 
-**Status: the extraction is complete (2026-08-26).** Every stage has landed. What
+**Status: the extraction is complete (2026-08-28).** Every stage has landed. What
 remains in the reference implementation,
 [`sayam/flask-todolist`](https://github.com/sayam/flask-todolist), is the
 *registers* — which test, which job, which threshold — read by thin adapters on
@@ -22,8 +22,10 @@ stayed, is
 [ADR 0075 §6](https://github.com/sayam/flask-todolist/blob/main/docs/adr/0075-thesis-track-freeze-effort-and-ceilings.md)
 and the file-by-file census is
 [`extraction.yaml`](https://github.com/sayam/flask-todolist/blob/main/extraction.yaml)
-there, which still records one script as outstanding. **The package is not
-released yet — do not depend on it.**
+there, which now records nothing outstanding: 0 to move, 58 that stayed, 13
+split between the two. **First release: `v0.1.0` (2026-08-28)** — the point at
+which this repository and the reference implementation separate. Consume it as
+a pinned submodule or a versioned dependency, never from `main`.
 
 | Stage | What lands | Status |
 |---|---|---|
@@ -33,6 +35,7 @@ released yet — do not depend on it.**
 | 4 | The supply-chain checkers | **here** |
 | 5 | The measurement instruments and the comparison data | **here** |
 | 6 | Registry handover · citation · DOI | **here** |
+| — | Extraction closed — census at move 0 / stay 58 / split 13 · `v0.1.0` | **2026-08-28** |
 
 Stage 6 was taken out of order on purpose. The rules are what this project *is*;
 stages 3 to 5 move the machinery that happens to enforce some of them, and a
@@ -67,7 +70,10 @@ Since the extraction finished, so are the deciders that used to live in the
 reference implementation: ratchets and the measurements that feed them, the
 removal census, the synchroniser for numbers a project advertises about itself,
 the platform-posture reader, the advisory deciders for pip, npm, and container
-images, the scanner-coverage check — and the research instruments, the ASVS
+images, the scanner-coverage check, the two censuses that watch what CI cannot see
+(when a schedule last fired, how long redness stood), the `gh` wrapper, and the
+ASVS worksheet builder with the gate-to-ASVS crosswalk — and the research
+instruments, the ASVS
 probe and the battery that runs it over a directory of generated applications,
 together with [the experiment](docs/comparison/) they measured. Each arrives with
 its messages as an input, so a project can keep printing in its own language.
@@ -104,17 +110,19 @@ inside an organisation's internal handbook must not require share-alike.
 [doi:10.5281/zenodo.22103110](https://doi.org/10.5281/zenodo.22103110) ซึ่งชี้รุ่นล่าสุดเสมอ
 (แต่ละ release มี DOI ของตัวเองด้วย)
 
-**สถานะ: ถอดครบทุกขั้นแล้ว (2026-08-26)** — ที่
+**สถานะ: ถอดครบทุกขั้นแล้ว (2026-08-28)** — ที่
 [`flask-todolist`](https://github.com/sayam/flask-todolist) เหลือ *ทะเบียน*
 (เทสต์ไหน · job ไหน · พื้นเท่าไหร่) กับ adapter บาง ๆ บนพาธเดิม ตาม ADR 0075
-ข้อ 6 และ `extraction.yaml` ที่นั่น ซึ่งยังบันทึกไว้ว่ามีสคริปต์หนึ่งตัวค้าง ·
-**ยังไม่ได้ปล่อยแพ็กเกจ อย่าเพิ่งพึ่งมัน**
+ข้อ 6 และ `extraction.yaml` ที่นั่น ซึ่งไม่เหลืออะไรค้างแล้ว (move 0 · stay 58 · split 13) ·
+**รุ่นแรก `v0.1.0` (2026-08-28)** คือจุดที่สอง repo แยกทางกัน — ใช้ผ่าน submodule
+ที่ pin ไว้หรือ dependency ที่ระบุรุ่น ไม่ใช่จาก `main`
 
 วันนี้มี **คลังกฎ 92 ข้อ** (`rules.yaml`) ที่แต่ละข้อพกกับดักจริงที่ให้กำเนิดมันมาด้วย
 · ตัวตรวจ stdlib ล้วนเก้าตัว · ตัวติดตั้งกับ doctor · preflight · ตัวเรนเดอร์แผ่นกฎ
 · harness ของ fail-fix loop · **ตัวตัดสินฝั่ง governance กับ supply chain**
 (ratchet · สำมะโนของที่ถอด · ตัวซิงก์เลขที่โฆษณา · ท่าทีแพลตฟอร์ม · advisory ของ
-pip/npm/image · ขอบเขตของตัวสแกน) · และ **เครื่องมือวิจัย** (ASVS probe + battery)
+pip/npm/image · ขอบเขตของตัวสแกน · สำมะโนตารางเวลากับสายแดงที่ CI มองไม่เห็น ·
+แผ่นงาน ASVS กับ crosswalk) · และ **เครื่องมือวิจัย** (ASVS probe + battery)
 พร้อม[การทดลอง](docs/comparison/)ที่มันวัด — ทุกตัวรับถ้อยคำเป็น input
 โปรเจกต์ปลายทางจึงพิมพ์ภาษาของตัวเองได้
 

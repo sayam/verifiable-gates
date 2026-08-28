@@ -1,11 +1,10 @@
-# This repository's own gate registry — **still empty, and that is the correct
-# state at stage 1.**
+# This repository's own gate registry.
 #
 # This is the home of *registries that are checked against reality both ways*, so
 # it has to keep one of its own from day one. But **no row goes in before the
 # thing that enforces it exists** — a registry listing gates nobody enforces is
-# precisely what this whole project exists to stop doing. The first row arrives
-# with the first enforcer, in stage 2, when the checks and the doctor move in.
+# precisely what this whole project exists to stop doing. The registry began
+# empty at stage 1 and grew one row per enforcer as each moved in.
 #
 # The shape of this file is enforced by `verifiable_gates.registry` and
 # `tests/test_registry.py`.

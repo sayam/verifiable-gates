@@ -2,10 +2,10 @@
 # rule as the reference implementation's ADR 0067: "hung" and "slow" are
 # different symptoms and must not look alike.
 #
-# **There is deliberately no `dogfood` job.** The thing that would run the doctor
-# against this repository moves in at stage 2 along with `checks/`. A job named
-# after a check it cannot run yet is a job that is green for no reason, which is
-# the exact habit this project exists to break.
+# **There is deliberately no separate `dogfood` job.** The scanners are run
+# against this repository by `tests/test_dogfood.py` inside the `test` job, so a
+# second job would be green for the same reason twice — the exact habit this
+# project exists to break.
 
 name: CI
 
@@ -54,9 +54,10 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
           fetch-depth: 0
-      # **A stand-in.** The reference implementation's `lint_commits.py` moves here
-      # in stage 3 and will replace this block, so writing it inline beats creating
-      # a file already known to be deleted. Compare against the PR head, not HEAD:
+      # Inline on purpose. `verifiable_gates.lint_commits` ships for consumers,
+      # but this repository's own commit gate stays a shell block so the gate that
+      # guards the package does not depend on importing the package. Compare
+      # against the PR head, not HEAD:
       # on `pull_request` events HEAD is the merge commit GitHub synthesises, whose
       # subject fails Conventional Commits every time and belongs to nobody.
       - name: Conventional Commits + DCO on the commits this PR actually adds
