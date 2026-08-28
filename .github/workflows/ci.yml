@@ -83,5 +83,8 @@ jobs:
             if ! printf '%s' "$body" | grep -q '^Signed-off-by: .* <.*@.*>$'; then
               echo "FAIL ${sha:0:9}: no Signed-off-by line — sign with git commit -s"; status=1
             fi
+            if printf '%s' "$body" | grep -qiE '^(Co-authored-by|Claude-Session):'; then
+              echo "FAIL ${sha:0:9}: carries a co-author/session trailer — credit goes to the signer alone"; status=1
+            fi
           done
           exit $status

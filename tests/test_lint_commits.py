@@ -76,12 +76,50 @@ def test_the_limit_counts_characters_not_bytes() -> None:
     "message",
     [
         "feat(x): ok\n\nSigned-off-by: A Person <a@b.co>\n",
-        "fix: ok\n\nA body.\n\nSigned-off-by: A B <a@b.co>\nCo-Authored-By: C <c@d.io>\n",
+        "fix: ok\n\nA body.\n\nSigned-off-by: A B <a@b.co>\nReviewed-by: C <c@d.io>\n",
     ],
 )
 def test_a_signed_commit_passes(message: str) -> None:
     """The shape `git commit -s` writes must not be caught."""
     assert lint_commits.check_sign_off(message) == []
+
+
+# ---------------------------------------------------------------- the trailers
+
+
+@pytest.mark.parametrize(
+    "message",
+    [
+        "feat(x): ok\n\nSigned-off-by: A B <a@b.co>\n",
+        "fix: ok\n\nSays co-authored-by in prose, not as a trailer.\n\nSigned-off-by: A <a@b.co>\n",
+        "fix: ok\n\nSigned-off-by: A B <a@b.co>\nReviewed-by: C <c@d.io>\n",
+    ],
+)
+def test_a_commit_with_one_author_passes(message: str) -> None:
+    assert lint_commits.check_trailers(message) == []
+
+
+@pytest.mark.parametrize(
+    ("message", "why"),
+    [
+        ("feat: ok\n\nSigned-off-by: A <a@b.co>\nCo-Authored-By: C <c@d.io>\n", "capitalised key"),
+        ("feat: ok\n\nSigned-off-by: A <a@b.co>\nCo-authored-by: C <c@d.io>\n", "git's own casing"),
+        ("feat: ok\n\nSigned-off-by: A <a@b.co>\nClaude-Session: https://x/y\n", "session trailer"),
+    ],
+)
+def test_a_co_author_trailer_is_caught(message: str, why: str) -> None:
+    """Credit to an address that signed nothing — the platform would list it as a contributor."""
+    found = lint_commits.check_trailers(message)
+
+    assert found, why
+    assert "drop the line" in found[0], "caught it, but did not say how to fix it"
+
+
+def test_every_forbidden_trailer_is_named_once() -> None:
+    """Two trailers, two findings — a message that names only the first hides the second."""
+    message = "feat: ok\n\nSigned-off-by: A <a@b.co>\nCo-authored-by: C <c@d.io>\nClaude-Session: x"
+
+    assert len(lint_commits.check_trailers(message)) == 2
 
 
 @pytest.mark.parametrize(
@@ -161,6 +199,7 @@ def test_the_hook_mode_passes_a_well_formed_message(
     [
         ("fixed the bug\n\nSigned-off-by: A B <a@b.co>\n", "subject is not conventional"),
         ("feat(x): ok\n\nno signature\n", "no DCO line"),
+        ("feat(x): ok\n\nSigned-off-by: A B <a@b.co>\nCo-authored-by: C <c@d.io>\n", "co-author"),
     ],
 )
 def test_the_hook_mode_refuses_and_says_why(
