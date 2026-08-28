@@ -6,7 +6,15 @@ Notable changes to this project. The format follows
 
 ## [Unreleased]
 
-_Nothing yet — the next change goes here._
+### Added
+
+- **The commit gate refuses `Co-authored-by:` and `Claude-Session:` trailers**,
+  in the module and in this repository's own inline check alike. A trailer
+  hands authorship credit — and a contributor entry on the platform — to an
+  address that signed nothing; under the DCO the signer is the author. The rule
+  had lived only in a maintainer's notes, and four commits on 2026-08-28 carried
+  the trailer anyway (rewritten out before the first release, which is why
+  `v0.1.0` sits on new hashes for those four).
 
 ## [0.1.0] - 2026-08-28
 

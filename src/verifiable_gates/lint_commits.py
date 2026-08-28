@@ -18,6 +18,14 @@ and every commit must carry a **`Signed-off-by:` line (DCO 1.1)**, written by
 at the time they wrote it, certifying they have the legal right to send it —
 which is the one thing a project cannot add retroactively on their behalf.
 
+**A `Co-authored-by:` trailer is refused.** It hands authorship credit — and,
+on the platform, a contributor entry — to an address that signed nothing. A
+tool that helped write the change is not an author under the DCO; the person
+who signed is. The same goes for `Claude-Session:` and any other trailer an
+assistant appends by default: the reference implementation had a rule against
+them in a maintainer's notes and still shipped four commits carrying one on the
+day the rule was only a note, which is the whole argument for a gate.
+
 Role: decider — it answers pass or fail and returns an exit code that can block
 a pull request.
 """
@@ -35,6 +43,7 @@ __all__ = [
     "TYPES",
     "check_sign_off",
     "check_title",
+    "check_trailers",
     "commits_in_range",
     "main",
     "parse_log",
@@ -54,6 +63,15 @@ MAX_TITLE = 72
 # other projects' DCO bots read. **An address is required**: a signature with no
 # way to reach the signer certifies nothing anybody can follow up on.
 SIGN_OFF = re.compile(r"^Signed-off-by: .+ <[^<>@\s]+@[^<>\s]+>\s*$", re.MULTILINE)
+
+# Trailers that credit somebody who did not sign. Matched case-insensitively
+# because git itself treats trailer keys that way (`Co-Authored-By` and
+# `Co-authored-by` are both in the wild).
+FORBIDDEN_TRAILERS = ("Co-authored-by", "Claude-Session")
+FORBIDDEN_TRAILER = re.compile(
+    r"^(" + "|".join(re.escape(key) for key in FORBIDDEN_TRAILERS) + r"):",
+    re.MULTILINE | re.IGNORECASE,
+)
 
 
 def check_title(title: str) -> list[str]:
@@ -79,6 +97,21 @@ def check_sign_off(message: str) -> list[str]:
             "no `Signed-off-by: Name <email>` line — sign with `git commit -s` "
             "(DCO 1.1), or `git commit --amend -s` if the commit already exists"
         )
+    ]
+
+
+def check_trailers(message: str) -> list[str]:
+    """One author per commit — the one who signed.
+
+    Reads the whole message, like the sign-off check, because trailers sit at
+    the end of the body.
+    """
+    return [
+        (
+            f"carries a `{found.group(1)}:` trailer — credit goes to the signer alone; "
+            "drop the line (an assistant that helped is not an author under the DCO)"
+        )
+        for found in FORBIDDEN_TRAILER.finditer(message)
     ]
 
 
@@ -134,10 +167,12 @@ def main(argv: list[str] | None = None) -> int:
         title = message.splitlines()[0]
         failures.extend((None, title, problem) for problem in check_title(title))
         failures.extend((None, title, problem) for problem in check_sign_off(message))
+        failures.extend((None, title, problem) for problem in check_trailers(message))
     else:
         for sha, subject, body in commits_in_range(args.rev_range):
             failures.extend((sha, subject, problem) for problem in check_title(subject))
             failures.extend((sha, subject, problem) for problem in check_sign_off(body))
+            failures.extend((sha, subject, problem) for problem in check_trailers(body))
 
     for maybe_sha, _subject, problem in failures:
         prefix = f"{maybe_sha}: " if maybe_sha else ""
