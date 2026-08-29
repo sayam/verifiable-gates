@@ -40,16 +40,22 @@ jobs:
     env:
       TAG: ${{ github.event.inputs.tag || github.event.release.tag_name }}
     steps:
+      # Two trees: the tools come from the commit this workflow runs on (its
+      # pins), the artifact from the tag. Checking out only the tag and taking
+      # its pins failed on the first run — a tag cut before a tool was pinned
+      # cannot carry the tool that attests it.
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
           ref: ${{ github.event.inputs.tag || github.event.release.tag_name }}
+          path: tagged
       - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97
         with:
           python-version: "3.13"
       - name: install the hash-pinned tools
         run: pip install --require-hashes -r pins/dev/requirements.txt
       - name: build the wheel and the sdist from the tagged tree
-        run: python -m build
+        run: python -m build tagged --outdir dist
       - name: the SBOM, from a clean environment holding exactly that wheel
         run: |
           set -euo pipefail
