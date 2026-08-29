@@ -52,19 +52,28 @@ def _gh(*args: str) -> str:
     where the package is not importable (`tests/test_checks_are_standalone.py`
     holds every shipped file to stdlib only). The copy carries the wrapper's
     contract — the binary is found rather than assumed, a machine without `gh`
-    says so, a failure raises `PermissionError` with `gh`'s own words, and the
+    says so, a failure raises `PermissionError` with `gh`'s own words, a reached
+    time budget raises `RuntimeError` rather than `TimeoutExpired`, and the
     same time budget — and `tests/test_issue_handoff.py` holds it there.
     """
     binary = shutil.which("gh")
     if not binary:
         raise RuntimeError("no gh on this machine — this gate talks to GitHub through it")
-    done = subprocess.run(  # noqa: S603 — path from shutil.which, fixed argv, no shell
-        [binary, *args],
-        capture_output=True,
-        text=True,
-        check=False,
-        timeout=TOOL_TIMEOUT_SECONDS,
-    )
+    try:
+        done = subprocess.run(  # noqa: S603 — path from shutil.which, fixed argv, no shell
+            [binary, *args],
+            capture_output=True,
+            text=True,
+            check=False,
+            timeout=TOOL_TIMEOUT_SECONDS,
+        )
+    except subprocess.TimeoutExpired as expired:
+        # The wrapper's contract: a ceiling that is reached is "could not look",
+        # never a traceback out of the gate.
+        raise RuntimeError(
+            f"`gh {' '.join(args)}` did not answer within {TOOL_TIMEOUT_SECONDS} seconds"
+            " — the platform could not be asked"
+        ) from expired
     if done.returncode != 0:
         raise PermissionError(f"`gh {' '.join(args)}` failed: {done.stderr.strip()}")
     return done.stdout

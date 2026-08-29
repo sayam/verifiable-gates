@@ -38,6 +38,17 @@ Notable changes to this project. The format follows
   of released headings both ways. Found by the 2026-08-30 re-audit (round 2:
   what has rotted, and who guards it).
 
+- **A `gh` that reaches its ceiling is "could not look", not a traceback.**
+  The wrapper declared a 60-second budget on every call and mapped a non-zero
+  exit to `PermissionError`, but `subprocess.TimeoutExpired` walked past every
+  caller's `except (PermissionError, RuntimeError)`: `rerun_census`, run over
+  this repository's own 300 runs on 2026-08-30, died with a traceback on one
+  annotations call that sat for 60 seconds — the worst of the three answers,
+  from the instrument that exists to say "cannot see". The wrapper, and the
+  copy the issue-handoff gate ships, now raise `RuntimeError` naming the
+  budget, so every census and the posture reader exit 2 as they already do
+  for a refused call. Re-audit round 7 (can the instruments be trusted).
+
 ### Changed
 
 - **The `advisories` job has been seen red on the platform.** A census of all
