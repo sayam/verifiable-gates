@@ -80,6 +80,14 @@ Everything under this heading answers an outside zero-trust audit of `v0.1.0`
   `--about --write` patches the platform's field in place. CONTRIBUTING gains a
   Releasing section in which every step names the test that reads it.
 
+- **Dependabot's commits fit the commit gate.** Its default subject ("Bump x
+  from a to b") is not a Conventional Commit, so every bump would have been red
+  at `commit-lint` — the rule `dependabot-fits-the-gates` this repository
+  publishes, unkept here until 2026-08-29, before the first bump ever opened.
+  Prefixes are `build(deps)` for pip and `ci(deps)` for actions; a test holds
+  each to the module's type list. The bot signs its commits, so the DCO half
+  needed nothing.
+
 ### Changed
 
 - **Intent that lived in comments is written where a reader looks.** The README
