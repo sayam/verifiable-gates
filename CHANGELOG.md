@@ -25,7 +25,10 @@ Notable changes to this project. The format follows
   then flipped on the platform and the job still said so — the token could not
   see the repository switches, and a `None` fell between `setting_problems`
   (which skips it) and `unreadable` (which covers only switches declared
-  unreadable). `blind` reports it by name with the value it should hold.
+  unreadable). `blind` reports it by name with the value it should hold. Four
+  merge switches turned out unreadable by any fine-grained token; they are
+  declared so, printed with their declared value on every run for a person to
+  check, and judged from the maintainer's session (DECISIONS.md).
 
 ## [0.1.2] - 2026-08-29
 

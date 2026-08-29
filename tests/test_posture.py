@@ -500,3 +500,44 @@ def test_blind_reports_only_readable_switches() -> None:
 
     assert len(found) == 1
     assert "seen" in found[0]
+
+
+def test_a_switch_declared_unreadable_is_printed_by_hand_and_does_not_decide(
+    tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """The third outcome: shown with its declared value — never green by silence, never red."""
+    a_platform(monkeypatch, PROTECTION, {})
+    register, root = a_tree(
+        tmp_path,
+        {
+            "branch": "main",
+            "settings": {
+                "allow_squash_merge": {"want": False, "why": "squash", "readable": False},
+            },
+            "not_required": {},
+        },
+    )
+
+    assert posture.main(["--settings", register, "--root", root]) == 0
+    out = capsys.readouterr().out
+    assert "by hand: allow_squash_merge = cannot be read, and should be False" in out
+
+
+def test_an_unreadable_switch_the_maintainer_can_see_is_still_judged(
+    tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """From a session whose token sees the field, drift is red even when declared unreadable."""
+    a_platform(monkeypatch, PROTECTION, {"allow_squash_merge": True})
+    register, root = a_tree(
+        tmp_path,
+        {
+            "branch": "main",
+            "settings": {
+                "allow_squash_merge": {"want": False, "why": "squash", "readable": False},
+            },
+            "not_required": {},
+        },
+    )
+
+    assert posture.main(["--settings", register, "--root", root]) == 1
+    assert "allow_squash_merge = True" in capsys.readouterr().err
