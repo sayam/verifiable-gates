@@ -2,3 +2,4 @@
 # One id per line, the reason after a `#` — an entry with no reason is not a judgement.
 # Held both ways by the `advisories` job: a finding not listed here is red, and an
 # entry here that no finding matches any more is red too (it excuses nothing).
+GHSA-0000-0000-0000  # planted 2026-08-30 by the re-audit: an exemption nothing matches must turn the job red
