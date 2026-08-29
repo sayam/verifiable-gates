@@ -8,6 +8,7 @@ validator only tested on broken input passes just as happily on everything.
 
 from __future__ import annotations
 
+import os
 import pathlib
 from typing import Any
 
@@ -229,3 +230,40 @@ def test_the_order_of_the_file_survives_loading(tmp_path: pathlib.Path) -> None:
         encoding="utf-8",
     )
     assert [r["id"] for r in rules.load(path)] == ["zeta", "alpha"]
+
+
+# ---------------------------------------------------------------- the surface the README shows
+
+
+def test_the_catalogue_reader_is_on_the_package_surface() -> None:
+    """`import verifiable_gates` must reach `rules` — the README shows exactly that.
+
+    It did not, until an outside audit (2026-08-29) found `__all__` holding only
+    the version; the example worked by accident of `from … import` reaching a
+    submodule. A name that is documented is a name that is exported.
+    """
+    import verifiable_gates  # noqa: PLC0415 — the point is what the bare import brings
+
+    assert "rules" in verifiable_gates.__all__
+    assert verifiable_gates.rules is rules
+
+
+def test_the_readme_example_runs_as_written(capsys: pytest.CaptureFixture[str]) -> None:
+    """The python block in the README is executed, in the checkout, and prints nothing.
+
+    Nothing, because the shipped catalogue has no problems — and the example
+    passing `package_dir` is what makes that a claim about the scripts too.
+    """
+    readme = (ROOT / "README.md").read_text(encoding="utf-8")
+    start = readme.index("```python\n") + len("```python\n")
+    block = readme[start : readme.index("```", start)]
+    assert "package_dir=" in block, "the example must check the scripts, not only the shape"
+
+    previous = pathlib.Path.cwd()
+    os.chdir(ROOT)
+    try:
+        exec(compile(block, "README.md", "exec"), {})  # noqa: S102 — the README's own code, from disk
+    finally:
+        os.chdir(previous)
+
+    assert capsys.readouterr().out == ""

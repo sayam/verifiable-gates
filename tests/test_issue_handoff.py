@@ -14,11 +14,14 @@ person who loses is the one who is not in the room.
 from __future__ import annotations
 
 import pathlib
+import shutil
 import subprocess
+from typing import Any
 
 import pytest
 
 from verifiable_gates import check_issue_handoff as handoff
+from verifiable_gates import gh
 
 CLOSING = [{"number": 171, "title": "add a thing"}]
 LABELLED = {171: {"good first issue", "docs"}}
@@ -247,15 +250,63 @@ def test_the_command_declares_a_time_budget(monkeypatch: pytest.MonkeyPatch) -> 
 
     class Done:
         stdout = "{}"
+        stderr = ""
+        returncode = 0
 
     def fake_run(argv: list[str], **kwargs: object) -> Done:
         captured["argv"] = argv
         captured.update(kwargs)
         return Done()
 
+    monkeypatch.setattr(shutil, "which", lambda _name: "/usr/bin/gh")
     monkeypatch.setattr(subprocess, "run", fake_run)
 
     assert handoff._gh("pr", "view", "9") == "{}"  # noqa: SLF001 — the point is the shipped call
-    assert captured["argv"] == ["gh", "pr", "view", "9"]
+    assert captured["argv"] == ["/usr/bin/gh", "pr", "view", "9"]
     assert captured["timeout"] == handoff.TOOL_TIMEOUT_SECONDS
-    assert captured["check"] is True, "a gh failure must raise, not be read as an empty answer"
+
+
+def test_the_copy_keeps_the_wrappers_time_budget() -> None:
+    """Two copies of one number — the test is what stops them drifting."""
+    assert handoff.TOOL_TIMEOUT_SECONDS == gh.NETWORK_TIMEOUT_SECONDS
+
+
+def test_a_machine_without_gh_says_so(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(shutil, "which", lambda _name: None)
+
+    with pytest.raises(RuntimeError, match="no gh on this machine"):
+        handoff._gh("pr", "view", "9")  # noqa: SLF001 — the shipped call is the subject
+
+
+def test_a_failure_carries_gh_s_own_message(monkeypatch: pytest.MonkeyPatch) -> None:
+    """`gh` usually says which scope is missing — summarising it away loses the fix.
+
+    The shipped copy used to raise `CalledProcessError`, which carries the
+    return code and not the words; the wrapper's contract is `PermissionError`
+    with stderr attached, and this copy now keeps it.
+    """
+
+    class Refused:
+        stdout = ""
+        stderr = "HTTP 403: Resource not accessible by integration"
+        returncode = 1
+
+    monkeypatch.setattr(shutil, "which", lambda _name: "/usr/bin/gh")
+    monkeypatch.setattr(subprocess, "run", lambda *_a, **_k: Refused())
+
+    with pytest.raises(PermissionError, match="not accessible by integration"):
+        handoff._gh("pr", "view", "9")  # noqa: SLF001 — the shipped call is the subject
+
+
+def test_a_platform_the_gate_cannot_ask_is_the_third_answer(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """Exit 2, not a traceback and not a pass — the same contract as the censuses."""
+
+    def refuse(_pr: str) -> list[dict[str, Any]]:
+        raise PermissionError("`gh pr view 9` failed: HTTP 403")
+
+    monkeypatch.setattr(handoff, "closing_issues", refuse)
+
+    assert handoff.main(["--pr", "9"]) == 2
+    assert "cannot ask the platform" in capsys.readouterr().err

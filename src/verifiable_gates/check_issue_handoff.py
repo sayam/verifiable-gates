@@ -25,6 +25,7 @@ import argparse
 import json
 import os
 import re
+import shutil
 import subprocess
 import sys
 from typing import Any
@@ -44,14 +45,29 @@ TOOL_TIMEOUT_SECONDS = 60
 
 
 def _gh(*args: str) -> str:
-    """Run `gh` and hand back stdout — a failure here is the gate's, not the PR's."""
-    return subprocess.run(  # noqa: S603 — fixed argv, no shell
-        ["gh", *args],  # noqa: S607 — gh comes from the runner's PATH by design
+    """Run `gh` and hand back stdout — a failure here is the gate's, not the PR's.
+
+    **This is a second copy of `verifiable_gates.gh.run`, on purpose.** This file
+    is shipped into a project's `tools/` and run there under a bare `python3`,
+    where the package is not importable (`tests/test_checks_are_standalone.py`
+    holds every shipped file to stdlib only). The copy carries the wrapper's
+    contract — the binary is found rather than assumed, a machine without `gh`
+    says so, a failure raises `PermissionError` with `gh`'s own words, and the
+    same time budget — and `tests/test_issue_handoff.py` holds it there.
+    """
+    binary = shutil.which("gh")
+    if not binary:
+        raise RuntimeError("no gh on this machine — this gate talks to GitHub through it")
+    done = subprocess.run(  # noqa: S603 — path from shutil.which, fixed argv, no shell
+        [binary, *args],
         capture_output=True,
         text=True,
-        check=True,
+        check=False,
         timeout=TOOL_TIMEOUT_SECONDS,
-    ).stdout
+    )
+    if done.returncode != 0:
+        raise PermissionError(f"`gh {' '.join(args)}` failed: {done.stderr.strip()}")
+    return done.stdout
 
 
 def closing_issues(pull_request: str) -> list[dict[str, Any]]:
@@ -118,12 +134,18 @@ def main(argv: list[str] | None = None) -> int:
         print("no pull request number — this gate only means anything on a pull request")
         return 0
 
-    closing = closing_issues(args.pr)
+    try:
+        closing = closing_issues(args.pr)
+        labelled = {issue["number"]: labels_of(issue["number"]) for issue in closing}
+    except (PermissionError, RuntimeError) as problem:
+        # Neither pass nor fail: the gate could not look. Exit 2, like the
+        # censuses, so a platform hiccup is never read as "no issue closed".
+        print(f"cannot ask the platform: {problem}", file=sys.stderr)
+        return 2
     if not closing:
         print("this pull request closes no issue")
         return 0
 
-    labelled = {issue["number"]: labels_of(issue["number"]) for issue in closing}
     found = problems(closing, labelled, args.body)
     if found:
         print(report(found), file=sys.stderr)
