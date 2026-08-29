@@ -8,6 +8,16 @@ Notable changes to this project. The format follows
 
 ### Fixed
 
+- **A reached ceiling is never silent.** After the wrapper started raising
+  `RuntimeError` for a hung `gh` (`[Unreleased]` above), the rerun census's
+  annotation and log readers — which return empty on purpose so one unreadable
+  job cannot kill a census — swallowed it with no trace, and
+  `own_numbers --about`, a CI step, called `gh` bare and would have ended in a
+  traceback. Both readers now print one line to stderr naming what could not
+  be read; `--about` exits 2 with the reason. The Role paragraph the three
+  censuses gained above said "a job blocks on it" of all three — only
+  `schedule_census` is run by a job; the sentence says so. Found by the
+  pre-cut review (2026-08-30).
 - **A duplicate link reference at the changelog's foot is red.** The test
   from `[Unreleased]` above read the references into a `dict`, which keeps the
   last line, while Markdown renders the first — a stray `[0.1.5]:` pointing at

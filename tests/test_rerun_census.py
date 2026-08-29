@@ -410,17 +410,19 @@ def test_a_job_with_no_check_run_has_no_message(monkeypatch: pytest.MonkeyPatch)
     assert census._annotations({}) == ""  # noqa: SLF001 — the fallback is the thing checked
 
 
-def test_annotations_that_cannot_be_read_fall_back_to_silence(
-    monkeypatch: pytest.MonkeyPatch,
+def test_annotations_that_cannot_be_read_fall_back_to_silence_but_say_so(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
 ) -> None:
-    """A census that dies on one unreadable job cannot run during an outage."""
+    """A census that dies on one unreadable job cannot run during an outage — but a ceiling
+    reached here fell to `unclassified` with no trace that it had (review, 2026-08-30)."""
 
     def refuse(path: str) -> Any:  # noqa: ANN401 — never returns
-        raise PermissionError(path)
+        raise RuntimeError(f"`gh api {path}` did not answer within 60 seconds")
 
     monkeypatch.setattr(gh, "api", refuse)
 
     assert census._annotations({"check_run_url": "check/1"}) == ""  # noqa: SLF001 — the fallback
+    assert "could not read annotations at check/1: `gh api" in capsys.readouterr().err
 
 
 def test_only_failure_annotations_become_the_message(monkeypatch: pytest.MonkeyPatch) -> None:

@@ -31,7 +31,8 @@ Three classes, not two:
   which is the mistake the first version actually made.
 
 Role: decider — it answers pass or fail with an exit code (1 when a promise the
-registry makes is broken, 2 when it cannot see), and a job blocks on it. It was
+registry makes is broken, 2 when it cannot see), and a job can block on it —
+`schedule_census` blocks ci.yml's `test` job; the other two run by hand. It was
 labelled a reader until 2026-08-30, when the re-audit read its `return 1` beside
 the label; the evidence is still that the numbers printed match the source and
 that nothing is dropped in silence.
@@ -201,7 +202,10 @@ def _annotations(job: Mapping[str, Any]) -> str:
         return ""
     try:
         rows = gh.api(f"{url}/annotations")
-    except (PermissionError, RuntimeError, json.JSONDecodeError):
+    except (PermissionError, RuntimeError, json.JSONDecodeError) as problem:
+        # Empty, never raised — but said: a ceiling reached here fell to
+        # `unclassified` with no trace that it had (review, 2026-08-30).
+        print(f"could not read annotations at {url}: {problem}", file=sys.stderr)
         return ""
     return " · ".join(
         str(row.get("message") or "")
@@ -444,7 +448,8 @@ def _job_log(job_id: object) -> str:
             ],
             timeout=LOG_TIMEOUT_SECONDS,
         )
-    except (PermissionError, RuntimeError):
+    except (PermissionError, RuntimeError) as problem:
+        print(f"could not read the log of job {job_id}: {problem}", file=sys.stderr)
         return ""
 
 

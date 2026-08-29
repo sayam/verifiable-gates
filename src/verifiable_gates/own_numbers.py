@@ -167,7 +167,13 @@ def main(argv: list[str] | None = None) -> int:
         print(f"every place inside the repository agrees ({sum(map(len, PLACES.values()))} places)")
 
     if args.about:
-        field = str(gh.api("repos/:owner/:repo").get("description") or "")
+        try:
+            field = str(gh.api("repos/:owner/:repo").get("description") or "")
+        except (PermissionError, RuntimeError) as problem:
+            # Could not look is its own answer; a traceback out of a CI step
+            # reads as the step's bug (review, 2026-08-30).
+            print(f"could not read the About field: {problem}", file=sys.stderr)
+            return 2
         outside = advertised.field_drift(field, expectations(values))
         if outside:
             print("the About field on the platform:")

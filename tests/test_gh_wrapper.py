@@ -73,7 +73,8 @@ def test_a_reached_ceiling_is_the_wrappers_error_not_a_traceback(
 ) -> None:
     """`subprocess.TimeoutExpired` is nobody's `except`: on 2026-08-30 the rerun census, run
     over this repository's 300 runs, died with a traceback when one annotations call sat
-    for 60 seconds. Every caller catches `RuntimeError`, so that is what a ceiling raises."""
+    for 60 seconds. The callers that answer "cannot see" catch `RuntimeError`, so that is
+    what a ceiling raises."""
 
     def hang(argv: list[str], **kwargs: Any) -> Done:  # noqa: ANN401 — mirroring subprocess
         raise subprocess.TimeoutExpired(argv, kwargs["timeout"])
