@@ -64,6 +64,7 @@ __all__ = [
     "MESSAGES",
     "Setting",
     "alert_problems",
+    "blind",
     "check_problems",
     "declared",
     "main",
@@ -119,6 +120,11 @@ MESSAGES = {
         "the register accepts alert {name}, and no such alert exists any more — take the line out"
     ),
     "unreadable_alerts": "cannot read the code-scanning alerts — the token lacks the scope",
+    "blind": (
+        "{name} came back empty though it is declared readable — the token cannot see it "
+        "(or the platform moved the field); should be {want!r} ({why}). A field nobody can "
+        "read is not a field that holds its value"
+    ),
 }
 
 
@@ -298,6 +304,28 @@ def platform_state(branch: str) -> tuple[dict[str, object], set[str]]:
     return state, required
 
 
+def blind(
+    state: Mapping[str, object],
+    declared: Mapping[str, Setting],
+    messages: Mapping[str, str] | None = None,
+) -> list[str]:
+    """Declared-readable switches the answer did not carry — red, by name, never "holds".
+
+    `setting_problems` skips a `None` and `unreadable` reports only the switches
+    declared unreadable, so a readable one coming back empty fell between the two
+    and read as holding its value. Found live on 2026-08-29: a switch flipped on
+    the platform, the job dispatched with a token that could not see repository
+    switches, and the report said all twelve held — the false green this whole
+    module exists to prevent, produced by the module.
+    """
+    text = _text(messages)
+    return [
+        text["blind"].format(name=name, want=setting.want, why=setting.why)
+        for name, setting in declared.items()
+        if setting.readable and state.get(name) is None
+    ]
+
+
 def _settings(register: pathlib.Path, root: pathlib.Path) -> int:
     """The settings mode: read the platform, hold it to the register, print, return the code."""
     branch, wanted, excused = declared(register)
@@ -309,6 +337,7 @@ def _settings(register: pathlib.Path, root: pathlib.Path) -> int:
     found = workflows.all_workflows(workflows.workflow_dir(root))
     lines = setting_problems(state, wanted)
     lines += unreadable(state, wanted)
+    lines += blind(state, wanted)
     lines += check_problems(
         required, check_names.pull_request_checks(found), check_names.all_checks(found), excused
     )

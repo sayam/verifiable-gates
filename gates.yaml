@@ -340,6 +340,19 @@ gates:
           `delete_branch_on_merge`, `web_commit_signoff_required`); green only
           after the platform was changed to match and `posture` was excused with
           who sees it.
+      - kind: ci-red
+        ref: pr/53
+        date: 2026-08-29
+        caught: >-
+          **A false green, produced by this gate.** With the secret in place the
+          job reported all twelve switches holding; `allow_squash_merge` was then
+          flipped on the platform and the job, dispatched again, still reported
+          all twelve holding. The token could not see the repository switches:
+          they came back `None`, `setting_problems` skips a `None`, and
+          `unreadable` reports only switches declared unreadable — a readable one
+          arriving empty fell between the two. A third reader, `blind`, now makes
+          that red by name with the value it should hold; the mutation dropping
+          it from the caller is red in the tests.
 
   - id: a-declared-schedule-is-watched
     title: The schedule census runs on every test job, over a full clone, so a silent cron is red

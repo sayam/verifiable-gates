@@ -20,6 +20,12 @@ Notable changes to this project. The format follows
   platform was changed to match the register: the four newer jobs became
   required checks, squash and merge-commit buttons went off, branches delete
   on merge, and web commits require a sign-off.
+- **A readable switch that comes back empty is red, not "holds".** The first
+  dispatch with the secret reported all twelve switches holding; a switch was
+  then flipped on the platform and the job still said so — the token could not
+  see the repository switches, and a `None` fell between `setting_problems`
+  (which skips it) and `unreadable` (which covers only switches declared
+  unreadable). `blind` reports it by name with the value it should hold.
 
 ## [0.1.2] - 2026-08-29
 
