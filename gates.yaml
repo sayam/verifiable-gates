@@ -976,6 +976,15 @@ gates:
           aloud, discarding a step's env, letting the config beat --only, reading
           jobs from one workflow file instead of all, hiding an uninstalled hook,
           and returning 0 after a step failed.
+      - kind: mutation
+        ref: pr/39
+        date: 2026-08-29
+        caught: >-
+          Three mutations red on the environment a step is lent — handing the
+          shell over whole again (a secret the step never named reached bash),
+          dropping the by-name borrowing (a step that named `$GH_TOKEN` ran
+          without it), and borrowing in silence (the name was lent but never
+          printed).
 
   - id: the-sheet-is-rendered-not-written
     title: A rule sheet is a pure function of a catalogue, a preamble and a language

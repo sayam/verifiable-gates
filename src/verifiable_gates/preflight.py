@@ -21,6 +21,16 @@ variables naming an absent service, so those tests take the skip they already
 declare, and reports the step apart from a clean pass. Start the service locally
 and it is used exactly as CI uses it.
 
+**A step is lent only what it names.** CI runs a step in a fresh runner whose
+environment holds the runner's own variables and the `env:` the workflow wrote;
+a developer's shell holds tokens for every service they have ever logged into.
+Handing a step `os.environ` whole means a `run:` line read from a workflow file
+— any workflow file `--root` points at — executes with all of them (an outside
+audit, 2026-08-29). So a step gets a fixed baseline a tool needs to run at all
+(`PATH`, `HOME`, the locale, the temp directory), the `env:` the workflow declares
+for it, and any variable its own text names (`$GH_TOKEN`) — that last set is
+printed before the step runs, so a borrowed secret is never borrowed in silence.
+
 **This file ships with the bundle**, so it must not know the name of any one
 project's jobs or workflow files. Which jobs to walk comes from `scaffold.json`
 under `preflight_jobs`, and jobs are looked up across every workflow file, since
@@ -77,6 +87,30 @@ SKIP_RUNS = (
 )
 
 EXPRESSION = re.compile(r"\$\{\{[^}]*\}\}")
+
+# What every step gets from the developer's shell: what a tool needs to start at
+# all, and nothing that identifies the developer to a service.
+BASELINE_ENV = frozenset(
+    {
+        "PATH",
+        "HOME",
+        "USER",
+        "LOGNAME",
+        "SHELL",
+        "LANG",
+        "LANGUAGE",
+        "TERM",
+        "TMPDIR",
+        "TEMP",
+        "TMP",
+        "VIRTUAL_ENV",
+        "PYTHONPATH",
+        "PYTHONDONTWRITEBYTECODE",
+    }
+)
+BASELINE_PREFIXES = ("LC_",)
+# `$NAME` or `${NAME}` in a step's text — what the step says it will read.
+NAMED_VARIABLE = re.compile(r"\$\{?([A-Za-z_][A-Za-z0-9_]*)\}?")
 
 # How long to wait for a service container's port before calling it absent. This
 # is a loopback connect to a port that is either open or refused immediately, so
@@ -250,11 +284,38 @@ def plan(
     return made
 
 
+def environment(
+    command: str, declared: dict[str, str], base: dict[str, str] | None = None
+) -> tuple[dict[str, str], list[str]]:
+    """The environment one step runs in, and which variables it borrowed by name.
+
+    Three layers, narrowest wins: the baseline every tool needs, then whatever the
+    step's own text or its `env:` values name (`$GH_TOKEN`) if the shell has it,
+    then the `env:` the workflow declares. A name the shell does not have is not
+    invented — the step sees it unset, exactly as CI would without a secret.
+    """
+    shell = os.environ if base is None else base
+    lent = {
+        key: value
+        for key, value in shell.items()
+        if key in BASELINE_ENV or key.startswith(BASELINE_PREFIXES)
+    }
+    mentioned = set(NAMED_VARIABLE.findall(command))
+    for value in declared.values():
+        mentioned.update(NAMED_VARIABLE.findall(value))
+    borrowed = sorted(
+        name for name in mentioned if name in shell and name not in lent and name not in declared
+    )
+    lent.update({name: shell[name] for name in borrowed})
+    return {**lent, **declared}, borrowed
+
+
 def execute(entries: list[dict[str, Any]], root: pathlib.Path) -> int:
     """Run the plan, printing as it goes. Returns how many steps failed.
 
     A reduced step prints what was withheld *before* it runs, so the reason is on
-    screen while the command is working rather than buried above its output.
+    screen while the command is working rather than buried above its output — and
+    a step that borrows a variable by name prints which, for the same reason.
     """
     # GitHub's runner executes a step with `bash -e {0}`, so this needs real bash —
     # not the `/bin/sh` that `shell=True` would give, since the commands in a
@@ -272,12 +333,15 @@ def execute(entries: list[dict[str, Any]], root: pathlib.Path) -> int:
             continue
         if "reduced" in entry:
             print(f"~  {head}\n   reduced: {entry['reduced']}")
-        result = subprocess.run(  # noqa: S603 — the command comes from this repo's own workflow
+        env, borrowed = environment(entry["run"], entry.get("env", {}))
+        if borrowed:
+            print(f"   lent from your shell, because the step names it: {', '.join(borrowed)}")
+        result = subprocess.run(  # noqa: S603 — the command comes from the workflow under --root
             [bash, "-e", "-c", entry["run"]],
             cwd=root,
             check=False,
             timeout=STEP_TIMEOUT_SECONDS,
-            env={**os.environ, **entry.get("env", {})},
+            env=env,
         )
         if result.returncode == 0:
             print(f"{'~~' if 'reduced' in entry else 'OK'}  {head}")

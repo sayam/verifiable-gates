@@ -62,6 +62,14 @@ Everything under this heading answers an outside zero-trust audit of `v0.1.0`
   every `script:` exists rather than only the shape of the path, and a test
   executes the README's block as written.
 
+- **preflight lends a step only what it names.** Every `run:` line read from a
+  workflow used to execute with `os.environ` whole — every token in the
+  developer's shell — which made any workflow file under `--root` a shell with
+  those tokens in it. A step now gets a fixed baseline a tool needs to start
+  (`PATH`, `HOME`, locale, temp directory), the `env:` the workflow declares for
+  it, and any variable its own text or env values name (`$GH_TOKEN`); what it
+  borrows by name is printed before it runs.
+
 ### Changed
 
 - **Intent that lived in comments is written where a reader looks.** The README
