@@ -438,7 +438,7 @@ gates:
     title: A number several documents quote is synchronised in one place, prose untouched
     kind: test
     severity: blocking
-    enforced_by: {job: test, tests: [tests/test_advertised.py]}
+    enforced_by: {job: test, tests: [tests/test_advertised.py, tests/test_own_numbers.py]}
     layer: internal
     pillar: devx
     portable: false
@@ -470,6 +470,45 @@ gates:
           skipping places that could not be found turned out to be a branch nothing
           could observe, because substituting into text that does not match is
           already no change — it was removed rather than left to look load-bearing.
+      - kind: mutation
+        ref: pr/40
+        date: 2026-08-29
+        caught: >-
+          The module had proved itself only on temporary files while this
+          repository typed its own numbers by hand — the version in four files,
+          the date in three, the rule count in two languages, the checker count as
+          a word in three places, and an About field no test had read. Now held:
+          four mutations red — a version edited in one file only, a checker count
+          left as the old word, a rule count changed in the Thai half only, and
+          the About claim rewritten wholesale instead of patched in place.
+
+  - id: the-about-field-is-read-not-remembered
+    title: The description on the hosting platform is read live and held to what the tree measures
+    kind: step
+    severity: blocking
+    enforced_by: {job: test, step: the About field says what the repository measures}
+    layer: internal
+    pillar: devx
+    portable: false
+    born_from: >-
+      A field outside the repository produces no diff, so no test ever runs on it
+      and nobody sees it age — the reference implementation got its own wrong twice
+      in one session, each time by exactly one. This repository's About carried a
+      version and a rule count that nothing read, one release away from being
+      false; the rule `contributor-docs-truthful` says a step in a runbook with no
+      test reading alongside it goes stale exactly like a number, and a release
+      checklist item "update the About box" is that step. So CI reads the field
+      every run through the `gh` wrapper with the job's own token and compares
+      each claim against the measured fact.
+    proved_by:
+      - kind: ci-red
+        ref: pr/40
+        date: 2026-08-29
+        caught: >-
+          Red on the first run against the live field, which still said
+          `v0.1.0 (2026-08-28) marks the point` with no `latest v…` claim to hold —
+          the missing claim was reported rather than passed over, and the field
+          was patched in place from the command the step runs.
 
   - id: a-check-name-is-not-a-job-id
     title: The names a repository's checks will appear under are computed, not assumed

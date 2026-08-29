@@ -46,6 +46,13 @@ jobs:
         run: pip install --no-deps -e .
       - name: pytest — the coverage floor lives in pyproject (fail_under)
         run: pytest -q --cov
+      # The About field on the platform produces no diff, so no test ever reads
+      # it — this step does, live, every run. The tree's own places are held by
+      # tests/test_own_numbers.py inside pytest above.
+      - name: the About field says what the repository measures
+        run: python -m verifiable_gates.own_numbers --about
+        env:
+          GH_TOKEN: ${{ github.token }}
 
   commit-lint:
     runs-on: ubuntu-latest
