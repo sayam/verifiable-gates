@@ -73,6 +73,15 @@ Notable changes to this project. The format follows
   green. A test now holds the two maps equal, id for id and path for path.
   Re-audit round 16 (who sees what is *removed*).
 
+- **`requirements.in` and `requirements.txt` are held to each other.** The
+  source list and its hash-pinned compilation are one list twice, and nothing
+  compared them: a name dropped from the source stayed pinned, audited and
+  installed forever, a name added was not installed until somebody ran
+  pip-compile. The re-audit dropped `interrogate` from the source and 1121
+  tests stayed green. A test now holds the packages the compiled file marks
+  `via -r requirements.in` equal to the source's names, for every `pins/*`.
+  Re-audit round 16.
+
 ### Changed
 
 - **The three censuses say what they are: deciders.** Each declared
