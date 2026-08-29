@@ -569,6 +569,14 @@ gates:
           as an empty string, discarding gh's own message so the reader lost the
           only line saying what to fix, dropping the timeout, and not stripping
           the output so every comparison downstream saw a trailing newline.
+      - kind: mutation
+        ref: pr/73
+        date: 2026-08-30
+        caught: >-
+          The `except subprocess.TimeoutExpired` removed from the wrapper and from
+          the handoff gate's copy — each test errored out with the raw exception.
+          Found live first: the rerun census over this repository's 300 runs died
+          with that traceback on one annotations call.
 
   - id: the-surface-reader-reports-its-own-saving
     title: The API-surface reader is honest about how much it saved, including when it saved nothing
@@ -732,6 +740,13 @@ gates:
           rerun really does erase one, dropping the run that never started, and
           keeping the matrix suffix on a check name so one report can say
           `dialect` failed and `dialects` never went red.
+      - kind: mutation
+        ref: pr/73
+        date: 2026-08-30
+        caught: >-
+          Through the real wrapper with `subprocess.run` hanging: the census exits 2
+          with the budget named on stderr; with the wrapper's mapping removed the
+          same test errors out with `TimeoutExpired`.
 
   - id: a-threshold-sits-against-reality-both-ways
     title: A ratchet's threshold is held to what is true today, in both directions
