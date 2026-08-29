@@ -337,6 +337,41 @@ def test_the_local_install_exemption_needs_every_target_to_be_local(
 
 
 @pytest.mark.parametrize(
+    ("command", "exit_code"),
+    [
+        # pip's global options sit before the subcommand; the release job's own
+        # line was the first of these and passed for five releases (2026-08-30).
+        ("pip --python sbom-env/bin/python install dist/*.whl", 1),
+        ("pip --python sbom-env/bin/python install --require-hashes -r pins/x.txt", 0),
+        ("pip --python sbom-env/bin/python install --no-deps ./dist/*.whl", 0),
+        ("pip -q --no-cache-dir install ruff", 1),
+        ("pip --python=.venv/bin/python install ruff", 1),
+        ("python -m pip install ruff", 1),
+        # A build backend is a tool CI installs for itself — with no `pip` on the line.
+        ("python -m build tagged --outdir dist", 1),
+        ("python3 -m build .", 1),
+        ("pyproject-build .", 1),
+        ("python -m build --no-isolation tagged --outdir dist", 0),
+        # pipx resolves from the index like pip does.
+        ("pipx install ruff", 1),
+        ("pipx run ruff check .", 1),
+        # Not an install at all.
+        ("python -m build_docs", 0),
+        ("echo pip-audit install", 0),
+    ],
+    ids=lambda value: value if isinstance(value, str) else str(value),
+)
+def test_every_shape_that_reaches_an_index_is_seen(
+    tmp_path: pathlib.Path, command: str, exit_code: int
+) -> None:
+    """A scanner that reads one spelling of `pip install` excuses every other."""
+    root = build(
+        tmp_path, {".github/workflows/ci.yml": f"jobs:\n  a:\n    steps:\n      - run: {command}\n"}
+    )
+    assert scan_install_pinning.main(root) == exit_code, command
+
+
+@pytest.mark.parametrize(
     ("ref", "exit_code"),
     [
         ("docker://alpine@sha256:" + "c" * 64, 0),

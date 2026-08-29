@@ -29,8 +29,19 @@ import pathlib
 import re
 import sys
 
-PIP_INSTALL = re.compile(r"(?:^|[\s/])pip3?\s+install\b")
+# `pip` takes global options *before* the subcommand — `pip --python <interpreter>
+# install`, `pip -q install` — and this repository's own release job used the
+# first shape on an unpinned wheel install for five releases while the scanner
+# read only `pip install` side by side (re-audit, 2026-08-30).
+PIP_INSTALL = re.compile(r"(?:^|[\s/])pip3?(?:\s+-{1,2}[\w-]+(?:=\S+|\s+[^-\s]\S*)?)*\s+install\b")
 NPM_INSTALL = re.compile(r"(?:^|[\s/])npm\s+(?:install|i|add)\b")
+# `pipx install` / `pipx run` resolve the tool from the index like `pip install`.
+PIPX_INSTALL = re.compile(r"(?:^|[\s/])pipx\s+(?:install|run)\b")
+# `python -m build` (and `pyproject-build`) creates an isolated environment and
+# `pip install`s the build backend from the index, unpinned — a tool CI installs
+# for itself, under the job's privileges, with no `pip` on the line at all.
+# `--no-isolation` makes the backend come from whatever the job already pinned.
+BUILD = re.compile(r"(?:^|[\s/])(?:python3?\s+-m\s+build|pyproject-build)\b")
 # `pip install --no-deps -e .` installs the checkout itself and resolves nothing
 # from an index, so there is no hash to pin and nothing an attacker could swap.
 # **Both halves are required.** `--no-deps requests` still reaches the index, and
@@ -123,6 +134,15 @@ def main(root: pathlib.Path) -> int:
             if NPM_INSTALL.search(line):
                 findings.append(
                     f"{path.relative_to(root)}: use npm ci instead — {line.strip()[:60]}"
+                )
+            if PIPX_INSTALL.search(line):
+                findings.append(
+                    f"{path.relative_to(root)}: pipx resolves from the index — {line.strip()[:55]}"
+                )
+            if BUILD.search(line) and "--no-isolation" not in line:
+                findings.append(
+                    f"{path.relative_to(root)}: build fetches its backend unpinned;"
+                    f" pin it and pass --no-isolation — {line.strip()[:50]}"
                 )
 
     for finding in findings:
