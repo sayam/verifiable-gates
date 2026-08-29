@@ -918,6 +918,13 @@ gates:
           added, a link pointing at the wrong tag, and `[Unreleased]` compared
           against an older release — four mutations, each red; `--write` repaired
           the compare link.
+      - kind: mutation
+        ref: pr/75
+        date: 2026-08-30
+        caught: >-
+          The DECISIONS split row edited three ways — 83 to 84, 9 to 8, 92 to 93 —
+          each red in the dogfood place check; before the row was a place, all three
+          were typed by hand beside a README that was measured.
 
   - id: the-about-field-is-read-not-remembered
     title: The description on the hosting platform is read live and held to what the tree measures
