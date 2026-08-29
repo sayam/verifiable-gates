@@ -190,8 +190,10 @@ gates:
         date: 2026-08-29
         caught: >-
           A throwaway branch planted `eval()` over request input; the analysis
-          raised the alert and the decider step went red on it with the rule
-          named. The branch was deleted, never merged.
+          raised the alert and the decider step went red with the rule named —
+          `alert CodeQL/py/code-injection (open) has not been judged`. The same
+          pull request's CodeQL step itself stayed green, which is the reason the
+          decider exists. The branch was deleted, never merged.
 
   - id: a-secret-is-stopped-on-the-way-in
     title: gitleaks scans every commit of the history on every push and pull request
@@ -214,9 +216,12 @@ gates:
         ref: pr/45
         date: 2026-08-29
         caught: >-
-          A throwaway branch committed a fake AWS access key id in a text file;
-          the job went red naming the commit and the rule, with the value
-          redacted from the log. The branch was deleted, never merged.
+          A throwaway branch first committed the documented AWS example key, and
+          the job stayed **green** — gitleaks allowlists that exact value, so the
+          probe proved nothing and is recorded here so nobody repeats it. A second
+          commit planted a token in the `ghp_` shape: red, `leaks found: 1`, with
+          neither the value nor the file printed (verbose off, redact on), 57
+          commits scanned. The branch was deleted, never merged.
 
   - id: commit-messages-are-shaped-and-signed
     title: Every commit a branch adds is a Conventional Commit and carries a DCO sign-off
