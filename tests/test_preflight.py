@@ -417,3 +417,84 @@ def test_without_bash_it_refuses_rather_than_guessing(
     entries = preflight.plan(a_workflow(lint={"steps": [{"run": "true"}]}), ("lint",), "main")
     with pytest.raises(RuntimeError, match="no bash"):
         preflight.execute(entries, tmp_path)
+
+
+# ---------------------------------------------------------------- what a step is lent
+
+SHELL = {
+    "PATH": "/usr/bin",
+    "HOME": "/home/dev",
+    "LC_ALL": "C.UTF-8",
+    "GH_TOKEN": "gho_secret",
+    "AWS_SECRET_ACCESS_KEY": "aws_secret",
+}
+
+
+def test_a_step_gets_the_baseline_and_none_of_the_shells_secrets() -> None:
+    """`os.environ` whole used to travel into every `run:` line read from a workflow.
+
+    An outside audit (2026-08-29) read that as: any workflow file under `--root`
+    is a shell with the developer's tokens in it. The baseline is what a tool
+    needs to start; a secret the step never names has no business being there.
+    """
+    env, borrowed = preflight.environment("ruff check .", {}, SHELL)
+
+    assert env == {"PATH": "/usr/bin", "HOME": "/home/dev", "LC_ALL": "C.UTF-8"}
+    assert borrowed == []
+
+
+@pytest.mark.parametrize("command", ["gh api /x --token $GH_TOKEN", "echo ${GH_TOKEN}"])
+def test_a_variable_the_step_names_is_lent_and_said_so(command: str) -> None:
+    env, borrowed = preflight.environment(command, {}, SHELL)
+
+    assert env["GH_TOKEN"] == SHELL["GH_TOKEN"]
+    assert "AWS_SECRET_ACCESS_KEY" not in env, "naming one does not open the rest"
+    assert borrowed == ["GH_TOKEN"], "a borrowed secret must be reported, never silent"
+
+
+def test_a_name_in_the_steps_env_values_counts_as_naming_it() -> None:
+    env, borrowed = preflight.environment("pytest", {"TOKEN": "$GH_TOKEN"}, SHELL)
+
+    assert env["GH_TOKEN"] == SHELL["GH_TOKEN"]
+    assert borrowed == ["GH_TOKEN"]
+
+
+def test_a_name_the_shell_does_not_have_is_not_invented() -> None:
+    """The step sees it unset, exactly as CI would without that secret."""
+    env, borrowed = preflight.environment("echo $NOT_SET", {}, SHELL)
+
+    assert "NOT_SET" not in env
+    assert borrowed == []
+
+
+def test_the_workflows_own_env_wins_and_is_not_reported_as_borrowed() -> None:
+    env, borrowed = preflight.environment("echo $HOME $GH_TOKEN", {"GH_TOKEN": "from-ci"}, SHELL)
+
+    assert env["GH_TOKEN"] == "from-ci"  # noqa: S105 — the workflow's own value, not a secret
+    assert borrowed == [], "declared env is the workflow's, not something lent"
+
+
+def test_the_shell_is_read_when_no_base_is_given(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("PREFLIGHT_PROBE_VAR", "seen")
+
+    env, _borrowed = preflight.environment("echo $PREFLIGHT_PROBE_VAR", {})
+
+    assert env["PREFLIGHT_PROBE_VAR"] == "seen"
+
+
+def test_execute_runs_a_step_in_the_narrowed_environment(
+    tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """The real bash, the real plan: a secret is absent unless the step names it."""
+    monkeypatch.setenv("PREFLIGHT_SECRET", "s3cret")
+    entries = [
+        # The first step must not *name* the variable, or it would be lent by design;
+        # it asks the environment as a whole whether anything by that prefix is there.
+        {"job": "j", "label": "unnamed", "run": "! env | grep -q ^PREFLIGHT_SEC", "env": {}},
+        {"job": "j", "label": "named", "run": 'test "$PREFLIGHT_SECRET" = s3cret', "env": {}},
+    ]
+
+    assert preflight.execute(entries, tmp_path) == 0
+    out = capsys.readouterr().out
+    assert "lent from your shell" in out
+    assert "PREFLIGHT_SECRET" in out

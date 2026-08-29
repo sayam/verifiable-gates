@@ -53,9 +53,12 @@ teaches rules it does not follow, and the answer was 2.7%.
   not a missing one. `proved_by` itself is optional for exactly one reason: the
   list of gates that have never gone red can only shrink, and a gate that has not
   yet had its defect is still a gate.
-- **`preflight --root` trusts the tree it is pointed at.** It runs the workflow's
-  `run:` steps in a local bash with the caller's environment, because that is
-  what the runner will do; point it only at a checkout you would run CI on.
+- **`preflight --root` runs the workflow's `run:` steps in a local bash**, because
+  that is what the runner will do — so point it only at a checkout you would run
+  CI on. A step is lent a fixed baseline (`PATH`, `HOME`, locale, temp), the
+  `env:` the workflow declares, and any variable its own text names; a borrowed
+  variable is printed before the step runs. Nothing else from your shell reaches
+  it.
 - **Thresholds move one way.** Coverage starts at 100 here because the repository
   started empty; lowering it is a decision someone signs, not a convenience.
 - **`layer: internal` can never be `portable: true`** — a rule tied to one
