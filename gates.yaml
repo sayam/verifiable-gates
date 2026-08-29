@@ -877,6 +877,14 @@ gates:
           four mutations red — a version edited in one file only, a checker count
           left as the old word, a rule count changed in the Thai half only, and
           the About claim rewritten wholesale instead of patched in place.
+      - kind: mutation
+        ref: pr/70
+        date: 2026-08-30
+        caught: >-
+          The changelog's foot: a release's link reference dropped, an orphan link
+          added, a link pointing at the wrong tag, and `[Unreleased]` compared
+          against an older release — four mutations, each red; `--write` repaired
+          the compare link.
 
   - id: the-about-field-is-read-not-remembered
     title: The description on the hosting platform is read live and held to what the tree measures
