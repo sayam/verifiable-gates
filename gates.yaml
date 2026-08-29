@@ -1330,6 +1330,14 @@ gates:
           put back (three `pip <option> install` lines pass again), the build-backend
           finding switched off, the pipx finding switched off, and `--no-isolation`
           ignored by the build finding.
+      - kind: mutation
+        ref: pr/81
+        date: 2026-08-30
+        caught: >-
+          The install scanner's widened regex, four ways: the minor-version
+          spellings removed, `index("install")` put back, the literal
+          `--no-isolation` test restored, and `\b` restored after `install` — each
+          red in the shapes table. Found by a review of the v0.1.5..main diff.
 
   - id: rules-we-ship-we-keep
     title: Scanners that apply to this repository are run against this repository
