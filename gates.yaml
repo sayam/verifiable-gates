@@ -1266,6 +1266,14 @@ gates:
           one. The workflow scanner restored to excusing `docker://` whole: red
           on a floating tag, a versioned tag and a 63-character digest. Restored
           byte for byte, fifteen green.
+      - kind: mutation
+        ref: pr/69
+        date: 2026-08-30
+        caught: >-
+          Four mutations of the install scanner red — the `pip install`-only regex
+          put back (three `pip <option> install` lines pass again), the build-backend
+          finding switched off, the pipx finding switched off, and `--no-isolation`
+          ignored by the build finding.
 
   - id: rules-we-ship-we-keep
     title: Scanners that apply to this repository are run against this repository
