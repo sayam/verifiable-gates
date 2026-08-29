@@ -8,6 +8,18 @@ Notable changes to this project. The format follows
 
 ### Fixed
 
+- **A proof's `ref` has a shape somebody can look up, and its `date` is a real
+  one.** The schema asked only that `ref` be non-empty and that `date` be ten
+  characters with two dashes, so `ref: trust me` and `date: 9999-99-99` passed
+  — in the field `registry.py` calls the reason a gate is distinguishable from
+  one that checks nothing. A ref is now `pr/N`, `run/N` or `commit/<sha>`,
+  with `owner/repo#` in front when the red was seen elsewhere; a date has to
+  parse as a calendar date (an unquoted one already reaches the schema as a
+  `datetime.date`, and is accepted as such). `pr/151` is written
+  `sayam/flask-todolist#pr/151`, so the one row that is not this repository's
+  says so in the row — the outside audit that found it got a 404 here with
+  nothing in the file pointing elsewhere. Found by the five-model outside
+  audit of `v0.1.0` (2026-08-29).
 - **A registry that has lost its list is refused, not read as empty.**
   `registry.load` answered `[]` for a file with no `gates` key and silently
   dropped any row that was not a mapping — so an index that had lost its list

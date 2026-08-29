@@ -11,6 +11,7 @@ registries has to pass its own schema — starting from when it is still empty.
 
 from __future__ import annotations
 
+import datetime
 import pathlib
 from typing import Any
 
@@ -199,6 +200,60 @@ def test_each_field_of_a_proof_is_checked(field: str, value: str, needle: str) -
     proof[field] = value
     found = registry.problems([a_gate(proved_by=[proof])])
     assert any(needle in problem for problem in found), f"a bad {field} was silent"
+
+
+@pytest.mark.parametrize(
+    "ref",
+    [
+        "pr/1",
+        "pr/151",
+        "run/33259458732",
+        "commit/9ff00d2c",
+        "commit/" + "9ff00d2c" * 5,
+        "sayam/flask-todolist#pr/151",
+        "org/repo.name#run/7",
+    ],
+)
+def test_a_ref_somebody_can_look_up_is_accepted(ref: str) -> None:
+    proof = {"kind": "mutation", "ref": ref, "date": "2026-08-25", "caught": "it went red"}
+    assert registry.problems([a_gate(proved_by=[proof])]) == []
+
+
+@pytest.mark.parametrize(
+    "ref",
+    [
+        "trust me",
+        "pr/",
+        "pr/0",
+        "pr/abc",
+        "PR/1",
+        "issue/1",
+        "commit/xyz",
+        "commit/9ff00d",
+        "#pr/1",
+        "sayam/#pr/1",
+        "https://github.com/sayam/verifiable-gates/pull/1",
+    ],
+)
+def test_a_ref_nobody_can_look_up_is_refused(ref: str) -> None:
+    """`ref: trust me` passed a schema that read only "non-empty" (outside audit, 2026-08-29)."""
+    proof = {"kind": "mutation", "ref": ref, "date": "2026-08-25", "caught": "it went red"}
+    found = registry.problems([a_gate(proved_by=[proof])])
+    assert any("ref" in problem and "look up" in problem for problem in found), ref
+
+
+def test_a_date_yaml_already_parsed_is_a_real_one() -> None:
+    """An unquoted `2026-08-25` reaches the schema as a `datetime.date`, not a string."""
+    proof = {"kind": "mutation", "ref": "pr/1", "date": datetime.date(2026, 8, 25), "caught": "red"}
+    assert registry.problems([a_gate(proved_by=[proof])]) == []
+
+
+@pytest.mark.parametrize("date", ["9999-99-99", "2026-02-30", "2026-13-01", "2026-8-5", "20260825"])
+def test_a_date_that_is_not_a_calendar_date_is_refused(date: str) -> None:
+    """`9999-99-99` has ten characters and two dashes; the old check asked nothing more."""
+    proof = {"kind": "mutation", "ref": "pr/1", "date": date, "caught": "it went red"}
+    found = registry.problems([a_gate(proved_by=[proof])])
+    assert any("real YYYY-MM-DD" in problem for problem in found), date
 
 
 # ---------------------------------------------------------------- dogfood

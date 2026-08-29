@@ -52,10 +52,11 @@ teaches rules it does not follow, and the answer was 2.7%.
   with its reason and the condition that expires it; a `revisit` date that has
   passed turns the suite red until the row is re-decided.
 - **`proved_by.ref` names where the red was seen, which may be the reference
-  implementation** (`pr/151` on `flask-todolist`, for an instrument that was
-  proved there before it moved here). The schema does not bind `ref` to this
-  repository, so a row that cannot be found here is a row to look up there —
-  not a missing one. `proved_by` itself is optional for exactly one reason: the
+  implementation** (`sayam/flask-todolist#pr/151`, for an instrument that was
+  proved there before it moved here). A ref is `pr/N`, `run/N` or
+  `commit/<sha>`, with `owner/repo#` in front when it is not this repository —
+  the schema holds the shape, and a real calendar date beside it, because a
+  ref nobody can look up is not evidence. `proved_by` itself is optional for exactly one reason: the
   list of gates that have never gone red can only shrink, and a gate that has not
   yet had its defect is still a gate.
 - **`preflight --root` runs the workflow's `run:` steps in a local bash**, because

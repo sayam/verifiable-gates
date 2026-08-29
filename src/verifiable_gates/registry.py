@@ -30,6 +30,7 @@ Its evidence is a planted defect per rule, in `tests/test_registry.py`.
 
 from __future__ import annotations
 
+import datetime
 import pathlib
 import re
 from typing import Any
@@ -41,6 +42,7 @@ __all__ = [
     "LAYERS",
     "PILLARS",
     "PROOF_KINDS",
+    "PROOF_REF",
     "SCHEMA_VERSION",
     "SEVERITIES",
     "load",
@@ -57,7 +59,16 @@ PROOF_KINDS = frozenset({"ci-red", "mutation"})
 
 REQUIRED = ("id", "title", "kind", "severity", "enforced_by", "layer", "pillar")
 GATE_ID = re.compile(r"^[a-z0-9]+(-[a-z0-9]+)*$")
-ISO_DATE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
+# The shape of a `proved_by.ref`: `pr/N`, `run/N` or `commit/<hex>`, optionally
+# prefixed with `owner/repo#` when the red was seen in another repository. A
+# ref is the one thing that makes a proof checkable, so its shape is closed —
+# an outside audit on 2026-08-29 wrote `ref: trust me` and `date: 9999-99-99`
+# into a row and both passed a schema that read only "non-empty" and "ten
+# characters with dashes". The repository prefix exists for the same reader:
+# a bare `pr/151` that is not here has nothing in it saying where to look.
+PROOF_REF = re.compile(
+    r"^(?:[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+#)?(?:(?:pr|run)/[1-9][0-9]*|commit/[0-9a-f]{7,40})$"
+)
 
 
 def load(path: str | pathlib.Path) -> list[dict[str, Any]]:
@@ -87,6 +98,23 @@ def load(path: str | pathlib.Path) -> list[dict[str, Any]]:
     return gates
 
 
+def _is_a_date(value: object) -> bool:
+    """A real calendar date written YYYY-MM-DD — `9999-99-99` has the shape and is not one.
+
+    PyYAML already turns an unquoted `2026-08-29` into a `datetime.date`, so a
+    date object is one that parsed; what arrives as a string did not.
+    """
+    if isinstance(value, datetime.date):
+        return True
+    if not isinstance(value, str) or len(value) != len("YYYY-MM-DD"):
+        return False
+    try:
+        datetime.date.fromisoformat(value)
+    except ValueError:
+        return False
+    return True
+
+
 def _proof_problems(where: str, proofs: Any) -> list[str]:  # noqa: ANN401 — shape is what we check
     if not isinstance(proofs, list):
         return [f"{where}: proved_by must be a list"]
@@ -98,10 +126,16 @@ def _proof_problems(where: str, proofs: Any) -> list[str]:  # noqa: ANN401 — s
             continue
         if proof.get("kind") not in PROOF_KINDS:
             found.append(f"{at} kind {proof.get('kind')!r} is not one of {sorted(PROOF_KINDS)}")
-        if not str(proof.get("ref", "")).strip():
+        ref = str(proof.get("ref", "")).strip()
+        if not ref:
             found.append(f"{at} has no ref — evidence that points nowhere is not evidence")
-        if not ISO_DATE.match(str(proof.get("date", ""))):
-            found.append(f"{at} date must be YYYY-MM-DD, got {proof.get('date')!r}")
+        elif not PROOF_REF.match(ref):
+            found.append(
+                f"{at} ref {ref!r} is not pr/N, run/N or commit/<sha>, optionally "
+                "behind owner/repo# — a ref nobody can look up is not evidence"
+            )
+        if not _is_a_date(proof.get("date")):
+            found.append(f"{at} date must be a real YYYY-MM-DD date, got {proof.get('date')!r}")
         if not str(proof.get("caught", "")).strip():
             found.append(
                 f"{at} caught is empty — evidence that does not say what it proved is unusable"
