@@ -149,6 +149,20 @@ def test_write_fixes_the_place_and_leaves_the_sentence_alone(
     assert (tmp_path / "a.md").read_text(encoding="utf-8") == "v9.9.9 shipped, and a badge\n"
 
 
+def test_an_about_field_that_cannot_be_read_is_exit_2_not_a_traceback(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """`--about` runs as a CI step; a hung or refused `gh` used to walk out as a traceback."""
+
+    def refuse(path: str) -> Any:  # noqa: ANN401 — never returns
+        raise RuntimeError(f"`gh api {path}` did not answer within 60 seconds")
+
+    monkeypatch.setattr(gh, "api", refuse)
+
+    assert own_numbers.main(["--root", str(ROOT), "--about"]) == 2
+    assert "could not read the About field: `gh api" in capsys.readouterr().err
+
+
 def test_the_about_field_that_agrees_is_said_so(
     monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
 ) -> None:
