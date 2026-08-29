@@ -75,6 +75,29 @@ bump (or a manual `git submodule update --remote` opened as a pull request).
 A consumer must never pin a commit that is not on this `main` — the extraction
 period, when both moved in one day, is the exception that has ended.
 
+## Releasing
+
+Every step below has a test or a CI step reading alongside it — the rule
+`contributor-docs-truthful` this repository publishes says a checklist item with
+none goes stale exactly like a number with none, and this repository's own About
+field was one release away from proving it (2026-08-29).
+
+1. Move the `[Unreleased]` entries in `CHANGELOG.md` under `## [x.y.z] - YYYY-MM-DD`
+   and set `__version__` in `src/verifiable_gates/__init__.py`. Those two are the
+   *sources*: the version is what the package reports, the date is the newest
+   released heading (`tests/test_own_numbers.py` holds the heading to the version).
+2. `python -m verifiable_gates.own_numbers --write` — fixes every other place that
+   quotes the version, the date, or a count (`pyproject.toml`, `CITATION.cff`,
+   `.zenodo.json`, the README in both languages), touching nothing else. The same
+   test holds every place to its fact on every run, so a place missed here is red.
+3. Open the pull request; merge it; tag `vx.y.z` on the merged commit and publish
+   the GitHub release — Zenodo reads `.zenodo.json` from it and mints the
+   version's DOI under the concept DOI already in the README.
+4. `python -m verifiable_gates.own_numbers --about --write` — patches the claims
+   in the About field on GitHub in place. CI reads that field on every run
+   (gate `the-about-field-is-read-not-remembered`), so a stale About is red on
+   the next push, not on the next audit.
+
 ## Running everything locally
 
 ```bash

@@ -70,6 +70,16 @@ Everything under this heading answers an outside zero-trust audit of `v0.1.0`
   it, and any variable its own text or env values name (`$GH_TOKEN`); what it
   borrows by name is printed before it runs.
 
+- **This repository's own advertised numbers are held to what it measures** —
+  the version in four files, the release date in three, the rule count in both
+  languages, the checker count as a word in three places, and the About field on
+  GitHub, which CI now reads live every run. `advertised` had been proved only on
+  temporary files while the tree it lives in typed these by hand — the rule
+  `contributor-docs-truthful` taught to others and not kept here.
+  `python -m verifiable_gates.own_numbers --write` fixes the tree,
+  `--about --write` patches the platform's field in place. CONTRIBUTING gains a
+  Releasing section in which every step names the test that reads it.
+
 ### Changed
 
 - **Intent that lived in comments is written where a reader looks.** The README
