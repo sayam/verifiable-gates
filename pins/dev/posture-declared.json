@@ -57,6 +57,6 @@
   },
   "not_required": {
     "release-sign": "runs only when a release is published, never on a pull request; the release page shows it, and the maintainer sees it within 1 day",
-    "posture": "runs weekly and on every push to main with the administrator's token, never on a pull request (bots' pull requests get no secrets); its run page is the record, and the maintainer sees a red within 7 days"
+    "posture": "runs weekly and on every push to main with the administrator's token, never on a pull request (bots' pull requests get no secrets); it also carries the schedule census and the DECISIONS revisit check, so those two clocks tick on the platform's cron rather than only on a push; its run page is the record, and the maintainer sees a red within 7 days"
   }
 }
