@@ -126,6 +126,15 @@ gates:
           purpose. Every other check green, `cla` red with its own words — "no
           line 'I have read and agree to CLA.md v1. — <name> <email>' in the
           pull request description" — and green once the line was added.
+      - kind: mutation
+        ref: pr/74
+        date: 2026-08-30
+        caught: >-
+          CONTRIBUTING's example line with its brackets removed, the example removed,
+          and the job's failure text without the example — three mutations, each red
+          in the test that runs the example through the job's own grep. Preceded by
+          a live red on pull request #68, which wrote the address bare.
+
   - id: preflight-and-the-harness-walk-this-repository
     title: The developer-side instruments this bundle ships are pointed at this repository
     kind: test
