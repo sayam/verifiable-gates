@@ -14,7 +14,8 @@ Notable changes to this project. The format follows
   attestation service, verifies in both directions — the real wheel accepted,
   a copy with one byte appended refused — and only then attaches the assets.
   `v0.1.0` and `v0.1.1` had shipped with neither, while the rule
-  `release-signed-and-attested` was published from the same tree.
+  `release-signed-and-attested` was published from the same tree; `v0.1.1`
+  gained its assets retroactively by a dispatch of the same workflow.
 - **SAST and secret scanning run as jobs.** `codeql` (Python and Actions,
   security-extended) ends with a decider — `python -m verifiable_gates.posture`
   gains a command line for the alert half of the posture — that refuses any open
