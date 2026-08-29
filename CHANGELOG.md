@@ -8,6 +8,10 @@ Notable changes to this project. The format follows
 
 ### Fixed
 
+- **A duplicate link reference at the changelog's foot is red.** The test
+  from `[Unreleased]` above read the references into a `dict`, which keeps the
+  last line, while Markdown renders the first — a stray `[0.1.5]:` pointing at
+  `v0.1.3` inserted before the right one passed. Found by the pre-cut review.
 - **The `cla` job's failure line prints.** The example added in 0.1.6's
   `[Unreleased]` was quoted so that `<ada@example.org>` became a shell
   redirection: the job was red for the right reason and the contributor saw
