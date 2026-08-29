@@ -312,16 +312,19 @@ def test_a_candidate_list_with_some_entrypoints_present_is_not_misconfigured(
 @pytest.mark.parametrize(
     ("command", "exit_code"),
     [
-        ("pip install --no-deps -e .", 0),
-        ("pip install --no-deps ./tools", 0),
-        ("pip install --no-deps -e .[dev]", 0),
-        ("pip install --no-deps --index-url https://mirror.example -e .", 0),
-        ("pip install --no-deps -e . && pytest -q", 0),
+        ("pip install --no-deps --no-build-isolation -e .", 0),
+        ("pip install --no-deps --no-build-isolation ./tools", 0),
+        ("pip install --no-deps --no-build-isolation -e .[dev]", 0),
+        ("pip install --no-deps --no-build-isolation --index-url https://mirror.example -e .", 0),
+        ("pip install --no-deps --no-build-isolation -e . && pytest -q", 0),
+        # Without `--no-build-isolation` pip fetches the build backend from the
+        # index, unhashed — the same fetch `python -m build` makes (2026-08-30).
+        ("pip install --no-deps -e .", 1),
         # The audit's line: both halves present, and a package fetched anyway.
-        ("pip install --no-deps requests .", 1),
-        ("pip install --no-deps . requests", 1),
-        ("pip install --no-deps -r requirements.txt .", 1),
-        ("pip install --no-deps -e . ; pip install requests", 1),
+        ("pip install --no-deps --no-build-isolation requests .", 1),
+        ("pip install --no-deps --no-build-isolation . requests", 1),
+        ("pip install --no-deps --no-build-isolation -r requirements.txt .", 1),
+        ("pip install --no-deps --no-build-isolation -e . ; pip install requests", 1),
         ("pip install --no-deps", 1),
     ],
     ids=lambda value: value if isinstance(value, str) else str(value),
@@ -343,7 +346,7 @@ def test_the_local_install_exemption_needs_every_target_to_be_local(
         # line was the first of these and passed for five releases (2026-08-30).
         ("pip --python sbom-env/bin/python install dist/*.whl", 1),
         ("pip --python sbom-env/bin/python install --require-hashes -r pins/x.txt", 0),
-        ("pip --python sbom-env/bin/python install --no-deps ./dist/*.whl", 0),
+        ("pip --python sbom-env/bin/python install --no-deps --no-build-isolation ./dist/*.whl", 0),
         ("pip -q --no-cache-dir install ruff", 1),
         ("pip --python=.venv/bin/python install ruff", 1),
         ("python -m pip install ruff", 1),
@@ -364,7 +367,7 @@ def test_the_local_install_exemption_needs_every_target_to_be_local(
         # build's documented short flag.
         ("pip3.13 install ruff", 1),
         ("python3.13 -m build .", 1),
-        ("pip --python /opt/installer/bin/python install --no-deps .", 0),
+        ("pip --python /opt/installer/bin/python install --no-deps --no-build-isolation .", 0),
         ("python -m build -n tagged --outdir dist", 0),
         ("pip " + "--x=y " * 40 + "download ruff", 0),
     ],
@@ -665,7 +668,8 @@ def test_installing_the_checkout_itself_is_not_an_index_install(
     """Found by pointing this scanner at its own repository — see tests/test_dogfood.py."""
     files = {
         ".github/workflows/ci.yml": (
-            "jobs:\n  a:\n    steps:\n      - run: pip install --no-deps -e .\n"
+            "jobs:\n  a:\n    steps:\n"
+            "      - run: pip install --no-deps --no-build-isolation -e .\n"
         )
     }
     assert scan_install_pinning.main(build(tmp_path, files)) == 0

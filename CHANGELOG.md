@@ -8,6 +8,15 @@ Notable changes to this project. The format follows
 
 ### Fixed
 
+- **Installing the checkout is exempt only without build isolation.** The
+  exemption for `pip install --no-deps -e .` said "nothing is fetched", and
+  the same release said `python -m build` fetches its backend from the index —
+  pip builds an editable install the same way, in a fresh environment, with
+  `setuptools` arriving unhashed; this repository's own four lines in three
+  workflows had it, in the jobs that hold `GH_TOKEN`. The exemption now needs
+  `--no-build-isolation` as its third half, and the four lines (and the SBOM
+  environment's wheel install, and CONTRIBUTING) carry it; the backend comes
+  from `pins/dev`. Found by the pre-cut review (2026-08-30).
 - **Four defects in the install scanner's widened regex**, found by a review
   of the `v0.1.5..main` diff before the cut (2026-08-30): the option shape
   `-{1,2}[\w-]+` parsed `--x` two ways, so a `pip` line with twenty long

@@ -59,7 +59,7 @@ jobs:
       - name: install the hash-pinned tools
         run: pip install --require-hashes -r pins/dev/requirements.txt
       - name: install this package (no dependency to resolve beyond the pinned pyyaml)
-        run: pip install --no-deps -e .
+        run: pip install --no-deps --no-build-isolation -e .
       - name: pytest — the coverage floor lives in pyproject (fail_under)
         run: pytest -q --cov
       # The About field on the platform produces no diff, so no test ever reads
@@ -89,7 +89,7 @@ jobs:
           python-version: "3.13"
       - name: install the hash-pinned tools
         run: pip install --require-hashes -r pins/dev/requirements.txt
-      - run: pip install --no-deps -e .
+      - run: pip install --no-deps --no-build-isolation -e .
       # The scanner writes; the decider decides. Its exit code is deliberately
       # not the verdict — a finding already judged must not turn the job red.
       - name: audit the pins, then hold every finding to the register both ways

@@ -5,9 +5,10 @@ it with the workflow's permissions. It has to be `--require-hashes -r <lockfile>
 On the node side it has to be `npm ci`: `npm install pkg@x` pins that one package
 and leaves the rest of the tree floating.
 
-Installing the checkout itself (`pip install --no-deps -e .`) is not an index
-install: nothing is fetched, so there is nothing to pin. That exemption needs both
-halves, and there is a test for each of them — see `_installs_from_an_index`.
+Installing the checkout itself (`pip install --no-deps --no-build-isolation -e .`)
+is not an index install: nothing is fetched, so there is nothing to pin. That
+exemption needs all three halves, and there is a test for each of them — see
+`_installs_from_an_index`.
 
 Comments are stripped before checking — these files like to explain themselves by
 quoting the very command they are telling you not to use.
@@ -100,9 +101,17 @@ def _targets(command: str) -> list[str]:
 
 
 def _installs_from_an_index(command: str) -> bool:
+    # Three halves now: `--no-deps` for the tree, every target local, and
+    # `--no-build-isolation` — without it pip builds the checkout in a fresh
+    # environment and fetches the build backend from the index, unhashed, which
+    # is the same fetch `python -m build` makes (review of 2026-08-30; this
+    # repository's own four `pip install --no-deps -e .` lines had it).
     targets = _targets(command)
     return not (
-        "--no-deps" in command and targets and all(LOCAL_TARGET.match(target) for target in targets)
+        "--no-deps" in command
+        and "--no-build-isolation" in command
+        and targets
+        and all(LOCAL_TARGET.match(target) for target in targets)
     )
 
 

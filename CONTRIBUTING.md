@@ -150,7 +150,7 @@ walks `lint` and `test` as CI would, and `python -m verifiable_gates.harness
 ```bash
 python -m venv .venv && . .venv/bin/activate
 pip install --require-hashes -r pins/dev/requirements.txt
-pip install --no-deps -e .
+pip install --no-deps --no-build-isolation -e .
 ruff check . && ruff format --check . && mypy src tests && pytest -q --cov
 ```
 
