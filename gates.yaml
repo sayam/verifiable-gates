@@ -91,6 +91,23 @@ gates:
           against the module's own contract; a workflow that dropped `PR_BODY`
           went red before it could let a silent take-back through.
 
+  - id: the-cla-line-is-checked-on-our-own-pull-requests
+    title: A pull request's acceptance of CLA.md is read by a job, not only asked for
+    kind: job
+    severity: blocking
+    enforced_by: {job: cla}
+    layer: internal
+    pillar: manageability
+    portable: false
+    born_from: >-
+      CONTRIBUTING asked every pull request for `I have read and agree to
+      CLA.md v1. — <name> <email>` from the first one, and nothing read the
+      line: it was a step a person did, or forgot, and the history could not
+      say which. A five-model outside audit of v0.1.0 (2026-08-29) listed the
+      promise among this repository's rules with no enforcer behind it — the
+      same shape as the deciders that were shipped and never pointed at home.
+      The job reads the description with the sign-off's own name-and-address
+      shape; Dependabot is skipped, since a bump carries no copyright.
   - id: preflight-and-the-harness-walk-this-repository
     title: The developer-side instruments this bundle ships are pointed at this repository
     kind: test

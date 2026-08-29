@@ -10,12 +10,13 @@ from __future__ import annotations
 
 import json
 import pathlib
-from typing import TYPE_CHECKING
+import shutil
+import subprocess
+
+import pytest
+import yaml
 
 from verifiable_gates import check_issue_handoff, harness, preflight
-
-if TYPE_CHECKING:
-    import pytest
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 
@@ -98,6 +99,39 @@ def test_the_handoff_job_reads_what_the_module_reads() -> None:
     assert set(step["env"]) == {"GH_TOKEN", "PR_NUMBER", "PR_BODY"}
     assert "PR_NUMBER" in pathlib.Path(check_issue_handoff.__file__).read_text(encoding="utf-8")
     assert "if: github.event_name == 'pull_request'" in ci, "the gate means nothing off a PR"
+
+
+@pytest.mark.parametrize(
+    ("body", "accepted"),
+    [
+        ("Some prose.\n\nI have read and agree to CLA.md v1. — A Person <a@b.co>\n", 1),
+        ("I have read and agree to CLA.md v1. — A Person <a@b.co>   ", 1),
+        ("I have read and agree to CLA.md v1. —  <@>", 0),
+        ("I have read and agree to CLA.md v1. — A Person", 0),
+        ("I have read and agree to CLA.md v2. — A Person <a@b.co>", 0),
+        ("I agree to the CLA — A Person <a@b.co>", 0),
+        ("", 0),
+    ],
+)
+def test_the_cla_job_reads_the_line_contributing_asks_for(body: str, accepted: int) -> None:
+    """The job's own regex, run by bash, on the shapes a description can take.
+
+    An empty name or address is refused for the sign-off's reason: an acceptance
+    nobody can follow up on binds nobody.
+    """
+    jobs = yaml.safe_load((ROOT / ".github" / "workflows" / "ci.yml").read_text(encoding="utf-8"))
+    job = jobs["jobs"]["cla"]
+    assert "pull_request" in job["if"]
+    assert "dependabot" in job["if"]
+    block = str(next(step["run"] for step in job["steps"] if "run" in step))
+    definition = next(line for line in block.splitlines() if line.startswith("CLA="))
+    bash = shutil.which("bash")
+    assert bash, "the CI block is written for bash"
+    script = f'{definition}\nprintf \'%s\\n\' "$1" | grep -qE "$CLA"'
+    shell = subprocess.run(  # noqa: S603 — the script is this repository's own CI block
+        [bash, "-c", script, "_", body], check=False
+    )
+    assert (shell.returncode == 0) == bool(accepted), body
 
 
 def test_the_advisories_job_lets_the_decider_decide() -> None:

@@ -21,7 +21,10 @@ import pathlib
 import re
 import sys
 
-USES = re.compile(r"^\s*-?\s*uses:\s*(\S+)", re.MULTILINE)
+# The value may be quoted — YAML allows it and people do it — and the quotes are
+# not part of the action: a pinned `uses: "actions/checkout@<sha>"` was reported
+# as unpinned because the closing quote sat where the digit had to be.
+USES = re.compile(r"""^\s*-?\s*uses:\s*["']?([^\s"']+)""", re.MULTILINE)
 PINNED = re.compile(r"@[0-9a-f]{40}$")
 # A `docker://` step runs an image with the job's permissions, and a tag can be
 # re-pointed exactly as an action tag can — so it is held to a digest, not
