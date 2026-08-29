@@ -1,0 +1,31 @@
+# Decisions — including what was deliberately not done
+
+The practice this repository publishes as SKILL.md item 4: *every significant
+decision has a record, including what was deliberately cut, and the condition
+that would make the decision expire.* An outside audit on 2026-08-29 read several
+of this repository's deliberate choices as gaps, because the reasons lived in
+comments and commit messages — places an outside reader does not look. This file
+is where they live now, and `tests/test_decisions.py` holds its shape: every row
+has a reason and an expiry condition, ids are unique, and a row whose `revisit`
+date has passed turns the suite red until somebody re-decides it.
+
+Columns: **id** · **decided** (date) · **decision** · **why** · **expires when**
+(the observable condition; the row is deleted or rewritten when it holds) ·
+**revisit** (optional date on which the suite refuses to go on without a
+re-decision).
+
+| id | decided | decision | why | expires when | revisit |
+|---|---|---|---|---|---|
+| rules-vs-bundle | 2026-08-25 | 92 rules are published; the bundle decides 9 of them. The other 83 are sheets an agent is held to by reading. | A rule and its enforcement have separate lifetimes; a bundle that enforced only what it could would publish nothing about the rest. | A checker exists for a rule without `script:` — then that rule gets one and the count in the README moves. | |
+| proved-by-optional | 2026-08-25 | `proved_by` stays optional in the registry schema. | A gate that has not yet met its defect is still a gate; refusing it in the schema would push gates into an unregistered limbo. | The list in `tests/test_gate_evidence.py` is the ratchet instead; if it ever grows past zero for more than one release, revisit making the field required. | |
+| ref-crosses-repos | 2026-08-26 | A `proved_by.ref` may name a pull request in the reference implementation (`pr/151` on `flask-todolist`). | The instrument was proved there before it moved here; rewriting the proof would be inventing evidence. | The reference implementation archives or deletes that pull request — then the row needs a copy of the evidence here. | |
+| freeze-tag-vs-release | 2026-08-28 | `evidence-freeze-1` and `v0.1.0` are different commits. | The freeze is the state the measurements were taken on; the release is the state the package first shipped in. | Never — both are archived under their own DOIs. | |
+| strict-checks-off | 2026-08-28 | `required_status_checks.strict` is off on `main`. | Linear history is required, so a branch is rebased before it merges anyway; a strict flag adds a second "Update branch" click that the rebase already implies. | A merge lands from a branch that was not up to date and breaks `main` — measured, not feared. | |
+| pip-uppercase-not-a-gap | 2026-08-29 | `scan_install_pinning` still reads lowercase `pip` only, and `--require-hashes` without `-r` still passes it. | The audit planted `PIP install` and `--require-hashes ruff`; both fail on their own — no `PIP` binary on a runner, and pip refuses `--require-hashes` with no hashes. A scanner that repeats what the tool already refuses adds a rule without adding a catch. | A runner or a pip release accepts either form silently. | |
+| xenon-floor-at-reality | 2026-08-29 | Complexity floors are C (block) / C (module) / B (average), not A. | Set where reality stood when the tool arrived: A was red on 23 blocks and 17 modules. A floor above reality is a red nobody reads. Ratchet: move up only. | Every block ranks B or better — then the floor moves to B in the same change. | 2026-11-30 |
+| interrogate-at-84 | 2026-08-29 | Docstring coverage floor is 84%, with the default counting (private functions and `__init__` included), tests excluded. | Same reason as the complexity floor; and changing what the instrument counts to make the number look better is the drift `ratchets-do-not-drift-below-reality` warns about. | Coverage reaches 90 — then the floor moves in the same change. | 2026-11-30 |
+| gitleaks-binary-not-action | 2026-08-29 | `secret-scan` runs the gitleaks release binary, checksum-verified, not `gitleaks/gitleaks-action`. | The action carries a commercial end-user licence; the binary is MIT. A licence obligation in CI is the kind of thing `licensing-no-copyleft` exists to notice. | The action's licence becomes permissive, or the binary's stops being. | |
+| sbom-from-a-clean-env | 2026-08-29 | The release SBOM is `cyclonedx-py environment` over a clean venv holding only the built wheel — not syft over the wheel. | syft read the wheel as zero components; the environment lists the package and its one runtime dependency, which is what a downloader asks. | syft, or a successor, reads a wheel's own metadata — then a single tool could cover both the SBOM and the image case. | |
+| posture-settings-need-a-pat | 2026-08-29 | Branch-protection posture is not decided in CI; only the alert half of `posture` runs there. | Reading branch protection needs an administrator's token, which the job token is not; a PAT in a secret is a decision about custody, not a workflow step. | A PAT with `administration:read` is stored as a secret with a rotation date — then a scheduled job runs the settings half and the schedule census watches it. | 2026-10-31 |
+| harness-dogfood-one-gate | 2026-08-29 | The dogfood suite runs one gate through the harness, not the registry. | The harness runs pytest; running every gate from inside pytest would run the suite inside the suite. One gate proves the loop closes on this tree. | The harness learns to run outside pytest (a subprocess with its own report) — then the dogfood can walk the whole registry. | |
+| about-field-under-350 | 2026-08-29 | The GitHub About field carries `latest vX.Y.Z` and the rule count, and is patched in place, never rebuilt. | The platform caps the field at 350 characters; a patch only changes digits, so a field that fits keeps fitting; rebuilding would delete the prose. | The platform raises the cap, or the field needs a claim that is not a number. | |

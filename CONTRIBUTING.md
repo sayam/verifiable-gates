@@ -46,6 +46,11 @@ teaches rules it does not follow, and the answer was 2.7%.
   the behaviour it names is not a weak test — it is not a test.
 - **A gate only enters `gates.yaml` when the thing that enforces it exists.**
   A registry row with nothing behind it is exactly what this project is against.
+- **A gate arrives with `proved_by`.** The names allowed to lack it are the list
+  in `tests/test_gate_evidence.py` — empty since 2026-08-29 and shrink-only.
+- **A deliberate "we do not do this" goes in [`DECISIONS.md`](DECISIONS.md)**
+  with its reason and the condition that expires it; a `revisit` date that has
+  passed turns the suite red until the row is re-decided.
 - **`proved_by.ref` names where the red was seen, which may be the reference
   implementation** (`pr/151` on `flask-todolist`, for an instrument that was
   proved there before it moved here). The schema does not bind `ref` to this

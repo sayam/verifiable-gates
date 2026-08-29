@@ -256,6 +256,59 @@ gates:
           SBOM), and the tampered copy refused there too. The SBOM lists
           `verifiable-gates@0.1.1` and `PyYAML@6.0.3` and nothing else.
 
+  - id: the-list-of-unproved-gates-only-shrinks
+    title: Every gate carries `proved_by`, and the names allowed to lack it are a list that only shrinks
+    kind: test
+    severity: blocking
+    enforced_by: {job: test, tests: [tests/test_gate_evidence.py]}
+    layer: internal
+    pillar: devx
+    portable: false
+    born_from: >-
+      `gates-carry-red-evidence` is published from here and says the list of
+      gates without evidence can only shrink — and this repository had no such
+      list. The schema keeps `proved_by` optional on purpose, which left nothing
+      between "one gate without evidence" and "two": an outside audit on
+      2026-08-29 found the one, and nothing would have noticed the second. The
+      list reached zero the same day and is enforced from there: both
+      directions, so a stale name is as red as a missing one, and a ceiling of
+      zero that a commit has to raise on purpose.
+    proved_by:
+      - kind: mutation
+        ref: pr/50
+        date: 2026-08-29
+        caught: >-
+          A gate with its `proved_by` removed went red by name; a name added to
+          the list without a gate to match went red; a proof row with its
+          `caught` emptied went red.
+
+  - id: a-deliberate-non-decision-has-a-record-and-an-expiry
+    title: DECISIONS.md holds every deliberate choice with its reason and the condition that expires it
+    kind: test
+    severity: blocking
+    enforced_by: {job: test, tests: [tests/test_decisions.py]}
+    layer: internal
+    pillar: devx
+    portable: false
+    born_from: >-
+      The fourth practice on the sheet this repository publishes is that every
+      significant decision has a record, including what was deliberately cut and
+      the condition that would make the decision expire. An outside audit on
+      2026-08-29 read at least eight of this repository's deliberate choices as
+      gaps, because the reasons lived in comments, commit messages and a
+      changelog — places an outside reader does not look, and places nothing
+      expires. The record is a table with a shape a test can hold, and one
+      mechanical expiry: a revisit date that, once passed, keeps the suite red
+      until somebody re-decides.
+    proved_by:
+      - kind: mutation
+        ref: pr/50
+        date: 2026-08-29
+        caught: >-
+          A row with its `why` emptied went red by id; a duplicated id went red;
+          a revisit date set to yesterday went red naming the decision; a column
+          renamed in the header went red.
+
   - id: commit-messages-are-shaped-and-signed
     title: Every commit a branch adds is a Conventional Commit and carries a DCO sign-off
     kind: test
