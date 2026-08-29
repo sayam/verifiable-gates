@@ -6,6 +6,11 @@ Notable changes to this project. The format follows
 
 ## [Unreleased]
 
+## [0.1.5] - 2026-08-29
+
+One test: the last item the five-model outside audit left open, the list of
+required checks in CONTRIBUTING, is derived and held rather than written.
+
 ### Added
 
 - **CONTRIBUTING's list of required checks is held to the register.** The

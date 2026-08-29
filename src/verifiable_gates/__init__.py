@@ -18,4 +18,4 @@ from verifiable_gates import registry, rules
 # on its own. An outside audit (2026-08-29) read that as an example that lies.
 __all__ = ["__version__", "registry", "rules"]
 
-__version__ = "0.1.4"
+__version__ = "0.1.5"
