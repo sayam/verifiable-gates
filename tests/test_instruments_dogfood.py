@@ -10,10 +10,12 @@ from __future__ import annotations
 
 import json
 import pathlib
-
-import pytest
+from typing import TYPE_CHECKING
 
 from verifiable_gates import check_issue_handoff, harness, preflight
+
+if TYPE_CHECKING:
+    import pytest
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 
@@ -89,6 +91,10 @@ def test_the_handoff_job_reads_what_the_module_reads() -> None:
     jobs = preflight.jobs_on_disk(ROOT)
     step = next(s for s in jobs["handoff"]["steps"] if "check_issue_handoff" in str(s.get("run")))
 
+    # Run as the shipped file under a bare python3 — the way a consumer runs it.
+    # `python -m verifiable_gates.…` would import the package, whose `__init__`
+    # needs pyyaml, and the first live run went red on exactly that.
+    assert step["run"].strip() == "python3 src/verifiable_gates/check_issue_handoff.py"
     assert set(step["env"]) == {"GH_TOKEN", "PR_NUMBER", "PR_BODY"}
     assert "PR_NUMBER" in pathlib.Path(check_issue_handoff.__file__).read_text(encoding="utf-8")
     assert "if: github.event_name == 'pull_request'" in ci, "the gate means nothing off a PR"
