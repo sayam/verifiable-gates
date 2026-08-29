@@ -17,6 +17,9 @@ than an old one.
 names but the bundle does not have makes the install **fail loudly** rather than
 land half-complete — the success condition being that deleting one file from the
 bundle turns the installer red, not quiet.
+
+Role: generator — it copies files that are committed in a consumer's tree. Its
+evidence is that what arrives equals the manifest and the doctor reads it back.
 """
 
 from __future__ import annotations

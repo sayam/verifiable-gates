@@ -5,6 +5,10 @@ from the framework, or importing a user-session module, means the logic knows ab
 HTTP. (`current_app` is allowed — it is bound to the application, not to a request.)
 
 exit 0 = clean or no such directory (N/A) · 1 = findings · 2 = called wrongly
+
+Role: decider — it answers pass or fail with an exit code, and it ships as a
+standalone file; its evidence is a planted violation and a clean tree in
+`tests/test_checks_behaviour.py`.
 """
 
 from __future__ import annotations

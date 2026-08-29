@@ -108,6 +108,18 @@ advisory you cannot act on goes there with a reason, not into a silenced job.
 walks `lint` and `test` as CI would, and `python -m verifiable_gates.harness
 --only <gate-id>` runs one gate and answers in something a loop can read.
 
+## Ceilings and floors this repository keeps on itself
+
+- `SKILL.md` and `SKILL-BUSINESS.md` are read in full by an agent every session,
+  so each has a declared line ceiling in `tests/test_sheets.py` — two-way: the
+  sheet may not pass it, and it may not sit more than 40 lines above the sheet.
+  Raise it only in the change that adds the content.
+- `lint` also runs `xenon` (complexity) and `interrogate` (docstring coverage)
+  at floors set where reality stood when they arrived. They move up only.
+- Every module declares a `Role:` (decider · generator · reader · helper) in
+  its docstring; `tests/test_roles.py` holds it.
+- Vulnerabilities: see [`SECURITY.md`](SECURITY.md).
+
 ## Running everything locally
 
 ```bash

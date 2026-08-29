@@ -8,3 +8,5 @@ pytest-cov
 pyyaml
 types-PyYAML
 pip-audit
+xenon
+interrogate

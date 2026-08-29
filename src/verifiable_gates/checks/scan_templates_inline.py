@@ -5,6 +5,10 @@ there is no server-side error to notice. So the check has to read the files rath
 than wait for a symptom.
 
 exit 0 = clean or N/A · 1 = findings · 2 = called wrongly
+
+Role: decider — it answers pass or fail with an exit code, and it ships as a
+standalone file; its evidence is a planted violation and a clean tree in
+`tests/test_checks_behaviour.py`.
 """
 
 from __future__ import annotations

@@ -31,6 +31,9 @@ Three invariants are enforced here rather than left to a reader:
 
 `problems()` returns a list rather than raising, because every caller wants to see
 all of them at once instead of the first one and a stop.
+
+Role: decider — it answers whether a catalogue is well-formed and its claims
+resolvable. Its evidence is a planted defect per rule in `tests/test_rules_catalogue.py`.
 """
 
 from __future__ import annotations

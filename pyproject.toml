@@ -93,6 +93,14 @@ ignore = [
     "PLR2004",  # a bare number in a test is the expected value, clearer than a name
 ]
 
+# ---------------------------------------------------------------- interrogate
+[tool.interrogate]
+# Docstring coverage over the package. **The floor is where reality was when the
+# tool arrived (84.0% on 2026-08-29), not an aspiration** — like every ratchet
+# here it moves up only, and a floor set above reality is a red nobody reads.
+fail-under = 84
+exclude = ["tests"]
+
 # ---------------------------------------------------------------- mypy
 [tool.mypy]
 python_version = "3.11"

@@ -21,6 +21,9 @@ the reference implementation:
 
 Rendering is a pure function of those, so the same inputs produce the same bytes and
 a project can hold its committed file against a fresh render.
+
+Role: generator — the evidence is that the committed sheet equals the render,
+held on every run by `tests/test_sheets.py`.
 """
 
 from __future__ import annotations

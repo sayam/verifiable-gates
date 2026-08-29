@@ -60,3 +60,32 @@ def test_a_sheet_says_it_is_generated(sheet: str) -> None:
     head = (ROOT / sheet).read_text(encoding="utf-8")[:1200]
     assert "generated" in head.lower()
     assert "do not edit" in head.lower()
+
+
+# ---------------------------------------------------------------- the ceiling
+
+# A sheet is read in full by an agent every session, so its size is a cost paid
+# over and over. The ceiling is a two-way ratchet: the sheet may not exceed it,
+# and the ceiling may not float more than SLACK lines above the sheet — on the
+# day content moves out, the ceiling comes down with it. Raise a number here only
+# in the same change that adds the content, and say why in the commit.
+CEILING_LINES = {"SKILL.md": 700, "SKILL-BUSINESS.md": 150}
+SLACK = 40
+
+
+@pytest.mark.parametrize("sheet", sorted(CEILING_LINES))
+def test_a_sheet_sits_under_its_declared_ceiling_and_the_ceiling_sits_on_the_sheet(
+    sheet: str,
+) -> None:
+    lines = len((ROOT / sheet).read_text(encoding="utf-8").splitlines())
+    ceiling = CEILING_LINES[sheet]
+
+    assert lines <= ceiling, f"{sheet} is {lines} lines, over its ceiling of {ceiling}"
+    assert ceiling - lines <= SLACK, (
+        f"{sheet} is {lines} lines but the ceiling is {ceiling} — bring it down; "
+        f"space left above reality is space that gets filled unseen"
+    )
+
+
+def test_every_sheet_has_a_ceiling() -> None:
+    assert {sheet for sheet, _p, _l in SHEETS} == set(CEILING_LINES)

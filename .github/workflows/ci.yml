@@ -28,9 +28,20 @@ jobs:
           python-version: "3.13"
       - name: install the hash-pinned tools
         run: pip install --require-hashes -r pins/dev/requirements.txt
+      # Every step carries `!cancelled()`: the first red must not hide the ones
+      # after it (the rule's own incident — xenon red once masked a mypy failure).
       - run: ruff check .
       - run: ruff format --check .
+        if: ${{ !cancelled() }}
       - run: mypy src tests
+        if: ${{ !cancelled() }}
+      # Complexity and docstring coverage — ratchets set where reality was on
+      # 2026-08-29 (worst block C, worst module C, average B; docstrings 84%),
+      # because a floor above reality is a red nobody reads. Move up only.
+      - run: xenon --max-absolute C --max-modules C --max-average B src
+        if: ${{ !cancelled() }}
+      - run: interrogate src
+        if: ${{ !cancelled() }}
 
   test:
     runs-on: ubuntu-latest

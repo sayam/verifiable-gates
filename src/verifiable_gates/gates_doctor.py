@@ -22,6 +22,9 @@ cannot decide must not look like one it decided. `NA` is reported separately fro
 `pass` for the same reason: a scan with nothing to look at has not agreed with you.
 
 exit 0 = clean · 1 = findings, or an incomplete install · 2 = called wrongly
+
+Role: reader — it reports where a project stands. Its evidence is that each
+scanner's own tests decide the verdicts it relays, and that NA is never a pass.
 """
 
 from __future__ import annotations

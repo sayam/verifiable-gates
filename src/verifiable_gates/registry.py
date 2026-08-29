@@ -23,6 +23,9 @@ in the reference implementation:
 
 `problems()` returns a *list of problems* rather than raising, because every
 caller wants to see all of them at once instead of the first one and a stop.
+
+Role: decider — it answers whether a registry has a shape a machine can read.
+Its evidence is a planted defect per rule, in `tests/test_registry.py`.
 """
 
 from __future__ import annotations

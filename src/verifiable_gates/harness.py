@@ -14,6 +14,9 @@ anyway.
 The `hint` on a failure is the gate's `born_from`: the trap that produced the
 rule. A loop that knows only *what* broke will satisfy the letter of a check; one
 that knows *what the rule was protecting* has a chance of fixing the cause.
+
+Role: reader — it runs gates and reports their answers machine-readably. It
+decides nothing itself; the gates it runs do.
 """
 
 from __future__ import annotations

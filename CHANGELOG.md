@@ -98,6 +98,14 @@ Everything under this heading answers an outside zero-trust audit of `v0.1.0`
   `test` for `preflight`, and the dogfood suite walks preflight's plan and one
   gate through the harness on this tree. Three new gates record it.
 
+- **Four more published rules are kept at home.** `SECURITY.md` (one set of
+  timeframes, no address, private vulnerability reporting switched on and
+  named); a `Role:` line in every module, held by a test — ten had none; a
+  declared, two-way line ceiling on each rule sheet; and `xenon` + `interrogate`
+  in the `lint` battery at floors set where reality stood (complexity C/C/B,
+  docstrings 84%), every step carrying `!cancelled()` so the first red does not
+  hide the next.
+
 ### Changed
 
 - **Intent that lived in comments is written where a reader looks.** The README
