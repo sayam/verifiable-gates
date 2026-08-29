@@ -37,14 +37,13 @@ from __future__ import annotations
 import argparse
 import collections
 import datetime
-import json
 import pathlib
 import sys
 from typing import Any
 
 import yaml
 
-from verifiable_gates import gh, workflows
+from verifiable_gates import gh, history, workflows
 
 __all__ = ["longest_red_hours", "main", "problems", "promised_days"]
 
@@ -148,11 +147,18 @@ def main(argv: list[str] | None = None) -> int:
     root = pathlib.Path(args.root)
     registry = pathlib.Path(args.registry) if args.registry else root / "gates.yaml"
 
+    promised = promised_days(registry, workflows.workflow_dir(root))
+    if not promised:
+        # Nothing to hold to anything: no gate declares a watcher. Said out loud,
+        # because a green that means "nothing was measured" must read as such.
+        print("no gate declares a `watched_by` promise — there is nothing to measure")
+        return 0
+
     try:
-        runs = (
-            json.loads(pathlib.Path(args.input).read_text(encoding="utf-8"))
-            if args.input
-            else _fetch(args.limit)
+        # A promise exists, so an empty history is not an answer — it is the
+        # census being unable to see, and that must not round to "kept".
+        runs = history.read(
+            args.input, lambda: _fetch(args.limit), shape=list, must_hold_something=True
         )
     except (PermissionError, RuntimeError) as problem:
         print(
@@ -165,7 +171,6 @@ def main(argv: list[str] | None = None) -> int:
         return 2
 
     measured = longest_red_hours(runs)
-    promised = promised_days(registry, workflows.workflow_dir(root))
     for path, hours in sorted(measured.items()):
         bound = promised.get(path)
         note = f"promised {bound} days" if bound else "no gate declares a watcher (it blocks)"

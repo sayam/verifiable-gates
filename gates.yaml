@@ -226,6 +226,39 @@ gates:
           shortest so the fast schedule could go quiet unseen, and asking the
           platform for runs of every event rather than scheduled ones.
 
+  - id: a-census-over-nothing-counts-nothing
+    title: A run history the censuses cannot see is the third answer, never a pass
+    kind: test
+    severity: blocking
+    enforced_by: {job: test, tests: [tests/test_history.py]}
+    layer: internal
+    pillar: manageability
+    portable: false
+    born_from: >-
+      Three censuses read the same run history through three private copies of
+      the same code, and each copy caught a different set of failures. An outside
+      zero-trust audit of `v0.1.0` (2026-08-29) fed them what the copies did not
+      catch: a file that was not there was a traceback, malformed JSON was a
+      traceback, and a valid file holding nothing was a **pass** — "every promise
+      holds (0 watched)", "examined 0 runs" — from two instruments whose own
+      docstrings say that a measurement which goes quiet when it cannot see
+      reports every promise as kept on the day it can see nothing. The exit-2
+      path existed; it was reachable only through the exceptions somebody had
+      thought of. So there is one reader now, and everything that stops a census
+      from seeing — unreadable, malformed, the wrong shape, or empty while there
+      is something to measure — comes out of it as the same answer.
+    proved_by:
+      - kind: mutation
+        ref: pr/37
+        date: 2026-08-29
+        caught: >-
+          Four mutations red — letting an empty history through again (three
+          tests, across the reader and both censuses that must close on it),
+          skipping the shape check so an object passed for a list, narrowing the
+          caught file error back to a traceback, and making the red-streak census
+          demand runs even when no gate declares a watcher, where the honest
+          answer is "nothing to measure" and not "cannot see".
+
   - id: watcher-promises-are-measured-against-reality
     title: A declared `within_days` is measured, not merely checked for shape
     kind: test

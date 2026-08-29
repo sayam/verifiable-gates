@@ -33,6 +33,17 @@ Everything under this heading answers an outside zero-trust audit of `v0.1.0`
 - **`.gate-rounds.jsonl` is in `.gitignore`**, as the harness had said it should
   be since the file was named; a test now holds the two together.
 
+- **A census over nothing counts nothing.** `red_streak_census` and
+  `rerun_census` fed a valid, empty run history reported a pass — "every promise
+  holds (0 watched)", "examined 0 runs" — while a file that was not there or was
+  not JSON was a traceback; the exit-2 path each carried was reachable only
+  through the exceptions somebody had thought of. One reader (`history.read`)
+  now serves all three censuses: unreadable, malformed, the wrong shape, or
+  empty while a promise exists all come out as exit 2, the third answer. The
+  red-streak census says "nothing to measure" and exits 0 only when no gate
+  declares a watcher; the schedule census keeps `{}` as a real answer, since it
+  already closes on it.
+
 ### Changed
 
 - **Intent that lived in comments is written where a reader looks.** The README

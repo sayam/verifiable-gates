@@ -46,7 +46,7 @@ from typing import TYPE_CHECKING, Any
 
 import yaml
 
-from verifiable_gates import gh, workflows
+from verifiable_gates import gh, history, workflows
 
 if TYPE_CHECKING:
     from collections.abc import Mapping
@@ -540,10 +540,12 @@ def main(argv: list[str] | None = None, *, messages: Mapping[str, str] | None = 
     registry = pathlib.Path(args.registry) if args.registry else root / "gates.yaml"
 
     try:
-        records = (
-            json.loads(pathlib.Path(args.input).read_text(encoding="utf-8"))
-            if args.input
-            else collect(args.limit, messages=messages)
+        # Zero runs is not a clean window — it is a window nobody looked through.
+        records = history.read(
+            args.input,
+            lambda: collect(args.limit, messages=messages),
+            shape=list,
+            must_hold_something=True,
         )
     except (PermissionError, RuntimeError) as problem:
         print(text["cannot_read"].format(problem=problem), file=sys.stderr)

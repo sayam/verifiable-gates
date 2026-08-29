@@ -18,7 +18,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any
 
-import pytest  # noqa: TC002 — fixtures come from it at run time
+import pytest
 
 from verifiable_gates import gh
 from verifiable_gates import red_streak_census as census
@@ -236,6 +236,9 @@ def test_an_unreadable_history_is_its_own_answer(
 ) -> None:
     """Neither pass nor fail — exit 2, because "cannot see" is a third thing."""
 
+    a_workflow(tmp_path / ".github" / "workflows", "nightly.yml", CRON_ONLY)
+    a_registry(tmp_path, WATCHED)
+
     def refuse(_limit: int) -> list[dict[str, Any]]:
         raise PermissionError("HTTP 403")
 
@@ -255,7 +258,11 @@ def test_the_registry_can_be_pointed_at_explicitly(
     registry = elsewhere / "gates.yaml"
     registry.write_text(WATCHED, encoding="utf-8")
     runs = tmp_path / "runs.json"
-    runs.write_text("[]", encoding="utf-8")
+    runs.write_text(
+        '[{"path": ".github/workflows/nightly.yml", '
+        '"created_at": "2026-08-26T00:00:00+00:00", "conclusion": "success"}]',
+        encoding="utf-8",
+    )
 
     code = census.main(["--root", str(tmp_path), "--registry", str(registry), "--input", str(runs)])
 
@@ -323,3 +330,66 @@ def test_paging_stops_when_the_limit_is_reached(monkeypatch: pytest.MonkeyPatch)
     assert len(calls) == 2, "asked for more pages than the limit needed"
     assert "per_page=4" in calls[0], "the first page should ask for the whole limit"
     assert "per_page=2" in calls[1], "the second page asked for more than was left to fetch"
+
+
+# ---------------------------------------------------------------- a census over nothing
+
+
+def test_a_promise_with_no_history_behind_it_is_not_kept_but_unseen(
+    tmp_path: pathlib.Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """A `watched_by` promise and zero runs: exit 2, never "every promise holds".
+
+    An outside audit on 2026-08-29 fed this census a valid, empty history and
+    read back a pass — the exact silent skip its own message warns about. Empty
+    is one more way of not seeing, and gets the third answer like the others.
+    """
+    a_workflow(tmp_path / ".github" / "workflows", "nightly.yml", CRON_ONLY)
+    a_registry(tmp_path, WATCHED)
+    runs = tmp_path / "runs.json"
+    runs.write_text("[]", encoding="utf-8")
+
+    assert census.main(["--root", str(tmp_path), "--input", str(runs)]) == 2
+    err = capsys.readouterr().err
+    assert "history is empty" in err
+    assert "never become a silent skip" in err
+
+
+def test_no_promise_at_all_is_said_out_loud_and_passes(
+    tmp_path: pathlib.Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """Nothing declares a watcher: nothing to measure, and the green must say so."""
+    a_workflow(tmp_path / ".github" / "workflows", "ci.yml", "on: push\njobs: {}\n")
+    a_registry(tmp_path, "version: 1\ngates: []\n")
+
+    assert census.main(["--root", str(tmp_path)]) == 0
+    assert "nothing to measure" in capsys.readouterr().out
+
+
+@pytest.mark.parametrize(
+    ("text", "why"),
+    [
+        ("{}", "an object where a list of runs was expected"),
+        ("[", "not JSON at all"),
+    ],
+)
+def test_a_history_of_the_wrong_shape_is_unreadable(
+    tmp_path: pathlib.Path, capsys: pytest.CaptureFixture[str], text: str, why: str
+) -> None:
+    a_workflow(tmp_path / ".github" / "workflows", "nightly.yml", CRON_ONLY)
+    a_registry(tmp_path, WATCHED)
+    runs = tmp_path / "runs.json"
+    runs.write_text(text, encoding="utf-8")
+
+    assert census.main(["--root", str(tmp_path), "--input", str(runs)]) == 2, why
+    assert "cannot read the run history" in capsys.readouterr().err
+
+
+def test_a_missing_input_file_is_unreadable_not_a_traceback(
+    tmp_path: pathlib.Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    a_workflow(tmp_path / ".github" / "workflows", "nightly.yml", CRON_ONLY)
+    a_registry(tmp_path, WATCHED)
+
+    assert census.main(["--root", str(tmp_path), "--input", str(tmp_path / "no.json")]) == 2
+    assert "cannot read the run history" in capsys.readouterr().err

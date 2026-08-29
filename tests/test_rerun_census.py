@@ -18,7 +18,7 @@ from __future__ import annotations
 import json
 from typing import TYPE_CHECKING, Any
 
-import pytest  # noqa: TC002 — fixtures come from it at run time
+import pytest
 
 from verifiable_gates import gh
 from verifiable_gates import rerun_census as census
@@ -778,3 +778,42 @@ def test_the_wording_is_an_input(
     )
 
     assert word + " 1 run" in capsys.readouterr().out
+
+
+# ---------------------------------------------------------------- a census over nothing
+
+
+def test_zero_runs_is_a_window_nobody_looked_through(
+    tmp_path: pathlib.Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """`examined 0 runs` is not a clean window — it is exit 2, like any other blindness.
+
+    An outside audit on 2026-08-29 fed this census an empty history and read back
+    a pass with every counter at zero, which is indistinguishable from a real
+    clean window and therefore must not be reported as one.
+    """
+    a_workflow(tmp_path / ".github" / "workflows", "ci.yml", "jobs:\n  lint:\n    steps: []\n")
+    records = a_records_file(tmp_path, [])
+
+    assert census.main(["--root", str(tmp_path), "--input", str(records)]) == 2
+    out = capsys.readouterr()
+    assert "history is empty" in out.err
+    assert "examined" not in out.out
+
+
+@pytest.mark.parametrize(
+    ("text", "why"),
+    [
+        ("{}", "an object where a list of records was expected"),
+        ("[", "not JSON at all"),
+    ],
+)
+def test_a_history_of_the_wrong_shape_is_unreadable(
+    tmp_path: pathlib.Path, capsys: pytest.CaptureFixture[str], text: str, why: str
+) -> None:
+    a_workflow(tmp_path / ".github" / "workflows", "ci.yml", "jobs:\n  lint:\n    steps: []\n")
+    path = tmp_path / "records.json"
+    path.write_text(text, encoding="utf-8")
+
+    assert census.main(["--root", str(tmp_path), "--input", str(path)]) == 2, why
+    assert "never become a silent skip" in capsys.readouterr().err

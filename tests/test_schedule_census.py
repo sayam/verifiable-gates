@@ -393,3 +393,20 @@ def test_a_shallow_clone_cannot_say_when_a_file_was_added(tmp_path: pathlib.Path
     assert census.problems({"weekly.yml": census.WEEK}, {"weekly.yml": None}, NOW, 2, born), (
         "a shallow clone excused a schedule that has never fired"
     )
+
+
+# ---------------------------------------------------------------- the history's shape
+
+
+def test_a_history_that_is_not_an_object_is_unreadable(
+    tmp_path: pathlib.Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """A list where the platform's answer is an object: the census cannot see, exit 2."""
+    a_workflow(tmp_path / ".github" / "workflows", "weekly.yml", "0 3 * * 1")
+    state = tmp_path / "state.json"
+    state.write_text("[]", encoding="utf-8")
+
+    code = census.main(["--root", str(tmp_path), "--input", str(state), "--now", NOW])
+
+    assert code == 2
+    assert "not a dict" in capsys.readouterr().err
