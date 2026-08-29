@@ -144,6 +144,14 @@ gates:
           dropping `|| true` so the scanner's exit decided, and the handoff job
           losing `PR_BODY`; the harness asked about a gate it cannot find returns
           its own code rather than a pass.
+      - kind: mutation
+        ref: pr/68
+        date: 2026-08-30
+        caught: >-
+          Four planted defects red in the release job's shape — `--no-isolation`
+          dropped from the build step, `setuptools` dropped from the pins, the SBOM
+          environment's install put back to the unpinned `install dist/*.whl`, and
+          the `pins/runtime` entry removed from Dependabot.
 
   - id: the-security-policy-quotes-one-set-of-numbers
     title: SECURITY.md exists, quotes one set of timeframes, names no address, and points at a live channel
