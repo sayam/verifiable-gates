@@ -303,6 +303,83 @@ def test_a_candidate_list_with_some_entrypoints_present_is_not_misconfigured(
     assert capsys.readouterr().out == ""
 
 
+# ------------------------------------------------------------ composite actions
+#
+# A step moved into `.github/actions/<name>/action.yml` runs with the calling
+# workflow's permissions and used to be out of both pinning scanners' sight: an
+# outside audit on 2026-08-29 planted a floating `uses:` and an unpinned
+# `pip install` there and got exit 0 from each. The workflow that calls the
+# action is clean on its own, so a scanner that read only `workflows/` had
+# nothing to report.
+
+ACTION = ".github/actions/setup/action.yml"
+CALLER = {
+    ".github/workflows/ci.yml": "jobs:\n  a:\n    steps:\n      - uses: ./.github/actions/setup\n"
+}
+COMPOSITE_HEAD = "name: setup\nruns:\n  using: composite\n  steps:\n"
+
+
+class Composite(NamedTuple):
+    """A pinning scanner and the composite-action step that breaks or keeps its rule."""
+
+    module: Any
+    dirty: str
+    clean: str
+    gate: str
+
+
+COMPOSITE = [
+    pytest.param(
+        Composite(
+            scan_workflow_pinning,
+            "    - uses: actions/checkout@v4\n",
+            "    - uses: actions/checkout@" + "a" * 40 + "\n",
+            "actions-sha-pinned",
+        ),
+        id="workflow-pinning",
+    ),
+    pytest.param(
+        Composite(
+            scan_install_pinning,
+            "    - run: pip install ruff\n      shell: bash\n",
+            "    - run: pip install --require-hashes -r pins/requirements.txt\n      shell: bash\n",
+            "ci-tools-hash-pinned",
+        ),
+        id="install-pinning",
+    ),
+]
+
+
+@pytest.mark.parametrize("case", COMPOSITE)
+def test_a_composite_action_is_judged_like_the_workflow_that_calls_it(
+    tmp_path: pathlib.Path, capsys: pytest.CaptureFixture[str], case: Composite
+) -> None:
+    root = build(tmp_path, {**CALLER, ACTION: COMPOSITE_HEAD + case.dirty})
+    assert case.module.main(root) == 1, "a step hidden in a composite action was not judged"
+    out = capsys.readouterr().out
+    assert out.startswith(f"{case.gate}: "), "the finding does not name its gate"
+    assert ACTION in out, "the finding does not say which action file it is in"
+
+
+@pytest.mark.parametrize("case", COMPOSITE)
+def test_a_clean_composite_action_is_left_alone(
+    tmp_path: pathlib.Path, capsys: pytest.CaptureFixture[str], case: Composite
+) -> None:
+    root = build(tmp_path, {**CALLER, ACTION: COMPOSITE_HEAD + case.clean})
+    assert case.module.main(root) == 0, "a pinned composite action was reported"
+    assert case.gate not in capsys.readouterr().out
+
+
+@pytest.mark.parametrize("case", COMPOSITE)
+def test_a_composite_action_alone_is_something_to_check(
+    tmp_path: pathlib.Path, capsys: pytest.CaptureFixture[str], case: Composite
+) -> None:
+    """No `workflows/` directory at all, but an action file: that is not N/A."""
+    root = build(tmp_path, {ACTION: COMPOSITE_HEAD + case.dirty})
+    assert case.module.main(root) == 1
+    assert not capsys.readouterr().out.startswith("NA:")
+
+
 # ---------------------------------------------------------------- the ADR index
 #
 # Four findings from one scanner, so each gets its own case rather than sharing

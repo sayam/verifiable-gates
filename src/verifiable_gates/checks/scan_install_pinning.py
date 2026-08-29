@@ -12,6 +12,10 @@ halves, and there is a test for each of them — see `_installs_from_an_index`.
 Comments are stripped before checking — these files like to explain themselves by
 quoting the very command they are telling you not to use.
 
+A composite action under `.github/actions/<name>/action.yml` installs with the
+calling workflow's permissions, so its `run:` steps are read too — an outside
+audit on 2026-08-29 planted an unpinned install there and got a clean exit.
+
 exit 0 = clean or N/A · 1 = findings · 2 = called wrongly
 
 Role: decider — it answers pass or fail with an exit code, and it ships as a
@@ -57,9 +61,10 @@ def _commands(path: pathlib.Path) -> list[str]:
 
 def main(root: pathlib.Path) -> int:
     targets = sorted((root / ".github" / "workflows").glob("*.y*ml"))
+    targets += sorted((root / ".github" / "actions").glob("**/action.y*ml"))
     targets += [p for p in [root / "Dockerfile"] if p.is_file()]
     if not targets:
-        print("NA: no workflows or Dockerfile — nothing to check yet")
+        print("NA: no workflows, composite actions or Dockerfile — nothing to check yet")
         return 0
 
     findings: list[str] = []

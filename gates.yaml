@@ -1196,6 +1196,15 @@ gates:
           new cases went red: the audit's planted `docker/Dockerfile` beside a
           dirty root Dockerfile, and a named file present next to a named file
           absent. Restored byte for byte, 125 green.
+      - kind: mutation
+        ref: pr/58
+        date: 2026-08-29
+        caught: >-
+          Each pinning scanner restored to its text before composite actions
+          were read — a floating `uses:` and an unpinned `pip install` under
+          `.github/actions/setup/action.yml`, exit 0 — and its two new cases
+          went red, including the tree with no `workflows/` directory at all.
+          Restored byte for byte, six green.
 
   - id: rules-we-ship-we-keep
     title: Scanners that apply to this repository are run against this repository
