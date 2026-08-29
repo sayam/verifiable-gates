@@ -6,6 +6,23 @@ Notable changes to this project. The format follows
 
 ## [Unreleased]
 
+### Fixed
+
+- **A configured path that is missing is a finding, not "nothing to check".**
+  Every scanner that reads `scaffold.json` answered `NA` and exited 0 when the
+  path it was pointed at did not exist — the same answer for a project that has
+  no Dockerfile and for a project whose `scaffold.json` names a Dockerfile it
+  does not have. A five-model outside audit of `v0.1.0` (2026-08-29) planted
+  `"dockerfiles": ["docker/Dockerfile"]` beside an unpinned `Dockerfile` at the
+  root and got `NA: no Dockerfile`: one wrong line of configuration had turned
+  "checked and clean" into "nothing to check" with the same exit code. The seven
+  scaffold-driven scanners now tell the two apart: a *default* path that is not
+  there is still NA, a path the project *named* and does not have is a finding
+  that says which key and which path. `scaffold.json.default` no longer spells
+  every default out as a key — that made "configured" and "default" the same
+  thing on every install — it documents the defaults in its comment and carries
+  only `preflight_jobs`; a project names a path only to move it.
+
 ## [0.1.3] - 2026-08-29
 
 The platform's posture, read on a schedule and held to a register — the last

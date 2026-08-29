@@ -359,6 +359,26 @@ def test_no_index_is_not_applicable(
     assert capsys.readouterr().out.startswith("NA:")
 
 
+def test_an_index_named_in_scaffold_and_missing_is_a_finding_not_na(
+    tmp_path: pathlib.Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """`gates_path` the project wrote and does not have is a broken configuration.
+
+    Same rule as every scaffold path (an outside audit on 2026-08-29 found the
+    Dockerfile scanner answering NA to a configured path that was not there):
+    an unconfigured, absent index is "no index yet"; a configured, absent one is
+    a finding, or one wrong line would turn "checked" into "nothing to check".
+    """
+    files = {".github/workflows/ci.yml": PINNED, "gates.yaml": "version: 1\ngates: []\n"}
+    build(tmp_path, files, {"gates_path": "docs/gates.yaml"})
+    assert scanner.main(tmp_path) == 1
+    out = capsys.readouterr().out
+    assert out.startswith("gates-registry-total: ")
+    assert "gates_path" in out
+    assert "docs/gates.yaml" in out
+    assert "NA:" not in out
+
+
 def test_an_empty_index_enforces_nothing_and_says_so(
     tmp_path: pathlib.Path, capsys: pytest.CaptureFixture[str]
 ) -> None:

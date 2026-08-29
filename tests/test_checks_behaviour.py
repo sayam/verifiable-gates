@@ -165,29 +165,142 @@ def test_a_scanner_stays_quiet_on_a_clean_tree(
     assert case.gate not in capsys.readouterr().out
 
 
+# Nothing configured, nothing at the default path: N/A. A key the project wrote
+# itself is a different case, judged below.
 NOT_APPLICABLE = [
-    pytest.param(scan_workflow_pinning, None, id="no-workflows"),
-    pytest.param(scan_dockerfile_digest, {"dockerfiles": ["Dockerfile"]}, id="no-dockerfile"),
-    pytest.param(scan_entrypoint_debug, {"entrypoints": ["run.py"]}, id="no-entrypoint"),
-    pytest.param(scan_install_pinning, None, id="nothing-that-installs"),
-    pytest.param(scan_service_layer, {"services_path": "app/services"}, id="no-service-layer"),
-    pytest.param(scan_templates_inline, {"templates_path": "app/templates"}, id="no-templates"),
-    pytest.param(scan_write_discipline, {"src_path": "app"}, id="no-source"),
-    pytest.param(scan_adr_index, {"adr_path": "docs/adr"}, id="no-adrs"),
+    pytest.param(scan_workflow_pinning, id="no-workflows"),
+    pytest.param(scan_dockerfile_digest, id="no-dockerfile"),
+    pytest.param(scan_entrypoint_debug, id="no-entrypoint"),
+    pytest.param(scan_install_pinning, id="nothing-that-installs"),
+    pytest.param(scan_service_layer, id="no-service-layer"),
+    pytest.param(scan_templates_inline, id="no-templates"),
+    pytest.param(scan_write_discipline, id="no-source"),
+    pytest.param(scan_adr_index, id="no-adrs"),
 ]
 
 
-@pytest.mark.parametrize(("module", "config"), NOT_APPLICABLE)
+@pytest.mark.parametrize("module", NOT_APPLICABLE)
 def test_nothing_to_check_says_so_out_loud(
     tmp_path: pathlib.Path,
     capsys: pytest.CaptureFixture[str],
     module: Any,  # noqa: ANN401 — the parameter is a module object
-    config: dict[str, Any] | None,
 ) -> None:
     """Silence would file "we never looked" under "we looked and it was fine"."""
-    root = build(tmp_path, {}, config)
+    root = build(tmp_path, {}, {"_comment": "nothing named"})
     assert module.main(root) == 0
     assert capsys.readouterr().out.startswith("NA:"), "a not-applicable run must announce itself"
+
+
+# A path the project named in scaffold.json and does not have. An outside audit
+# on 2026-08-29 planted `"dockerfiles": ["docker/Dockerfile"]` beside a dirty
+# `Dockerfile` at the root and got `NA: no Dockerfile`, exit 0 — one wrong line
+# of configuration had turned "checked and clean" into "nothing to check" with
+# the same exit code. A configured path that is missing is a broken
+# configuration, and a broken configuration is a finding.
+class Misconfigured(NamedTuple):
+    """A scanner, a path the project named and does not have, and the tree beside it."""
+
+    module: Any
+    config: dict[str, Any]
+    files: dict[str, str]
+    gate: str
+
+
+MISCONFIGURED = [
+    pytest.param(
+        Misconfigured(
+            scan_dockerfile_digest,
+            {"dockerfiles": ["docker/Dockerfile"]},
+            {"Dockerfile": "FROM python:3.13-slim\n"},
+            "image-digest-pinned",
+        ),
+        id="dockerfile-named-elsewhere",
+    ),
+    pytest.param(
+        Misconfigured(
+            scan_entrypoint_debug,
+            {"entrypoints": ["serve.py"]},
+            {"run.py": "app = object()\napp.run(debug=True)\n"},
+            "no-debug-entrypoint",
+        ),
+        id="entrypoint-named-elsewhere",
+    ),
+    pytest.param(
+        Misconfigured(
+            scan_service_layer,
+            {"services_path": "src/services"},
+            {"app/services/todos.py": "from flask import request\n"},
+            "logic-knows-no-http",
+        ),
+        id="services-named-elsewhere",
+    ),
+    pytest.param(
+        Misconfigured(
+            scan_templates_inline,
+            {"templates_path": "src/templates"},
+            {"app/templates/x.html": '<button onclick="go()">go</button>\n'},
+            "csp-no-inline",
+        ),
+        id="templates-named-elsewhere",
+    ),
+    pytest.param(
+        Misconfigured(
+            scan_write_discipline,
+            {"src_path": "src"},
+            {"app/routes.py": "db.session.delete(row)\n"},
+            "delete-means-soft-delete",
+        ),
+        id="source-named-elsewhere",
+    ),
+    pytest.param(
+        Misconfigured(
+            scan_adr_index,
+            {"adr_path": "docs/decisions"},
+            {"docs/adr/0002-b.md": "# 0002\n"},
+            "adr-index-complete",
+        ),
+        id="adrs-named-elsewhere",
+    ),
+]
+
+
+@pytest.mark.parametrize("case", MISCONFIGURED)
+def test_a_configured_path_that_is_missing_is_a_finding_not_na(
+    tmp_path: pathlib.Path, capsys: pytest.CaptureFixture[str], case: Misconfigured
+) -> None:
+    """The dirty tree at the default path is beside the point: the config is wrong."""
+    root = build(tmp_path, case.files, case.config)
+    (key, named), *_ = case.config.items()
+    named = named[0] if isinstance(named, list) else named
+    assert case.module.main(root) == 1, "a path the project named and does not have was excused"
+    out = capsys.readouterr().out
+    assert not out.startswith("NA:"), "a broken configuration was reported as nothing to check"
+    assert out.startswith(f"{case.gate}: "), "the finding does not name its gate"
+    assert key in out, "the finding does not name the configuration key"
+    assert named in out, "the finding does not say which path is missing"
+
+
+def test_a_dockerfile_named_and_present_beside_one_named_and_missing_judges_both(
+    tmp_path: pathlib.Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """One missing name is a finding on its own; it does not hide the file that is there."""
+    pinned = "FROM python@sha256:" + "b" * 64 + "\n"
+    config = {"dockerfiles": ["Dockerfile", "docker/Dockerfile"]}
+    root = build(tmp_path, {"Dockerfile": pinned}, config)
+    assert scan_dockerfile_digest.main(root) == 1
+    out = capsys.readouterr().out
+    assert "docker/Dockerfile" in out
+    assert out.count("image-digest-pinned:") == 1, "the pinned file that exists is clean"
+
+
+def test_a_candidate_list_with_some_entrypoints_present_is_not_misconfigured(
+    tmp_path: pathlib.Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """`entrypoints` lists candidates, so one absent name is fine while another exists."""
+    config = {"entrypoints": ["run.py", "wsgi.py"]}
+    root = build(tmp_path, {"run.py": CLEAN_ENTRYPOINT}, config)
+    assert scan_entrypoint_debug.main(root) == 0
+    assert capsys.readouterr().out == ""
 
 
 # ---------------------------------------------------------------- the ADR index

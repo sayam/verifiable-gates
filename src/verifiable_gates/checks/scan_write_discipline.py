@@ -27,14 +27,29 @@ import sys
 DELETE_CALL = re.compile(r"\bsession\.delete\s*\(|synchronize_session")
 
 
+MISCONFIGURED = (
+    "scaffold.json names {key} {path}, which is not there — a configured path that "
+    "is missing is a broken configuration, not nothing to check"
+)
+
+
 def main(root: pathlib.Path) -> int:
     config_path = root / "scaffold.json"
     # A project that has not configured the bundle is not a misuse — the paths
-    # below fall back to their defaults, and a path that is not there reports NA.
-    # Reading it unguarded turned "not configured yet" into a traceback.
+    # below fall back to their defaults, and a default that is not there reports
+    # NA. A path the project *named* and does not have is the opposite case: a
+    # broken configuration, reported as a finding — an outside audit on
+    # 2026-08-29 planted a `scaffold.json` pointing at a Dockerfile that did not
+    # exist beside a dirty one that did, and the answer was "nothing to check".
     config = json.loads(config_path.read_text(encoding="utf-8")) if config_path.is_file() else {}
     src = root / config.get("src_path", "app")
     if not src.is_dir():
+        if "src_path" in config:
+            print(
+                "delete-means-soft-delete: "
+                + MISCONFIGURED.format(key="src_path", path=src.relative_to(root))
+            )
+            return 1
         print(f"NA: no {src.relative_to(root)} — nothing to check yet")
         return 0
     patterns = config.get("purge_paths", ["app/purge.py"])
