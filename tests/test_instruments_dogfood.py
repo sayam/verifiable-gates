@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import json
 import pathlib
+import re
 import shutil
 import subprocess
 
@@ -101,6 +102,23 @@ def test_the_handoff_job_reads_what_the_module_reads() -> None:
     assert "if: github.event_name == 'pull_request'" in ci, "the gate means nothing off a PR"
 
 
+def test_the_example_line_contributing_shows_is_one_the_job_accepts() -> None:
+    """A document's example that the gate refuses teaches the wrong shape — and the
+    template `<name> <email>` reads as two placeholders when the brackets are literal."""
+    contributing = (ROOT / "CONTRIBUTING.md").read_text(encoding="utf-8")
+    block = next(s for s in preflight.jobs_on_disk(ROOT)["cla"]["steps"] if "CLA=" in s["run"])
+    definition = next(line for line in block["run"].splitlines() if line.startswith("CLA="))
+    example = re.search(r"for example\s+`(I have read[^`]+)`", contributing)
+
+    assert example is not None, "CONTRIBUTING shows no example line"
+    assert "<" in example.group(1), example.group(1)
+    assert ">" in example.group(1), example.group(1)
+    script = f'{definition}\nprintf \'%s\\n\' "$1" | grep -qE "$CLA"'
+    accepted = subprocess.run(["bash", "-c", script, "-", example.group(1)], check=False)  # noqa: S603, S607 — the job's own grep, on a fixed string
+    assert accepted.returncode == 0, example.group(1)
+    assert example.group(1) in block["run"], "the job's FAIL message should show the same example"
+
+
 @pytest.mark.parametrize(
     ("body", "accepted"),
     [
@@ -108,6 +126,9 @@ def test_the_handoff_job_reads_what_the_module_reads() -> None:
         ("I have read and agree to CLA.md v1. — A Person <a@b.co>   ", 1),
         ("I have read and agree to CLA.md v1. —  <@>", 0),
         ("I have read and agree to CLA.md v1. — A Person", 0),
+        # The address bare, without the brackets — the 2026-08-30 re-audit's first
+        # pull request, red at `cla`; CONTRIBUTING now shows a line with them.
+        ("I have read and agree to CLA.md v1. — A Person a@b.co", 0),
         ("I have read and agree to CLA.md v2. — A Person <a@b.co>", 0),
         ("I agree to the CLA — A Person <a@b.co>", 0),
         ("", 0),

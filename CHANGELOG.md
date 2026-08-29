@@ -49,6 +49,15 @@ Notable changes to this project. The format follows
   budget, so every census and the posture reader exit 2 as they already do
   for a refused call. Re-audit round 7 (can the instruments be trusted).
 
+- **The CLA line's example has real brackets in it.** CONTRIBUTING and the
+  `cla` job's failure text showed `— <name> <email>`, which reads as two
+  placeholders; the brackets around the address are literal, and the first
+  pull request of the 2026-08-30 re-audit was red at `cla` for writing the
+  address bare. Both now show `— Ada Lovelace <ada@example.org>`, a test runs
+  that example through the job's own grep, and the bare-address body is in the
+  job's test list as a refusal. Re-audit round 8 (does the new machinery
+  survive contact with a real contributor).
+
 ### Changed
 
 - **The `advisories` job has been seen red on the platform.** A census of all

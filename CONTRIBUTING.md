@@ -30,7 +30,11 @@ style difference.
    checks each commit a pull request adds, along with Conventional Commits and a
    72-character subject limit.
 2. **A line in the pull request description accepting [`CLA.md`](CLA.md):**
-   `I have read and agree to CLA.md v1. — <name> <email>`
+   `I have read and agree to CLA.md v1. — <name> <email>` — for example
+   `I have read and agree to CLA.md v1. — Ada Lovelace <ada@example.org>`. The angle
+   brackets around the address are part of the line (the sign-off's shape), not
+   placeholders: the first pull request of the 2026-08-30 re-audit wrote the
+   address bare and was red at `cla` for it.
    You keep your copyright; the grant is what makes it possible to publish this
    work under a commercial licence alongside Apache-2.0 later. The `cla` job
    reads the line (name and address both, like the sign-off); Dependabot is
