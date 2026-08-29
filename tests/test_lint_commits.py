@@ -15,13 +15,12 @@ nothing complains.
 from __future__ import annotations
 
 import functools
+import pathlib
+import shutil
 import subprocess
-from typing import TYPE_CHECKING
 
 import pytest
-
-if TYPE_CHECKING:
-    import pathlib
+import yaml
 
 from verifiable_gates import lint_commits
 
@@ -298,3 +297,78 @@ def test_the_two_modes_are_mutually_exclusive(monkeypatch: pytest.MonkeyPatch) -
         run(monkeypatch, [])
     with pytest.raises(SystemExit):
         run(monkeypatch, ["--msg-file", "a", "--range", "b"])
+
+
+# ---------------------------------------------------------------- the inline copy in CI
+
+ROOT = pathlib.Path(__file__).resolve().parent.parent
+CI = ROOT / ".github" / "workflows" / "ci.yml"
+
+
+def the_ci_block() -> str:
+    """The `run:` script of this repository's own `commit-lint` job."""
+    jobs = yaml.safe_load(CI.read_text(encoding="utf-8"))["jobs"]
+    steps = jobs["commit-lint"]["steps"]
+    return str(next(step["run"] for step in steps if "run" in step))
+
+
+def test_the_ci_job_uses_the_module_type_list() -> None:
+    """One rule, two enforcers — the inline copy must carry the module's exact list.
+
+    The job is inline on purpose (the gate that guards the package must not
+    import the package), which is precisely why a test has to hold the copy to
+    the original: an outside audit on 2026-08-29 found the job accepting
+    `feature:` and `fixup!` by prefix while the hook refused them.
+    """
+    assert f"TYPES='{lint_commits.TYPES}'" in the_ci_block()
+
+
+def test_the_ci_job_skips_merge_commits_like_the_module() -> None:
+    assert "git rev-list --no-merges" in the_ci_block()
+
+
+@pytest.mark.parametrize(
+    "title",
+    [
+        "feat: a plain one",
+        "fix(scope): with a scope",
+        "feat!: a breaking change",
+        "fix(a/b-c.d)!: a scope with punctuation, breaking",
+        "just a sentence",
+        "feature: wrong word",
+        "featuring a prefix without a colon",
+        "fixup! a squash marker",
+        "testing: not a type",
+        "performance: not a type either",
+        "feat missing colon",
+        "feat:no space",
+        "feat: ",
+        "chore: " + "x" * 66,
+    ],
+)
+def test_the_ci_regex_and_the_module_agree_on_a_subject(title: str) -> None:
+    """The shell regex from `ci.yml`, run by bash, must give the module's verdict.
+
+    Both directions on each subject: a subject the module refuses must be red in
+    CI, and one it accepts must be green there — otherwise a branch passes the
+    hook and fails the job, or the reverse, and one of the two gates is decorative.
+    """
+    block = the_ci_block()
+    lines = block.splitlines()
+    definitions = "\n".join(line for line in lines if line.startswith(("TYPES=", "SUBJECT=")))
+    assert definitions.count("\n") == 1, "expected exactly one TYPES= and one SUBJECT= line"
+    bash = shutil.which("bash")
+    assert bash, "the CI block is written for bash"
+    script = f'{definitions}\nprintf \'%s\' "$1" | grep -qE "$SUBJECT"'
+
+    shell = subprocess.run(  # noqa: S603 — the script is this repository's own CI block
+        [bash, "-c", script, "_", title], check=False
+    )
+    shell_says_ok = shell.returncode == 0
+    problems = lint_commits.check_title(title)
+    module_says_ok = not any("not a Conventional Commit" in p for p in problems)
+
+    assert shell_says_ok == module_says_ok, (
+        f"{title!r}: CI says {'pass' if shell_says_ok else 'fail'}, "
+        f"the module says {'pass' if module_says_ok else 'fail'}"
+    )

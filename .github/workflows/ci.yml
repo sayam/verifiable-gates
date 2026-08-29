@@ -56,10 +56,17 @@ jobs:
           fetch-depth: 0
       # Inline on purpose. `verifiable_gates.lint_commits` ships for consumers,
       # but this repository's own commit gate stays a shell block so the gate that
-      # guards the package does not depend on importing the package. Compare
-      # against the PR head, not HEAD:
-      # on `pull_request` events HEAD is the merge commit GitHub synthesises, whose
-      # subject fails Conventional Commits every time and belongs to nobody.
+      # guards the package does not depend on importing the package. **It must
+      # still be the same gate**: the type list and the subject shape below are
+      # the module's, and `tests/test_lint_commits.py` runs this block's regex
+      # against the subjects the module judges, so the two cannot drift into
+      # accepting different histories (an outside audit on 2026-08-29 found
+      # `feature:` and `fixup!` passing here while the hook refused them).
+      # Compare against the PR head, not HEAD: on `pull_request` events HEAD is
+      # the merge commit GitHub synthesises, whose subject fails Conventional
+      # Commits every time and belongs to nobody. Merge commits on the branch are
+      # skipped for the same reason the module skips them — their message is the
+      # platform's, not a person's.
       - name: Conventional Commits + DCO on the commits this PR actually adds
         run: |
           set -euo pipefail
@@ -69,16 +76,17 @@ jobs:
           else
             RANGE="${{ github.sha }}~1..${{ github.sha }}"
           fi
+          TYPES='feat|fix|docs|style|refactor|perf|test|build|ci|chore|revert'
+          SUBJECT="^($TYPES)(\([[:alnum:]_./-]+\))?!?: [^[:space:]].{0,70}$"
           status=0
-          for sha in $(git rev-list "$RANGE"); do
+          for sha in $(git rev-list --no-merges "$RANGE"); do
             subject=$(git show -s --format=%s "$sha")
             body=$(git show -s --format=%B "$sha")
-            case "$subject" in
-              feat*|fix*|docs*|test*|chore*|refactor*|perf*|build*|ci*|style*|revert*) ;;
-              *) echo "FAIL ${sha:0:9}: subject is not a Conventional Commit — $subject"; status=1 ;;
-            esac
             if [ "${#subject}" -gt 72 ]; then
               echo "FAIL ${sha:0:9}: subject is ${#subject} characters (over 72)"; status=1
+            fi
+            if ! printf '%s' "$subject" | grep -qE "$SUBJECT"; then
+              echo "FAIL ${sha:0:9}: subject is not a Conventional Commit — $subject"; status=1
             fi
             if ! printf '%s' "$body" | grep -q '^Signed-off-by: .* <.*@.*>$'; then
               echo "FAIL ${sha:0:9}: no Signed-off-by line — sign with git commit -s"; status=1
