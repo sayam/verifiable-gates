@@ -269,6 +269,7 @@ def platform_state(branch: str) -> tuple[dict[str, object], set[str]]:
     repo = gh.api("repos/:owner/:repo")
 
     def enabled(key: str) -> object:
+        """The `enabled` flag of one protection block — `None` when the block is absent."""
         block = protection.get(key)
         return block.get("enabled") if isinstance(block, dict) else None
 
@@ -298,6 +299,7 @@ def platform_state(branch: str) -> tuple[dict[str, object], set[str]]:
 
 
 def _settings(register: pathlib.Path, root: pathlib.Path) -> int:
+    """The settings mode: read the platform, hold it to the register, print, return the code."""
     branch, wanted, excused = declared(register)
     try:
         state, required = platform_state(branch)
