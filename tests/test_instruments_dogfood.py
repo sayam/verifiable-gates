@@ -197,12 +197,42 @@ def test_the_release_job_verifies_both_ways_before_it_attaches_anything() -> Non
 
 
 def test_the_sbom_is_taken_from_a_clean_environment_holding_the_wheel() -> None:
+    """The SBOM records what was verified by hash, not what the index served that minute."""
     jobs = preflight.jobs_on_disk(ROOT)
     sbom = next(s for s in jobs["release-sign"]["steps"] if "cyclonedx-py" in str(s.get("run")))
+    lines = [line.strip() for line in sbom["run"].splitlines()]
+    installs = [line for line in lines if " install " in line]
 
     assert "python -m venv --without-pip sbom-env" in sbom["run"]
-    assert "install dist/*.whl" in sbom["run"]
+    assert installs == [
+        (
+            "pip --python sbom-env/bin/python install --require-hashes"
+            " -r pins/runtime/requirements.txt"
+        ),
+        "pip --python sbom-env/bin/python install --no-deps ./dist/*.whl",
+    ], installs
     assert "'verifiable-gates' in n and 'PyYAML' in n" in sbom["run"], "an SBOM of nothing is green"
+
+
+def test_the_release_builds_with_the_pinned_backend_not_an_isolated_fetch() -> None:
+    """`python -m build` alone pip-installs the backend from the index, unpinned, in the job that
+    holds `id-token: write` — found floating on 2026-08-30 (setuptools 84.0.0 arrived unhashed)."""
+    jobs = preflight.jobs_on_disk(ROOT)
+    build = next(s for s in jobs["release-sign"]["steps"] if "python -m build" in str(s.get("run")))
+    pinned = (ROOT / "pins" / "dev" / "requirements.txt").read_text(encoding="utf-8")
+
+    assert "--no-isolation" in build["run"], build["run"]
+    assert "\nsetuptools==" in pinned, "the backend --no-isolation relies on is not in the pins"
+
+
+def test_every_pins_directory_is_moved_by_dependabot() -> None:
+    """A pin nobody moves is a vulnerability kept on ice — both ways: every
+    `pins/*/requirements.txt` has a Dependabot entry, and every pip entry points at one."""
+    config = yaml.safe_load((ROOT / ".github" / "dependabot.yml").read_text(encoding="utf-8"))
+    watched = {u["directory"] for u in config["updates"] if u["package-ecosystem"] == "pip"}
+    on_disk = {"/" + str(p.parent.relative_to(ROOT)) for p in ROOT.glob("pins/*/requirements.txt")}
+
+    assert watched == on_disk, (watched, on_disk)
 
 
 # ---------------------------------------------------------------- posture and the census

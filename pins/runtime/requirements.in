@@ -1,0 +1,6 @@
+# The package's one runtime dependency, hash-pinned for the release job's SBOM
+# environment — the SBOM records a component that was verified by hash, not
+# whatever the index served that minute. Dependabot moves it (dependabot.yml).
+# regenerate: pip-compile --allow-unsafe --generate-hashes --strip-extras \
+#   --output-file=pins/runtime/requirements.txt pins/runtime/requirements.in
+pyyaml
