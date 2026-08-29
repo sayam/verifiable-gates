@@ -8,6 +8,12 @@ Notable changes to this project. The format follows
 
 ### Fixed
 
+- **The `cla` job's failure line prints.** The example added in 0.1.6's
+  `[Unreleased]` was quoted so that `<ada@example.org>` became a shell
+  redirection: the job was red for the right reason and the contributor saw
+  "No such file or directory" instead of the line to write. The test now runs
+  the block's FAIL branch through bash on an empty body and holds the example
+  to stdout and stderr to nothing. Found by the pre-cut review (2026-08-30).
 - **Installing the checkout is exempt only without build isolation.** The
   exemption for `pip install --no-deps -e .` said "nothing is fetched", and
   the same release said `python -m build` fetches its backend from the index —

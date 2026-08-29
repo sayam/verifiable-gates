@@ -117,6 +117,19 @@ def test_the_example_line_contributing_shows_is_one_the_job_accepts() -> None:
     accepted = subprocess.run(["bash", "-c", script, "-", example.group(1)], check=False)  # noqa: S603, S607 — the job's own grep, on a fixed string
     assert accepted.returncode == 0, example.group(1)
     assert example.group(1) in block["run"], "the job's FAIL message should show the same example"
+    # The FAIL branch, run for real: the review of 2026-08-30 found the echo's
+    # quoting broken — `<ada@example.org>` had become a redirection and the
+    # contributor saw "No such file or directory" instead of the example.
+    failing = subprocess.run(  # noqa: S603 — the job's own block, on an empty body
+        ["bash", "-c", block["run"]],  # noqa: S607 — bash from PATH, as the runner finds it
+        check=False,
+        capture_output=True,
+        text=True,
+        env={"PR_BODY": ""},
+    )
+    assert failing.returncode == 1
+    assert example.group(1) in failing.stdout, (failing.stdout, failing.stderr)
+    assert failing.stderr == "", failing.stderr
 
 
 @pytest.mark.parametrize(

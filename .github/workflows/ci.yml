@@ -134,7 +134,7 @@ jobs:
           if printf '%s\n' "$PR_BODY" | grep -qE "$CLA"; then
             echo "CLA.md v1 accepted"
           else
-            echo "FAIL: no line 'I have read and agree to CLA.md v1. — <name> <email>' in the pull request description, e.g. '"I have read and agree to CLA.md v1. — Ada Lovelace <ada@example.org>"' — the angle brackets are part of the line (CONTRIBUTING.md)"
+            echo "FAIL: no line 'I have read and agree to CLA.md v1. — <name> <email>' in the pull request description, e.g. I have read and agree to CLA.md v1. — Ada Lovelace <ada@example.org> — the angle brackets are part of the line (CONTRIBUTING.md)"
             exit 1
           fi
 
