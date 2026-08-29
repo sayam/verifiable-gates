@@ -771,6 +771,13 @@ gates:
           Through the real wrapper with `subprocess.run` hanging: the census exits 2
           with the budget named on stderr; with the wrapper's mapping removed the
           same test errors out with `TimeoutExpired`.
+      - kind: mutation
+        ref: pr/85
+        date: 2026-08-30
+        caught: >-
+          The stderr line for an unreadable annotations call removed — the reader
+          fell back to empty in silence again, red in the test that reads stderr.
+          Found by the pre-cut review of 2026-08-30.
 
   - id: a-threshold-sits-against-reality-both-ways
     title: A ratchet's threshold is held to what is true today, in both directions
@@ -947,6 +954,12 @@ gates:
           A stray `[0.1.5]:` line pointing at v0.1.3 inserted before the right one —
           green under the `dict` reading, red once repeated references are refused.
           Found by the pre-cut review of 2026-08-30.
+      - kind: mutation
+        ref: pr/85
+        date: 2026-08-30
+        caught: >-
+          `--about` made to re-raise a refused `gh` — the test expecting exit 2 and
+          "could not read the About field" errored out with the raw exception.
 
   - id: the-about-field-is-read-not-remembered
     title: The description on the hosting platform is read live and held to what the tree measures
