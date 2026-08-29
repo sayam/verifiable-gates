@@ -54,6 +54,47 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
 
+  # The deciders this bundle ships run on this repository too. Until 2026-08-29
+  # they did not: `advisories`, `check_issue_handoff`, `preflight` and the harness
+  # were tested on fakes and pointed at nobody — the exact gap dogfooding exists
+  # to close (the reference implementation measured it at 2.7%).
+  advisories:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97
+        with:
+          python-version: "3.13"
+      - name: install the hash-pinned tools
+        run: pip install --require-hashes -r pins/dev/requirements.txt
+      - run: pip install --no-deps -e .
+      # The scanner writes; the decider decides. Its exit code is deliberately
+      # not the verdict — a finding already judged must not turn the job red.
+      - name: audit the pins, then hold every finding to the register both ways
+        run: |
+          pip-audit --require-hashes -r pins/dev/requirements.txt --format json \
+            --progress-spinner off --output pip-audit.json || true
+          python -m verifiable_gates.advisories --kind pip-audit --report pip-audit.json \
+            --register pins/dev/advisories-accepted.txt
+
+  handoff:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97
+        with:
+          python-version: "3.13"
+      - run: pip install --no-deps -e .
+      - name: an issue held open for newcomers is not closed out from under them
+        run: python -m verifiable_gates.check_issue_handoff
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          PR_BODY: ${{ github.event.pull_request.body }}
+
   commit-lint:
     runs-on: ubuntu-latest
     timeout-minutes: 5

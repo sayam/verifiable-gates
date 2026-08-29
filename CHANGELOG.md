@@ -88,6 +88,16 @@ Everything under this heading answers an outside zero-trust audit of `v0.1.0`
   each to the module's type list. The bot signs its commits, so the DCO half
   needed nothing.
 
+- **The deciders this bundle ships run on this repository.** `advisories`,
+  `check_issue_handoff`, `preflight` and the harness were tested on fakes and
+  pointed at nobody. Now: an `advisories` job audits the forty hash-pinned
+  tools with `pip-audit` and holds every finding to
+  `pins/dev/advisories-accepted.txt` both ways (the scanner writes, the decider
+  decides — `advisories` gained a command line for it); a `handoff` job runs the
+  issue-handoff gate on every pull request; `scaffold.json` names `lint` and
+  `test` for `preflight`, and the dogfood suite walks preflight's plan and one
+  gate through the harness on this tree. Three new gates record it.
+
 ### Changed
 
 - **Intent that lived in comments is written where a reader looks.** The README

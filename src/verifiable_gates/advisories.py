@@ -40,10 +40,11 @@ caller; this is handed their reports.
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any
-
-if TYPE_CHECKING:
-    import pathlib
+import argparse
+import json
+import pathlib
+import sys
+from typing import Any
 
 __all__ = [
     "MESSAGES",
@@ -51,6 +52,7 @@ __all__ = [
     "from_npm_audit",
     "from_pip_audit",
     "from_trivy",
+    "main",
     "problems",
 ]
 
@@ -170,3 +172,36 @@ def from_trivy(report: dict[str, Any]) -> dict[str, str]:
             fixed = vuln.get("FixedVersion") or "?"
             rows[vuln["VulnerabilityID"]] = f"{vuln.get('PkgName', '?')} ({severity}, fix: {fixed})"
     return rows
+
+
+READERS = {"pip-audit": from_pip_audit, "npm-audit": from_npm_audit, "trivy": from_trivy}
+
+
+def main(argv: list[str] | None = None) -> int:
+    """Decide one report against one register — exit 1 on anything unjudged or stale.
+
+    This repository shipped the decider for others and audited nothing of its own
+    (found 2026-08-29). The command reads a report a scanner already wrote, so
+    the scanner's own exit code never decides: `pip-audit` red on a finding that
+    has been judged is the check somebody silences.
+    """
+    parser = argparse.ArgumentParser(description="Every advisory judged, every judgement real.")
+    parser.add_argument("--report", required=True, help="the scanner's JSON report")
+    parser.add_argument("--kind", choices=sorted(READERS), required=True, help="which scanner")
+    parser.add_argument("--register", required=True, help="accepted advisories, one id per line")
+    args = parser.parse_args(argv)
+
+    report = json.loads(pathlib.Path(args.report).read_text(encoding="utf-8"))
+    found = READERS[args.kind](report)
+    register = accepted(pathlib.Path(args.register))
+    lines = problems(found, register)
+    for line in lines:
+        print(line, file=sys.stderr)
+    if lines:
+        return 1
+    print(f"{len(found)} finding(s), every one judged; {len(register)} accepted, none stale")
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())

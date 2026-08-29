@@ -41,6 +41,84 @@ gates:
           reworded away from the abstract, the author renamed on the other, and
           both cards moved together to a licence this repository does not carry.
 
+  - id: the-pins-are-audited-here
+    title: The tools this repository installs for itself are audited for advisories, and every finding is judged
+    kind: job
+    severity: blocking
+    enforced_by: {job: advisories}
+    layer: internal
+    pillar: security
+    portable: false
+    born_from: >-
+      This repository ships `advisories.py` — the decider that holds a scanner's
+      findings to a register of accepted ones in both directions — and until
+      2026-08-29 ran no scanner over its own pins. Forty hash-pinned packages,
+      including the interpreter's own tooling, sat unaudited while the rule
+      `ci-tools-cve-audit` was published from the same tree. The job lets
+      `pip-audit` write and the decider decide: the scanner's exit code is not the
+      verdict, because a finding already judged that still turns a job red is the
+      check that gets switched off within a fortnight.
+    proved_by:
+      - kind: mutation
+        ref: pr/42
+        date: 2026-08-29
+        caught: >-
+          The command line red on a report carrying an unjudged advisory, red on a
+          register entry that no finding matches any more, and green only when the
+          two agree — with the scanner's own verdict overridden by `|| true` so the
+          decider is the one that decides.
+
+  - id: newcomer-handoff-is-checked-on-our-own-pull-requests
+    title: The issue-handoff gate this bundle ships runs on this repository's pull requests
+    kind: job
+    severity: blocking
+    enforced_by: {job: handoff}
+    layer: internal
+    pillar: devx
+    portable: false
+    born_from: >-
+      `check_issue_handoff.py` was born from a real afternoon lost by an outside
+      contributor (2026-08-20) and shipped in this bundle for every consumer —
+      while this repository, which also labels issues and also merges its own
+      pull requests, never ran it on itself. A rule kept everywhere except at
+      home is the shape the reference implementation measured at 2.7%.
+    proved_by:
+      - kind: mutation
+        ref: pr/42
+        date: 2026-08-29
+        caught: >-
+          The job's command and the three variables it reads are held by a test
+          against the module's own contract; a workflow that dropped `PR_BODY`
+          went red before it could let a silent take-back through.
+
+  - id: preflight-and-the-harness-walk-this-repository
+    title: The developer-side instruments this bundle ships are pointed at this repository
+    kind: test
+    severity: blocking
+    enforced_by: {job: test, tests: [tests/test_instruments_dogfood.py]}
+    layer: internal
+    pillar: devx
+    portable: false
+    born_from: >-
+      The dogfood suite pointed every *scanner* at this tree from the day it
+      landed and said so — and stopped there. `preflight` and the fail-fix
+      harness, the two instruments a developer actually runs, had no
+      `scaffold.json` to read here and were never walked over their own
+      repository. The rule `fail-fix-harness-honest` was published from a tree
+      whose harness had never been asked about that tree.
+    proved_by:
+      - kind: mutation
+        ref: pr/42
+        date: 2026-08-29
+        caught: >-
+          Removing `preflight_jobs` from `scaffold.json` first stayed **green**:
+          the fallback happens to name the same two jobs here, so a test asking
+          only the plan could never tell the config from its absence — it now
+          reads the config itself, and that mutation is red. Also red: the job
+          dropping `|| true` so the scanner's exit decided, and the handoff job
+          losing `PR_BODY`; the harness asked about a gate it cannot find returns
+          its own code rather than a pass.
+
   - id: commit-messages-are-shaped-and-signed
     title: Every commit a branch adds is a Conventional Commit and carries a DCO sign-off
     kind: test

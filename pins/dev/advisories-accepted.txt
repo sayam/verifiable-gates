@@ -1,0 +1,4 @@
+# Advisories found in pins/dev/requirements.txt that have been judged and accepted.
+# One id per line, the reason after a `#` — an entry with no reason is not a judgement.
+# Held both ways by the `advisories` job: a finding not listed here is red, and an
+# entry here that no finding matches any more is red too (it excuses nothing).
