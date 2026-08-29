@@ -246,6 +246,35 @@ def test_the_release_builds_with_the_pinned_backend_not_an_isolated_fetch() -> N
     assert "\nsetuptools==" in pinned, "the backend --no-isolation relies on is not in the pins"
 
 
+def _compiled_roots(compiled: str, source_name: str) -> set[str]:
+    """The packages a hash-pinned file lists as asked for by `-r <source>` directly."""
+    roots: set[str] = set()
+    current = ""
+    for line in compiled.splitlines():
+        if line and not line.startswith((" ", "#")):
+            current = line.split("==")[0].strip().lower()
+        elif f"-r {source_name}" in line and current:
+            roots.add(current)
+    return roots
+
+
+@pytest.mark.parametrize("pins", sorted(p.parent for p in ROOT.glob("pins/*/requirements.in")))
+def test_the_compiled_pins_are_compiled_from_the_source_beside_them(pins: pathlib.Path) -> None:
+    """`requirements.in` and `requirements.txt` are one list twice: a name dropped from the
+    source stays pinned, audited and installed forever, and a name added to the source is not
+    installed until somebody runs pip-compile. The 2026-08-30 removal experiment dropped
+    `interrogate` from the source and 1121 tests stayed green."""
+    source = {
+        line.split("#")[0].strip().lower()
+        for line in (pins / "requirements.in").read_text(encoding="utf-8").splitlines()
+        if line.split("#")[0].strip()
+    }
+    compiled = (pins / "requirements.txt").read_text(encoding="utf-8")
+    roots = _compiled_roots(compiled, f"{pins.relative_to(ROOT)}/requirements.in")
+
+    assert roots == source, (sorted(roots - source), sorted(source - roots))
+
+
 def test_every_pins_directory_is_moved_by_dependabot() -> None:
     """A pin nobody moves is a vulnerability kept on ice — both ways: every
     `pins/*/requirements.txt` has a Dependabot entry, and every pip entry points at one."""
