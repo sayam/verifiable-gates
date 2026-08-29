@@ -6,6 +6,16 @@ Notable changes to this project. The format follows
 
 ## [Unreleased]
 
+Everything below answers the 2026-08-30 re-audit of `v0.1.5` — twenty-five
+rounds, each asking one question the round before could not (what is still
+missing · what has rotted · who proves the provers · has every gate caught
+something real · can the instruments be trusted · who sees what is removed ·
+what we teach, do we do), every number counted from the tree or the platform
+before it was written, and every fix carried in by its own pull request with
+the mutation that proves it (#68–#78). Ten pull requests, one live flip, no
+new gate, rule or badge; what needed a new one is a proposal for the owner in
+the round's report, not a change.
+
 ### Fixed
 
 - **The release job installs nothing it has not pinned.** `python -m build`
