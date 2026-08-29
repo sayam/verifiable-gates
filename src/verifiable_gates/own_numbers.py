@@ -52,6 +52,12 @@ PLACES: dict[str, list[advertised.Place]] = {
         advertised.Place("CITATION.cff", r"(?m)^version: (\S+)"),
         advertised.Place(".zenodo.json", r'"version": "([^"]+)"'),
         advertised.Place("CHANGELOG.md", r"(?m)^## \[(\d[^\]]*)\] - \d{4}-\d{2}-\d{2}"),
+        # The compare link at the foot: `[Unreleased]` is measured against the
+        # newest release, or it shows two releases' worth of changes as pending
+        # (it pointed at v0.1.3 through v0.1.5 — found 2026-08-30).
+        advertised.Place(
+            "CHANGELOG.md", r"(?m)^\[Unreleased\]: \S+/compare/v([\w.+-]+?)\.\.\.HEAD$"
+        ),
     ],
     "released": [
         advertised.Place("CITATION.cff", r"(?m)^date-released: '([^']+)'"),

@@ -90,8 +90,9 @@ Every step below has a test or a CI step reading alongside it — the rule
 none goes stale exactly like a number with none, and this repository's own About
 field was one release away from proving it (2026-08-29).
 
-1. Move the `[Unreleased]` entries in `CHANGELOG.md` under `## [x.y.z] - YYYY-MM-DD`
-   and set `__version__` in `src/verifiable_gates/__init__.py`. Those two are the
+1. Move the `[Unreleased]` entries in `CHANGELOG.md` under `## [x.y.z] - YYYY-MM-DD`,
+   add its `[x.y.z]: …/releases/tag/vx.y.z` line at the foot (the test holds the
+   two sets to each other), and set `__version__` in `src/verifiable_gates/__init__.py`. Those two are the
    *sources*: the version is what the package reports, the date is the newest
    released heading (`tests/test_own_numbers.py` holds the heading to the version).
 2. `python -m verifiable_gates.own_numbers --write` — fixes every other place that
