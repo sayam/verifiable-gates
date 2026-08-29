@@ -372,3 +372,25 @@ def test_the_ci_regex_and_the_module_agree_on_a_subject(title: str) -> None:
         f"{title!r}: CI says {'pass' if shell_says_ok else 'fail'}, "
         f"the module says {'pass' if module_says_ok else 'fail'}"
     )
+
+
+# ---------------------------------------------------------------- the bot's commits
+
+
+def test_every_dependabot_prefix_is_a_type_the_gate_accepts() -> None:
+    """Dependabot writes the subject; this gate reads it. The two must agree in advance.
+
+    The default subject ("Bump x from a to b") fails Conventional Commits, so a
+    configuration without a prefix makes every bump red — found here on
+    2026-08-29 before the first one opened. The bot signs its commits, so the
+    DCO half needs nothing.
+    """
+    config = yaml.safe_load((ROOT / ".github" / "dependabot.yml").read_text(encoding="utf-8"))
+    accepted = set(lint_commits.TYPES.split("|"))
+
+    for update in config["updates"]:
+        prefix = (update.get("commit-message") or {}).get("prefix")
+        assert prefix in accepted, (
+            f"{update['package-ecosystem']}: prefix {prefix!r} is not a type commit-lint accepts"
+        )
+        assert lint_commits.check_title(f"{prefix}(deps): bump x from 1.0 to 1.1") == []
