@@ -6,6 +6,12 @@ Notable changes to this project. The format follows
 
 ## [Unreleased]
 
+## [0.1.3] - 2026-08-29
+
+The platform's posture, read on a schedule and held to a register — the last
+item of the 2026-08-29 practise audit, and the one that produced a false green
+of its own before it was proved red and green live.
+
 ### Added
 
 - **The platform's posture is read on a schedule and held to a register.**
@@ -495,7 +501,8 @@ order it happened.
 - **`gates.yaml`, deliberately empty.** This repository will not list a gate
   before the thing that enforces it exists.
 
-[Unreleased]: https://github.com/sayam/verifiable-gates/compare/v0.1.2...HEAD
+[Unreleased]: https://github.com/sayam/verifiable-gates/compare/v0.1.3...HEAD
+[0.1.3]: https://github.com/sayam/verifiable-gates/releases/tag/v0.1.3
 [0.1.2]: https://github.com/sayam/verifiable-gates/releases/tag/v0.1.2
 [0.1.1]: https://github.com/sayam/verifiable-gates/releases/tag/v0.1.1
 [0.1.0]: https://github.com/sayam/verifiable-gates/releases/tag/v0.1.0
