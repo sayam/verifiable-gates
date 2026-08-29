@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "verifiable-gates"
-version = "0.1.4"
+version = "0.1.5"
 description = "A gate registry that is enforced two ways, gates that carry evidence of having gone red, and a portable rule set for AI coding agents."
 readme = "README.md"
 requires-python = ">=3.11"
