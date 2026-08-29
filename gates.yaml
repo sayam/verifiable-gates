@@ -1214,6 +1214,16 @@ gates:
           `.github/actions/setup/action.yml`, exit 0 — and its two new cases
           went red, including the tree with no `workflows/` directory at all.
           Restored byte for byte, six green.
+      - kind: mutation
+        ref: pr/60
+        date: 2026-08-29
+        caught: >-
+          The install scanner restored to the exemption that needed only both
+          halves present: red on `--no-deps requests .`, `--no-deps . requests`,
+          `-r requirements.txt .` and a second install chained after an exempt
+          one. The workflow scanner restored to excusing `docker://` whole: red
+          on a floating tag, a versioned tag and a 63-character digest. Restored
+          byte for byte, fifteen green.
 
   - id: rules-we-ship-we-keep
     title: Scanners that apply to this repository are run against this repository

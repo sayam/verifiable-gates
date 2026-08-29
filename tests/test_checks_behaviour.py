@@ -303,6 +303,62 @@ def test_a_candidate_list_with_some_entrypoints_present_is_not_misconfigured(
     assert capsys.readouterr().out == ""
 
 
+# --------------------------------------------- an exemption covers only its case
+#
+# Two exemptions read wider than the case they were written for — an outside
+# audit on 2026-08-29 planted a line inside each and got a clean exit.
+
+
+@pytest.mark.parametrize(
+    ("command", "exit_code"),
+    [
+        ("pip install --no-deps -e .", 0),
+        ("pip install --no-deps ./tools", 0),
+        ("pip install --no-deps -e .[dev]", 0),
+        ("pip install --no-deps --index-url https://mirror.example -e .", 0),
+        ("pip install --no-deps -e . && pytest -q", 0),
+        # The audit's line: both halves present, and a package fetched anyway.
+        ("pip install --no-deps requests .", 1),
+        ("pip install --no-deps . requests", 1),
+        ("pip install --no-deps -r requirements.txt .", 1),
+        ("pip install --no-deps -e . ; pip install requests", 1),
+        ("pip install --no-deps", 1),
+    ],
+    ids=lambda value: value if isinstance(value, str) else str(value),
+)
+def test_the_local_install_exemption_needs_every_target_to_be_local(
+    tmp_path: pathlib.Path, command: str, exit_code: int
+) -> None:
+    """`--no-deps` plus a local target excuses a line only when nothing else is on it."""
+    root = build(
+        tmp_path, {".github/workflows/ci.yml": f"jobs:\n  a:\n    steps:\n      - run: {command}\n"}
+    )
+    assert scan_install_pinning.main(root) == exit_code, command
+
+
+@pytest.mark.parametrize(
+    ("ref", "exit_code"),
+    [
+        ("docker://alpine@sha256:" + "c" * 64, 0),
+        ("./.github/actions/setup", 0),
+        # The audit's line: a floating image tag behind a prefix that was exempt whole.
+        ("docker://alpine:latest", 1),
+        ("docker://ghcr.io/org/tool:1.2", 1),
+        ("docker://alpine@sha256:" + "c" * 63, 1),
+    ],
+    ids=lambda value: value if isinstance(value, str) else str(value),
+)
+def test_a_docker_step_is_held_to_a_digest_not_excused(
+    tmp_path: pathlib.Path, capsys: pytest.CaptureFixture[str], ref: str, exit_code: int
+) -> None:
+    """`docker://` runs an image with the job's permissions; a tag on it can move."""
+    root = build(
+        tmp_path, {".github/workflows/ci.yml": f"jobs:\n  a:\n    steps:\n      - uses: {ref}\n"}
+    )
+    assert scan_workflow_pinning.main(root) == exit_code, ref
+    assert (ref in capsys.readouterr().out) is bool(exit_code)
+
+
 # ------------------------------------------------------------ composite actions
 #
 # A step moved into `.github/actions/<name>/action.yml` runs with the calling

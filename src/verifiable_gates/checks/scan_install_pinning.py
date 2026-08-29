@@ -35,12 +35,54 @@ NPM_INSTALL = re.compile(r"(?:^|[\s/])npm\s+(?:install|i|add)\b")
 # from an index, so there is no hash to pin and nothing an attacker could swap.
 # **Both halves are required.** `--no-deps requests` still reaches the index, and
 # `-e .` without `--no-deps` drags the whole dependency tree in unpinned — either
-# one alone would turn this rule off for the case it exists to catch.
-LOCAL_TARGET = re.compile(r"(?:^|\s)(?:-e\s+)?(?:\.|\./|/)(?:\S*)?(?:\s|$)")
+# one alone would turn this rule off for the case it exists to catch. And the
+# local target has to be the *only* target: `--no-deps requests .` has both
+# halves and still fetches `requests` from the index — an outside audit on
+# 2026-08-29 planted exactly that line and the exemption covered it.
+LOCAL_TARGET = re.compile(r"^(?:\.|\./|/)")
+# Options whose next token is a value, not a package — `-r`/`-c` are left out on
+# purpose: a requirements file names packages, so it is an index install.
+TAKES_A_VALUE = frozenset(
+    {
+        "-i",
+        "--index-url",
+        "--extra-index-url",
+        "-f",
+        "--find-links",
+        "-t",
+        "--target",
+        "--prefix",
+        "--root",
+        "--src",
+        "-C",
+        "--config-settings",
+        "--cache-dir",
+        "--python",
+    }
+)
+CHAIN = re.compile(r"\s*(?:&&|\|\||;|\|)\s*")
+
+
+def _targets(command: str) -> list[str]:
+    """What one `pip install` would install: its non-option tokens."""
+    tokens = command[command.index("install") + len("install") :].split()
+    found: list[str] = []
+    skip = False
+    for token in tokens:
+        if skip:
+            skip = False
+        elif token in TAKES_A_VALUE:
+            skip = True
+        elif not token.startswith("-"):
+            found.append(token)
+    return found
 
 
 def _installs_from_an_index(command: str) -> bool:
-    return not ("--no-deps" in command and LOCAL_TARGET.search(command) is not None)
+    targets = _targets(command)
+    return not (
+        "--no-deps" in command and targets and all(LOCAL_TARGET.match(target) for target in targets)
+    )
 
 
 def _commands(path: pathlib.Path) -> list[str]:
@@ -69,7 +111,9 @@ def main(root: pathlib.Path) -> int:
 
     findings: list[str] = []
     for path in targets:
-        for line in _commands(path):
+        # One `run:` line can chain several commands; each is judged on its own,
+        # or the second hides behind the first's exemption.
+        for line in (part for joined in _commands(path) for part in CHAIN.split(joined)):
             if (
                 PIP_INSTALL.search(line)
                 and "--require-hashes" not in line

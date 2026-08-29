@@ -23,7 +23,18 @@ import sys
 
 USES = re.compile(r"^\s*-?\s*uses:\s*(\S+)", re.MULTILINE)
 PINNED = re.compile(r"@[0-9a-f]{40}$")
-LOCAL = ("./", "docker://")
+# A `docker://` step runs an image with the job's permissions, and a tag can be
+# re-pointed exactly as an action tag can — so it is held to a digest, not
+# exempted (an outside audit on 2026-08-29 planted `docker://alpine:latest`
+# and the whole prefix was excused). Only a path in this checkout is local.
+DIGEST = re.compile(r"@sha256:[0-9a-f]{64}$")
+LOCAL = ("./",)
+
+
+def _pinned(ref: str) -> bool:
+    if ref.startswith("docker://"):
+        return DIGEST.search(ref) is not None
+    return PINNED.search(ref) is not None
 
 
 def main(root: pathlib.Path) -> int:
@@ -38,7 +49,7 @@ def main(root: pathlib.Path) -> int:
         findings += [
             f"{path.relative_to(root)}: {ref}"
             for ref in USES.findall(path.read_text(encoding="utf-8"))
-            if not ref.startswith(LOCAL) and not PINNED.search(ref)
+            if not ref.startswith(LOCAL) and not _pinned(ref)
         ]
 
     for finding in findings:
