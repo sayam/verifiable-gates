@@ -1,0 +1,4 @@
+# Code-scanning alerts (CodeQL) that have been judged and accepted, as tool/rule-id,
+# the reason after a `#`. Held both ways by the `codeql` job: an open alert with no
+# line here and no dismissal reason on the platform is red; a line here that no
+# alert matches any more is red too.

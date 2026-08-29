@@ -108,3 +108,35 @@ def test_the_advisories_job_lets_the_decider_decide() -> None:
     assert "|| true" in step["run"]
     assert "python -m verifiable_gates.advisories" in step["run"]
     assert "--register pins/dev/advisories-accepted.txt" in step["run"]
+
+
+# ---------------------------------------------------------------- the security workflow
+
+
+def test_the_codeql_job_ends_with_a_decider_on_this_ref() -> None:
+    """CodeQL's own step never fails on a finding — the decision has to be a step that reads."""
+    jobs = preflight.jobs_on_disk(ROOT)
+    steps = jobs["codeql"]["steps"]
+    init = next(s for s in steps if "codeql-action/init" in str(s.get("uses")))
+    decide = next(s for s in steps if "verifiable_gates.posture" in str(s.get("run")))
+
+    assert init["with"]["queries"] == "security-extended"
+    assert "python" in init["with"]["languages"]
+    assert steps.index(decide) > max(
+        i for i, s in enumerate(steps) if "codeql-action" in str(s.get("uses"))
+    )
+    assert '--ref "$GITHUB_REF"' in decide["run"]
+    assert "--register pins/dev/code-scanning-accepted.txt" in decide["run"]
+
+
+def test_the_secret_scan_runs_a_checksummed_binary_over_the_whole_history() -> None:
+    jobs = preflight.jobs_on_disk(ROOT)
+    steps = jobs["secret-scan"]["steps"]
+    checkout = next(s for s in steps if "actions/checkout" in str(s.get("uses")))
+    fetch = next(s for s in steps if "sha256sum -c" in str(s.get("run")))
+    scan = next(s for s in steps if "gitleaks git" in str(s.get("run")))
+
+    assert checkout["with"]["fetch-depth"] == 0, "a shallow clone scans one commit, not the history"
+    assert "gitleaks_8.30.1_linux_x64.tar.gz" in fetch["run"]
+    assert "--exit-code 1" in scan["run"]
+    assert "--redact" in scan["run"], "a found secret must not be printed into the log"

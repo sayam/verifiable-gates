@@ -167,6 +167,57 @@ gates:
           A module with its `Role:` line removed went red by name; a line naming a
           fifth kind went red; a module carrying two went red.
 
+  - id: sast-is-a-job-and-its-alerts-are-judged
+    title: CodeQL security-extended runs as a job, and every open alert on the ref is judged
+    kind: job
+    severity: blocking
+    enforced_by: {job: codeql}
+    layer: internal
+    pillar: security
+    portable: false
+    born_from: >-
+      `codeql-sast` is published from here — "as a job, not the default setup",
+      because something clicked into place in a UI cannot be reviewed and can
+      disappear silently — and this repository had neither the job nor the
+      click. CodeQL's own step never fails on a finding: it uploads alerts to a
+      page outsiders read first. So the job ends with a decider that reads the
+      alerts back for this ref and refuses any that is neither in
+      `pins/dev/code-scanning-accepted.txt` nor dismissed with a reason, in both
+      directions — the same shape as the advisory register.
+    proved_by:
+      - kind: ci-red
+        ref: pr/45
+        date: 2026-08-29
+        caught: >-
+          A throwaway branch planted `eval()` over request input; the analysis
+          raised the alert and the decider step went red on it with the rule
+          named. The branch was deleted, never merged.
+
+  - id: a-secret-is-stopped-on-the-way-in
+    title: gitleaks scans every commit of the history on every push and pull request
+    kind: job
+    severity: blocking
+    enforced_by: {job: secret-scan}
+    layer: internal
+    pillar: security
+    portable: false
+    born_from: >-
+      A secret that reaches history cannot truly be deleted on GitHub — old
+      objects are still served by SHA — so stopping it on the way in is always
+      cheaper. `push-secret-scan` was published from here with nothing scanning
+      this history. The binary is a pinned release verified against its published
+      checksum rather than the marketplace action, which carries a commercial
+      end-user licence this repository's own licensing rule would have to
+      explain.
+    proved_by:
+      - kind: ci-red
+        ref: pr/45
+        date: 2026-08-29
+        caught: >-
+          A throwaway branch committed a fake AWS access key id in a text file;
+          the job went red naming the commit and the rule, with the value
+          redacted from the log. The branch was deleted, never merged.
+
   - id: commit-messages-are-shaped-and-signed
     title: Every commit a branch adds is a Conventional Commit and carries a DCO sign-off
     kind: test
