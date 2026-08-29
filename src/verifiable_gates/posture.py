@@ -287,6 +287,7 @@ def platform_state(branch: str) -> tuple[dict[str, object], set[str]]:
         "allow_force_pushes": enabled("allow_force_pushes"),
         "allow_deletions": enabled("allow_deletions"),
         "required_conversation_resolution": enabled("required_conversation_resolution"),
+        "required_signatures": enabled("required_signatures"),
         "strict_status_checks": checks.get("strict") if isinstance(checks, dict) else None,
         "required_approving_review_count": (
             reviews.get("required_approving_review_count") if isinstance(reviews, dict) else None
@@ -300,8 +301,25 @@ def platform_state(branch: str) -> tuple[dict[str, object], set[str]]:
         "web_commit_signoff_required",
     ):
         state[key] = repo.get(key)
+    # Two more endpoints, since 2026-08-30: the Actions policy carries the SHA-pin
+    # requirement the rule's own incident named (and found off), and the alerts
+    # switch answers by status code alone — 204 on, 404 off, anything else the
+    # third answer.
+    actions = gh.api("repos/:owner/:repo/actions/permissions")
+    for key in ("allowed_actions", "sha_pinning_required"):
+        state[key] = actions.get(key) if isinstance(actions, dict) else None
+    state["dependabot_alerts"] = _alerts_switch()
     required = set(checks.get("contexts") or []) if isinstance(checks, dict) else set()
     return state, required
+
+
+def _alerts_switch() -> bool | None:
+    """Dependabot alerts on (204), off (404), or unreadable (any other refusal)."""
+    try:
+        gh.run(["api", "repos/:owner/:repo/vulnerability-alerts"])
+    except PermissionError as refusal:
+        return False if "404" in str(refusal) else None
+    return True
 
 
 def blind(

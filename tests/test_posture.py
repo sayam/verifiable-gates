@@ -347,6 +347,7 @@ PROTECTION: dict[str, Any] = {
     "allow_force_pushes": {"enabled": False},
     "allow_deletions": {"enabled": False},
     "required_conversation_resolution": {"enabled": True},
+    "required_signatures": {"enabled": False},
     "required_status_checks": {"strict": False, "contexts": ["lint"]},
     "required_pull_request_reviews": {"required_approving_review_count": 0},
 }
@@ -364,13 +365,33 @@ SMALL: dict[str, Any] = {
 }
 
 
+ACTIONS: dict[str, Any] = {"allowed_actions": "selected", "sha_pinning_required": True}
+
+
 def a_platform(
-    monkeypatch: pytest.MonkeyPatch, protection: dict[str, Any], repo: dict[str, Any]
+    monkeypatch: pytest.MonkeyPatch,
+    protection: dict[str, Any],
+    repo: dict[str, Any],
+    actions: dict[str, Any] | None = None,
+    alerts: str = "204",
 ) -> None:
+    """Four answers: protection, the repository, the Actions policy, and the alerts switch
+    (`204` on, `404` off, anything else a refusal the census cannot read through)."""
+
     def answer(path: str) -> dict[str, Any]:
-        return protection if "protection" in path else repo
+        if "protection" in path:
+            return protection
+        if "actions/permissions" in path:
+            return ACTIONS if actions is None else actions
+        return repo
+
+    def run(args: list[str], **_kwargs: Any) -> str:  # noqa: ANN401 — mirroring the wrapper
+        if alerts == "204":
+            return ""
+        raise PermissionError(f"`gh {' '.join(args)}` failed: HTTP {alerts}")
 
     monkeypatch.setattr(gh, "api", answer)
+    monkeypatch.setattr(gh, "run", run)
 
 
 def a_tree(tmp_path: pathlib.Path, register: dict[str, Any]) -> tuple[str, str]:
@@ -431,17 +452,38 @@ def test_a_platform_the_token_cannot_read_is_the_third_answer(
     assert "cannot read the platform's settings" in capsys.readouterr().err
 
 
+@pytest.mark.parametrize(
+    ("alerts", "value"), [("204", True), ("404", False), ("403", None)], ids=["on", "off", "blind"]
+)
+def test_the_alerts_switch_is_read_by_status_code_with_a_third_answer(
+    monkeypatch: pytest.MonkeyPatch,
+    alerts: str,
+    value: bool | None,  # noqa: FBT001 — the parametrised expectation
+) -> None:
+    """The endpoint has no body: 204 is on, 404 is off, and a refusal the token cannot see
+    through is `None` — never "off" (the switch was found off and undeclared, 2026-08-30)."""
+    a_platform(monkeypatch, PROTECTION, REPO, alerts=alerts)
+
+    state, _required = posture.platform_state("main")
+
+    assert state["dependabot_alerts"] is value
+    assert state["sha_pinning_required"] is True
+    assert state["required_signatures"] is False, "declared, so it has to be read (2026-08-30)"
+    assert state["allowed_actions"] == "selected"
+
+
 def test_a_field_the_answer_does_not_carry_is_none_not_off(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """Flattening must keep the third answer: a missing block is `None`, never `False`."""
-    a_platform(monkeypatch, {"enforce_admins": {"enabled": True}}, {})
+    a_platform(monkeypatch, {"enforce_admins": {"enabled": True}}, {}, actions={})
 
     state, required = posture.platform_state("main")
 
     assert state["enforce_admins"] is True
     assert state["required_linear_history"] is None
     assert state["allow_squash_merge"] is None
+    assert state["sha_pinning_required"] is None
     assert required == set()
 
 
