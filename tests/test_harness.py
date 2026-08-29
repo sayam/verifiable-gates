@@ -15,12 +15,11 @@ from __future__ import annotations
 
 import json
 import pathlib
-from typing import TYPE_CHECKING, Any
+from typing import Any
+
+import pytest
 
 from verifiable_gates import harness
-
-if TYPE_CHECKING:
-    import pytest
 
 PASSING = "def test_ok():\n    assert True\n"
 FAILING = "def test_no():\n    assert 1 == 2, 'a distinctive message'\n"
@@ -179,6 +178,25 @@ def test_asking_for_a_gate_that_does_not_exist_is_a_misuse(
     root = a_project(tmp_path, PASSING)
     assert run(root, "--only", "no-such-gate") == 2
     assert "no such gate" in capsys.readouterr().err
+
+
+@pytest.mark.parametrize(
+    ("registry", "why"),
+    [
+        ("version: 1\n", "no gates list"),
+        ("version: 1\ngates:\n  - a stray string\n", "a row that is not a mapping"),
+        ("version: 2\ngates: []\n", "a schema version this reader does not speak"),
+    ],
+    ids=lambda value: value if " " in str(value) else "registry",
+)
+def test_an_index_the_harness_cannot_read_is_a_misuse_not_a_pass(
+    tmp_path: pathlib.Path, capsys: pytest.CaptureFixture[str], registry: str, why: str
+) -> None:
+    """Exit 2 with the reader's words — never 0, never a traceback."""
+    root = a_project(tmp_path, PASSING)
+    (root / "gates.yaml").write_text(registry, encoding="utf-8")
+    assert run(root) == 2, why
+    assert "cannot read the registry" in capsys.readouterr().err
 
 
 def test_a_failure_without_a_recorded_trap_prints_no_hint(
