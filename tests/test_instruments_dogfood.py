@@ -169,3 +169,28 @@ def test_the_sbom_is_taken_from_a_clean_environment_holding_the_wheel() -> None:
     assert "python -m venv --without-pip sbom-env" in sbom["run"]
     assert "install dist/*.whl" in sbom["run"]
     assert "'verifiable-gates' in n and 'PyYAML' in n" in sbom["run"], "an SBOM of nothing is green"
+
+
+# ---------------------------------------------------------------- posture and the census
+
+
+def test_the_posture_job_reads_with_the_custodians_token_on_a_schedule() -> None:
+    jobs = preflight.jobs_on_disk(ROOT)
+    step = next(s for s in jobs["posture"]["steps"] if "posture --settings" in str(s.get("run")))
+    text = (ROOT / ".github" / "workflows" / "posture.yml").read_text(encoding="utf-8")
+
+    assert step["env"]["GH_TOKEN"] == "${{ secrets.POSTURE_TOKEN }}", "job token cannot read it"  # noqa: S105 — the secret's name, not its value
+    assert "--settings pins/dev/posture-declared.json" in step["run"]
+    assert "cron:" in text
+    assert "workflow_dispatch" in text
+
+
+def test_the_schedule_census_runs_over_a_full_clone() -> None:
+    """A shallow clone reports every workflow as newborn — the free pass the census refuses."""
+    jobs = preflight.jobs_on_disk(ROOT)
+    steps = jobs["test"]["steps"]
+    checkout = next(s for s in steps if "actions/checkout" in str(s.get("uses")))
+    census = next(s for s in steps if "schedule_census" in str(s.get("run")))
+
+    assert checkout["with"]["fetch-depth"] == 0
+    assert census["name"] == "every declared schedule is still firing"

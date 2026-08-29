@@ -410,3 +410,28 @@ def test_a_history_that_is_not_an_object_is_unreadable(
 
     assert code == 2
     assert "not a dict" in capsys.readouterr().err
+
+    """404 is "never" — a cron on a branch not yet on main cannot have run — not "cannot see"."""
+
+
+def test_a_workflow_the_platform_does_not_know_yet_has_never_fired(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """404 is "never" — a cron on a branch not yet on main cannot have run — not "cannot see"."""
+
+    def unknown(_path: str) -> dict[str, object]:
+        raise PermissionError("`gh api …` failed: gh: Not Found (HTTP 404)")
+
+    monkeypatch.setattr(gh, "api", unknown)
+
+    assert census.fetch(["posture.yml"]) == {"last_scheduled_run": {"posture.yml": None}}
+
+
+def test_any_other_refusal_stays_the_third_answer(monkeypatch: pytest.MonkeyPatch) -> None:
+    def forbidden(_path: str) -> dict[str, object]:
+        raise PermissionError("`gh api …` failed: HTTP 403")
+
+    monkeypatch.setattr(gh, "api", forbidden)
+
+    with pytest.raises(PermissionError, match="403"):
+        census.fetch(["posture.yml"])

@@ -14,13 +14,13 @@ lines that will one day excuse something nobody decided about.
 
 from __future__ import annotations
 
+import json
 import pathlib
-from typing import TYPE_CHECKING
+from typing import Any
 
-from verifiable_gates import advisories, gh, posture
+import pytest
 
-if TYPE_CHECKING:
-    import pytest
+from verifiable_gates import advisories, check_names, gh, posture, workflows
 
 EXEMPT = {"scorecard": "a score, not a verdict, and it never runs on a pull request"}
 
@@ -335,3 +335,127 @@ def test_this_repositorys_alert_register_is_reasoned() -> None:
     register = advisories.accepted(root / "pins" / "dev" / "code-scanning-accepted.txt")
 
     assert all(register.values()), f"an entry with no reason: {register}"
+
+
+# ------------------------------------------------------------ the settings mode
+
+ROOT = pathlib.Path(__file__).resolve().parent.parent
+PROTECTION: dict[str, Any] = {
+    "enforce_admins": {"enabled": True},
+    "required_linear_history": {"enabled": True},
+    "allow_force_pushes": {"enabled": False},
+    "allow_deletions": {"enabled": False},
+    "required_conversation_resolution": {"enabled": True},
+    "required_status_checks": {"strict": False, "contexts": ["lint"]},
+    "required_pull_request_reviews": {"required_approving_review_count": 0},
+}
+REPO: dict[str, Any] = {
+    "allow_squash_merge": False,
+    "allow_merge_commit": False,
+    "allow_rebase_merge": True,
+    "delete_branch_on_merge": True,
+    "web_commit_signoff_required": True,
+}
+SMALL: dict[str, Any] = {
+    "branch": "main",
+    "settings": {"enforce_admins": {"want": True, "why": "an exemption for admins is for anyone"}},
+    "not_required": {},
+}
+
+
+def a_platform(
+    monkeypatch: pytest.MonkeyPatch, protection: dict[str, Any], repo: dict[str, Any]
+) -> None:
+    def answer(path: str) -> dict[str, Any]:
+        return protection if "protection" in path else repo
+
+    monkeypatch.setattr(gh, "api", answer)
+
+
+def a_tree(tmp_path: pathlib.Path, register: dict[str, Any]) -> tuple[str, str]:
+    (tmp_path / ".github" / "workflows").mkdir(parents=True)
+    (tmp_path / ".github" / "workflows" / "ci.yml").write_text(
+        "on: [push, pull_request]\njobs:\n  lint:\n    steps: []\n", encoding="utf-8"
+    )
+    path = tmp_path / "declared.json"
+    path.write_text(json.dumps(register), encoding="utf-8")
+    return str(path), str(tmp_path)
+
+
+def test_a_platform_that_matches_the_register_is_green(
+    tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    a_platform(monkeypatch, PROTECTION, REPO)
+    register, root = a_tree(tmp_path, SMALL)
+
+    assert posture.main(["--settings", register, "--root", root]) == 0
+    assert "1 switches hold their declared values on main" in capsys.readouterr().out
+
+
+def test_a_switch_that_drifted_is_red_with_its_why(
+    tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    a_platform(monkeypatch, {**PROTECTION, "enforce_admins": {"enabled": False}}, REPO)
+    register, root = a_tree(tmp_path, SMALL)
+
+    assert posture.main(["--settings", register, "--root", root]) == 1
+    err = capsys.readouterr().err
+    assert "enforce_admins = False" in err
+    assert "exemption for admins" in err
+
+
+def test_a_check_that_runs_on_pull_requests_and_is_not_required_is_red(
+    tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    nothing_required = {**PROTECTION, "required_status_checks": {"strict": False, "contexts": []}}
+    a_platform(monkeypatch, nothing_required, REPO)
+    register, root = a_tree(tmp_path, SMALL)
+
+    assert posture.main(["--settings", register, "--root", root]) == 1
+    assert "not required: ['lint']" in capsys.readouterr().err
+
+
+def test_a_platform_the_token_cannot_read_is_the_third_answer(
+    tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """No secret, or the wrong scope: exit 2, never a pass."""
+
+    def refuse(_path: str) -> dict[str, Any]:
+        raise PermissionError("HTTP 403: Resource not accessible by personal access token")
+
+    monkeypatch.setattr(gh, "api", refuse)
+    register, root = a_tree(tmp_path, SMALL)
+
+    assert posture.main(["--settings", register, "--root", root]) == 2
+    assert "cannot read the platform's settings" in capsys.readouterr().err
+
+
+def test_a_field_the_answer_does_not_carry_is_none_not_off(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Flattening must keep the third answer: a missing block is `None`, never `False`."""
+    a_platform(monkeypatch, {"enforce_admins": {"enabled": True}}, {})
+
+    state, required = posture.platform_state("main")
+
+    assert state["enforce_admins"] is True
+    assert state["required_linear_history"] is None
+    assert state["allow_squash_merge"] is None
+    assert required == set()
+
+
+def test_the_two_modes_are_exclusive_and_ref_needs_a_register() -> None:
+    with pytest.raises(SystemExit):
+        posture.main(["--settings", "a", "--ref", "b"])
+    with pytest.raises(SystemExit):
+        posture.main(["--ref", "refs/heads/main"])
+
+
+def test_this_repositorys_register_names_only_checks_it_produces() -> None:
+    """An excused check that no workflow produces is a line that excuses nothing."""
+    _branch, settings, excused = posture.declared(ROOT / "pins" / "dev" / "posture-declared.json")
+    produced = check_names.all_checks(workflows.all_workflows(workflows.workflow_dir(ROOT)))
+
+    assert set(excused) <= produced, set(excused) - produced
+    assert all(setting.why for setting in settings.values())
+    assert all(reason.strip() for reason in excused.values())

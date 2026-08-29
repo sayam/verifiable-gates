@@ -6,6 +6,21 @@ Notable changes to this project. The format follows
 
 ## [Unreleased]
 
+### Added
+
+- **The platform's posture is read on a schedule and held to a register.**
+  `posture` gains a `--settings` mode: branch protection and the repository
+  switches, read with an administrator's token, held to
+  `pins/dev/posture-declared.json` (twelve switches, each with its why, and the
+  checks excused from being required, each with who sees it). `posture.yml`
+  runs it weekly and on every push to `main` with the `POSTURE_TOKEN` secret and
+  exits 2 without it. That is this repository's first cron, so the schedule
+  census now runs in the `test` job over a full clone, and treats a workflow
+  the platform has not met yet as "never fired" rather than "cannot see". The
+  platform was changed to match the register: the four newer jobs became
+  required checks, squash and merge-commit buttons went off, branches delete
+  on merge, and web commits require a sign-off.
+
 ## [0.1.2] - 2026-08-29
 
 The release that keeps at home the rest of what the 2026-08-29 practise audit
