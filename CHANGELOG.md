@@ -6,6 +6,14 @@ Notable changes to this project. The format follows
 
 ## [Unreleased]
 
+## [0.1.4] - 2026-08-29
+
+Everything in this release answers the five-model outside audit of `v0.1.0`
+(2026-08-29) — five reports on the same commit, re-planted on `v0.1.3` before
+anything was changed, so only what was still open was touched: six false
+greens closed, one promise given its job, and three deliberate zeros given a
+record.
+
 ### Added
 
 - **The CLA line is read by a job.** CONTRIBUTING has asked every pull request
