@@ -67,6 +67,15 @@ gates:
           register entry that no finding matches any more, and green only when the
           two agree — with the scanner's own verdict overridden by `|| true` so the
           decider is the one that decides.
+      - kind: ci-red
+        ref: run/33266155590
+        date: 2026-08-30
+        caught: >-
+          The job's first live red, on the throwaway pull request #71: an exemption
+          planted in `advisories-accepted.txt` that no finding matched was refused
+          with "the register accepts this and no scan reports it any more". Until
+          then the job had been green on all 67 of its runs with an empty register,
+          the one job here never seen red on the platform (re-audit census, 2026-08-30).
 
   - id: newcomer-handoff-is-checked-on-our-own-pull-requests
     title: The issue-handoff gate this bundle ships runs on this repository's pull requests
