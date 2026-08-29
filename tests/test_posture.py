@@ -14,7 +14,13 @@ lines that will one day excuse something nobody decided about.
 
 from __future__ import annotations
 
-from verifiable_gates import posture
+import pathlib
+from typing import TYPE_CHECKING
+
+from verifiable_gates import advisories, gh, posture
+
+if TYPE_CHECKING:
+    import pytest
 
 EXEMPT = {"scorecard": "a score, not a verdict, and it never runs on a pull request"}
 
@@ -261,3 +267,71 @@ def test_one_replaced_message_leaves_the_others_alone() -> None:
     found = posture.alert_problems([OPEN], {}, messages={"stale_alert": "unused"})
 
     assert "has not been judged" in only(found)
+
+
+# ---------------------------------------------------------------- the command line
+
+OPEN_ALERT = {"state": "open", "tool": {"name": "CodeQL"}, "rule": {"id": "py/code-injection"}}
+
+
+def a_register(tmp_path: pathlib.Path, text: str) -> str:
+    path = tmp_path / "accepted.txt"
+    path.write_text(text, encoding="utf-8")
+    return str(path)
+
+
+def test_an_unjudged_open_alert_is_red_and_named(
+    tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    monkeypatch.setattr(gh, "api_pages", lambda _path: [OPEN_ALERT])
+
+    code = posture.main(["--ref", "refs/heads/main", "--register", a_register(tmp_path, "")])
+
+    assert code == 1
+    assert "CodeQL/py/code-injection" in capsys.readouterr().err
+
+
+def test_a_judged_alert_is_green_and_counted(
+    tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    monkeypatch.setattr(gh, "api_pages", lambda _path: [OPEN_ALERT])
+    register = a_register(tmp_path, "CodeQL/py/code-injection  # a fixture, input is ours\n")
+
+    assert posture.main(["--ref", "refs/heads/main", "--register", register]) == 0
+    assert "1 open alert(s) on refs/heads/main, every one judged" in capsys.readouterr().out
+
+
+def test_the_ref_reaches_the_query(tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Alerts belong to a ref; asking without one answers for the default branch, not this PR."""
+    asked: list[str] = []
+
+    def record(path: str) -> list[object]:
+        asked.append(path)
+        return []
+
+    monkeypatch.setattr(gh, "api_pages", record)
+
+    posture.main(["--ref", "refs/pull/9/merge", "--register", a_register(tmp_path, "")])
+
+    assert asked
+    assert "ref=refs/pull/9/merge" in asked[0]
+    assert "state=open" in asked[0]
+
+
+def test_alerts_the_token_cannot_read_are_the_third_answer(
+    tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    def refuse(_path: str) -> list[object]:
+        raise PermissionError("HTTP 403")
+
+    monkeypatch.setattr(gh, "api_pages", refuse)
+
+    assert posture.main(["--ref", "refs/heads/main", "--register", a_register(tmp_path, "")]) == 2
+    assert "cannot read" in capsys.readouterr().err
+
+
+def test_this_repositorys_alert_register_is_reasoned() -> None:
+    root = pathlib.Path(__file__).resolve().parent.parent
+    register = advisories.accepted(root / "pins" / "dev" / "code-scanning-accepted.txt")
+
+    assert all(register.values()), f"an entry with no reason: {register}"

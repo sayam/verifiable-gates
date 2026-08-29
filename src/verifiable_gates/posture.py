@@ -48,8 +48,13 @@ those are fetched belongs to the caller.
 
 from __future__ import annotations
 
+import argparse
 import dataclasses
+import pathlib
+import sys
 from typing import TYPE_CHECKING
+
+from verifiable_gates import advisories, gh
 
 if TYPE_CHECKING:
     from collections.abc import Mapping, Sequence
@@ -59,6 +64,7 @@ __all__ = [
     "Setting",
     "alert_problems",
     "check_problems",
+    "main",
     "setting_problems",
     "unreadable",
 ]
@@ -237,3 +243,35 @@ def alert_problems(
 
     problems += [text["stale_alert"].format(name=name) for name in sorted(set(accepted) - seen)]
     return problems
+
+
+def main(argv: list[str] | None = None) -> int:
+    """Decide the code-scanning alerts on one ref against a register — exit 1 on any unjudged.
+
+    Only the alert half of the posture has a command line: it needs the job's own
+    token and nothing more, so a CI job can run it after the analysis that
+    produced the alerts. The settings half needs an administrator's token and is
+    decided elsewhere.
+    """
+    parser = argparse.ArgumentParser(description="Every code-scanning alert judged.")
+    parser.add_argument("--ref", required=True, help="the git ref the analysis ran on")
+    parser.add_argument("--register", required=True, help="accepted alerts, tool/rule per line")
+    args = parser.parse_args(argv)
+
+    try:
+        alerts = gh.api_pages(f"repos/:owner/:repo/code-scanning/alerts?state=open&ref={args.ref}")
+    except (PermissionError, RuntimeError) as problem:
+        print(f"cannot read the code-scanning alerts: {problem}", file=sys.stderr)
+        return 2
+    register = advisories.accepted(pathlib.Path(args.register))
+    lines = alert_problems(alerts, register)
+    for line in lines:
+        print(line, file=sys.stderr)
+    if lines:
+        return 1
+    print(f"{len(alerts)} open alert(s) on {args.ref}, every one judged; {len(register)} accepted")
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())

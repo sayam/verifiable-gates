@@ -6,6 +6,16 @@ Notable changes to this project. The format follows
 
 ## [Unreleased]
 
+### Added
+
+- **SAST and secret scanning run as jobs.** `codeql` (Python and Actions,
+  security-extended) ends with a decider — `python -m verifiable_gates.posture`
+  gains a command line for the alert half of the posture — that refuses any open
+  alert on the ref neither in `pins/dev/code-scanning-accepted.txt` nor dismissed
+  with a reason. `secret-scan` runs a checksum-verified gitleaks release over the
+  whole history on every push and pull request. The rules `codeql-sast` and
+  `push-secret-scan` had been published from here and kept only by others.
+
 ## [0.1.1] - 2026-08-29
 
 Everything in this release answers an outside zero-trust audit of `v0.1.0`

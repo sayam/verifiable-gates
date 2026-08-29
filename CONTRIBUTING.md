@@ -106,7 +106,10 @@ field was one release away from proving it (2026-08-29).
 tools and holds every finding to `pins/dev/advisories-accepted.txt` — an
 advisory you cannot act on goes there with a reason, not into a silenced job.
 `handoff` refuses a pull request that closes an issue still labelled
-`good first issue` without saying so. Locally, `python -m verifiable_gates.preflight`
+`good first issue` without saying so. `codeql` and `secret-scan` (in
+`security.yml`) refuse an unjudged code-scanning alert on the ref and any secret
+anywhere in the history; a CodeQL finding you cannot act on goes into
+`pins/dev/code-scanning-accepted.txt` with a reason. Locally, `python -m verifiable_gates.preflight`
 walks `lint` and `test` as CI would, and `python -m verifiable_gates.harness
 --only <gate-id>` runs one gate and answers in something a loop can read.
 
