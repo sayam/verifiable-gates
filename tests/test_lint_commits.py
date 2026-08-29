@@ -374,6 +374,49 @@ def test_the_ci_regex_and_the_module_agree_on_a_subject(title: str) -> None:
     )
 
 
+@pytest.mark.parametrize(
+    "body",
+    [
+        "feat: ok\n\nSigned-off-by: A Person <a@b.co>\n",
+        "feat: ok\n\nA body.\n\nSigned-off-by: A B <a@b.co>\nReviewed-by: C <c@d.io>\n",
+        "feat: ok\n\nSigned-off-by: A B <a@b.co>   \n",
+        "feat: ok\n\nSigned-off-by:  <@>\n",
+        "feat: ok\n\nSigned-off-by: <a@b.co>\n",
+        "feat: ok\n\nSigned-off-by: No Address\n",
+        "feat: ok\n\nSigned-off-by: A B <a@b.co> and more\n",
+        "feat: ok\n\nSigned-off-by: A B <not an address>\n",
+        "feat: ok\n\nSigned-off-by: A B <a@b.co>\nCo-authored-by: C <c@d.io>\n",
+        "feat: ok\n\nno signature at all\n",
+    ],
+)
+def test_the_ci_regex_and_the_module_agree_on_a_sign_off(body: str) -> None:
+    """The sign-off half of the same gate, held the same way as the subject half.
+
+    The first round bound only `SUBJECT`; a second outside audit (2026-08-29)
+    fed `Signed-off-by:  <@>` through both and CI's `.* <.*@.*>` accepted a
+    signature with no name and no address while the module refused it. A DCO
+    line nobody can follow up on is the case the module's shape exists to refuse.
+    """
+    block = the_ci_block()
+    definitions = [line for line in block.splitlines() if line.startswith("SIGNOFF=")]
+    assert len(definitions) == 1, "expected exactly one SIGNOFF= line"
+    assert 'grep -qE "$SIGNOFF"' in block, "the job must judge the body with SIGNOFF"
+    bash = shutil.which("bash")
+    assert bash, "the CI block is written for bash"
+    script = f'{definitions[0]}\nprintf \'%s\' "$1" | grep -qE "$SIGNOFF"'
+
+    shell = subprocess.run(  # noqa: S603 — the script is this repository's own CI block
+        [bash, "-c", script, "_", body], check=False
+    )
+    shell_says_ok = shell.returncode == 0
+    module_says_ok = not lint_commits.check_sign_off(body)
+
+    assert shell_says_ok == module_says_ok, (
+        f"{body!r}: CI says {'pass' if shell_says_ok else 'fail'}, "
+        f"the module says {'pass' if module_says_ok else 'fail'}"
+    )
+
+
 # ---------------------------------------------------------------- the bot's commits
 
 

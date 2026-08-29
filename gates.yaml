@@ -431,6 +431,15 @@ gates:
           no address to reply to, separating log records by newline so a multiline
           body became several commits, skipping the sign-off check in hook mode,
           and returning zero whatever was found.
+      - kind: mutation
+        ref: pr/59
+        date: 2026-08-29
+        caught: >-
+          The CI block restored to its `.* <.*@.*>` sign-off grep: all ten
+          sign-off cases red (no `SIGNOFF=` line to bind). Then only the new
+          `SIGNOFF` loosened to that old shape: red on `Signed-off-by:  <@>`,
+          which the module refuses and the old grep accepted, and on trailing
+          spaces after the address. Restored byte for byte, 62 green.
 
   - id: newcomer-issues-are-not-taken-silently
     title: A pull request closing an issue still labelled for newcomers has to say why

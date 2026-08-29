@@ -129,7 +129,8 @@ jobs:
       # the module's, and `tests/test_lint_commits.py` runs this block's regex
       # against the subjects the module judges, so the two cannot drift into
       # accepting different histories (an outside audit on 2026-08-29 found
-      # `feature:` and `fixup!` passing here while the hook refused them).
+      # `feature:` and `fixup!` passing here while the hook refused them, and a
+      # second round found `Signed-off-by:  <@>` passing here for the same reason).
       # Compare against the PR head, not HEAD: on `pull_request` events HEAD is
       # the merge commit GitHub synthesises, whose subject fails Conventional
       # Commits every time and belongs to nobody. Merge commits on the branch are
@@ -146,6 +147,10 @@ jobs:
           fi
           TYPES='feat|fix|docs|style|refactor|perf|test|build|ci|chore|revert'
           SUBJECT="^($TYPES)(\([[:alnum:]_./-]+\))?!?: [^[:space:]].{0,70}$"
+          # The module's SIGN_OFF: a name and an address are both required — a
+          # signature with no way to reach the signer certifies nothing. The
+          # earlier `.* <.*@.*>` accepted `Signed-off-by:  <@>` (audit, 2026-08-29).
+          SIGNOFF='^Signed-off-by: .+ <[^<>@[:space:]]+@[^<>[:space:]]+>[[:space:]]*$'
           status=0
           for sha in $(git rev-list --no-merges "$RANGE"); do
             subject=$(git show -s --format=%s "$sha")
@@ -156,7 +161,7 @@ jobs:
             if ! printf '%s' "$subject" | grep -qE "$SUBJECT"; then
               echo "FAIL ${sha:0:9}: subject is not a Conventional Commit — $subject"; status=1
             fi
-            if ! printf '%s' "$body" | grep -q '^Signed-off-by: .* <.*@.*>$'; then
+            if ! printf '%s' "$body" | grep -qE "$SIGNOFF"; then
               echo "FAIL ${sha:0:9}: no Signed-off-by line — sign with git commit -s"; status=1
             fi
             if printf '%s' "$body" | grep -qiE '^(Co-authored-by|Claude-Session):'; then
