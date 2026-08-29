@@ -8,6 +8,18 @@ Notable changes to this project. The format follows
 
 ### Changed
 
+- **Four more switches in the platform register.** The re-audit's first
+  round read four live switches the rule `platform-posture-verified` names
+  and the register did not: `sha_pinning_required` off (the rule's own
+  incident had found it off in the reference implementation too),
+  `allowed_actions` all, Dependabot alerts off, `required_signatures` off.
+  `posture` now reads the Actions policy and the alerts switch (204 on, 404
+  off, anything else the third answer) beside branch protection; the first
+  three were turned on/narrowed on the platform on 2026-08-30 — SHA pins
+  required, GitHub-owned actions only, alerts on — and the fourth is declared
+  off with its reason (DECISIONS.md `git-signing-not-required`). The first
+  live run of the wider reader caught the reader itself: `required_signatures`
+  was declared and not read, and `blind` said so. Owner's decision, 2026-08-30.
 - **The two clocks tick on the platform's cron, not only on a push.** The
   schedule census and the DECISIONS revisit check ran in ci.yml's `test` job
   alone — on push and pull request — so with nobody pushing they stopped, and

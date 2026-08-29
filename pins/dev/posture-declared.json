@@ -53,6 +53,22 @@
     "web_commit_signoff_required": {
       "want": true,
       "why": "a commit made in the web editor must carry the same DCO sign-off as one made with git commit -s"
+    },
+    "sha_pinning_required": {
+      "want": true,
+      "why": "the rule's own incident (platform-posture-verified) found this off while SHA pinning was enforced only by our test; the platform refusing an unpinned action is the second lock, and it was off here until 2026-08-30"
+    },
+    "allowed_actions": {
+      "want": "selected",
+      "why": "every action this repository uses is GitHub's own (actions/*, github/*); a policy of 'all' lets the next workflow pull anyone's — 'selected' with GitHub-owned allowed is the smallest set that runs what runs today"
+    },
+    "dependabot_alerts": {
+      "want": true,
+      "why": "the advisories job audits the pins on every run, but only when a run happens; the platform's alerts are the watcher that works while nobody pushes (re-audit round 10: Dependabot had no receiver)"
+    },
+    "required_signatures": {
+      "want": false,
+      "why": "commits are not GPG/SSH-signed here; authorship is the DCO sign-off, held by commit-lint and web_commit_signoff_required, and requiring signatures would refuse the maintainer's own rebase merges — DECISIONS.md: git-signing-not-required. Declared so the switch cannot be flipped on by a click and start refusing merges unexplained"
     }
   },
   "not_required": {
