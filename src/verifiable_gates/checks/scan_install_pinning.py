@@ -33,7 +33,13 @@ import sys
 # install`, `pip -q install` — and this repository's own release job used the
 # first shape on an unpinned wheel install for five releases while the scanner
 # read only `pip install` side by side (re-audit, 2026-08-30).
-PIP_INSTALL = re.compile(r"(?:^|[\s/])pip3?(?:\s+-{1,2}[\w-]+(?:=\S+|\s+[^-\s]\S*)?)*\s+install\b")
+# The option shape starts with a letter after the dashes so `--x` parses one way
+# only — `-{1,2}[\w-]+` parsed it two ways and a line of twenty `--flags` with no
+# `install` took a second, forty took minutes (review, 2026-08-30). `pip3.13`
+# and `python3.13` are the interpreter spellings Actions runners ship.
+PIP_INSTALL = re.compile(
+    r"(?:^|[\s/])pip(?:3(?:\.\d+)?)?(?:\s+--?[A-Za-z][\w-]*(?:=\S+|\s+[^-\s]\S*)?)*\s+install(?=\s|$)"
+)
 NPM_INSTALL = re.compile(r"(?:^|[\s/])npm\s+(?:install|i|add)\b")
 # `pipx install` / `pipx run` resolve the tool from the index like `pip install`.
 PIPX_INSTALL = re.compile(r"(?:^|[\s/])pipx\s+(?:install|run)\b")
@@ -41,7 +47,8 @@ PIPX_INSTALL = re.compile(r"(?:^|[\s/])pipx\s+(?:install|run)\b")
 # `pip install`s the build backend from the index, unpinned — a tool CI installs
 # for itself, under the job's privileges, with no `pip` on the line at all.
 # `--no-isolation` makes the backend come from whatever the job already pinned.
-BUILD = re.compile(r"(?:^|[\s/])(?:python3?\s+-m\s+build|pyproject-build)\b")
+BUILD = re.compile(r"(?:^|[\s/])(?:python(?:3(?:\.\d+)?)?\s+-m\s+build|pyproject-build)\b")
+NO_ISOLATION = re.compile(r"(?:^|\s)(?:--no-isolation|-n)(?:\s|$)")
 # `pip install --no-deps -e .` installs the checkout itself and resolves nothing
 # from an index, so there is no hash to pin and nothing an attacker could swap.
 # **Both halves are required.** `--no-deps requests` still reaches the index, and
@@ -76,7 +83,10 @@ CHAIN = re.compile(r"\s*(?:&&|\|\||;|\|)\s*")
 
 def _targets(command: str) -> list[str]:
     """What one `pip install` would install: its non-option tokens."""
-    tokens = command[command.index("install") + len("install") :].split()
+    # Slice after the matched subcommand, not the first substring `install` —
+    # `--python /opt/installer/bin/python install` has one before it.
+    matched = PIP_INSTALL.search(command)
+    tokens = command[matched.end() if matched else 0 :].split()
     found: list[str] = []
     skip = False
     for token in tokens:
@@ -139,7 +149,7 @@ def main(root: pathlib.Path) -> int:
                 findings.append(
                     f"{path.relative_to(root)}: pipx resolves from the index — {line.strip()[:55]}"
                 )
-            if BUILD.search(line) and "--no-isolation" not in line:
+            if BUILD.search(line) and not NO_ISOLATION.search(line):
                 findings.append(
                     f"{path.relative_to(root)}: build fetches its backend unpinned;"
                     f" pin it and pass --no-isolation — {line.strip()[:50]}"
