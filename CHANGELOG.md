@@ -38,6 +38,15 @@ Notable changes to this project. The format follows
   of released headings both ways. Found by the 2026-08-30 re-audit (round 2:
   what has rotted, and who guards it).
 
+### Changed
+
+- **The `advisories` job has been seen red on the platform.** A census of all
+  266 runs since 2026-08-25 found it the one job never red live — 67 of 67
+  green, with an empty register, which from the outside is the same as a job
+  that reads nothing. A throwaway pull request (#71) planted an exemption no
+  finding matched; the job refused it for that reason, and the run is recorded
+  in `proved_by`. Re-audit round 6 (has every gate caught something real).
+
 ## [0.1.5] - 2026-08-29
 
 One test: the last item the five-model outside audit left open, the list of
