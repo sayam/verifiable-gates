@@ -1497,6 +1497,14 @@ gates:
           unknown gate id as a clean run. A seventh attempt produced a syntax
           error rather than a behaviour change, which is not a result — it was
           redone so the code still parsed before drawing any conclusion.
+      - kind: mutation
+        ref: pr/61
+        date: 2026-08-29
+        caught: >-
+          The harness restored to a bare `registry.load(...)`: the new case did
+          not fail, it *errored* — the reader's TypeError escaped `main()` as a
+          traceback, which is the answer that is neither pass, fail nor misuse.
+          Restored byte for byte, exit 2 with the reader's words.
 
   - id: a-published-rule-carries-its-origin
     title: A published rule names the incident behind it, belongs to a published layer, and names no framework
@@ -1596,6 +1604,15 @@ gates:
           attempts reported "not red" and were the author's error rather than the
           suite's: one patched a line that does not exist, and one widened the
           vocabulary with a value no test uses.
+      - kind: mutation
+        ref: pr/61
+        date: 2026-08-29
+        caught: >-
+          The reader restored to its v0.1.3 text — a missing `gates` key read as
+          `[]`, a row that is not a mapping dropped before `problems()` saw it —
+          and six cases went red: the missing key, a string, an int and a list
+          row here, and the harness's two cases fed the same files. Restored
+          byte for byte, 56 green.
 
   - id: every-commit-is-shaped-and-signed
     title: Every commit added by a branch is a Conventional Commit and carries a sign-off

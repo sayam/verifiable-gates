@@ -47,17 +47,38 @@ def test_a_wellformed_file_loads(tmp_path: pathlib.Path) -> None:
     assert registry.load(path) == [{"id": "a"}]
 
 
-def test_missing_gates_key_is_an_empty_registry(tmp_path: pathlib.Path) -> None:
-    """An empty registry is a correct state — a repository with no enforcer yet lives here."""
+def test_an_explicitly_empty_registry_is_a_correct_state(tmp_path: pathlib.Path) -> None:
+    """`gates: []` — a repository with no enforcer yet lives here, and says so."""
     path = tmp_path / "gates.yaml"
-    path.write_text("version: 1\n", encoding="utf-8")
+    path.write_text("version: 1\ngates: []\n", encoding="utf-8")
     assert registry.load(path) == []
 
 
-def test_non_mapping_entries_are_ignored(tmp_path: pathlib.Path) -> None:
+def test_a_missing_gates_key_is_refused_not_read_as_empty(tmp_path: pathlib.Path) -> None:
+    """A file with no `gates` list is not an empty index — it is a broken one.
+
+    This reader used to answer `[]`, so an index that had lost its list looked
+    like one that was empty on purpose, while `rules.load` and the shipped
+    registry scanner both refuse the same file (outside audit, 2026-08-29).
+    """
     path = tmp_path / "gates.yaml"
-    path.write_text("version: 1\ngates:\n  - id: a\n  - 'a stray string'\n", encoding="utf-8")
-    assert registry.load(path) == [{"id": "a"}]
+    path.write_text("version: 1\n", encoding="utf-8")
+    with pytest.raises(TypeError, match="'gates' must be a list"):
+        registry.load(path)
+
+
+@pytest.mark.parametrize(
+    ("row", "kind"),
+    [("  - 'a stray string'", "str"), ("  - 42", "int"), ("  - [a, list]", "list")],
+)
+def test_a_row_that_is_not_a_mapping_is_refused_not_dropped(
+    tmp_path: pathlib.Path, row: str, kind: str
+) -> None:
+    """A stray row used to vanish before `problems()` could see it."""
+    path = tmp_path / "gates.yaml"
+    path.write_text(f"version: 1\ngates:\n  - id: a\n{row}\n", encoding="utf-8")
+    with pytest.raises(TypeError, match=rf"gates\[1\] must be a mapping, got {kind}"):
+        registry.load(path)
 
 
 def test_a_file_that_is_not_a_mapping_is_refused(tmp_path: pathlib.Path) -> None:

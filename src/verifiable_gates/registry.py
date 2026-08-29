@@ -73,11 +73,18 @@ def load(path: str | pathlib.Path) -> list[dict[str, Any]]:
     if raw.get("version") != SCHEMA_VERSION:
         raise ValueError(f"{path}: version must be {SCHEMA_VERSION}, got {raw.get('version')!r}")
     gates = raw.get("gates")
-    if gates is None:
-        gates = []
+    # `gates: []` is the empty registry, and a correct state. A file with no
+    # `gates` key at all is not — `rules.load` and the shipped registry scanner
+    # both refuse it, and this reader used to hand back `[]` for it, so an index
+    # that had lost its list looked like one that was empty on purpose. A row
+    # that is not a mapping used to be dropped on the floor for the same reason:
+    # `problems()` never saw it (outside audit, 2026-08-29).
     if not isinstance(gates, list):
         raise TypeError(f"{path}: 'gates' must be a list, got {type(gates).__name__}")
-    return [gate for gate in gates if isinstance(gate, dict)]
+    for index, gate in enumerate(gates):
+        if not isinstance(gate, dict):
+            raise TypeError(f"{path}: gates[{index}] must be a mapping, got {type(gate).__name__}")
+    return gates
 
 
 def _proof_problems(where: str, proofs: Any) -> list[str]:  # noqa: ANN401 — shape is what we check

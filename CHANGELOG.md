@@ -8,6 +8,16 @@ Notable changes to this project. The format follows
 
 ### Fixed
 
+- **A registry that has lost its list is refused, not read as empty.**
+  `registry.load` answered `[]` for a file with no `gates` key and silently
+  dropped any row that was not a mapping — so an index that had lost its list
+  looked like one that was empty on purpose, and a stray row vanished before
+  `problems()` could report it — while `rules.load` and the shipped registry
+  scanner refuse the same files. Both are now a `TypeError` naming the file
+  and, for a row, its index; `gates: []` remains the explicit empty state. The
+  harness, the one caller, turns that into exit 2 with the reader's words
+  instead of a traceback. Found by the five-model outside audit of `v0.1.0`
+  (2026-08-29), which planted `version: 1` alone.
 - **An exemption covers only the case it was written for.** Two read wider.
   `ci-tools-hash-pinned` excused a `pip install` that had `--no-deps` *and* a
   local target anywhere on the line, so `pip install --no-deps requests .`

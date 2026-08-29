@@ -96,7 +96,13 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--output", type=pathlib.Path, help="write the full report here as JSON")
     args = parser.parse_args(argv)
 
-    gates = registry.load(args.registry)
+    try:
+        gates = registry.load(args.registry)
+    except (TypeError, ValueError) as error:
+        # An index the harness cannot read is a misuse (exit 2) — not a pass, and
+        # not a traceback whose exit code is whatever the interpreter made of it.
+        print(f"cannot read the registry: {error}", file=sys.stderr)
+        return 2
     known = {gate["id"] for gate in gates}
     unknown = sorted(set(args.only) - known)
     if unknown:
