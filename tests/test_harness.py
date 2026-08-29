@@ -14,13 +14,12 @@ into "this passed", which is the failure this whole project is organised against
 from __future__ import annotations
 
 import json
+import pathlib
 from typing import TYPE_CHECKING, Any
 
 from verifiable_gates import harness
 
 if TYPE_CHECKING:
-    import pathlib
-
     import pytest
 
 PASSING = "def test_ok():\n    assert True\n"
@@ -196,3 +195,16 @@ def test_a_failure_without_a_recorded_trap_prints_no_hint(
     output = capsys.readouterr().out
     assert "[FAIL] a-rule" in output
     assert "hint:" not in output
+
+
+def test_the_round_log_is_ignored_by_this_repository() -> None:
+    """`ROUND_LOG` is per-machine notes — the module says it belongs in `.gitignore`.
+
+    It did not, until an outside audit on 2026-08-29 watched the file appear in a
+    tree the harness ran in. A comment that names a rule nothing checks is the
+    kind of promise this project exists to replace.
+    """
+    root = pathlib.Path(__file__).resolve().parent.parent
+    ignored = (root / ".gitignore").read_text(encoding="utf-8").splitlines()
+
+    assert harness.ROUND_LOG in ignored

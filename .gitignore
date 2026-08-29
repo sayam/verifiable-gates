@@ -8,3 +8,5 @@ __pycache__/
 dist/
 build/
 *.egg-info/
+# the fail-fix harness's per-machine round log (`harness.ROUND_LOG`)
+.gate-rounds.jsonl
