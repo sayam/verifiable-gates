@@ -1,0 +1,41 @@
+# The platform's side of the posture — branch protection and the repository
+# switches — read with an administrator's token and held to
+# pins/dev/posture-declared.json. The rule `platform-posture-verified` was
+# published from here while this repository's own protection had been checked
+# exactly once, by an outside audit.
+#
+# Weekly, and on every push to main: a switch changes by a click, not a commit,
+# so a push is not the only moment it can drift. The schedule is watched by the
+# schedule census in ci.yml, so a cron that stops firing is itself red.
+#
+# The secret POSTURE_TOKEN is a fine-grained PAT with administration:read on
+# this repository. Without it the job exits 2 — "could not look" — never green.
+
+name: posture
+
+on:
+  schedule:
+    - cron: "0 3 * * 1"
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  posture:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97
+        with:
+          python-version: "3.13"
+      - name: install the hash-pinned tools
+        run: pip install --require-hashes -r pins/dev/requirements.txt
+      - run: pip install --no-deps -e .
+      - name: the platform says what the register declares
+        run: python -m verifiable_gates.posture --settings pins/dev/posture-declared.json --root .
+        env:
+          GH_TOKEN: ${{ secrets.POSTURE_TOKEN }}

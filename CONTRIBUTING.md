@@ -112,7 +112,9 @@ field was one release away from proving it (2026-08-29).
 
 ## What runs on this repository's own pull requests
 
-`lint`, `test` and `commit-lint` are required. `advisories` audits the pinned
+`lint`, `test`, `commit-lint`, `advisories`, `handoff`, `codeql` and `secret-scan` are
+required (`pins/dev/posture-declared.json` says so, and `posture.yml` — weekly, and on
+every push to `main`, with the `POSTURE_TOKEN` secret — holds the platform to it). `advisories` audits the pinned
 tools and holds every finding to `pins/dev/advisories-accepted.txt` — an
 advisory you cannot act on goes there with a reason, not into a silenced job.
 `handoff` refuses a pull request that closes an issue still labelled

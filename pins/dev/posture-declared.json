@@ -1,0 +1,58 @@
+{
+  "_comment": "What the platform must say about this repository, with why. Held by posture.yml (weekly, and on every push to main) with an administrator's token; setting_problems/unreadable/check_problems decide. A switch with no why is one the next person turns off to make something else work.",
+  "branch": "main",
+  "settings": {
+    "enforce_admins": {
+      "want": true,
+      "why": "an exemption for admins is an exemption for anyone"
+    },
+    "required_linear_history": {
+      "want": true,
+      "why": "rebase only - a merge commit's message is nobody's"
+    },
+    "allow_force_pushes": {
+      "want": false,
+      "why": "history on main is what the DOIs point at"
+    },
+    "allow_deletions": {
+      "want": false,
+      "why": "the branch every consumer pins from"
+    },
+    "required_conversation_resolution": {
+      "want": true,
+      "why": "a review comment left open is a decision left open"
+    },
+    "strict_status_checks": {
+      "want": false,
+      "why": "linear history already implies the rebase a strict flag would demand (DECISIONS.md: strict-checks-off)"
+    },
+    "required_approving_review_count": {
+      "want": 0,
+      "why": "honest rather than aspirational: a single maintainer cannot review their own work"
+    },
+    "allow_squash_merge": {
+      "want": false,
+      "why": "squash rewrites the subject past the 72-character gate and merges commits the gate judged one by one"
+    },
+    "allow_merge_commit": {
+      "want": false,
+      "why": "linear history is required - a merge commit could never land; the button should not offer it"
+    },
+    "allow_rebase_merge": {
+      "want": true,
+      "why": "the one merge shape linear history allows"
+    },
+    "delete_branch_on_merge": {
+      "want": true,
+      "why": "merged branches pile up unseen"
+    },
+    "web_commit_signoff_required": {
+      "want": true,
+      "why": "a commit made in the web editor must carry the same DCO sign-off as one made with git commit -s"
+    }
+  },
+  "not_required": {
+    "release-sign": "runs only when a release is published, never on a pull request; the release page shows it, and the maintainer sees it within 1 day",
+    "posture": "runs weekly and on every push to main with the administrator's token, never on a pull request (bots' pull requests get no secrets); its run page is the record, and the maintainer sees a red within 7 days"
+  }
+}

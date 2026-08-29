@@ -309,6 +309,66 @@ gates:
           a revisit date set to yesterday went red naming the decision; a column
           renamed in the header went red.
 
+  - id: the-posture-is-read-on-a-schedule
+    title: Branch protection and the repository switches are read weekly and on every push, and held to the register
+    kind: job
+    severity: blocking
+    enforced_by: {job: posture}
+    layer: internal
+    pillar: security
+    portable: false
+    born_from: >-
+      `platform-posture-verified` was published from here while this
+      repository's own protection had been checked exactly once, by an outside
+      audit on 2026-08-29, against a sentence in CONTRIBUTING. A switch changes
+      by a click, not a commit, so no test in the tree can see it drift; the
+      settings half of `posture` needs an administrator's token, which is a
+      secret with a custodian, not a job token. So it runs on its own schedule
+      and on every push to main, exits 2 when it cannot look, and holds twelve
+      switches and the required-checks set to `pins/dev/posture-declared.json`
+      in every direction `check_problems` knows.
+    proved_by:
+      - kind: mutation
+        ref: pr/52
+        date: 2026-08-29
+        caught: >-
+          Run from a maintainer's machine before the secret existed: red on four
+          checks that ran on pull requests and were not required (`advisories`,
+          `codeql`, `handoff`, `secret-scan`), on `posture` itself for being
+          neither required nor declared, and on four switches that did not hold
+          their declared value (`allow_squash_merge`, `allow_merge_commit`,
+          `delete_branch_on_merge`, `web_commit_signoff_required`); green only
+          after the platform was changed to match and `posture` was excused with
+          who sees it.
+
+  - id: a-declared-schedule-is-watched
+    title: The schedule census runs on every test job, over a full clone, so a silent cron is red
+    kind: step
+    severity: blocking
+    enforced_by: {job: test, step: every declared schedule is still firing}
+    layer: internal
+    pillar: manageability
+    portable: false
+    born_from: >-
+      The first cron this repository ever declared arrived with `posture.yml`,
+      and `schedules-still-fire` — published from here — says a declared
+      schedule must be provably still firing, because "no runs at all" looks
+      exactly as quiet as "no run went red". The census needs each workflow's
+      birthday to tell "added on Thursday" from "the platform refused it", and a
+      shallow clone reports every file as newborn; so the test job clones the
+      full history. A workflow the platform has not met yet (404 — the file is
+      not on `main`) is "never fired", which its birthday excuses until due.
+    proved_by:
+      - kind: mutation
+        ref: pr/52
+        date: 2026-08-29
+        caught: >-
+          The census run locally on the branch before the workflow reached `main`
+          exited 2 on the 404 — the third answer where "never, and not due yet"
+          was the true one; the reader now tells the two apart and a test holds
+          it, while any other refusal still raises. `fetch-depth: 0` removed from
+          the checkout went red.
+
   - id: commit-messages-are-shaped-and-signed
     title: Every commit a branch adds is a Conventional Commit and carries a DCO sign-off
     kind: test

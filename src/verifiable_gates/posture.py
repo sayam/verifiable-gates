@@ -50,11 +50,12 @@ from __future__ import annotations
 
 import argparse
 import dataclasses
+import json
 import pathlib
 import sys
 from typing import TYPE_CHECKING
 
-from verifiable_gates import advisories, gh
+from verifiable_gates import advisories, check_names, gh, workflows
 
 if TYPE_CHECKING:
     from collections.abc import Mapping, Sequence
@@ -64,7 +65,9 @@ __all__ = [
     "Setting",
     "alert_problems",
     "check_problems",
+    "declared",
     "main",
+    "platform_state",
     "setting_problems",
     "unreadable",
 ]
@@ -245,18 +248,100 @@ def alert_problems(
     return problems
 
 
-def main(argv: list[str] | None = None) -> int:
-    """Decide the code-scanning alerts on one ref against a register — exit 1 on any unjudged.
+def declared(path: pathlib.Path) -> tuple[str, dict[str, Setting], dict[str, str]]:
+    """The register on disk: the branch, every declared switch, and the checks excused."""
+    raw = json.loads(path.read_text(encoding="utf-8"))
+    settings = {
+        name: Setting(want=row["want"], why=row["why"], readable=row.get("readable", True))
+        for name, row in raw["settings"].items()
+    }
+    return str(raw["branch"]), settings, {str(k): str(v) for k, v in raw["not_required"].items()}
 
-    Only the alert half of the posture has a command line: it needs the job's own
-    token and nothing more, so a CI job can run it after the analysis that
-    produced the alerts. The settings half needs an administrator's token and is
-    decided elsewhere.
+
+def platform_state(branch: str) -> tuple[dict[str, object], set[str]]:
+    """What the platform says right now — flattened switches, and the required checks.
+
+    Branch protection needs an administrator's token; the job's own cannot read it.
+    A field the answer does not carry is `None`, which `setting_problems` skips
+    and `unreadable` reports — never "off".
     """
-    parser = argparse.ArgumentParser(description="Every code-scanning alert judged.")
-    parser.add_argument("--ref", required=True, help="the git ref the analysis ran on")
-    parser.add_argument("--register", required=True, help="accepted alerts, tool/rule per line")
+    protection = gh.api(f"repos/:owner/:repo/branches/{branch}/protection")
+    repo = gh.api("repos/:owner/:repo")
+
+    def enabled(key: str) -> object:
+        block = protection.get(key)
+        return block.get("enabled") if isinstance(block, dict) else None
+
+    checks = protection.get("required_status_checks")
+    reviews = protection.get("required_pull_request_reviews")
+    state: dict[str, object] = {
+        "enforce_admins": enabled("enforce_admins"),
+        "required_linear_history": enabled("required_linear_history"),
+        "allow_force_pushes": enabled("allow_force_pushes"),
+        "allow_deletions": enabled("allow_deletions"),
+        "required_conversation_resolution": enabled("required_conversation_resolution"),
+        "strict_status_checks": checks.get("strict") if isinstance(checks, dict) else None,
+        "required_approving_review_count": (
+            reviews.get("required_approving_review_count") if isinstance(reviews, dict) else None
+        ),
+    }
+    for key in (
+        "allow_squash_merge",
+        "allow_merge_commit",
+        "allow_rebase_merge",
+        "delete_branch_on_merge",
+        "web_commit_signoff_required",
+    ):
+        state[key] = repo.get(key)
+    required = set(checks.get("contexts") or []) if isinstance(checks, dict) else set()
+    return state, required
+
+
+def _settings(register: pathlib.Path, root: pathlib.Path) -> int:
+    branch, wanted, excused = declared(register)
+    try:
+        state, required = platform_state(branch)
+    except (PermissionError, RuntimeError) as problem:
+        print(f"cannot read the platform's settings: {problem}", file=sys.stderr)
+        return 2
+    found = workflows.all_workflows(workflows.workflow_dir(root))
+    lines = setting_problems(state, wanted)
+    lines += unreadable(state, wanted)
+    lines += check_problems(
+        required, check_names.pull_request_checks(found), check_names.all_checks(found), excused
+    )
+    for line in lines:
+        print(line, file=sys.stderr)
+    if lines:
+        return 1
+    print(
+        f"{len(wanted)} switches hold their declared values on {branch}; "
+        f"{len(required)} required checks, {len(excused)} excused with a reason"
+    )
+    return 0
+
+
+def main(argv: list[str] | None = None) -> int:
+    """Two questions, each with its own token need, so each is its own mode.
+
+    `--settings` reads branch protection and the repository switches (needs an
+    administrator's token) and holds them to the register; `--ref` reads the
+    code-scanning alerts on one ref (the job's own token suffices).
+    """
+    parser = argparse.ArgumentParser(
+        description="Hold the platform's posture to what was declared."
+    )
+    mode = parser.add_mutually_exclusive_group(required=True)
+    mode.add_argument("--settings", help="the declared settings register (JSON)")
+    mode.add_argument("--ref", help="the git ref whose code-scanning alerts to judge")
+    parser.add_argument("--register", help="accepted alerts, tool/rule per line (with --ref)")
+    parser.add_argument("--root", default=".", help="the checkout, for its workflows")
     args = parser.parse_args(argv)
+
+    if args.settings:
+        return _settings(pathlib.Path(args.settings), pathlib.Path(args.root))
+    if not args.register:
+        parser.error("--ref needs --register")
 
     try:
         alerts = gh.api_pages(f"repos/:owner/:repo/code-scanning/alerts?state=open&ref={args.ref}")

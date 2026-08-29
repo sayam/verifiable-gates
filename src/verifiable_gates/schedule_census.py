@@ -115,10 +115,27 @@ def unverifiable_schedules(root: pathlib.Path) -> list[str]:
 
 
 def fetch(files: list[str]) -> dict[str, dict[str, str | None]]:
-    """When each file's most recent `schedule` run happened — None means never."""
+    """When each file's most recent `schedule` run happened — None means never.
+
+    **A workflow the platform does not know yet answers 404, and that is "never",
+    not "cannot see".** A cron fires only from the default branch, so a file that
+    exists on a branch and not yet on `main` has genuinely never run and cannot
+    have; its birthday keeps it excused until it is due. Every other refusal is
+    let through as the third answer — a 404 on a file that *is* on `main` would
+    be the platform losing a workflow, and that surfaces as a cron that never
+    fires past its allowance, which is the red this census exists for.
+    """
     last: dict[str, str | None] = {}
     for name in files:
-        runs = gh.api(f"repos/:owner/:repo/actions/workflows/{name}/runs?event=schedule&per_page=1")
+        try:
+            runs = gh.api(
+                f"repos/:owner/:repo/actions/workflows/{name}/runs?event=schedule&per_page=1"
+            )
+        except PermissionError as problem:
+            if "HTTP 404" not in str(problem):
+                raise
+            last[name] = None
+            continue
         rows = runs.get("workflow_runs") or []
         last[name] = rows[0]["created_at"] if rows else None
     return {"last_scheduled_run": last}
