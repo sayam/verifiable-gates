@@ -21,6 +21,15 @@ Notable changes to this project. The format follows
   `pins/runtime/requirements.txt` that Dependabot moves, and the wheel with
   `--no-deps`. Three tests hold the two steps and the pins↔Dependabot pairing
   both ways. Found by the 2026-08-30 re-audit (round 1: what is still missing).
+- **`scan_install_pinning` sees every shape that reaches an index.** It read
+  `pip install` only side by side, so `pip --python <interpreter> install` — the
+  release job's own line, for five releases — was never judged; `python -m
+  build` without `--no-isolation`, which pip-installs the backend from the
+  index with no `pip` on the line, and `pipx install`/`pipx run` were not
+  shapes it knew. All three are findings now, with the fix in the message;
+  a global option before `install` no longer hides the subcommand. Fourteen
+  lines hold it, and four mutations (the old regex back, each of the two new
+  findings switched off, `--no-isolation` ignored) were red.
 
 ## [0.1.5] - 2026-08-29
 
