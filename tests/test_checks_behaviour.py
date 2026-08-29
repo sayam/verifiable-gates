@@ -415,3 +415,70 @@ def test_a_scanner_survives_a_project_with_no_scaffold_file(
     assert output.startswith("NA:"), (
         f"with nothing configured there is nothing to check, so the answer is N/A: {output!r}"
     )
+
+
+# ---------------------------------------------------------------- Dockerfile spellings
+
+DIGEST = "@sha256:" + "0" * 64
+
+
+@pytest.mark.parametrize(
+    ("dockerfile", "named"),
+    [
+        pytest.param("from ubuntu:22.04\n", "FROM ubuntu:22.04", id="lowercase-from"),
+        pytest.param(
+            f"FROM ubuntu{DIGEST}\nCOPY --from=ghcr.io/x/y:latest /a /b\n",
+            "COPY --from ghcr.io/x/y:latest",
+            id="copy-from-an-unpinned-image",
+        ),
+        pytest.param(
+            f"FROM ubuntu{DIGEST}\ncopy --chown=1 --from=ghcr.io/x/y:latest /a /b\n",
+            "COPY --from ghcr.io/x/y:latest",
+            id="copy-from-behind-another-flag",
+        ),
+        pytest.param(
+            "FROM --platform=linux/amd64 ubuntu:22.04\n",
+            "FROM ubuntu:22.04",
+            id="platform-flag-is-not-the-image",
+        ),
+    ],
+)
+def test_the_dockerfile_scanner_judges_the_image_however_it_is_written(
+    tmp_path: pathlib.Path, capsys: pytest.CaptureFixture[str], dockerfile: str, named: str
+) -> None:
+    """Dockerfile instructions are case-insensitive and images also arrive via COPY.
+
+    An outside audit on 2026-08-29 planted each of these and watched the scanner
+    stay green: a rule that reads only uppercase `FROM` decides the spelling,
+    not the image. The finding must also name the image, not a flag in front of it.
+    """
+    root = build(tmp_path, {"Dockerfile": dockerfile}, {"dockerfiles": ["Dockerfile"]})
+
+    assert scan_dockerfile_digest.main(root) == 1
+    assert named in capsys.readouterr().out
+
+
+@pytest.mark.parametrize(
+    "dockerfile",
+    [
+        pytest.param(
+            f"FROM python{DIGEST} AS build\nFROM python{DIGEST}\nCOPY --from=BUILD /a /b\n",
+            id="stage-alias-any-case",
+        ),
+        pytest.param(
+            f"FROM python{DIGEST} AS build\nFROM python{DIGEST}\nCOPY --from=0 /a /b\n",
+            id="stage-index",
+        ),
+        pytest.param(
+            f"from python{DIGEST}\ncopy --from=ghcr.io/x/z{DIGEST} /a /b\n",
+            id="all-pinned-lowercase",
+        ),
+    ],
+)
+def test_the_dockerfile_scanner_stays_quiet_when_every_image_is_pinned(
+    tmp_path: pathlib.Path, dockerfile: str
+) -> None:
+    """A stage alias or index is a local name, not an image — refusing it is a false red."""
+    root = build(tmp_path, {"Dockerfile": dockerfile}, {"dockerfiles": ["Dockerfile"]})
+
+    assert scan_dockerfile_digest.main(root) == 0
