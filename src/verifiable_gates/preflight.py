@@ -47,6 +47,9 @@ CI runner, which is why the trade is acceptable at all.
     python3 tools/preflight.py                # every job declared in scaffold.json
     python3 tools/preflight.py --only lint    # just that job (repeatable)
     python3 tools/preflight.py --base main    # the base for diff coverage
+
+Role: reader — it runs the workflow's steps locally and reports. It decides
+nothing CI does not; a step it cannot run is a skip with a reason, never a pass.
 """
 
 from __future__ import annotations

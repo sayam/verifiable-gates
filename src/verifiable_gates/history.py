@@ -14,6 +14,9 @@ is `UnreadableError`**, and the caller exits 2 for all of it. That includes a hi
 of the wrong shape and, when the caller says there is something to measure, an
 empty one. Exit 2 is neither pass nor fail; it is the third answer, "could not
 look", which is the one that must never be rounded to pass.
+
+Role: helper — one reader for three censuses. Its evidence is that every way
+of not seeing comes out the same, proved in its own tests and the censuses'.
 """
 
 from __future__ import annotations

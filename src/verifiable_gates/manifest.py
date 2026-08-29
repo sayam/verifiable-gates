@@ -13,6 +13,9 @@ Two kinds of entry, and the distinction is the honest part:
   to write its own test and register it. These are counted and reported, never
   silently passed. A rule the tool cannot check must not look like a rule it
   checked, which is the failure this whole project is organised against.
+
+Role: helper — shared machinery for reading the overlay. Its evidence is its
+callers and their tests.
 """
 
 from __future__ import annotations

@@ -119,6 +119,54 @@ gates:
           losing `PR_BODY`; the harness asked about a gate it cannot find returns
           its own code rather than a pass.
 
+  - id: the-security-policy-quotes-one-set-of-numbers
+    title: SECURITY.md exists, quotes one set of timeframes, names no address, and points at a live channel
+    kind: test
+    severity: blocking
+    enforced_by: {job: test, tests: [tests/test_security_policy.py]}
+    layer: internal
+    pillar: security
+    portable: false
+    born_from: >-
+      This repository publishes `security-policy-consistent` and, until
+      2026-08-29, had no security policy of its own — a tool for other people's
+      security posture with no way to report a hole in it. The rule's incident is
+      three copies of a number disagreeing; the cheapest way to keep three copies
+      agreeing is one copy, so the timeframes live in this file only and a test
+      refuses a "days" figure anywhere else. Private vulnerability reporting was
+      switched on the same day, so the channel the file names is one that answers.
+    proved_by:
+      - kind: mutation
+        ref: pr/43
+        date: 2026-08-29
+        caught: >-
+          A timeframe changed in one sentence only went red; an address planted in
+          the file went red; a "within 7 days" added to CONTRIBUTING went red.
+
+  - id: every-module-declares-its-role
+    title: Every module in the package declares which of the four kinds it is
+    kind: test
+    severity: blocking
+    enforced_by: {job: test, tests: [tests/test_roles.py]}
+    layer: internal
+    pillar: devx
+    portable: false
+    born_from: >-
+      `scripts-declare-their-role` is published from here, and every module wrote
+      a `Role:` line by habit — until ten did not, among them the registry schema
+      and the catalogue reader that everything else depends on, and nothing
+      noticed, because a habit has no test. The kind is what lets a reviewer ask
+      for the right evidence: a generator is proved by its output equalling the
+      committed file, a reader by its numbers matching the source, and coverage
+      answers for neither.
+    proved_by:
+      - kind: mutation
+        ref: pr/43
+        date: 2026-08-29
+        caught: >-
+          A module with its `Role:` line removed went red by name; a line naming a
+          fifth kind went red; a module carrying two went red.
+
   - id: commit-messages-are-shaped-and-signed
     title: Every commit a branch adds is a Conventional Commit and carries a DCO sign-off
     kind: test
@@ -1235,6 +1283,13 @@ gates:
           Three planted defects red — a sentence added to a sheet by hand, a rule
           moved to a layer that no sheet renders so it vanished from both, and the
           "do not edit" banner removed from a generated file.
+      - kind: mutation
+        ref: pr/43
+        date: 2026-08-29
+        caught: >-
+          The sheets gained a declared ceiling, two-way: the sheet over its ceiling
+          went red, and a ceiling raised 41 lines above the sheet went red too —
+          the space above reality is the space that fills unseen.
 
   - id: the-schema-is-read-the-way-it-is-written
     title: The registry schema is proved against both a well-formed registry and a broken one
@@ -1310,6 +1365,15 @@ gates:
       paragraph, not a citation of a run that did not happen. The two real red runs
       in this repository's history are on `test` and `commit-lint`, and they are
       cited by the gates that own them.
+    proved_by:
+      - kind: ci-red
+        ref: pr/43
+        date: 2026-08-29
+        caught: >-
+          xenon at the aspirational thresholds (A/A/A) was red on 23 blocks and 17
+          modules before the step was added — so the floor was set where reality
+          stood (C/C/B, docstrings 84%) and recorded as a ratchet, and every step
+          carries `!cancelled()` so the first red cannot hide the next.
 
   - id: the-worksheet-keeps-its-verdicts
     title: The ASVS worksheet is refreshed from a pinned standard, and the crosswalk is derived — neither ever writes a verdict
