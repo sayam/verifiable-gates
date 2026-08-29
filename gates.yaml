@@ -1097,6 +1097,15 @@ gates:
           dropped from the sentence — red, naming the seven it had and the
           eight the workflows and the register require; `cla` excused in the
           register instead — red the other way. Both restored byte for byte.
+      - kind: mutation
+        ref: pr/88
+        date: 2026-08-30
+        caught: >-
+          The two new endpoints, three ways — an alerts refusal read as "off"
+          instead of the third answer, the Actions-policy keys not read, and
+          `required_signatures` not read — each red. The last was found live first:
+          the first `posture --settings` run with the wider register had `blind`
+          report a declared switch the reader never asked for.
 
   - id: every-advisory-has-been-judged
     title: Every finding has been decided about, and every decision still describes something
