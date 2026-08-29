@@ -266,6 +266,22 @@ def test_the_command_declares_a_time_budget(monkeypatch: pytest.MonkeyPatch) -> 
     assert captured["timeout"] == handoff.TOOL_TIMEOUT_SECONDS
 
 
+def test_the_copy_turns_a_reached_ceiling_into_the_wrappers_error(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The copy keeps the wrapper's contract for a hung `gh` too: `RuntimeError`, not a
+    traceback out of a gate that runs on every pull request."""
+
+    def hang(argv: list[str], **kwargs: object) -> object:
+        raise subprocess.TimeoutExpired(argv, int(str(kwargs["timeout"])))
+
+    monkeypatch.setattr(shutil, "which", lambda _name: "/usr/bin/gh")
+    monkeypatch.setattr(subprocess, "run", hang)
+
+    with pytest.raises(RuntimeError, match="did not answer within 60 seconds"):
+        handoff._gh("pr", "view", "9")  # noqa: SLF001 — the shipped call
+
+
 def test_the_copy_keeps_the_wrappers_time_budget() -> None:
     """Two copies of one number — the test is what stops them drifting."""
     assert handoff.TOOL_TIMEOUT_SECONDS == gh.NETWORK_TIMEOUT_SECONDS

@@ -68,6 +68,24 @@ def test_the_command_declares_a_time_budget(monkeypatch: pytest.MonkeyPatch) -> 
     assert seen["text"] is True
 
 
+def test_a_reached_ceiling_is_the_wrappers_error_not_a_traceback(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """`subprocess.TimeoutExpired` is nobody's `except`: on 2026-08-30 the rerun census, run
+    over this repository's 300 runs, died with a traceback when one annotations call sat
+    for 60 seconds. Every caller catches `RuntimeError`, so that is what a ceiling raises."""
+
+    def hang(argv: list[str], **kwargs: Any) -> Done:  # noqa: ANN401 — mirroring subprocess
+        raise subprocess.TimeoutExpired(argv, kwargs["timeout"])
+
+    monkeypatch.setattr(subprocess, "run", hang)
+    monkeypatch.setattr(shutil, "which", lambda _name: "/usr/bin/gh")
+
+    with pytest.raises(RuntimeError, match=r"did not answer within 60 seconds") as caught:
+        gh.run(["api", "repos/x/y/check-runs/1/annotations"])
+    assert isinstance(caught.value.__cause__, subprocess.TimeoutExpired)
+
+
 def test_a_failure_carries_gh_s_own_message(monkeypatch: pytest.MonkeyPatch) -> None:
     """The cause is nearly always scope or an expired token, and gh usually says which.
 

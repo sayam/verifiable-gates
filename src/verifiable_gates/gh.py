@@ -84,14 +84,24 @@ def run(
     binary = shutil.which("gh")
     if not binary:
         raise RuntimeError("no gh on this machine — this tool talks to GitHub through it")
-    done = subprocess.run(  # noqa: S603 — path from shutil.which, argv built by the caller
-        [binary, *args],
-        capture_output=True,
-        text=True,
-        check=False,
-        env=_environment(token_env),
-        timeout=timeout,
-    )
+    try:
+        done = subprocess.run(  # noqa: S603 — path from shutil.which, argv built by the caller
+            [binary, *args],
+            capture_output=True,
+            text=True,
+            check=False,
+            env=_environment(token_env),
+            timeout=timeout,
+        )
+    except subprocess.TimeoutExpired as expired:
+        # The ceiling is ours; the answer at the ceiling has to be ours too. Left
+        # alone, `TimeoutExpired` walks past every caller's `except (PermissionError,
+        # RuntimeError)` and a census over three hundred runs ends in a traceback —
+        # which is what happened on 2026-08-30, on this repository's own history.
+        raise RuntimeError(
+            f"`gh {' '.join(args)}` did not answer within {timeout} seconds"
+            " — the platform could not be asked"
+        ) from expired
     if done.returncode != 0:
         raise PermissionError(f"`gh {' '.join(args)}` failed: {done.stderr.strip()}")
     return done.stdout.strip()

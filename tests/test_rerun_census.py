@@ -16,6 +16,8 @@ Two mistakes made in earnest, both of which these tests hold open:
 from __future__ import annotations
 
 import json
+import shutil
+import subprocess
 from typing import TYPE_CHECKING, Any
 
 import pytest
@@ -741,6 +743,26 @@ def test_the_registry_can_be_pointed_at_explicitly(
 
     assert code == 0
     assert "no gate lacking evidence" in capsys.readouterr().out
+
+
+def test_a_gh_that_hangs_is_cannot_see_not_a_traceback(
+    tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """Through the real wrapper: `subprocess.run` reaching its ceiling on the first call. On
+    2026-08-30 this census, over this repository's own 300 runs, died with a traceback
+    on one annotations call that sat for 60 seconds."""
+
+    def hang(argv: list[str], **kwargs: Any) -> Any:  # noqa: ANN401 — mirroring subprocess
+        raise subprocess.TimeoutExpired(argv, kwargs["timeout"])
+
+    monkeypatch.setattr(subprocess, "run", hang)
+    monkeypatch.setattr(shutil, "which", lambda _name: "/usr/bin/gh")
+    a_workflow(tmp_path / ".github" / "workflows", "ci.yml", "jobs:\n  lint:\n    steps: []\n")
+
+    code = census.main(["--root", str(tmp_path)])
+
+    assert code == 2
+    assert "did not answer within 60 seconds" in capsys.readouterr().err
 
 
 def test_a_history_that_cannot_be_read_is_its_own_answer(
