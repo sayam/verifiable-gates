@@ -13,6 +13,16 @@ there is no path that skips the checks. `lint`, `test`, and `commit-lint` are al
 required, history is linear (rebase, not merge commits), and force-pushing or
 deleting `main` is refused. Required approving reviews are 0, which is honest
 rather than aspirational: a single maintainer cannot review their own work.
+`required_status_checks.strict` is off, also on purpose: with linear history
+required, a branch is rebased before it merges anyway, and a strict flag would
+only add a second "Update branch" click that the rebase already implies.
+
+The `commit-lint` job is a shell block rather than a call to
+`verifiable_gates.lint_commits`, so that the gate guarding the package never
+depends on importing the package. It is held to the module by
+`tests/test_lint_commits.py`, which runs the block's regex against the subjects
+the module judges — the two accepting different histories is a defect, not a
+style difference.
 
 ## Two things every pull request needs
 
@@ -36,6 +46,16 @@ teaches rules it does not follow, and the answer was 2.7%.
   the behaviour it names is not a weak test — it is not a test.
 - **A gate only enters `gates.yaml` when the thing that enforces it exists.**
   A registry row with nothing behind it is exactly what this project is against.
+- **`proved_by.ref` names where the red was seen, which may be the reference
+  implementation** (`pr/151` on `flask-todolist`, for an instrument that was
+  proved there before it moved here). The schema does not bind `ref` to this
+  repository, so a row that cannot be found here is a row to look up there —
+  not a missing one. `proved_by` itself is optional for exactly one reason: the
+  list of gates that have never gone red can only shrink, and a gate that has not
+  yet had its defect is still a gate.
+- **`preflight --root` trusts the tree it is pointed at.** It runs the workflow's
+  `run:` steps in a local bash with the caller's environment, because that is
+  what the runner will do; point it only at a checkout you would run CI on.
 - **Thresholds move one way.** Coverage starts at 100 here because the repository
   started empty; lowering it is a decision someone signs, not a convenience.
 - **`layer: internal` can never be `portable: true`** — a rule tied to one

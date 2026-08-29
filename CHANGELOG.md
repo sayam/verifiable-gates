@@ -6,6 +6,42 @@ Notable changes to this project. The format follows
 
 ## [Unreleased]
 
+Everything under this heading answers an outside zero-trust audit of `v0.1.0`
+(2026-08-29), which reproduced each gap it reported before reporting it.
+
+### Fixed
+
+- **This repository's inline `commit-lint` job is the same gate as the module.**
+  It accepted a subject by *prefix* (`feature:`, `fixup!`, `testing:` all began
+  with a type) and included merge commits, while `lint_commits` refused the first
+  and skipped the second — one rule, two verdicts. The job now carries the
+  module's type list and subject shape and skips merges, and a test runs the
+  job's regex through bash against the subjects the module judges, so the copy
+  cannot drift from the original again.
+- **The Dockerfile scanner judges the image, not the spelling.** A lowercase
+  `from`, an unpinned `COPY --from=<image>`, and `FROM --platform=… <image>` all
+  passed a scanner that read only uppercase `FROM` and took the first token after
+  it. Instructions are now matched in any case, flags are stepped over, and
+  `COPY --from=` is held to the same digest rule; stage aliases and indices stay
+  exempt.
+- **Both licences reach the citation card, the archive and the wheel.**
+  `CITATION.cff`, `.zenodo.json` and `license-files` declared Apache-2.0 for the
+  whole, while the README and `LICENSE-docs` say the rules are CC BY 4.0 — and
+  the archived copy is the one that cannot be corrected. The citation card now
+  lists both, the shared abstract says which is which (Zenodo's field takes one
+  licence, the code's), and the wheel carries `LICENSE-docs`.
+- **`.gate-rounds.jsonl` is in `.gitignore`**, as the harness had said it should
+  be since the file was named; a test now holds the two together.
+
+### Changed
+
+- **Intent that lived in comments is written where a reader looks.** The README
+  says that the bundle decides 9 of the 92 rules and that a doctor reporting
+  every rule `NA` has measured nothing; that `evidence-freeze-1` and `v0.1.0`
+  are different commits on purpose; CONTRIBUTING says why `strict` is off, why
+  `commit-lint` is inline, that a `proved_by.ref` may point at the reference
+  implementation, and that `preflight --root` trusts the tree it is given.
+
 ### Added
 
 - **The commit gate refuses `Co-authored-by:` and `Claude-Session:` trailers**,
