@@ -1,0 +1,88 @@
+# A release carries what it was built from, and proof that CI built it.
+#
+# The rule `release-signed-and-attested` was published from this repository
+# with `v0.1.0` and `v0.1.1` carrying neither an SBOM nor a signature: a
+# downloader could not tell the wheel came from CI at all, and a wheel built on
+# somebody's laptop cannot say what it was built from even if signed. So: the
+# wheel and the sdist are built here, the SBOM is generated from a clean
+# environment holding that wheel, both are attested keyless (Sigstore, through
+# GitHub's attestation service), and **verified in both directions before
+# anything is attached** — the real wheel must verify, and a copy with one byte
+# appended must be refused. A verifier that has never been seen refusing is a
+# verifier nobody has proved reads anything.
+#
+#     gh attestation verify verifiable_gates-<v>-py3-none-any.whl --repo sayam/verifiable-gates
+#
+# is how a downloader checks the same thing later.
+
+name: release
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: an existing release tag to build, attest and attach assets to
+        required: true
+
+permissions:
+  contents: read
+
+jobs:
+  release-sign:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: write
+      id-token: write
+      attestations: write
+    env:
+      TAG: ${{ github.event.inputs.tag || github.event.release.tag_name }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: ${{ github.event.inputs.tag || github.event.release.tag_name }}
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97
+        with:
+          python-version: "3.13"
+      - name: install the hash-pinned tools
+        run: pip install --require-hashes -r pins/dev/requirements.txt
+      - name: build the wheel and the sdist from the tagged tree
+        run: python -m build
+      - name: the SBOM, from a clean environment holding exactly that wheel
+        run: |
+          set -euo pipefail
+          python -m venv --without-pip sbom-env
+          pip --python sbom-env/bin/python install dist/*.whl
+          cyclonedx-py environment sbom-env/bin/python --of JSON -o dist/sbom.cdx.json
+          python -c "import json; c=json.load(open('dist/sbom.cdx.json'))['components']; n=[x['name'] for x in c]; assert 'verifiable-gates' in n and 'PyYAML' in n, n; print(n)"
+      - name: attest build provenance for the wheel and the sdist
+        uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8
+        with:
+          subject-path: |
+            dist/*.whl
+            dist/*.tar.gz
+      - name: attest the SBOM against the wheel
+        uses: actions/attest-sbom@c604332985a26aa8cf1bdc465b92731239ec6b9e
+        with:
+          subject-path: dist/*.whl
+          sbom-path: dist/sbom.cdx.json
+      - name: verify in both directions before anything is attached
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          WHEEL=$(ls dist/*.whl)
+          gh attestation verify "$WHEEL" --repo "$GITHUB_REPOSITORY"
+          gh attestation verify "$WHEEL" --repo "$GITHUB_REPOSITORY" --predicate-type https://cyclonedx.org/bom
+          gh attestation verify dist/*.tar.gz --repo "$GITHUB_REPOSITORY"
+          cp "$WHEEL" tampered.whl && printf 'x' >> tampered.whl
+          if gh attestation verify tampered.whl --repo "$GITHUB_REPOSITORY"; then
+            echo "a tampered wheel verified — the verifier reads nothing"; exit 1
+          fi
+          echo "the real wheel verifies, the tampered copy is refused"
+      - name: attach the wheel, the sdist and the SBOM to the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release upload "$TAG" dist/*.whl dist/*.tar.gz dist/sbom.cdx.json --clobber

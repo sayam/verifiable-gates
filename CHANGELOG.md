@@ -8,6 +8,13 @@ Notable changes to this project. The format follows
 
 ### Added
 
+- **A release carries its SBOM and provenance.** `release.yml` builds the wheel
+  and the sdist from the tag, takes a CycloneDX SBOM from a clean environment
+  holding exactly that wheel, attests all of it keyless through GitHub's
+  attestation service, verifies in both directions — the real wheel accepted,
+  a copy with one byte appended refused — and only then attaches the assets.
+  `v0.1.0` and `v0.1.1` had shipped with neither, while the rule
+  `release-signed-and-attested` was published from the same tree.
 - **SAST and secret scanning run as jobs.** `codeql` (Python and Actions,
   security-extended) ends with a decider — `python -m verifiable_gates.posture`
   gains a command line for the alert half of the posture — that refuses any open

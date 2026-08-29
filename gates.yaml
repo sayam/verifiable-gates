@@ -223,6 +223,32 @@ gates:
           neither the value nor the file printed (verbose off, redact on), 57
           commits scanned. The branch was deleted, never merged.
 
+  - id: a-release-carries-its-sbom-and-provenance
+    title: A release's wheel, sdist and SBOM are built in CI, attested keyless, and verified both ways before they are attached
+    kind: job
+    severity: blocking
+    enforced_by: {job: release-sign}
+    layer: internal
+    pillar: security
+    portable: false
+    born_from: >-
+      `release-signed-and-attested` was published from here with two releases
+      carrying neither an SBOM nor a signature — a downloader could not tell the
+      wheel came from CI at all. The SBOM is taken from a clean environment
+      holding exactly the built wheel, so it lists the package and what it pulls
+      in rather than what a build machine happened to have. Verification is
+      two-way inside the job, before the upload step can run: the real wheel must
+      verify, and a copy with one byte appended must be refused — a verifier
+      nobody has watched refusing is one nobody has proved reads anything.
+    proved_by:
+      - kind: mutation
+        ref: pr/47
+        date: 2026-08-29
+        caught: >-
+          The job's own second direction, on its first run against `v0.1.1`: the
+          real wheel, its SBOM predicate and the sdist verified; the copy with one
+          byte appended was refused — and the assets were attached only after.
+
   - id: commit-messages-are-shaped-and-signed
     title: Every commit a branch adds is a Conventional Commit and carries a DCO sign-off
     kind: test
