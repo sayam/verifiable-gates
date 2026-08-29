@@ -358,6 +358,15 @@ def test_the_local_install_exemption_needs_every_target_to_be_local(
         # Not an install at all.
         ("python -m build_docs", 0),
         ("echo pip-audit install", 0),
+        ("cp installer/pip install.log", 0),
+        # Review of 2026-08-30: interpreter spellings with a minor version, the
+        # subcommand found after an option value that contains `install`, and
+        # build's documented short flag.
+        ("pip3.13 install ruff", 1),
+        ("python3.13 -m build .", 1),
+        ("pip --python /opt/installer/bin/python install --no-deps .", 0),
+        ("python -m build -n tagged --outdir dist", 0),
+        ("pip " + "--x=y " * 40 + "download ruff", 0),
     ],
     ids=lambda value: value if isinstance(value, str) else str(value),
 )

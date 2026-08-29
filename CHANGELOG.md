@@ -6,6 +6,21 @@ Notable changes to this project. The format follows
 
 ## [Unreleased]
 
+### Fixed
+
+- **Four defects in the install scanner's widened regex**, found by a review
+  of the `v0.1.5..main` diff before the cut (2026-08-30): the option shape
+  `-{1,2}[\w-]+` parsed `--x` two ways, so a `pip` line with twenty long
+  flags and no `install` took a second and forty took minutes — a shipped
+  check that a hostile line could hang until the job's timeout; `pip3.13`
+  and `python3.13`, the spellings runners ship, were not matched; `_targets`
+  cut the line at the first substring `install`, so `--python
+  /opt/installer/bin/python install --no-deps .` was reported; and `build`'s
+  documented short flag `-n` was told to add `--no-isolation`. The option
+  name now starts with a letter, a minor version is allowed, the targets are
+  sliced after the matched subcommand, `-n` is accepted, and `install` must be
+  a whole token (`cp installer/pip install.log` was a finding). Eight lines
+  added; four mutations red; 80 flags parse in 0.06 ms.
 Everything below answers the 2026-08-30 re-audit of `v0.1.5` — twenty-five
 rounds, each asking one question the round before could not (what is still
 missing · what has rotted · who proves the provers · has every gate caught
