@@ -6,6 +6,13 @@ Notable changes to this project. The format follows
 
 ## [Unreleased]
 
+## [0.1.2] - 2026-08-29
+
+The release that keeps at home the rest of what the 2026-08-29 practise audit
+found published from here and kept only by others: SAST and secret scanning as
+jobs, a release that carries its SBOM and provenance, and a record of what was
+deliberately not done.
+
 ### Added
 
 - **`DECISIONS.md`, and a shrink-only list of gates without evidence.** Twelve
@@ -464,6 +471,7 @@ order it happened.
 - **`gates.yaml`, deliberately empty.** This repository will not list a gate
   before the thing that enforces it exists.
 
-[Unreleased]: https://github.com/sayam/verifiable-gates/compare/v0.1.1...HEAD
+[Unreleased]: https://github.com/sayam/verifiable-gates/compare/v0.1.2...HEAD
+[0.1.2]: https://github.com/sayam/verifiable-gates/releases/tag/v0.1.2
 [0.1.1]: https://github.com/sayam/verifiable-gates/releases/tag/v0.1.1
 [0.1.0]: https://github.com/sayam/verifiable-gates/releases/tag/v0.1.0
