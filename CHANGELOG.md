@@ -6,6 +6,8 @@ Notable changes to this project. The format follows
 
 ## [Unreleased]
 
+## [0.1.6] - 2026-08-30
+
 ### Fixed
 
 - **`pyproject.toml`'s requirements are held to the pins.** The release job
@@ -64,9 +66,10 @@ missing · what has rotted · who proves the provers · has every gate caught
 something real · can the instruments be trusted · who sees what is removed ·
 what we teach, do we do), every number counted from the tree or the platform
 before it was written, and every fix carried in by its own pull request with
-the mutation that proves it (#68–#78). Ten pull requests, one live flip, no
-new gate, rule or badge; what needed a new one is a proposal for the owner in
-the round's report, not a change.
+the mutation that proves it (#68–#79). Before the cut, a review of the whole
+`v0.1.5..main` diff found six more (#81–#86), each reproduced first. Seventeen
+pull requests, one live flip, no new gate, rule or badge; what needed a new
+one is a proposal for the owner in the round's report, not a change.
 
 ### Fixed
 
@@ -775,7 +778,8 @@ order it happened.
 - **`gates.yaml`, deliberately empty.** This repository will not list a gate
   before the thing that enforces it exists.
 
-[Unreleased]: https://github.com/sayam/verifiable-gates/compare/v0.1.5...HEAD
+[Unreleased]: https://github.com/sayam/verifiable-gates/compare/v0.1.6...HEAD
+[0.1.6]: https://github.com/sayam/verifiable-gates/releases/tag/v0.1.6
 [0.1.5]: https://github.com/sayam/verifiable-gates/releases/tag/v0.1.5
 [0.1.4]: https://github.com/sayam/verifiable-gates/releases/tag/v0.1.4
 [0.1.3]: https://github.com/sayam/verifiable-gates/releases/tag/v0.1.3
