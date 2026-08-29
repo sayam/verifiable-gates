@@ -30,6 +30,13 @@ Notable changes to this project. The format follows
   a global option before `install` no longer hides the subcommand. Fourteen
   lines hold it, and four mutations (the old regex back, each of the two new
   findings switched off, `--no-isolation` ignored) were red.
+- **The changelog's foot is held to its headings.** `[0.1.4]` and `[0.1.5]`
+  had no link reference and `[Unreleased]` compared against `v0.1.3`, so the
+  "pending" link showed two shipped releases — the rule `changelog-tracks-version`
+  read only the headings. `own_numbers` now measures the compare link (and
+  `--write` fixes it), and a test holds the set of link references to the set
+  of released headings both ways. Found by the 2026-08-30 re-audit (round 2:
+  what has rotted, and who guards it).
 
 ## [0.1.5] - 2026-08-29
 
@@ -647,7 +654,9 @@ order it happened.
 - **`gates.yaml`, deliberately empty.** This repository will not list a gate
   before the thing that enforces it exists.
 
-[Unreleased]: https://github.com/sayam/verifiable-gates/compare/v0.1.3...HEAD
+[Unreleased]: https://github.com/sayam/verifiable-gates/compare/v0.1.5...HEAD
+[0.1.5]: https://github.com/sayam/verifiable-gates/releases/tag/v0.1.5
+[0.1.4]: https://github.com/sayam/verifiable-gates/releases/tag/v0.1.4
 [0.1.3]: https://github.com/sayam/verifiable-gates/releases/tag/v0.1.3
 [0.1.2]: https://github.com/sayam/verifiable-gates/releases/tag/v0.1.2
 [0.1.1]: https://github.com/sayam/verifiable-gates/releases/tag/v0.1.1

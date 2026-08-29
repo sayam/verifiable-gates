@@ -9,6 +9,7 @@ checkout. The rest prove the measuring and the outside field on fakes.
 from __future__ import annotations
 
 import pathlib
+import re
 from typing import Any
 
 import pytest
@@ -51,6 +52,19 @@ def test_the_release_date_is_the_newest_released_heading_of_the_changelog() -> N
         "the newest released heading is not the version the package reports — "
         "cut the release in the changelog and the package together"
     )
+
+
+def test_every_released_heading_has_its_link_reference_and_no_link_is_orphaned() -> None:
+    """Keep a Changelog's foot: `[x.y.z]: …/releases/tag/vx.y.z` per release. The headings
+    for 0.1.4 and 0.1.5 had no line there and `[Unreleased]` compared against v0.1.3 —
+    two releases' worth of drift that nothing read (2026-08-30)."""
+    text = (ROOT / "CHANGELOG.md").read_text(encoding="utf-8")
+    headings = {m.group(1) for m in own_numbers.RELEASED.finditer(text)}
+    links = dict(re.findall(r"(?m)^\[(\d[^\]]*)\]: (\S+)$", text))
+
+    assert set(links) == headings, set(links) ^ headings
+    for version, url in links.items():
+        assert url.endswith(f"/releases/tag/v{version}"), (version, url)
 
 
 def test_the_counts_are_the_files_and_rows_on_disk() -> None:
