@@ -635,6 +635,15 @@ gates:
           `v0.1.0 (2026-08-28) marks the point` with no `latest v…` claim to hold —
           the missing claim was reported rather than passed over, and the field
           was patched in place from the command the step runs.
+      - kind: ci-red
+        ref: pr/44
+        date: 2026-08-29
+        caught: >-
+          The first release cut under the new checklist. The tree said 0.1.1, the
+          About field still said 0.1.0, and the pull request was red — which
+          exposed that the checklist had "patch the About" *after* the merge, a
+          step that could never have been reached. The step moved before the
+          merge, and the field was patched from the command the step runs.
 
   - id: a-check-name-is-not-a-job-id
     title: The names a repository's checks will appear under are computed, not assumed

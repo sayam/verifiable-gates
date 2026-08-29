@@ -90,13 +90,15 @@ field was one release away from proving it (2026-08-29).
    quotes the version, the date, or a count (`pyproject.toml`, `CITATION.cff`,
    `.zenodo.json`, the README in both languages), touching nothing else. The same
    test holds every place to its fact on every run, so a place missed here is red.
-3. Open the pull request; merge it; tag `vx.y.z` on the merged commit and publish
-   the GitHub release — Zenodo reads `.zenodo.json` from it and mints the
-   version's DOI under the concept DOI already in the README.
-4. `python -m verifiable_gates.own_numbers --about --write` — patches the claims
-   in the About field on GitHub in place. CI reads that field on every run
-   (gate `the-about-field-is-read-not-remembered`), so a stale About is red on
-   the next push, not on the next audit.
+3. `python -m verifiable_gates.own_numbers --about --write` — patches the claims
+   in the About field on GitHub in place, **before the pull request can merge**:
+   CI reads that field on every run (gate `the-about-field-is-read-not-remembered`),
+   so a release pull request whose About still says the old version is red. The
+   first release cut under this checklist (`v0.1.1`) found that out — this step
+   used to sit after the merge, where it could never have been reached.
+4. Merge; tag `vx.y.z` on the merged commit and publish the GitHub release —
+   Zenodo reads `.zenodo.json` from it and mints the version's DOI under the
+   concept DOI already in the README.
 
 ## What runs on this repository's own pull requests
 
