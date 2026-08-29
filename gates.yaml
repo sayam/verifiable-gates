@@ -468,6 +468,14 @@ gates:
           was the true one; the reader now tells the two apart and a test holds
           it, while any other refusal still raises. `fetch-depth: 0` removed from
           the checkout went red.
+      - kind: mutation
+        ref: pr/87
+        date: 2026-08-30
+        caught: >-
+          The census's second home, posture.yml's cron: the full clone removed, the
+          census step removed, and its `!cancelled()` dropped — three mutations,
+          each red in the test that holds the two clocks to the cron. Owner's
+          decision after re-audit round 26 (the first silent point was day 60).
 
   - id: commit-messages-are-shaped-and-signed
     title: Every commit a branch adds is a Conventional Commit and carries a DCO sign-off
