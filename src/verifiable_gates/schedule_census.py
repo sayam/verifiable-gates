@@ -37,14 +37,13 @@ from __future__ import annotations
 
 import argparse
 import datetime
-import json
 import pathlib
 import sys
 from typing import Any
 
 import yaml
 
-from verifiable_gates import gh, removals, workflows
+from verifiable_gates import gh, history, removals, workflows
 
 __all__ = [
     "declared_schedules",
@@ -255,10 +254,10 @@ def main(argv: list[str] | None = None) -> int:
         return 0
 
     try:
-        state = (
-            json.loads(pathlib.Path(args.input).read_text(encoding="utf-8"))
-            if args.input
-            else fetch(list(schedules))
+        # An empty object is a usable answer here — "no scheduled run ever" —
+        # and `problems()` already closes on it, so only the shape is held.
+        state = history.read(
+            args.input, lambda: fetch(list(schedules)), shape=dict, must_hold_something=False
         )
     except (PermissionError, RuntimeError) as problem:
         print(
