@@ -32,7 +32,9 @@ style difference.
 2. **A line in the pull request description accepting [`CLA.md`](CLA.md):**
    `I have read and agree to CLA.md v1. — <name> <email>`
    You keep your copyright; the grant is what makes it possible to publish this
-   work under a commercial licence alongside Apache-2.0 later.
+   work under a commercial licence alongside Apache-2.0 later. The `cla` job
+   reads the line (name and address both, like the sign-off); Dependabot is
+   skipped, since a version bump carries no copyright.
 
 ## The rules this repository holds itself to
 

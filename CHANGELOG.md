@@ -6,6 +6,16 @@ Notable changes to this project. The format follows
 
 ## [Unreleased]
 
+### Added
+
+- **The CLA line is read by a job.** CONTRIBUTING has asked every pull request
+  for `I have read and agree to CLA.md v1. — <name> <email>` since the first
+  one, and nothing read it. The `cla` job now does, with the sign-off's own
+  name-and-address shape; Dependabot's pull requests are skipped, since a
+  bump carries no copyright, and a skipped required check passes. Listed by
+  the five-model outside audit of `v0.1.0` (2026-08-29) as a promise with no
+  enforcer.
+
 ### Changed
 
 - **Three deliberate zeros have a record.** The five-model outside audit of
@@ -19,6 +29,13 @@ Notable changes to this project. The format follows
 
 ### Fixed
 
+- **A quoted `uses:` is judged without its quotes.** `uses:
+  "actions/checkout@<sha>"` — pinned, and quoted as YAML allows — was reported
+  as unpinned because the closing quote sat where the last digit had to be; a
+  wrong answer on a correct file. Noted by two of the five outside auditors
+  beside the folded-scalar case.
+- **`checks/__init__.py` names the test that holds its property**
+  (`tests/test_checks_are_standalone.py`; it named a file that does not exist).
 - **A proof's `ref` has a shape somebody can look up, and its `date` is a real
   one.** The schema asked only that `ref` be non-empty and that `date` be ten
   characters with two dashes, so `ref: trust me` and `date: 9999-99-99` passed

@@ -359,6 +359,21 @@ def test_a_docker_step_is_held_to_a_digest_not_excused(
     assert (ref in capsys.readouterr().out) is bool(exit_code)
 
 
+@pytest.mark.parametrize("quote", ['"', "'"])
+def test_a_quoted_uses_value_is_judged_without_its_quotes(
+    tmp_path: pathlib.Path, capsys: pytest.CaptureFixture[str], quote: str
+) -> None:
+    """`uses: "actions/checkout@<sha>"` is pinned; the closing quote is not part of the ref."""
+    pinned = f"jobs:\n  a:\n    steps:\n      - uses: {quote}actions/checkout@{'a' * 40}{quote}\n"
+    floating = f"jobs:\n  a:\n    steps:\n      - uses: {quote}actions/checkout@v4{quote}\n"
+    good = build(tmp_path / "p", {".github/workflows/ci.yml": pinned})
+    assert scan_workflow_pinning.main(good) == 0
+    assert capsys.readouterr().out == ""
+    bad = build(tmp_path / "f", {".github/workflows/ci.yml": floating})
+    assert scan_workflow_pinning.main(bad) == 1
+    assert "actions/checkout@v4" in capsys.readouterr().out
+
+
 # ------------------------------------------------------------ composite actions
 #
 # A step moved into `.github/actions/<name>/action.yml` runs with the calling

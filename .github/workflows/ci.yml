@@ -115,6 +115,29 @@ jobs:
           PR_NUMBER: ${{ github.event.pull_request.number }}
           PR_BODY: ${{ github.event.pull_request.body }}
 
+  # CONTRIBUTING has asked every pull request for a line accepting CLA.md since
+  # the first one, and nothing read it — the five-model outside audit of v0.1.0
+  # (2026-08-29) listed the promise with no enforcer. Dependabot holds no
+  # copyright in a version bump, so its pull requests are skipped, and a skipped
+  # required check is a pass on the platform.
+  cla:
+    if: github.event_name == 'pull_request' && github.actor != 'dependabot[bot]'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: the pull request accepts CLA.md v1, with a name and an address
+        env:
+          PR_BODY: ${{ github.event.pull_request.body }}
+        run: |
+          set -euo pipefail
+          CLA='^I have read and agree to CLA\.md v1\. — .+ <[^<>@[:space:]]+@[^<>[:space:]]+>[[:space:]]*$'
+          if printf '%s\n' "$PR_BODY" | grep -qE "$CLA"; then
+            echo "CLA.md v1 accepted"
+          else
+            echo "FAIL: no line 'I have read and agree to CLA.md v1. — <name> <email>' in the pull request description (CONTRIBUTING.md)"
+            exit 1
+          fi
+
   commit-lint:
     runs-on: ubuntu-latest
     timeout-minutes: 5
