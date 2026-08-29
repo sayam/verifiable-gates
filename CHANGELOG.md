@@ -8,6 +8,18 @@ Notable changes to this project. The format follows
 
 ### Fixed
 
+- **An exemption covers only the case it was written for.** Two read wider.
+  `ci-tools-hash-pinned` excused a `pip install` that had `--no-deps` *and* a
+  local target anywhere on the line, so `pip install --no-deps requests .`
+  — both halves present, and a package fetched from the index anyway — passed;
+  now every target has to be local, values of options such as `--index-url`
+  are not targets, and a line chaining several commands is judged one command
+  at a time, or the second hides behind the first's exemption.
+  `actions-sha-pinned` excused the whole `docker://` prefix, so
+  `uses: docker://alpine:latest` — an image with the job's permissions, on a
+  tag that can be re-pointed — passed; a `docker://` step is now held to a
+  `@sha256:` digest, and only `./` stays local. Both lines were planted by the
+  five-model outside audit of `v0.1.0` (2026-08-29).
 - **The inline `commit-lint` job's sign-off shape is the module's.** `v0.1.1`
   made the job carry the module's type list and subject shape and bound them
   with a test — but only the subject half. The sign-off half stayed
