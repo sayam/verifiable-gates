@@ -134,6 +134,13 @@ gates:
           and the job's failure text without the example — three mutations, each red
           in the test that runs the example through the job's own grep. Preceded by
           a live red on pull request #68, which wrote the address bare.
+      - kind: mutation
+        ref: pr/83
+        date: 2026-08-30
+        caught: >-
+          The failure echo's broken quoting put back — the test that runs the FAIL
+          branch through bash saw stderr "No such file or directory" and no example
+          on stdout. Found by the pre-cut review of 2026-08-30.
 
   - id: preflight-and-the-harness-walk-this-repository
     title: The developer-side instruments this bundle ships are pointed at this repository
