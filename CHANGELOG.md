@@ -6,6 +6,17 @@ Notable changes to this project. The format follows
 
 ## [Unreleased]
 
+### Changed
+
+- **Three deliberate zeros have a record.** The five-model outside audit of
+  `v0.1.0` (2026-08-29) read three exit codes as false greens: the doctor
+  exiting 0 with every scan `NA`, the harness exiting 0 with every gate
+  skipped, and `manifest.problems()` having no caller in `src/`. Each was a
+  choice with its reason in a comment or a docstring — the place an outside
+  reader does not look — so each now has a row in `DECISIONS.md` with its
+  reason, the condition that expires it, and a revisit date for the two that
+  should not stand forever.
+
 ### Fixed
 
 - **A proof's `ref` has a shape somebody can look up, and its `date` is a real
