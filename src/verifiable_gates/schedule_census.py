@@ -29,8 +29,11 @@ endpoint saying when it last ran, and "no pull requests appeared" is correct
 whenever nothing needed updating. Such rows are printed with a label and do not
 make the census red.
 
-Role: reader — it reports. Its evidence is that the numbers printed match the
-source, and that nothing is dropped in silence.
+Role: decider — it answers pass or fail with an exit code (1 when a promise the
+registry makes is broken, 2 when it cannot see), and a job blocks on it. It was
+labelled a reader until 2026-08-30, when the re-audit read its `return 1` beside
+the label; the evidence is still that the numbers printed match the source and
+that nothing is dropped in silence.
 """
 
 from __future__ import annotations

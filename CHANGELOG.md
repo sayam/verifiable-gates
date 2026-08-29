@@ -68,6 +68,12 @@ Notable changes to this project. The format follows
 
 ### Changed
 
+- **The three censuses say what they are: deciders.** Each declared
+  `Role: reader — it reports` while returning 1 on a broken promise and 2
+  when it cannot see, and `schedule_census` blocks the `test` job on that
+  exit. `test_roles` holds that a module names one of the four kinds, not
+  that the kind is true; the re-audit read the `return 1` beside the label.
+  Re-audit round 17 (what checks the tools that check everything).
 - **The `advisories` job has been seen red on the platform.** A census of all
   266 runs since 2026-08-25 found it the one job never red live — 67 of 67
   green, with an empty register, which from the outside is the same as a job
