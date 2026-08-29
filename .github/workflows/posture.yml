@@ -34,7 +34,7 @@ jobs:
           python-version: "3.13"
       - name: install the hash-pinned tools
         run: pip install --require-hashes -r pins/dev/requirements.txt
-      - run: pip install --no-deps -e .
+      - run: pip install --no-deps --no-build-isolation -e .
       - name: the platform says what the register declares
         run: python -m verifiable_gates.posture --settings pins/dev/posture-declared.json --root .
         env:

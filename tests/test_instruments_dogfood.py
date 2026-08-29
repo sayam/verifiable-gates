@@ -230,7 +230,7 @@ def test_the_sbom_is_taken_from_a_clean_environment_holding_the_wheel() -> None:
             "pip --python sbom-env/bin/python install --require-hashes"
             " -r pins/runtime/requirements.txt"
         ),
-        "pip --python sbom-env/bin/python install --no-deps ./dist/*.whl",
+        "pip --python sbom-env/bin/python install --no-deps --no-build-isolation ./dist/*.whl",
     ], installs
     assert "'verifiable-gates' in n and 'PyYAML' in n" in sbom["run"], "an SBOM of nothing is green"
 

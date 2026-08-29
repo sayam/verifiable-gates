@@ -1338,6 +1338,14 @@ gates:
           spellings removed, `index("install")` put back, the literal
           `--no-isolation` test restored, and `\b` restored after `install` — each
           red in the shapes table. Found by a review of the v0.1.5..main diff.
+      - kind: mutation
+        ref: pr/82
+        date: 2026-08-30
+        caught: >-
+          The `--no-build-isolation` half removed from the checkout-install
+          exemption — the bare `pip install --no-deps -e .` line went green again,
+          red in the exemption table. The line was this repository's own, in four
+          jobs, until the pre-cut review of 2026-08-30.
 
   - id: rules-we-ship-we-keep
     title: Scanners that apply to this repository are run against this repository

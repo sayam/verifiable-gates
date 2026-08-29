@@ -65,7 +65,7 @@ jobs:
           set -euo pipefail
           python -m venv --without-pip sbom-env
           pip --python sbom-env/bin/python install --require-hashes -r pins/runtime/requirements.txt
-          pip --python sbom-env/bin/python install --no-deps ./dist/*.whl
+          pip --python sbom-env/bin/python install --no-deps --no-build-isolation ./dist/*.whl
           cyclonedx-py environment sbom-env/bin/python --of JSON -o dist/sbom.cdx.json
           python -c "import json; c=json.load(open('dist/sbom.cdx.json'))['components']; n=[x['name'] for x in c]; assert 'verifiable-gates' in n and 'PyYAML' in n, n; print(n)"
       - name: attest build provenance for the wheel and the sdist

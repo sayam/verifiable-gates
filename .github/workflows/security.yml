@@ -41,7 +41,7 @@ jobs:
           wait-for-processing: true
       - name: install the hash-pinned tools
         run: pip install --require-hashes -r pins/dev/requirements.txt
-      - run: pip install --no-deps -e .
+      - run: pip install --no-deps --no-build-isolation -e .
       - name: every open alert on this ref has been judged
         run: python -m verifiable_gates.posture --ref "$GITHUB_REF" --register pins/dev/code-scanning-accepted.txt
         env:
