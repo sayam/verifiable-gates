@@ -1051,7 +1051,7 @@ gates:
       gets believed at once because it looks honest.**
     proved_by:
       - kind: mutation
-        ref: pr/151
+        ref: sayam/flask-todolist#pr/151
         date: 2026-08-19
         caught: >-
           Pointed at a real repository for the first time, 4,171 of the 4,299 files
@@ -1613,6 +1613,15 @@ gates:
           and six cases went red: the missing key, a string, an int and a list
           row here, and the harness's two cases fed the same files. Restored
           byte for byte, 56 green.
+      - kind: mutation
+        ref: pr/62
+        date: 2026-08-29
+        caught: >-
+          The schema restored to "ref is non-empty" and "date is ten characters
+          with dashes": sixteen cases red — `trust me`, `pr/0`, `PR/1`, a bare
+          `#pr/1`, a full URL and six more refs, and `9999-99-99`, `2026-02-30`
+          and three more dates. Restored byte for byte, 62 green; this
+          repository's own 66 refs and every date pass as they are.
 
   - id: every-commit-is-shaped-and-signed
     title: Every commit added by a branch is a Conventional Commit and carries a sign-off
