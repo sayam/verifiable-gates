@@ -3,6 +3,11 @@
 A tag can be moved; a commit cannot. And an action runs with the permissions of
 the project's own workflow, reading its source and whatever token that job holds.
 
+A composite action under `.github/actions/<name>/action.yml` runs its `uses:`
+steps with those same permissions, and moving a step into one used to move it
+out of this scanner's sight — an outside audit on 2026-08-29 planted a floating
+action there and got a clean exit. Both places are read.
+
 exit 0 = clean or N/A · 1 = findings · 2 = called wrongly
 
 Role: decider — it answers pass or fail with an exit code, and it ships as a
@@ -23,8 +28,9 @@ LOCAL = ("./", "docker://")
 
 def main(root: pathlib.Path) -> int:
     workflows = sorted((root / ".github" / "workflows").glob("*.y*ml"))
+    workflows += sorted((root / ".github" / "actions").glob("**/action.y*ml"))
     if not workflows:
-        print("NA: no workflows — nothing to check yet")
+        print("NA: no workflows or composite actions — nothing to check yet")
         return 0
 
     findings: list[str] = []

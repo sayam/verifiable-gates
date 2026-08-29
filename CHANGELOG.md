@@ -8,6 +8,15 @@ Notable changes to this project. The format follows
 
 ### Fixed
 
+- **A composite action is judged like the workflow that calls it.** Both
+  pinning scanners read `.github/workflows/` and nothing else, so a step moved
+  into `.github/actions/<name>/action.yml` — which runs with the calling
+  workflow's permissions — moved out of sight: the five-model outside audit of
+  `v0.1.0` (2026-08-29) planted `uses: actions/checkout@v4` and
+  `pip install requests` there and got exit 0 from each, while the workflow
+  calling the action was clean on its own. `actions-sha-pinned` and
+  `ci-tools-hash-pinned` now read `.github/actions/**/action.y*ml` too, and a
+  project with an action file and no workflows is something to check, not NA.
 - **A configured path that is missing is a finding, not "nothing to check".**
   Every scanner that reads `scaffold.json` answered `NA` and exited 0 when the
   path it was pointed at did not exist — the same answer for a project that has
