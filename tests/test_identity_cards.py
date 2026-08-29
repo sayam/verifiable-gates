@@ -87,7 +87,30 @@ def test_the_two_cards_carry_the_same_keywords() -> None:
 
 
 def test_the_two_cards_declare_the_same_licence() -> None:
-    assert zenodo()["license"] == citation()["license"]
+    """Zenodo has one licence field; the citation card lists both. The first is the code's.
+
+    The second licence cannot fit Zenodo's field, so the abstract the two cards
+    share is where it travels — checked below, because a reader of the archived
+    record has nothing else to go on.
+    """
+    assert zenodo()["license"] == citation()["license"][0]
+
+
+def test_both_licences_reach_the_cards_and_the_wheel() -> None:
+    """The rules are CC BY 4.0 and the code Apache-2.0 — the cards must say both.
+
+    An outside audit on 2026-08-29 found every card, the GitHub record and the
+    archived DOI declaring Apache-2.0 for the whole, while `LICENSE-docs` on disk
+    and the README said otherwise: the furthest copy is the one that cannot be
+    corrected, so it is the one a check has to reach before publication.
+    """
+    assert citation()["license"] == ["Apache-2.0", "CC-BY-4.0"]
+    assert "CC BY 4.0" in citation()["abstract"]
+    assert "CC BY 4.0" in zenodo()["description"]
+    docs = (ROOT / "LICENSE-docs").read_text(encoding="utf-8")
+    assert "Attribution 4.0" in docs
+    pyproject = (ROOT / "pyproject.toml").read_text(encoding="utf-8")
+    assert 'license-files = ["LICENSE", "LICENSE-docs"]' in pyproject
 
 
 def test_the_declared_licence_is_the_one_on_disk() -> None:
@@ -97,7 +120,7 @@ def test_the_declared_licence_is_the_one_on_disk() -> None:
     statement about somebody's rights, made in the one place that cannot be
     edited later.
     """
-    declared = citation()["license"]
+    declared = citation()["license"][0]
     body = LICENCE.read_text(encoding="utf-8")
 
     assert declared == "Apache-2.0", f"the cards declare {declared!r} — is that still true?"

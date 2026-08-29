@@ -9,7 +9,10 @@ description = "A gate registry that is enforced two ways, gates that carry evide
 readme = "README.md"
 requires-python = ">=3.11"
 license = "Apache-2.0"
-license-files = ["LICENSE"]
+# Both licences travel with the wheel: the code is Apache-2.0, the rules and
+# documentation CC BY 4.0 (see README). A wheel carrying only the first says the
+# catalogue inside it is something it is not.
+license-files = ["LICENSE", "LICENSE-docs"]
 authors = [{name = "Sayam Sriphua"}]
 keywords = ["governance", "secure-by-default", "compliance", "ai-agents", "software-supply-chain"]
 classifiers = [
