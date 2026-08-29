@@ -12,14 +12,15 @@ there excusing nothing, until the day it silently excuses something real.
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+import json
+import pathlib
+from typing import Any
 
 import pytest
 
-if TYPE_CHECKING:
-    import pathlib
-
 from verifiable_gates import advisories
+
+ROOT = pathlib.Path(__file__).resolve().parent.parent
 
 REGISTER = """\
 # Advisories we have looked at and accepted, with why.
@@ -244,3 +245,57 @@ def test_a_register_file_that_is_not_there_is_loud(tmp_path: pathlib.Path) -> No
     """No register and an empty register are opposite facts about a project."""
     with pytest.raises(FileNotFoundError):
         advisories.accepted(tmp_path / "absent.txt")
+
+
+# ---------------------------------------------------------------- the command line
+
+PIP_REPORT: dict[str, Any] = {
+    "dependencies": [
+        {"name": "x", "version": "1.0", "vulns": [{"id": "GHSA-1", "fix_versions": ["1.1"]}]},
+        {"name": "y", "version": "2.0", "vulns": []},
+    ]
+}
+
+
+def a_run(tmp_path: pathlib.Path, register: str, report: dict[str, Any] = PIP_REPORT) -> int:
+    (tmp_path / "report.json").write_text(json.dumps(report), encoding="utf-8")
+    (tmp_path / "accepted.txt").write_text(register, encoding="utf-8")
+    return advisories.main(
+        [
+            "--kind",
+            "pip-audit",
+            "--report",
+            str(tmp_path / "report.json"),
+            "--register",
+            str(tmp_path / "accepted.txt"),
+        ]
+    )
+
+
+def test_an_unjudged_finding_is_red(
+    tmp_path: pathlib.Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    assert a_run(tmp_path, "# nothing accepted\n") == 1
+    assert "GHSA-1" in capsys.readouterr().err
+
+
+def test_a_judged_finding_is_green_and_counted(
+    tmp_path: pathlib.Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    assert a_run(tmp_path, "GHSA-1  # accepted: no fix we can take yet\n") == 0
+    assert "1 finding(s), every one judged; 1 accepted" in capsys.readouterr().out
+
+
+def test_a_stale_entry_is_red_even_with_nothing_found(
+    tmp_path: pathlib.Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """The quiet direction: an entry excusing nothing is one that will excuse something."""
+    assert a_run(tmp_path, "GHSA-9  # long gone\n", {"dependencies": []}) == 1
+    assert "GHSA-9" in capsys.readouterr().err
+
+
+def test_this_repositorys_register_is_readable_and_reasoned() -> None:
+    """Every entry in our own register carries a reason — an id alone is not a judgement."""
+    register = advisories.accepted(ROOT / "pins" / "dev" / "advisories-accepted.txt")
+
+    assert all(register.values()), f"an entry with no reason: {register}"

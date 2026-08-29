@@ -1,0 +1,4 @@
+{
+  "_comment": "This repository's own bundle configuration. Only preflight_jobs applies: there is no app, no services layer and no Dockerfile here, and every scanner for those reports NA (tests/test_dogfood.py holds the floor). preflight walks the two jobs a developer can run locally.",
+  "preflight_jobs": ["lint", "test"]
+}

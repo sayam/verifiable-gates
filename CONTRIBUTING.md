@@ -98,6 +98,16 @@ field was one release away from proving it (2026-08-29).
    (gate `the-about-field-is-read-not-remembered`), so a stale About is red on
    the next push, not on the next audit.
 
+## What runs on this repository's own pull requests
+
+`lint`, `test` and `commit-lint` are required. `advisories` audits the pinned
+tools and holds every finding to `pins/dev/advisories-accepted.txt` — an
+advisory you cannot act on goes there with a reason, not into a silenced job.
+`handoff` refuses a pull request that closes an issue still labelled
+`good first issue` without saying so. Locally, `python -m verifiable_gates.preflight`
+walks `lint` and `test` as CI would, and `python -m verifiable_gates.harness
+--only <gate-id>` runs one gate and answers in something a loop can read.
+
 ## Running everything locally
 
 ```bash
