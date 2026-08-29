@@ -6,8 +6,12 @@ Notable changes to this project. The format follows
 
 ## [Unreleased]
 
-Everything under this heading answers an outside zero-trust audit of `v0.1.0`
-(2026-08-29), which reproduced each gap it reported before reporting it.
+## [0.1.1] - 2026-08-29
+
+Everything in this release answers an outside zero-trust audit of `v0.1.0`
+(2026-08-29), which reproduced each gap it reported before reporting it — and
+the practise audit that followed it, which asked which of the rules published
+here were not kept here.
 
 ### Fixed
 
@@ -435,5 +439,6 @@ order it happened.
 - **`gates.yaml`, deliberately empty.** This repository will not list a gate
   before the thing that enforces it exists.
 
-[Unreleased]: https://github.com/sayam/verifiable-gates/compare/v0.1.0...HEAD
+[Unreleased]: https://github.com/sayam/verifiable-gates/compare/v0.1.1...HEAD
+[0.1.1]: https://github.com/sayam/verifiable-gates/releases/tag/v0.1.1
 [0.1.0]: https://github.com/sayam/verifiable-gates/releases/tag/v0.1.0
