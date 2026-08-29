@@ -10,6 +10,17 @@ for the same call — five exemptions for one command.
 builds its argv from constants in code, which is the only reason the suppression
 here is defensible.
 
+**The censuses in this package do not name a token** — they run with whatever
+`gh` already has, which in a job is the step's `GH_TOKEN`. That is the platform's
+own way of scoping: a step that needs a narrower or a broader token sets
+`env: GH_TOKEN: …` on that step, and nothing here has to know. `token_env` is
+for one caller that must ask two questions needing two tokens inside one
+process; a census asks one kind of question and needs no second name.
+
+**One shipped file carries a copy of `run`** — `check_issue_handoff.py`, which
+is copied into a project's `tools/` and cannot import this module there.
+`tests/test_issue_handoff.py` holds that copy to this contract.
+
 Role: helper — an environment convenience. It decides nothing and is never cited
 as evidence.
 """

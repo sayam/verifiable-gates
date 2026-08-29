@@ -43,6 +43,24 @@ Everything under this heading answers an outside zero-trust audit of `v0.1.0`
   red-streak census says "nothing to measure" and exits 0 only when no gate
   declares a watcher; the schedule census keeps `{}` as a real answer, since it
   already closes on it.
+- **Why the censuses name no token is written down** in the wrapper: a step's
+  `GH_TOKEN` is the platform's own scoping, and `token_env` exists for the one
+  caller that needs two tokens inside one process.
+
+- **The shipped issue-handoff gate talks to `gh` under the wrapper's contract.**
+  It cannot import `verifiable_gates.gh` — it is copied into a project's
+  `tools/` and run under a bare `python3` — so it carries a copy, and the copy
+  had drifted: the binary was assumed rather than found, a failure was a
+  `CalledProcessError` with the return code and none of `gh`'s words, and the
+  gate died with a traceback instead of saying it could not look. The copy now
+  finds the binary, says so when there is none, raises `PermissionError` with
+  stderr attached, and the gate exits 2 when the platform cannot be asked; a
+  test holds the copy's time budget to the wrapper's.
+- **`import verifiable_gates` reaches `rules` and `registry`.** `__all__` held
+  only the version; the README example worked by accident of `from … import`
+  reaching a submodule. The example now passes `package_dir`, so it checks that
+  every `script:` exists rather than only the shape of the path, and a test
+  executes the README's block as written.
 
 ### Changed
 

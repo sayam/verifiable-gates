@@ -10,6 +10,12 @@ where the two repositories separate.
 
 from __future__ import annotations
 
-__all__ = ["__version__"]
+from verifiable_gates import registry, rules
+
+# The two things the README shows being imported are on the surface by name —
+# `import verifiable_gates` followed by `verifiable_gates.rules` used to fail,
+# and the example worked only because `from … import rules` reaches a submodule
+# on its own. An outside audit (2026-08-29) read that as an example that lies.
+__all__ = ["__version__", "registry", "rules"]
 
 __version__ = "0.1.0"

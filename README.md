@@ -57,12 +57,17 @@ lifetimes. `rules.yaml` is what this project publishes; `gates.yaml` is what thi
 project is itself held to.
 
 ```python
-from verifiable_gates import rules
+import verifiable_gates
 
-catalogue = rules.load("rules.yaml")
-for problem in rules.problems(catalogue):
+catalogue = verifiable_gates.rules.load("rules.yaml")
+# `package_dir` is where a rule's `script:` is looked for; without it, only the
+# shape of the path is checked — a checker that is not there would go unnoticed.
+for problem in verifiable_gates.rules.problems(catalogue, package_dir="src/verifiable_gates"):
     print(problem)
 ```
+
+`rules.yaml` ships with the checkout, not with the wheel — it is the published
+artefact (CC BY 4.0), and the package is the machinery that reads it.
 
 Also here: the nine stdlib-only checkers, the installer and the doctor that runs
 them in a project that has installed nothing, preflight, the sheet renderer, and
