@@ -84,12 +84,11 @@ jobs:
     timeout-minutes: 5
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
-      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97
-        with:
-          python-version: "3.13"
-      - run: pip install --no-deps -e .
+      # The shipped file, under a bare python3, the way a consumer runs it. Not
+      # `python -m`: that imports the package, whose `__init__` needs pyyaml, and
+      # the first live run of this job went red on exactly that.
       - name: an issue held open for newcomers is not closed out from under them
-        run: python -m verifiable_gates.check_issue_handoff
+        run: python3 src/verifiable_gates/check_issue_handoff.py
         env:
           GH_TOKEN: ${{ github.token }}
           PR_NUMBER: ${{ github.event.pull_request.number }}
