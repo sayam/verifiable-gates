@@ -60,8 +60,13 @@ def test_every_released_heading_has_its_link_reference_and_no_link_is_orphaned()
     two releases' worth of drift that nothing read (2026-08-30)."""
     text = (ROOT / "CHANGELOG.md").read_text(encoding="utf-8")
     headings = {m.group(1) for m in own_numbers.RELEASED.finditer(text)}
-    links = dict(re.findall(r"(?m)^\[(\d[^\]]*)\]: (\S+)$", text))
+    pairs = re.findall(r"(?m)^\[(\d[^\]]*)\]: (\S+)$", text)
+    links = dict(pairs)
 
+    # Markdown renders the first definition of a reference; `dict` keeps the
+    # last — a stray duplicate pointing at the wrong tag passed (review, 2026-08-30).
+    versions = [version for version, _ in pairs]
+    assert len(pairs) == len(links), sorted({v for v in versions if versions.count(v) > 1})
     assert set(links) == headings, set(links) ^ headings
     for version, url in links.items():
         assert url.endswith(f"/releases/tag/v{version}"), (version, url)
