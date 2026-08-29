@@ -8,6 +8,16 @@ Notable changes to this project. The format follows
 
 ### Fixed
 
+- **The inline `commit-lint` job's sign-off shape is the module's.** `v0.1.1`
+  made the job carry the module's type list and subject shape and bound them
+  with a test — but only the subject half. The sign-off half stayed
+  `grep '^Signed-off-by: .* <.*@.*>$'`, which accepts `Signed-off-by:  <@>` —
+  no name, no address — while `lint_commits.SIGN_OFF` requires both, because a
+  DCO line nobody can follow up on certifies nothing. The five-model outside
+  audit of `v0.1.0` (2026-08-29) fed that line through both gates and got two
+  verdicts. The job now carries the module's shape as `SIGNOFF`, and
+  `tests/test_lint_commits.py` runs it through bash against the bodies the
+  module judges, the way it already did for subjects.
 - **A composite action is judged like the workflow that calls it.** Both
   pinning scanners read `.github/workflows/` and nothing else, so a step moved
   into `.github/actions/<name>/action.yml` — which runs with the calling
