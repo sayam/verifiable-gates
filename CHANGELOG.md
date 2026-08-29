@@ -6,6 +6,16 @@ Notable changes to this project. The format follows
 
 ## [Unreleased]
 
+### Added
+
+- **CONTRIBUTING's list of required checks is held to the register.** The
+  sentence was prose, and had drifted once — at `v0.1.0` it named three checks
+  while the platform required seven — which one of the five outside auditors
+  read as a fixed list that goes stale silently. A test now derives what a
+  pull request must show (the checks the workflows produce on a pull request,
+  minus those `posture-declared.json` excuses) and holds the sentence to that
+  set, both ways.
+
 ## [0.1.4] - 2026-08-29
 
 Everything in this release answers the five-model outside audit of `v0.1.0`
