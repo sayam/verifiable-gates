@@ -108,6 +108,15 @@ gates:
       same shape as the deciders that were shipped and never pointed at home.
       The job reads the description with the sign-off's own name-and-address
       shape; Dependabot is skipped, since a bump carries no copyright.
+    proved_by:
+      - kind: ci-red
+        ref: run/33262135008
+        date: 2026-08-29
+        caught: >-
+          The pull request that added the job was opened without the line on
+          purpose. Every other check green, `cla` red with its own words — "no
+          line 'I have read and agree to CLA.md v1. — <name> <email>' in the
+          pull request description" — and green once the line was added.
   - id: preflight-and-the-harness-walk-this-repository
     title: The developer-side instruments this bundle ships are pointed at this repository
     kind: test

@@ -20,10 +20,9 @@ import yaml
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 
-# Gates allowed to carry no `proved_by` yet. **Shrink only.** Empty since 2026-08-29,
-# except for the one commit that adds a job gate whose proof is the live red the
-# job gives on its own pull request — the row lands in the next commit.
-UNPROVED: frozenset[str] = frozenset({"the-cla-line-is-checked-on-our-own-pull-requests"})
+# Gates allowed to carry no `proved_by` yet. **Shrink only.** Empty since 2026-08-29
+# (one commit on that day carried a job gate for the length of its own live red).
+UNPROVED: frozenset[str] = frozenset()
 
 
 def gates() -> list[dict[str, Any]]:
@@ -46,7 +45,7 @@ def test_every_gate_without_evidence_is_on_the_list_and_the_list_names_only_thos
 
 def test_the_list_is_empty() -> None:
     """The ceiling. Raise it only in the same change that adds the name, and say why."""
-    assert len(UNPROVED) == 1  # back to 0 in the commit that records the live red
+    assert len(UNPROVED) == 0
 
 
 def test_every_proof_says_what_it_caught_and_when() -> None:
