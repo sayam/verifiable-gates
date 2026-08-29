@@ -54,13 +54,18 @@ jobs:
           python-version: "3.13"
       - name: install the hash-pinned tools
         run: pip install --require-hashes -r pins/dev/requirements.txt
-      - name: build the wheel and the sdist from the tagged tree
-        run: python -m build tagged --outdir dist
+      # `--no-isolation`: `build` would otherwise create a fresh environment and
+      # `pip install` the backend from the index, unpinned, inside the job that
+      # holds `id-token: write` — the rule `ci-tools-hash-pinned`, unkept here
+      # until 2026-08-30. The backend now comes from the hash-pinned tools.
+      - name: build the wheel and the sdist from the tagged tree, with the pinned backend
+        run: python -m build --no-isolation tagged --outdir dist
       - name: the SBOM, from a clean environment holding exactly that wheel
         run: |
           set -euo pipefail
           python -m venv --without-pip sbom-env
-          pip --python sbom-env/bin/python install dist/*.whl
+          pip --python sbom-env/bin/python install --require-hashes -r pins/runtime/requirements.txt
+          pip --python sbom-env/bin/python install --no-deps ./dist/*.whl
           cyclonedx-py environment sbom-env/bin/python --of JSON -o dist/sbom.cdx.json
           python -c "import json; c=json.load(open('dist/sbom.cdx.json'))['components']; n=[x['name'] for x in c]; assert 'verifiable-gates' in n and 'PyYAML' in n, n; print(n)"
       - name: attest build provenance for the wheel and the sdist

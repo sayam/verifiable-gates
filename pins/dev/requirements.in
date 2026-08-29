@@ -12,3 +12,4 @@ xenon
 interrogate
 build
 cyclonedx-bom
+setuptools

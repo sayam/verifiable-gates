@@ -6,6 +6,22 @@ Notable changes to this project. The format follows
 
 ## [Unreleased]
 
+### Fixed
+
+- **The release job installs nothing it has not pinned.** `python -m build`
+  created an isolated environment and `pip install`ed the backend from the
+  index — `setuptools==84.0.0` arrived unhashed on 2026-08-30 — inside the job
+  that holds `id-token: write`, and the SBOM environment fetched PyYAML the
+  same way, so the SBOM recorded whatever the index served that minute. The
+  rule `ci-tools-hash-pinned` is published from this tree; `scan_install_pinning`
+  did not see either line (`pip --python … install` puts an option before
+  `install`, and `build`'s fetch is not a `pip` line at all), so the dogfood
+  suite was green. The backend is now in `pins/dev` and `build` runs
+  `--no-isolation`; the SBOM environment takes PyYAML by hash from a new
+  `pins/runtime/requirements.txt` that Dependabot moves, and the wheel with
+  `--no-deps`. Three tests hold the two steps and the pins↔Dependabot pairing
+  both ways. Found by the 2026-08-30 re-audit (round 1: what is still missing).
+
 ## [0.1.5] - 2026-08-29
 
 One test: the last item the five-model outside audit left open, the list of
