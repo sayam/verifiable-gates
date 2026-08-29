@@ -8,6 +8,14 @@ Notable changes to this project. The format follows
 
 ### Fixed
 
+- **`pyproject.toml`'s requirements are held to the pins.** The release job
+  installs the wheel with `--no-deps` and its dependencies from
+  `pins/runtime`, so a dependency added to `[project].dependencies` and not
+  to the pins would be missing from the attested SBOM in silence, and a
+  backend switched in `[build-system].requires` without `pins/dev` would fail
+  at tag time inside the signing job. A test holds the first pair equal and
+  the second contained; the `.in` readers take the name before any specifier.
+  Found by the pre-cut review (2026-08-30).
 - **A reached ceiling is never silent.** After the wrapper started raising
   `RuntimeError` for a hung `gh` (`[Unreleased]` above), the rerun census's
   annotation and log readers — which return empty on purpose so one unreadable

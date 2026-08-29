@@ -13,6 +13,7 @@ import pathlib
 import re
 import shutil
 import subprocess
+import tomllib
 
 import pytest
 import yaml
@@ -259,6 +260,19 @@ def test_the_release_builds_with_the_pinned_backend_not_an_isolated_fetch() -> N
     assert "\nsetuptools==" in pinned, "the backend --no-isolation relies on is not in the pins"
 
 
+NAME = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]*")
+
+
+def _names(lines: list[str]) -> set[str]:
+    """Package names out of requirement lines — the part before any extra, specifier or marker."""
+    found: set[str] = set()
+    for line in lines:
+        bare = line.split("#")[0].strip()
+        if bare and (match := NAME.match(bare)):
+            found.add(match.group(0).lower().replace("_", "-"))
+    return found
+
+
 def _compiled_roots(compiled: str, source_name: str) -> set[str]:
     """The packages a hash-pinned file lists as asked for by `-r <source>` directly."""
     roots: set[str] = set()
@@ -277,15 +291,24 @@ def test_the_compiled_pins_are_compiled_from_the_source_beside_them(pins: pathli
     source stays pinned, audited and installed forever, and a name added to the source is not
     installed until somebody runs pip-compile. The 2026-08-30 removal experiment dropped
     `interrogate` from the source and 1121 tests stayed green."""
-    source = {
-        line.split("#")[0].strip().lower()
-        for line in (pins / "requirements.in").read_text(encoding="utf-8").splitlines()
-        if line.split("#")[0].strip()
-    }
+    source = _names((pins / "requirements.in").read_text(encoding="utf-8").splitlines())
     compiled = (pins / "requirements.txt").read_text(encoding="utf-8")
     roots = _compiled_roots(compiled, f"{pins.relative_to(ROOT)}/requirements.in")
 
     assert roots == source, (sorted(roots - source), sorted(source - roots))
+
+
+def test_the_wheels_dependencies_are_the_runtime_pins_and_the_backend_is_in_the_dev_pins() -> None:
+    """The release job installs the wheel with `--no-deps` and its dependencies from
+    `pins/runtime`, so a dependency added to `pyproject.toml` and not to the pins would be
+    missing from the attested SBOM in silence; the backend `--no-isolation` relies on has
+    to be in `pins/dev` or the build fails at tag time (review, 2026-08-30)."""
+    project = tomllib.loads((ROOT / "pyproject.toml").read_text(encoding="utf-8"))
+    runtime = _names((ROOT / "pins/runtime/requirements.in").read_text("utf-8").splitlines())
+    dev = _names((ROOT / "pins/dev/requirements.in").read_text("utf-8").splitlines())
+
+    assert _names(project["project"]["dependencies"]) == runtime, (runtime,)
+    assert _names(project["build-system"]["requires"]) <= dev, (dev,)
 
 
 def test_every_pins_directory_is_moved_by_dependabot() -> None:
