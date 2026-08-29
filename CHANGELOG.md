@@ -8,6 +8,13 @@ Notable changes to this project. The format follows
 
 ### Added
 
+- **`DECISIONS.md`, and a shrink-only list of gates without evidence.** Twelve
+  deliberate choices an outside audit had read as gaps — the reasons lived in
+  comments and commit messages — now sit in one table with a reason, an expiry
+  condition and, where one makes sense, a revisit date that keeps the suite red
+  once passed. Every gate now carries `proved_by`, and the names allowed to lack
+  it are an empty list in `tests/test_gate_evidence.py` that a commit has to
+  grow on purpose.
 - **A release carries its SBOM and provenance.** `release.yml` builds the wheel
   and the sdist from the tag, takes a CycloneDX SBOM from a clean environment
   holding exactly that wheel, attests all of it keyless through GitHub's
