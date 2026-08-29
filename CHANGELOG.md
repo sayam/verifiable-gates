@@ -58,6 +58,14 @@ Notable changes to this project. The format follows
   job's test list as a refusal. Re-audit round 8 (does the new machinery
   survive contact with a real contributor).
 
+- **The DECISIONS row that states the split is measured, not typed.**
+  `rules-vs-bundle` said "92 rules … the bundle decides 9 … the other 83" by
+  hand, while the README's copies of the first two were held by
+  `own_numbers` — so a tenth checker would have moved the README and left the
+  decision saying 9 and 83. All three are places now, the third as its own
+  fact (rules minus scripted). Re-audit round 13 (do the audit's own artefacts
+  contradict each other yet).
+
 ### Changed
 
 - **The `advisories` job has been seen red on the platform.** A census of all

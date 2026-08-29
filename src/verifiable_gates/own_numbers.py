@@ -44,6 +44,10 @@ __all__ = ["ABOUT", "PLACES", "as_word", "expectations", "facts", "main"]
 # A number that appears in prose appears as a word; the counts here are small.
 WORDS = ("zero", "one", "two", "three", "four", "five", "six", "seven", "eight", "nine", "ten")
 
+# The DECISIONS row that states the rules/bundle split, up to its decision column.
+SPLIT_ROW = r"\| rules-vs-bundle \| [^|]+ \| "
+DECIDES = r"\d+ rules are published; the bundle decides "
+
 RELEASED = re.compile(r"^## \[(\d[^\]]*)\] - (\d{4}-\d{2}-\d{2})", re.MULTILINE)
 
 PLACES: dict[str, list[advertised.Place]] = {
@@ -65,6 +69,7 @@ PLACES: dict[str, list[advertised.Place]] = {
     ],
     "rules": [
         advertised.Place("README.md", r"— (\d+) rules, each carrying"),
+        advertised.Place("DECISIONS.md", SPLIT_ROW + r"(\d+) rules are published"),
         advertised.Place("README.md", r"Of the (\d+) rules"),
         # The Thai half is matched by its shape — bold phrase, number, phrase —
         # because this file is held to the language policy like every other.
@@ -73,6 +78,18 @@ PLACES: dict[str, list[advertised.Place]] = {
     ],
     "checkers": [
         advertised.Place("README.md", r"\*\*\S+ (\d+) \S+ \d+\*\* —"),
+    ],
+    # The decision row that states the split quotes three counts by hand; the
+    # third is the difference, measured as its own fact so the row cannot say
+    # 92, 9 and 84 at once (re-audit round 13, 2026-08-30).
+    "rules_scripted": [
+        advertised.Place("DECISIONS.md", SPLIT_ROW + DECIDES + r"(\d+)"),
+    ],
+    "rules_sheet_only": [
+        advertised.Place(
+            "DECISIONS.md",
+            SPLIT_ROW + DECIDES + r"\d+ of them\. The other (\d+)",
+        ),
     ],
     "checkers_word": [
         advertised.Place("README.md", r"the (\w+) stdlib-only checkers"),
@@ -104,7 +121,10 @@ def facts(root: pathlib.Path) -> dict[str, str]:
     catalogue = rules.load(root / "rules.yaml")
     gates = yaml.safe_load((root / "gates.yaml").read_text(encoding="utf-8"))["gates"]
     checkers = sorted((root / "src" / "verifiable_gates" / "checks").glob("scan_*.py"))
+    scripted = sum(1 for rule in catalogue if rule.get("script"))
     return {
+        "rules_scripted": str(scripted),
+        "rules_sheet_only": str(len(catalogue) - scripted),
         "version": __version__,
         "released": newest.group(2),
         "rules": str(len(catalogue)),
