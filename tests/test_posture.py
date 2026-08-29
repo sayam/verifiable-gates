@@ -459,3 +459,44 @@ def test_this_repositorys_register_names_only_checks_it_produces() -> None:
     assert set(excused) <= produced, set(excused) - produced
     assert all(setting.why for setting in settings.values())
     assert all(reason.strip() for reason in excused.values())
+
+
+# ------------------------------------------------------------ a switch that came back empty
+
+
+def test_a_readable_switch_that_came_back_empty_is_red_not_holding(
+    tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """The false green found live on 2026-08-29: the token could not see the switches.
+
+    `setting_problems` skips `None` and `unreadable` covers only switches declared
+    unreadable, so a readable one arriving empty read as "holds". It is red now,
+    by name, with the value it should hold.
+    """
+    a_platform(monkeypatch, PROTECTION, {})  # the token sees protection, not the repo switches
+    register, root = a_tree(
+        tmp_path,
+        {
+            "branch": "main",
+            "settings": {"allow_squash_merge": {"want": False, "why": "squash rewrites subjects"}},
+            "not_required": {},
+        },
+    )
+
+    assert posture.main(["--settings", register, "--root", root]) == 1
+    err = capsys.readouterr().err
+    assert "allow_squash_merge came back empty" in err
+    assert "should be False" in err
+
+
+def test_blind_reports_only_readable_switches() -> None:
+    """A switch declared unreadable is `unreadable`'s to report, not a second time here."""
+    declared = {
+        "seen": posture.Setting(want=True, why="a"),
+        "hidden": posture.Setting(want=True, why="b", readable=False),
+    }
+
+    found = posture.blind({"seen": None, "hidden": None}, declared)
+
+    assert len(found) == 1
+    assert "seen" in found[0]
