@@ -245,9 +245,16 @@ gates:
         ref: pr/47
         date: 2026-08-29
         caught: >-
-          The job's own second direction, on its first run against `v0.1.1`: the
-          real wheel, its SBOM predicate and the sdist verified; the copy with one
-          byte appended was refused — and the assets were attached only after.
+          The first dispatch against `v0.1.1` failed at the build step: the job
+          checked out the tag and installed the tag's pins, which predate the
+          tools that attest it (fixed in pr/48 — tools from the workflow's tree,
+          the artifact from the tag). The second dispatch ran every step: the
+          real wheel, its SBOM predicate and the sdist verified, the copy with one
+          byte appended was refused, and only then were the three assets
+          attached. Verified again from a developer's machine with
+          `gh attestation verify`: two attestations (SLSA provenance, CycloneDX
+          SBOM), and the tampered copy refused there too. The SBOM lists
+          `verifiable-gates@0.1.1` and `PyYAML@6.0.3` and nothing else.
 
   - id: commit-messages-are-shaped-and-signed
     title: Every commit a branch adds is a Conventional Commit and carries a DCO sign-off
