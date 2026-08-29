@@ -353,6 +353,18 @@ gates:
           arriving empty fell between the two. A third reader, `blind`, now makes
           that red by name with the value it should hold; the mutation dropping
           it from the caller is red in the tests.
+      - kind: ci-red
+        ref: pr/55
+        date: 2026-08-29
+        caught: >-
+          Both directions, live, with the secret in place: `enforce_admins`
+          switched off on the platform — the dispatched job went red naming it
+          and its declared value; switched back on — green, with the four merge
+          switches no fine-grained token receives printed "by hand" with the
+          value each should hold. The earlier attempt on
+          `required_conversation_resolution` proved nothing: its toggle endpoint
+          answered 404 both ways and the platform never changed, which two green
+          runs would have hidden had the state not been read back each time.
 
   - id: a-declared-schedule-is-watched
     title: The schedule census runs on every test job, over a full clone, so a silent cron is red
