@@ -27,11 +27,14 @@ abstract: >-
   in a project that has installed nothing, an installer and a doctor that run
   them, and a renderer that turns the catalogue into rule sheets an AI coding
   agent can be handed. The reference implementation is held to every rule
-  published here, and a test in that project checks both directions.
+  published here, and a test in that project checks both directions. The code
+  is Apache-2.0; the rule catalogue and the documentation are CC BY 4.0.
 keywords:
   - software governance
   - AI-assisted development
   - continuous integration
   - secure software development
   - developer experience
-license: Apache-2.0
+license:
+  - Apache-2.0
+  - CC-BY-4.0
