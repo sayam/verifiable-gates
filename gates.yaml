@@ -185,6 +185,14 @@ gates:
           annotation removed from the compiled file — three mutations, each red in
           the test that holds the two lists together. Before it, the first left all
           1121 tests green in a worktree (re-audit round 16).
+      - kind: mutation
+        ref: pr/86
+        date: 2026-08-30
+        caught: >-
+          `packaging` added to `[project].dependencies` alone, and the build backend
+          switched to `hatchling` in `pyproject.toml` alone — each red in the test
+          that holds the two requirement lists to the pins. Found by the pre-cut
+          review of 2026-08-30.
 
   - id: the-security-policy-quotes-one-set-of-numbers
     title: SECURITY.md exists, quotes one set of timeframes, names no address, and points at a live channel
