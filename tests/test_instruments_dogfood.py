@@ -324,6 +324,27 @@ def test_every_pins_directory_is_moved_by_dependabot() -> None:
 # ---------------------------------------------------------------- posture and the census
 
 
+def test_the_two_clocks_tick_on_the_cron_not_only_on_a_push() -> None:
+    """The schedule census and the revisit check ran only in ci.yml's `test` job, which runs
+    on push and pull request — so with nobody pushing they stopped, and GitHub's 60-day cron
+    disable went unreported by the very census that reports it (re-audit round 26)."""
+    jobs = preflight.jobs_on_disk(ROOT)
+    posture = jobs["posture"]["steps"]
+    runs = [str(s.get("run") or "") for s in posture]
+    checkout = next(s for s in posture if "actions/checkout" in str(s.get("uses")))
+    census = next(s for s in posture if "schedule_census" in str(s.get("run")))
+    revisit = next(s for s in posture if "test_decisions" in str(s.get("run")))
+
+    assert checkout.get("with", {}).get("fetch-depth") == 0, "a shallow clone has no birthdays"
+    assert "--root ." in census["run"]
+    assert census.get("if") == "${{ !cancelled() }}", "the first red must not hide the clocks"
+    assert revisit.get("if") == "${{ !cancelled() }}"
+    assert "schedule_census" in " ".join(str(s.get("run")) for s in jobs["test"]["steps"]), (
+        "the push-time copy stays: a pull request must not merge past a silent cron either"
+    )
+    assert any("posture --settings" in r for r in runs)
+
+
 def test_the_posture_job_reads_with_the_custodians_token_on_a_schedule() -> None:
     jobs = preflight.jobs_on_disk(ROOT)
     step = next(s for s in jobs["posture"]["steps"] if "posture --settings" in str(s.get("run")))

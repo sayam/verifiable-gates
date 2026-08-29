@@ -6,6 +6,17 @@ Notable changes to this project. The format follows
 
 ## [Unreleased]
 
+### Changed
+
+- **The two clocks tick on the platform's cron, not only on a push.** The
+  schedule census and the DECISIONS revisit check ran in ci.yml's `test` job
+  alone — on push and pull request — so with nobody pushing they stopped, and
+  GitHub's 60-day cron disable, the silence the census exists to report, would
+  have gone unreported by it (re-audit round 26: the first silent point of an
+  absent owner was day 60). `posture.yml` now carries both steps on its weekly
+  cron over a full clone; the push-time copies stay. The day that cron stops,
+  the platform's own e-mail is the notice. Owner's decision, 2026-08-30.
+
 ## [0.1.6] - 2026-08-30
 
 ### Fixed
