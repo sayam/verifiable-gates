@@ -16,6 +16,7 @@ from __future__ import annotations
 
 import json
 import pathlib
+import re
 from typing import Any
 
 import pytest
@@ -541,3 +542,29 @@ def test_an_unreadable_switch_the_maintainer_can_see_is_still_judged(
 
     assert posture.main(["--settings", register, "--root", root]) == 1
     assert "allow_squash_merge = True" in capsys.readouterr().err
+
+
+def test_contributing_names_exactly_the_checks_the_register_requires() -> None:
+    """The sentence in CONTRIBUTING that lists the required checks is held to the register.
+
+    The list is prose — nothing derives it — and it had already drifted once:
+    at `v0.1.0` it named three checks while the platform required seven, and an
+    outside audit (2026-08-29) read a fixed list that goes stale silently as
+    the same failure this repository's index rule exists to catch. What a pull
+    request must show is what the workflows produce on a pull request minus
+    the checks the register excuses; the sentence has to name that set, no
+    more and no less.
+    """
+    _branch, _settings, excused = posture.declared(ROOT / "pins" / "dev" / "posture-declared.json")
+    found = workflows.all_workflows(workflows.workflow_dir(ROOT))
+    required = {name for name in check_names.pull_request_checks(found) if name not in excused}
+
+    text = (ROOT / "CONTRIBUTING.md").read_text(encoding="utf-8")
+    heading = "## What runs on this repository's own pull requests"
+    paragraph = text.split(heading, 1)[1].split("are required", 1)[0]
+    named = set(re.findall(r"`([^`]+)`", paragraph))
+
+    assert named == required, (
+        f"CONTRIBUTING names {sorted(named)}; the workflows and the register require "
+        f"{sorted(required)} on a pull request"
+    )

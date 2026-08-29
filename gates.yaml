@@ -982,6 +982,14 @@ gates:
           dismissal with no reason as a judgement, reading "no permission to look"
           as "no alerts", losing the link between a matrix row and the job it
           belongs to, and freezing the wording so it could no longer be an input.
+      - kind: mutation
+        ref: pr/66
+        date: 2026-08-29
+        caught: >-
+          CONTRIBUTING's list of required checks bound to the register: `cla`
+          dropped from the sentence — red, naming the seven it had and the
+          eight the workflows and the register require; `cla` excused in the
+          register instead — red the other way. Both restored byte for byte.
 
   - id: every-advisory-has-been-judged
     title: Every finding has been decided about, and every decision still describes something
