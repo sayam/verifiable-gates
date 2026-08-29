@@ -32,19 +32,23 @@
     },
     "allow_squash_merge": {
       "want": false,
-      "why": "squash rewrites the subject past the 72-character gate and merges commits the gate judged one by one"
+      "why": "squash rewrites the subject past the 72-character gate and merges commits the gate judged one by one Not returned to a fine-grained token even with Administration:read and Contents:read (measured 2026-08-29), so it is printed with its declared value on every run for a person to check; the maintainer's session reads it and judges it.",
+      "readable": false
     },
     "allow_merge_commit": {
       "want": false,
-      "why": "linear history is required - a merge commit could never land; the button should not offer it"
+      "why": "linear history is required - a merge commit could never land; the button should not offer it Not returned to a fine-grained token even with Administration:read and Contents:read (measured 2026-08-29), so it is printed with its declared value on every run for a person to check; the maintainer's session reads it and judges it.",
+      "readable": false
     },
     "allow_rebase_merge": {
       "want": true,
-      "why": "the one merge shape linear history allows"
+      "why": "the one merge shape linear history allows Not returned to a fine-grained token even with Administration:read and Contents:read (measured 2026-08-29), so it is printed with its declared value on every run for a person to check; the maintainer's session reads it and judges it.",
+      "readable": false
     },
     "delete_branch_on_merge": {
       "want": true,
-      "why": "merged branches pile up unseen"
+      "why": "merged branches pile up unseen Not returned to a fine-grained token even with Administration:read and Contents:read (measured 2026-08-29), so it is printed with its declared value on every run for a person to check; the maintainer's session reads it and judges it.",
+      "readable": false
     },
     "web_commit_signoff_required": {
       "want": true,

@@ -335,8 +335,11 @@ def _settings(register: pathlib.Path, root: pathlib.Path) -> int:
         print(f"cannot read the platform's settings: {problem}", file=sys.stderr)
         return 2
     found = workflows.all_workflows(workflows.workflow_dir(root))
+    # The third outcome is printed, not counted: a switch declared unreadable is
+    # shown with the value it should hold so a person can check it by hand.
+    for line in unreadable(state, wanted):
+        print(f"  by hand: {line}")
     lines = setting_problems(state, wanted)
-    lines += unreadable(state, wanted)
     lines += blind(state, wanted)
     lines += check_problems(
         required, check_names.pull_request_checks(found), check_names.all_checks(found), excused
