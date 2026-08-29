@@ -66,6 +66,13 @@ Notable changes to this project. The format follows
   fact (rules minus scripted). Re-audit round 13 (do the audit's own artefacts
   contradict each other yet).
 
+- **A rule's `script:` is held to the manifest both ways.** `rules.yaml` says
+  which nine rules the bundle decides and `overlay.json` says which nine scans
+  it ships — the same fact in two files, and nothing compared them: the
+  re-audit deleted a rule's `script:` line in a worktree and 1121 tests stayed
+  green. A test now holds the two maps equal, id for id and path for path.
+  Re-audit round 16 (who sees what is *removed*).
+
 ### Changed
 
 - **The three censuses say what they are: deciders.** Each declared

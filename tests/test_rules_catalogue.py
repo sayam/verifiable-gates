@@ -8,6 +8,7 @@ validator only tested on broken input passes just as happily on everything.
 
 from __future__ import annotations
 
+import json
 import os
 import pathlib
 from typing import Any
@@ -40,6 +41,27 @@ def complaints(*rule_list: dict[str, Any], package_dir: pathlib.Path | None = No
 
 
 # ---------------------------------------------------------------- the clean side
+
+
+def test_every_script_the_catalogue_names_is_a_scan_the_manifest_ships_and_back() -> None:
+    """A rule's `script:` and the manifest's `scan` entry are two statements of one fact —
+    "the bundle decides this rule" — in two files. Nothing held them together: on 2026-08-30
+    the re-audit deleted a rule's `script:` line in a worktree and the suite stayed green,
+    so a published rule could lose its checker with no diff anyone reads."""
+    catalogue = rules.load(ROOT / "rules.yaml")
+    manifest = json.loads((ROOT / "src" / "verifiable_gates" / "overlay.json").read_text("utf-8"))
+    scripted = {rule["id"]: rule["script"] for rule in catalogue if rule.get("script")}
+    shipped = {
+        gate_id: entry["script"]
+        for gate_id, entry in manifest["gates"].items()
+        if isinstance(entry, dict) and entry.get("kind") == "scan"
+    }
+
+    moved = sorted(k for k in scripted if shipped.get(k, scripted[k]) != scripted[k])
+    assert scripted == shipped, (
+        f"only in rules.yaml: {sorted(set(scripted) - set(shipped))} · "
+        f"only in overlay.json: {sorted(set(shipped) - set(scripted))} · different path: {moved}"
+    )
 
 
 def test_a_well_formed_rule_draws_no_complaint() -> None:
