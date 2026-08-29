@@ -383,12 +383,23 @@ def _read_registry(registry: pathlib.Path) -> tuple[list[str], list[object]]:
     return [], document["gates"]
 
 
+MISCONFIGURED = (
+    "scaffold.json names {key} {path}, which is not there — a configured path that "
+    "is missing is a broken configuration, not nothing to check"
+)
+
+
 def main(root: pathlib.Path) -> int:
     config_path = root / "scaffold.json"
     config = json.loads(config_path.read_text(encoding="utf-8")) if config_path.is_file() else {}
     declared = config.get("gates_path", "gates.yaml")
     registry = root / declared
     if not registry.is_file():
+        # An index the project named and does not have is a broken configuration,
+        # not "no index yet" — the same two answers every scaffold path gives.
+        if "gates_path" in config:
+            print("gates-registry-total: " + MISCONFIGURED.format(key="gates_path", path=declared))
+            return 1
         print(f"NA: no {declared} — there is no index to check yet")
         return 0
 

@@ -26,14 +26,29 @@ PATTERNS = (
 )
 
 
+MISCONFIGURED = (
+    "scaffold.json names {key} {path}, which is not there — a configured path that "
+    "is missing is a broken configuration, not nothing to check"
+)
+
+
 def main(root: pathlib.Path) -> int:
     config_path = root / "scaffold.json"
     # A project that has not configured the bundle is not a misuse — the paths
-    # below fall back to their defaults, and a path that is not there reports NA.
-    # Reading it unguarded turned "not configured yet" into a traceback.
+    # below fall back to their defaults, and a default that is not there reports
+    # NA. A path the project *named* and does not have is the opposite case: a
+    # broken configuration, reported as a finding — an outside audit on
+    # 2026-08-29 planted a `scaffold.json` pointing at a Dockerfile that did not
+    # exist beside a dirty one that did, and the answer was "nothing to check".
     config = json.loads(config_path.read_text(encoding="utf-8")) if config_path.is_file() else {}
     templates = root / config.get("templates_path", "app/templates")
     if not templates.is_dir():
+        if "templates_path" in config:
+            print(
+                "csp-no-inline: "
+                + MISCONFIGURED.format(key="templates_path", path=templates.relative_to(root))
+            )
+            return 1
         print(f"NA: no {templates.relative_to(root)} — nothing to check yet")
         return 0
 

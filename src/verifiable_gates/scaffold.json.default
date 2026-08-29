@@ -1,21 +1,5 @@
 {
-  "_comment": "Configuration for the gate bundle. Point these at your project's layout; a scan whose path does not exist reports NA rather than failing, so an unused entry is harmless but a wrong one is silent \u2014 check the doctor's output says pass, not NA.",
-  "services_path": "app/services",
-  "src_path": "app",
-  "purge_paths": [
-    "app/purge.py"
-  ],
-  "templates_path": "app/templates",
-  "entrypoints": [
-    "run.py",
-    "wsgi.py",
-    "app.py",
-    "main.py"
-  ],
-  "dockerfiles": [
-    "Dockerfile"
-  ],
-  "adr_path": "docs/adr",
+  "_comment": "Configuration for the gate bundle. Every path has a default, and a default that is not there reports NA; a path you write here and do not have is a finding, because a configured path that does not exist is a broken configuration, not nothing to check. Defaults: services_path app/services, src_path app, purge_paths [app/purge.py], templates_path app/templates, entrypoints [run.py, wsgi.py, app.py, main.py], dockerfiles [Dockerfile], adr_path docs/adr, gates_path gates.yaml, tests_path tests. Name a path only to move it.",
   "preflight_jobs": [
     "scans"
   ]

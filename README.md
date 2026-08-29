@@ -81,8 +81,10 @@ project turned it into a test. `rules.yaml` and the sheets are not installed by
 `install()` either; they come with the checkout. Two consequences worth knowing
 before trusting a green: the doctor reports a rule it cannot decide as `NA`, and a
 project where every rule is `NA` exits 0 — that is "nothing was measured", not "the
-project passed"; and `rules.problems()` only checks that a `script:` exists when
-it is given the package directory (`package_dir=`), as the doctor does.
+project passed" (a path that `scaffold.json` *names* and the project does not have is
+never `NA`, though: that is a broken configuration, and it is a finding); and
+`rules.problems()` only checks that a `script:` exists when it is given the package
+directory (`package_dir=`), as the doctor does.
 
 Since the extraction finished, so are the deciders that used to live in the
 reference implementation: ratchets and the measurements that feed them, the
