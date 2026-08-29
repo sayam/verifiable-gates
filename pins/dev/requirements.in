@@ -10,3 +10,5 @@ types-PyYAML
 pip-audit
 xenon
 interrogate
+build
+cyclonedx-bom

@@ -140,3 +140,32 @@ def test_the_secret_scan_runs_a_checksummed_binary_over_the_whole_history() -> N
     assert "gitleaks_8.30.1_linux_x64.tar.gz" in fetch["run"]
     assert "--exit-code 1" in scan["run"]
     assert "--redact" in scan["run"], "a found secret must not be printed into the log"
+
+
+# ---------------------------------------------------------------- the release workflow
+
+
+def test_the_release_job_verifies_both_ways_before_it_attaches_anything() -> None:
+    """A verifier nobody has watched refusing is one nobody has proved reads anything."""
+    jobs = preflight.jobs_on_disk(ROOT)
+    steps = jobs["release-sign"]["steps"]
+    names = [str(s.get("name") or s.get("uses") or s.get("run")) for s in steps]
+    verify = next(s for s in steps if "verify in both directions" in str(s.get("name")))
+    attach = next(s for s in steps if "attach the wheel" in str(s.get("name")))
+    attests = [s for s in steps if "actions/attest-" in str(s.get("uses"))]
+
+    assert len(attests) == 2, names
+    assert all("@" in str(s["uses"]) and len(str(s["uses"]).split("@")[1]) == 40 for s in attests)
+    assert "tampered.whl" in verify["run"], "no negative direction — the verifier is unproved"
+    assert "--predicate-type https://cyclonedx.org/bom" in verify["run"]
+    assert steps.index(verify) > max(steps.index(s) for s in attests)
+    assert steps.index(attach) > steps.index(verify), "attached before verified"
+
+
+def test_the_sbom_is_taken_from_a_clean_environment_holding_the_wheel() -> None:
+    jobs = preflight.jobs_on_disk(ROOT)
+    sbom = next(s for s in jobs["release-sign"]["steps"] if "cyclonedx-py" in str(s.get("run")))
+
+    assert "python -m venv --without-pip sbom-env" in sbom["run"]
+    assert "install dist/*.whl" in sbom["run"]
+    assert "'verifiable-gates' in n and 'PyYAML' in n" in sbom["run"], "an SBOM of nothing is green"

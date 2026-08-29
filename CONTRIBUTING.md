@@ -99,6 +99,11 @@ field was one release away from proving it (2026-08-29).
 4. Merge; tag `vx.y.z` on the merged commit and publish the GitHub release —
    Zenodo reads `.zenodo.json` from it and mints the version's DOI under the
    concept DOI already in the README.
+5. Publishing the release starts `release.yml`: it builds the wheel and the sdist
+   from the tag, generates the SBOM, attests all three keyless, verifies them in
+   both directions and only then attaches them to the release. Watch it go
+   green; a downloader verifies with
+   `gh attestation verify <wheel> --repo sayam/verifiable-gates`.
 
 ## What runs on this repository's own pull requests
 
