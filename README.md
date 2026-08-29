@@ -11,7 +11,9 @@ another project.
 [`evidence-freeze-1`](https://github.com/sayam/verifiable-gates/releases/tag/evidence-freeze-1)
 in both this repository and the reference implementation, and archived at
 [doi:10.5281/zenodo.22103110](https://doi.org/10.5281/zenodo.22103110). That DOI resolves to the
-latest version; each release also gets one of its own.
+latest version; each release also gets one of its own. `evidence-freeze-1` and
+`v0.1.0` are **different commits** on purpose: the freeze is the state the
+measurements were taken on, the release is the state the package first shipped in.
 
 **Status: the extraction is complete (2026-08-28).** Every stage has landed. What
 remains in the reference implementation,
@@ -66,6 +68,17 @@ Also here: the nine stdlib-only checkers, the installer and the doctor that runs
 them in a project that has installed nothing, preflight, the sheet renderer, and
 the fail-fix harness.
 
+**What the bundle decides, and what it does not.** Of the 92 rules, **nine** have a
+checker in the bundle (`script:` in `rules.yaml`); the doctor and the installer
+decide those and nothing else. The other 83 are the rule sheets — an agent is held
+to them by reading, and the *Enforced in the reference* line on each says how one
+project turned it into a test. `rules.yaml` and the sheets are not installed by
+`install()` either; they come with the checkout. Two consequences worth knowing
+before trusting a green: the doctor reports a rule it cannot decide as `NA`, and a
+project where every rule is `NA` exits 0 — that is "nothing was measured", not "the
+project passed"; and `rules.problems()` only checks that a `script:` exists when
+it is given the package directory (`package_dir=`), as the doctor does.
+
 Since the extraction finished, so are the deciders that used to live in the
 reference implementation: ratchets and the measurements that feed them, the
 removal census, the synchroniser for numbers a project advertises about itself,
@@ -108,7 +121,8 @@ inside an organisation's internal handbook must not require share-alike.
 **เก็บถาวรใต้ DOI แล้ว** — สถานะที่ข้ออ้างชี้ถึงถูกตรึงไว้ที่ tag `evidence-freeze-1`
 ทั้ง repo นี้และ reference implementation · archive อยู่ที่
 [doi:10.5281/zenodo.22103110](https://doi.org/10.5281/zenodo.22103110) ซึ่งชี้รุ่นล่าสุดเสมอ
-(แต่ละ release มี DOI ของตัวเองด้วย)
+(แต่ละ release มี DOI ของตัวเองด้วย) · `evidence-freeze-1` กับ `v0.1.0` เป็น**คนละคอมมิต**โดยตั้งใจ —
+tag แรกคือสถานะตอนวัด tag หลังคือสถานะตอนแพ็กเกจออกครั้งแรก
 
 **สถานะ: ถอดครบทุกขั้นแล้ว (2026-08-28)** — ที่
 [`flask-todolist`](https://github.com/sayam/flask-todolist) เหลือ *ทะเบียน*
@@ -128,6 +142,10 @@ pip/npm/image · ขอบเขตของตัวสแกน · สำม�
 
 **กฎกับตัวบังคับอยู่คนละไฟล์โดยตั้งใจ** เพราะอายุไม่เท่ากัน — `rules.yaml` คือสิ่งที่
 repo นี้เผยแพร่ ส่วน `gates.yaml` คือสิ่งที่ repo นี้ถูกบังคับด้วยตัวเอง
+
+**บันเดิลตัดสินได้ 9 จาก 92** — เฉพาะกฎที่มี `script:` เท่านั้นที่ doctor กับ installer
+ตัดสินให้ อีก 83 ข้อคือแผ่นกฎที่ agent ถูกบังคับด้วยการอ่าน · doctor รายงานกฎที่ตัดสินไม่ได้เป็น `NA`
+และโปรเจกต์ที่ทุกข้อเป็น `NA` ออก 0 แปลว่า "ไม่ได้วัดอะไร" ไม่ใช่ "ผ่าน"
 
 **คลังเก็บสองภาษา**: อังกฤษเป็นข้อความที่เผยแพร่ ส่วนถ้อยคำไทยต้นฉบับอยู่ในฟิลด์
 `*_th` คู่กัน เพราะคำแปลของบันทึกเหตุการณ์คือการเล่าใหม่ และการเล่าใหม่ไม่ใช่ตัวบันทึก
