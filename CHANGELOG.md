@@ -54,6 +54,13 @@ Notable changes to this project. The format follows
   Each is a finding now; `uv run --locked`, `uv sync --locked`, `uv build`
   and `poetry install` install from a lock that carries hashes and are left
   alone, held by a test. Proved by mutation both ways (#114).
+- **A shell script CI hands off to is read.** The install scanner read the
+  workflow's own `run:` lines, so `- run: ./scripts/setup.sh` with
+  `pip install ruff` inside the script was green — the install runs with the
+  job's permissions all the same (outside audit, 2026-08-30, reproduced).
+  Every read file is followed into the scripts it hands off to, scripts
+  calling scripts included; a path that is absolute, missing or climbs out of
+  the checkout is not ours. Proved by mutation three ways (#115).
 
 ## [0.1.7] - 2026-08-30
 

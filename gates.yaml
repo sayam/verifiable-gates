@@ -1588,6 +1588,17 @@ gates:
           widened to bare `uv` — `uv run --locked`, `uv sync --locked` and
           `uv build` reported, red in three. An outside audit planted the first
           and `poetry add` on 2026-08-30 and got exit 0.
+      - kind: mutation
+        ref: pr/115
+        date: 2026-08-30
+        caught: >-
+          The install scanner with its following of shell scripts switched off
+          — `pip install ruff` in `scripts/setup.sh` behind `./scripts/setup.sh`,
+          `bash`, `sh`, `source`, `.` and a mid-chain call, green again; red in
+          eight cases. A `..` path allowed — the sibling directory's script
+          read, red. The loop guard removed — a script calling itself, and the
+          suite hung until killed. An outside audit planted the first tree on
+          2026-08-30 and got exit 0.
 
   - id: rules-we-ship-we-keep
     title: Scanners that apply to this repository are run against this repository
