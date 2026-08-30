@@ -360,6 +360,37 @@ def test_every_excused_job_declares_a_watcher_and_the_two_promises_agree() -> No
     assert census.get("if") == "${{ !cancelled() }}"
 
 
+def test_the_gitleaks_pin_has_a_mover_on_the_cron(tmp_path: pathlib.Path) -> None:
+    """The binary is fetched by URL with our checksum, invisible to Dependabot; the upstream
+    signs nothing (checked 2026-08-30), so the mover is a cron step that is red the week a
+    newer release exists. Run through bash twice: on this tree (green while the pin is
+    current) and on a tree pinning 8.0.0 (red, naming both versions)."""
+    step = next(
+        s
+        for s in preflight.jobs_on_disk(ROOT)["posture"]["steps"]
+        if "gitleaks" in str(s.get("name"))
+    )
+    assert step.get("if") == "${{ !cancelled() }}"
+    assert "grep -oE 'gitleaks_" in step["run"], "the version has to come from security.yml"
+
+    def run_in(tree: pathlib.Path) -> subprocess.CompletedProcess[str]:
+        return subprocess.run(  # noqa: S603 — the step's own block, under bash from PATH
+            ["bash", "-c", step["run"]],  # noqa: S607 — bash from PATH, as the runner finds it
+            cwd=tree,
+            check=False,
+            capture_output=True,
+            text=True,
+        )
+
+    stale = tmp_path / ".github" / "workflows"
+    stale.mkdir(parents=True)
+    real = (ROOT / ".github" / "workflows" / "security.yml").read_text(encoding="utf-8")
+    (stale / "security.yml").write_text(real.replace("8.30.1", "8.0.0"), encoding="utf-8")
+    behind = run_in(tmp_path)
+    assert behind.returncode == 1, behind.stderr
+    assert "gitleaks 8.0.0 is pinned but" in behind.stdout
+
+
 def test_the_two_clocks_tick_on_the_cron_not_only_on_a_push() -> None:
     """The schedule census and the revisit check ran only in ci.yml's `test` job, which runs
     on push and pull request — so with nobody pushing they stopped, and GitHub's 60-day cron

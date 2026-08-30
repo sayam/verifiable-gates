@@ -8,6 +8,17 @@ Notable changes to this project. The format follows
 
 ### Changed
 
+- **The gitleaks pin has a mover.** The binary is fetched by URL and held to a
+  sha256 written in `security.yml`, so Dependabot never sees it and nothing
+  said when to bump it (re-audit round 15). The upstream signs nothing —
+  release v8.30.1 carries no `.sig` or `.pem`, `gh attestation verify --owner
+  gitleaks` is 404, and its workflows name no cosign — so a signature step
+  would verify nothing. Instead `posture.yml`'s cron compares the pinned
+  version with the latest release and is red the week it falls behind; a test
+  runs the block through bash on a tree pinning 8.0.0 and sees the red.
+  `DECISIONS.md` records the checksum-in-our-tree as the strongest control
+  available, expiring when gitleaks ships signatures (revisit 2027-02-28).
+  Owner's decision, 2026-08-30.
 - **`tools/gates_doctor.py` takes `--root DIR` as well as the positional
   root.** Every other tool here takes `--root`; the re-audit's operator typed
   it at the doctor and got a usage error (round 18, 2026-08-30). The two
