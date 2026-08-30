@@ -84,6 +84,33 @@ def promised_days(registry: pathlib.Path, workflow_directory: pathlib.Path) -> d
     return promised
 
 
+def blocking_paths(workflow_directory: pathlib.Path) -> set[str]:
+    """Workflow paths whose jobs run on pull_request — the ones a merge can block on."""
+    return {
+        f".github/workflows/{path.name}"
+        for path in sorted(workflow_directory.glob("*.y*ml"))
+        if workflows.runs_on(workflows.load(path), "pull_request")
+    }
+
+
+def standing(path: str, promised: dict[str, int], blocking: set[str]) -> tuple[str, bool]:
+    """What holds this workflow, in words — and whether nothing does.
+
+    Three states, told apart: a `watched_by` promise, a pull_request trigger (it
+    blocks), or neither — the worst of the three, which an outside audit on
+    2026-08-30 found printed as "it blocks" for the platform's own Dependabot
+    runs and for release.yml. A path outside `.github/workflows/` is the
+    platform's, not this repository's, and is named as such rather than judged.
+    """
+    if path in promised:
+        return f"promised {promised[path]} days", False
+    if path in blocking:
+        return "runs on pull_request (it blocks)", False
+    if not path.startswith(".github/workflows/"):
+        return "the platform's own run, not a workflow here", False
+    return "nobody watches it and nothing blocks on it", True
+
+
 def longest_red_hours(runs: list[dict[str, Any]]) -> dict[str, float]:
     """Workflow path → its longest unbroken stretch of red, in hours.
 
@@ -175,12 +202,14 @@ def main(argv: list[str] | None = None) -> int:
         return 2
 
     measured = longest_red_hours(runs)
-    for path, hours in sorted(measured.items()):
-        bound = promised.get(path)
-        note = f"promised {bound} days" if bound else "no gate declares a watcher (it blocks)"
-        print(f"  {path:35s} longest red {hours:6.1f} h · {note}")
-
+    blocking = blocking_paths(workflows.workflow_dir(root))
     found = problems(promised, measured)
+    for path, hours in sorted(measured.items()):
+        note, unheld = standing(path, promised, blocking)
+        print(f"  {path:35s} longest red {hours:6.1f} h · {note}")
+        if unheld:
+            found.append(f"{path}: {note} — declare `watched_by` on a gate, or let it block")
+
     if found:
         print("promises that are not being kept:", file=sys.stderr)
         for line in found:

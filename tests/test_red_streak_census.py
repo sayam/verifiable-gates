@@ -213,6 +213,60 @@ def test_a_project_whose_promises_hold_passes(
     assert "still holds" in capsys.readouterr().out
 
 
+def test_a_workflow_nobody_watches_and_nothing_blocks_on_is_red(
+    tmp_path: pathlib.Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """The worst of the three states, said as such — it used to print "it blocks"."""
+    a_workflow(tmp_path / ".github" / "workflows", "nightly.yml", CRON_ONLY)
+    a_workflow(tmp_path / ".github" / "workflows", "orphan.yml", CRON_ONLY)
+    a_registry(tmp_path, WATCHED)
+    runs = tmp_path / "runs.json"
+    runs.write_text(
+        '[{"path": ".github/workflows/nightly.yml", '
+        '"created_at": "2026-08-26T00:00:00+00:00", "conclusion": "success"}, '
+        '{"path": ".github/workflows/orphan.yml", '
+        '"created_at": "2026-08-26T00:00:00+00:00", "conclusion": "success"}]',
+        encoding="utf-8",
+    )
+
+    assert census.main(["--root", str(tmp_path), "--input", str(runs)]) == 1
+    out, err = capsys.readouterr()
+    assert "orphan.yml" in out
+    assert "nobody watches it and nothing blocks on it" in out
+    assert "declare `watched_by`" in err
+
+
+@pytest.mark.parametrize(
+    ("path", "body", "note"),
+    [
+        (".github/workflows/pr.yml", ON_PR, "runs on pull_request (it blocks)"),
+        ("dynamic/dependabot/dependabot-updates", None, "the platform's own run"),
+    ],
+)
+def test_a_blocking_workflow_and_a_platform_run_are_named_not_judged(
+    tmp_path: pathlib.Path,
+    capsys: pytest.CaptureFixture[str],
+    path: str,
+    body: str | None,
+    note: str,
+) -> None:
+    a_workflow(tmp_path / ".github" / "workflows", "nightly.yml", CRON_ONLY)
+    if body:
+        a_workflow(tmp_path / ".github" / "workflows", path.rsplit("/", 1)[1], body)
+    a_registry(tmp_path, WATCHED)
+    runs = tmp_path / "runs.json"
+    runs.write_text(
+        '[{"path": ".github/workflows/nightly.yml", '
+        '"created_at": "2026-08-26T00:00:00+00:00", "conclusion": "success"}, '
+        f'{{"path": "{path}", "created_at": "2026-08-26T00:00:00+00:00", '
+        '"conclusion": "failure"}]',
+        encoding="utf-8",
+    )
+
+    assert census.main(["--root", str(tmp_path), "--input", str(runs)]) == 0
+    assert note in capsys.readouterr().out
+
+
 def test_a_broken_promise_returns_a_blocking_code(
     tmp_path: pathlib.Path, capsys: pytest.CaptureFixture[str]
 ) -> None:
