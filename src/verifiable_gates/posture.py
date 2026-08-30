@@ -318,7 +318,10 @@ def _alerts_switch() -> bool | None:
     try:
         gh.run(["api", "repos/:owner/:repo/vulnerability-alerts"])
     except PermissionError as refusal:
-        return False if "404" in str(refusal) else None
+        # The platform's own words, not any "404" in the message: a token that
+        # cannot see the switch is answered 404 too, and that is the third answer
+        # only if the wording is read narrowly (review, 2026-08-30).
+        return False if "HTTP 404" in str(refusal) else None
     return True
 
 
