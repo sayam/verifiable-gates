@@ -74,3 +74,44 @@ def test_no_revisit_date_has_passed() -> None:
         f"decisions past their revisit date: {overdue} — re-decide each one: delete the row, "
         "rewrite it, or move the date in a commit that says why"
     )
+
+
+# ------------------------------------------------------- the rows are held by id
+#
+# The shape of every row was held; which rows exist was not — an outside audit
+# on 2026-08-30 deleted a row and added one and the suite stayed green both
+# times. A register whose members leave in silence says nothing in a year. The
+# ids are copied here the way `tests/test_gate_evidence.py` holds proof rows:
+# a row removed, or added, is red until the same pull request changes this
+# list too, where a reviewer sees the decision being made or unmade.
+
+HELD = (
+    "rules-vs-bundle",
+    "proved-by-optional",
+    "ref-crosses-repos",
+    "freeze-tag-vs-release",
+    "strict-checks-off",
+    "pip-uppercase-not-a-gap",
+    "xenon-floor-at-reality",
+    "interrogate-at-84",
+    "gitleaks-binary-not-action",
+    "sbom-from-a-clean-env",
+    "posture-token-is-a-secret",
+    "harness-dogfood-one-gate",
+    "about-field-under-350",
+    "merge-switches-unreadable-by-the-token",
+    "doctor-all-na-exits-zero",
+    "harness-all-skip-exits-zero",
+    "manifest-problems-is-a-test-time-check",
+    "git-signing-not-required",
+    "gitleaks-pinned-by-our-checksum",
+)
+
+
+def test_the_record_holds_every_row_it_held() -> None:
+    """A row leaves the record only by leaving this list too — and arrives the same way."""
+    present = [row["id"] for row in rows()]
+    assert present == list(HELD), (
+        f"removed {sorted(set(HELD) - set(present))}, added "
+        f"{sorted(set(present) - set(HELD))}, or reordered — change both in one pull request"
+    )
