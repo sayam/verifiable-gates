@@ -99,7 +99,7 @@ def test_a_record_under_another_concept_is_red(
 
 def test_a_record_without_a_version_is_skipped_by_the_map_and_reported_by_problems() -> None:
     """The map cannot hold it; the check must still say it is there."""
-    records = [
+    records: list[dict[str, Any]] = [
         {"doi": "x", "conceptdoi": CONCEPT, "metadata": {}},
         {"doi": "y", "conceptdoi": CONCEPT},
     ]
