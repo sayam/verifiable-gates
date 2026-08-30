@@ -8,6 +8,17 @@ Notable changes to this project. The format follows
 
 ### Fixed
 
+- **`--require-hashes` is an argument of the install, and only `run:` is
+  judged.** The install scanner looked for the flag anywhere on the line, so
+  `MARKER=--require-hashes pip install ruff` — the flag in a place pip never
+  reads — was green, and it read every line of a workflow, so a step *named*
+  "explain why pip install ruff is forbidden" was red (outside audit,
+  2026-08-30, both reproduced). The flag now counts only among the install's
+  own arguments, and in a workflow or an action only what `run:` executes is
+  read — the value on the line, its continuation, or the `|`/`>` block
+  beneath it; `name:`, `env:` and `with:` are prose to the runner. Scripts and
+  Dockerfiles are still read whole. Proved by mutation: nine new cases red on
+  the old scanner (#132).
 - **The doctor tells a crashed scan from a finding.** A scan that exited
   without a verdict — seven tracebacks on a malformed `scaffold.json`, or exit
   2 with a usage line — was printed as `[found]` with its stderr swallowed

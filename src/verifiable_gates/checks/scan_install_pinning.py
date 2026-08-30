@@ -18,6 +18,11 @@ the shebang on its first line — is followed into the script, because the insta
 hides runs with the job's permissions all the same (outside audit, 2026-08-30: `pip
 install ruff` in `scripts/setup.sh`, exit 0).
 
+In a workflow or an action only what `run:` executes is judged — a `name:` or an
+`env:` that quotes the command is prose the runner never executes (outside audit,
+2026-08-30: a step *named* after `pip install ruff` was a finding, and an
+environment value carrying `--require-hashes` pinned nothing and passed). And
+`--require-hashes` counts only as an argument of the install itself.
 Comments are stripped before checking — these files like to explain themselves by
 quoting the very command they are telling you not to use. A comment at the end of
 a line goes too: `pip install ruff  # TODO --require-hashes` was green because the
@@ -271,9 +276,48 @@ def _with_scripts(root: pathlib.Path, targets: list[pathlib.Path]) -> list[pathl
     return seen
 
 
+# In a workflow or an action only what `run:` executes is judged — the value on
+# the line, or the `|`/`>` block beneath it. Every other line is prose to the
+# runner: a `name:` that says "explain why pip install ruff is forbidden" was a
+# finding, and an `env:` value was a `--require-hashes` that pip never saw
+# (outside audit, 2026-08-30). A script and a Dockerfile are read whole.
+RUN = re.compile(r"^(\s*-?\s*)run:\s*(.*?)\s*$")
+YAML = {".yml", ".yaml"}
+
+
+def _unquoted(value: str) -> str:
+    if len(value) >= 2 and value[0] == value[-1] and value[0] in "\"'":
+        return value[1:-1]
+    return value
+
+
+def _run_lines(text: str) -> list[str]:
+    """The lines a workflow or action hands to the shell: each `run:` value or block."""
+    lines = text.splitlines()
+    found: list[str] = []
+    index = 0
+    while index < len(lines):
+        match = RUN.match(lines[index])
+        index += 1
+        if not match:
+            continue
+        indent, value = len(match.group(1)), match.group(2)
+        if not BLOCK.match(value):
+            found.append(_unquoted(value))
+        # A block's lines, or a plain value's continuation lines: past the key's own column
+        # — a sibling `env:` or `name:` of a `- run:` item sits at that column, not past it.
+        while index < len(lines) and (
+            not lines[index].strip() or len(lines[index]) - len(lines[index].lstrip()) > indent
+        ):
+            found.append(lines[index])
+            index += 1
+    return found
+
+
 def _commands(path: pathlib.Path) -> list[str]:
+    text = path.read_text(encoding="utf-8")
     joined, buffer = [], ""
-    for raw in path.read_text(encoding="utf-8").splitlines():
+    for raw in _run_lines(text) if path.suffix in YAML else text.splitlines():
         if raw.lstrip().startswith("#"):
             continue
         buffer += _without_comment(raw).rstrip()
@@ -302,12 +346,21 @@ def _files_read(root: pathlib.Path) -> list[pathlib.Path]:
     return targets + [p for p in [root / "Dockerfile"] if p.is_file()]
 
 
+def _pip_requires_hashes(command: str) -> bool:
+    """`--require-hashes` as an argument of the install itself — not a substring anywhere.
+    `MARKER=--require-hashes pip install ruff` carried the flag where pip never reads it
+    and passed (outside audit, 2026-08-30)."""
+    matched = PIP_INSTALL.search(command)
+    after = command[matched.end() :] if matched else ""
+    return "--require-hashes" in after.split()
+
+
 def _line_findings(where: pathlib.Path, line: str) -> list[str]:
     """Everything one command does that reaches an index unpinned."""
     found: list[str] = []
     if (
         PIP_INSTALL.search(line)
-        and "--require-hashes" not in line
+        and not _pip_requires_hashes(line)
         and _installs_from_an_index(line)
     ):
         found.append(f"{where}: {line.strip()[:70]}")
