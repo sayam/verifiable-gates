@@ -13,6 +13,13 @@ The three "never overwritten" cases are the ones holding decisions somebody made
 Everything else is ours and is replaced, because a half-updated bundle is worse
 than an old one.
 
+Keeping `gates.yaml` while writing the workflow leaves a seam: the workflow runs a
+job the kept registry may not name, and the doctor is red from the first run
+(an outside audit installed into the reference implementation on 2026-08-30 and
+got `job with no gate in the index: scans`). The installer says so, with the row
+to add — it does not fail, because the files did arrive and a consumer's CI
+reinstalls on every run.
+
 **The file list comes from the manifest and nowhere else.** A file the manifest
 names but the bundle does not have makes the install **fail loudly** rather than
 land half-complete — the success condition being that deleting one file from the
@@ -26,6 +33,7 @@ from __future__ import annotations
 
 import argparse
 import pathlib
+import re
 import shutil
 import sys
 from typing import Any
@@ -42,6 +50,17 @@ KEEP_IF_PRESENT = {
 }
 
 
+# The job `ci-template.yml` runs the scans under; a test holds the two together.
+TEMPLATE_JOB = "scans"
+JOB_NAMED = re.compile(r"\bjob:\s*" + TEMPLATE_JOB + r"\b")
+
+
+def _registry_names_the_job(dest: pathlib.Path) -> bool:
+    """Does the kept `gates.yaml` give the template's job a gate? The workflow is always there."""
+    registry = dest / KEEP_IF_PRESENT["gates.yaml.default"]
+    return JOB_NAMED.search(registry.read_text(encoding="utf-8")) is not None
+
+
 def _target(dest: pathlib.Path, name: str) -> pathlib.Path:
     relative = KEEP_IF_PRESENT.get(name)
     return dest / relative if relative else dest / "tools" / name
@@ -50,6 +69,7 @@ def _target(dest: pathlib.Path, name: str) -> pathlib.Path:
 def install(dest: pathlib.Path, manifest: dict[str, Any], bundle: pathlib.Path) -> int:
     dest.mkdir(parents=True, exist_ok=True)
     (dest / "tools" / "checks").mkdir(parents=True, exist_ok=True)
+    kept_registry = False
 
     for name in manifest_module.shipped(manifest):
         source = bundle / name
@@ -59,10 +79,18 @@ def install(dest: pathlib.Path, manifest: dict[str, Any], bundle: pathlib.Path) 
         target = _target(dest, name)
         if name in KEEP_IF_PRESENT and target.exists():
             print(f"kept: {target.relative_to(dest)} (already there)")
+            kept_registry = kept_registry or name == "gates.yaml.default"
             continue
         target.parent.mkdir(parents=True, exist_ok=True)
         shutil.copy2(source, target)
 
+    if kept_registry and not _registry_names_the_job(dest):
+        print(
+            f"** kept gates.yaml names no gate for job `{TEMPLATE_JOB}`, which the"
+            f" workflow runs — the doctor is red until it does. Add a row"
+            f" `enforced_by: {{job: {TEMPLATE_JOB}}}` or drop the job.",
+            file=sys.stderr,
+        )
     scans = len(manifest_module.scripts(manifest))
     print(
         f"installed into {dest} — {len(manifest['gates'])} gates ({scans} scan) · "
