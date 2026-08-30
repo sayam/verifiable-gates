@@ -93,7 +93,9 @@ teaches rules it does not follow, and the answer was 2.7%.
   `pins/dev/posture-declared.json` and what each wants (`HELD` in
   `tests/test_posture.py`), the row ids of `DECISIONS.md` in order (`HELD` in
   `tests/test_decisions.py`), the gates one named step enforces and the step
-  each names (`HELD_STEP_GATES` in `tests/test_instruments_dogfood.py`), and the
+  each names (`HELD_STEP_GATES` in `tests/test_instruments_dogfood.py`), the
+  shipped overlay's scan-gate ids and titles held to `rules.yaml`
+  (`tests/test_manifest.py`), and the
   number of suppression lines under `src/` and `tests/` (`SUPPRESSED_LINES` in
   the same file). A switch turned, a row or a step gate removed or added, a
   suppression added: red until the same
