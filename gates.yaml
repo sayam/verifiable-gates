@@ -2046,6 +2046,15 @@ gates:
           `#pr/1`, a full URL and six more refs, and `9999-99-99`, `2026-02-30`
           and three more dates. Restored byte for byte, 62 green; this
           repository's own 66 refs and every date pass as they are.
+      - kind: mutation
+        ref: pr/117
+        date: 2026-08-30
+        caught: >-
+          The future-date check switched off — `2099-01-01` accepted again, red
+          twice; the clock narrowed to UTC alone — noon UTC no longer counts as
+          tomorrow anywhere, red; this repository's own registry dated 2099 —
+          red in the schema test. An outside audit wrote the first on
+          2026-08-30 and the schema took it.
 
   - id: every-commit-is-shaped-and-signed
     title: Every commit added by a branch is a Conventional Commit and carries a sign-off
