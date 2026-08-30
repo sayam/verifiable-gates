@@ -31,6 +31,14 @@ Notable changes to this project. The format follows
 
 ### Fixed
 
+- **"selected" actions are read, not assumed.** The register held
+  `allowed_actions` to the word `selected` while its why promised "GitHub-owned
+  allowed"; the detail behind the word — `github_owned_allowed`,
+  `verified_allowed`, `patterns_allowed` — was read by nothing, so a pattern
+  `*` under "selected" would have been "all" with a different word and a
+  green census (pre-cut review). `posture` reads the detail when the policy is
+  "selected", and the register declares it: GitHub-owned only, no marketplace,
+  no patterns. Seventeen switches now.
 - **The gitleaks mover says what it could not read.** Its `grep | head | sed`
   ran under `set -euo pipefail`, so a download line that changed shape aborted
   the step with no words at all (pre-cut review, reproduced: exit 1, empty).

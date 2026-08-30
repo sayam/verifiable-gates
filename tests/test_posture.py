@@ -366,14 +366,20 @@ SMALL: dict[str, Any] = {
 
 
 ACTIONS: dict[str, Any] = {"allowed_actions": "selected", "sha_pinning_required": True}
+SELECTED: dict[str, Any] = {
+    "github_owned_allowed": True,
+    "verified_allowed": False,
+    "patterns_allowed": [],
+}
 
 
-def a_platform(
+def a_platform(  # noqa: PLR0913, PLR0917 — one fake, five answers, each optional
     monkeypatch: pytest.MonkeyPatch,
     protection: dict[str, Any],
     repo: dict[str, Any],
     actions: dict[str, Any] | None = None,
     alerts: str = "204",
+    selected: dict[str, Any] | None = None,
 ) -> None:
     """Four answers: protection, the repository, the Actions policy, and the alerts switch
     (`204` on, `404` off, anything else a refusal the census cannot read through)."""
@@ -381,6 +387,8 @@ def a_platform(
     def answer(path: str) -> dict[str, Any]:
         if "protection" in path:
             return protection
+        if path.endswith("selected-actions"):
+            return SELECTED if selected is None else selected
         if "actions/permissions" in path:
             return ACTIONS if actions is None else actions
         return repo
@@ -472,6 +480,26 @@ def test_the_alerts_switch_is_read_by_status_code_with_a_third_answer(
     assert state["sha_pinning_required"] is True
     assert state["required_signatures"] is False, "declared, so it has to be read (2026-08-30)"
     assert state["allowed_actions"] == "selected"
+
+
+def test_the_selected_actions_detail_is_read_and_a_pattern_is_not_github_owned(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """`selected` alone is a word; a pattern `*` under it is `all` (pre-cut review)."""
+    a_platform(monkeypatch, PROTECTION, REPO, selected={**SELECTED, "patterns_allowed": ["*"]})
+    state, _required = posture.platform_state("main")
+    want = posture.declared(ROOT / "pins" / "dev" / "posture-declared.json")[1]["selected_actions"]
+
+    assert state["selected_actions"] == {**SELECTED, "patterns_allowed": ["*"]}
+    assert posture.setting_problems(state, {"selected_actions": want}) != []
+
+
+def test_the_selected_actions_detail_is_none_when_the_policy_is_not_selected(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    a_platform(monkeypatch, PROTECTION, REPO, actions={**ACTIONS, "allowed_actions": "all"})
+
+    assert posture.platform_state("main")[0]["selected_actions"] is None
 
 
 def test_a_field_the_answer_does_not_carry_is_none_not_off(
