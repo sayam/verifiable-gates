@@ -6,6 +6,20 @@ Notable changes to this project. The format follows
 
 ## [Unreleased]
 
+## [0.1.10] - 2026-08-31
+
+The fourth outside round, six models on v0.1.9, re-verified finding by finding
+— one auditor wrote no report and its evidence still held three real gaps; the
+findings grouped into nine causes, three re-filed items were already decided —
+and then closed one pull request at a time, each with the mutation that proves
+it: a command boundary hides no install and every YAML shape the platform
+reads is read, `csp-no-inline` reads markup the way a browser does, a hang and
+a half-finished scan are answers rather than tracebacks, `zenodo` refuses a
+wrong-shaped file the way it refuses every other unreadable input, the overlay
+titles and the workflow job names are held rather than trusted, a refused
+install leaves no trace, and the documents say all of it before this cut
+(#137–#143).
+
 ### Fixed
 
 - **Two small seams.** A refused install had already made `tools/checks/`
@@ -1240,7 +1254,8 @@ order it happened.
 - **`gates.yaml`, deliberately empty.** This repository will not list a gate
   before the thing that enforces it exists.
 
-[Unreleased]: https://github.com/sayam/verifiable-gates/compare/v0.1.9...HEAD
+[Unreleased]: https://github.com/sayam/verifiable-gates/compare/v0.1.10...HEAD
+[0.1.10]: https://github.com/sayam/verifiable-gates/releases/tag/v0.1.10
 [0.1.9]: https://github.com/sayam/verifiable-gates/releases/tag/v0.1.9
 [0.1.8]: https://github.com/sayam/verifiable-gates/releases/tag/v0.1.8
 [0.1.7]: https://github.com/sayam/verifiable-gates/releases/tag/v0.1.7
