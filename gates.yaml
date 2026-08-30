@@ -1578,6 +1578,16 @@ gates:
           applied to a project that had named its files — red in six clean-tree
           cases, so it cannot widen into a project that has decided. An outside
           audit planted the first two trees on 2026-08-30 and got NA, exit 0.
+      - kind: mutation
+        ref: pr/114
+        date: 2026-08-30
+        caught: >-
+          The install scanner's branch for installers with no `pip` in the line
+          switched off — `uv tool install`, `uv add`, `uvx`, `poetry add`,
+          `pdm add`, `pipenv install` green again, red in six cases; its regex
+          widened to bare `uv` — `uv run --locked`, `uv sync --locked` and
+          `uv build` reported, red in three. An outside audit planted the first
+          and `poetry add` on 2026-08-30 and got exit 0.
 
   - id: rules-we-ship-we-keep
     title: Scanners that apply to this repository are run against this repository
