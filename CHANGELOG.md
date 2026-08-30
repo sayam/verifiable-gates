@@ -8,6 +8,18 @@ Notable changes to this project. The format follows
 
 ### Fixed
 
+- **Three scanners now hold the whole of the title they decide.** An outside
+  audit on 2026-08-30 read each rule's title against its scanner and planted
+  the clause the scanner did not read (all reproduced): `actions-sha-pinned`
+  says *with the version in a comment* and a bare `@<sha>` was green — now it
+  is "pinned with no version comment" (a `docker://` digest needs none; the
+  folded reader also now splits the comment off the value line, where it used
+  to swallow it into the ref); `adr-index-complete` says *without repeats* and
+  `0001-a.md` beside `0001-b.md` was green because a dict keyed by number kept
+  one — now "number used twice"; `csp-no-inline` read `onclick=` and `style=`
+  in lowercase only while HTML is case-insensitive — now any case, and a
+  `<style>` element is a finding beside the attribute. Proved by mutation:
+  nine cases red on the old scanners (#133).
 - **`--require-hashes` is an argument of the install, and only `run:` is
   judged.** The install scanner looked for the flag anywhere on the line, so
   `MARKER=--require-hashes pip install ruff` — the flag in a place pip never

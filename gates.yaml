@@ -1719,6 +1719,16 @@ gates:
           quoting `pip install ruff`, all red before; a `run:` block read to
           its end and no further, and a quoted `run:` value read inside its
           quotes (outside audit, 2026-08-30, reproduced).
+      - kind: mutation
+        ref: pr/133
+        date: 2026-08-30
+        caught: >-
+          Nine planted cases red on the scanners as they were — a SHA-pinned
+          action with no version comment (inline, with a wordless comment, and
+          folded), two ADR records sharing a number, and `ONCLICK=`, `STYLE=`,
+          `<STYLE>` and `<style>` in a template (outside audit, 2026-08-30,
+          reproduced); a folded pinned value with its comment beside it was
+          read as unpinned by the old reader.
 
   - id: rules-we-ship-we-keep
     title: Scanners that apply to this repository are run against this repository
