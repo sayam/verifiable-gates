@@ -8,6 +8,8 @@ Notable changes to this project. The format follows
 
 ### Changed
 
+- **A pull request body edit now re-runs the checks.** The `cla` job reads the
+  description, but
 - **Every action pin names its version in a trailing comment, and a test keeps
   it so.** The published rule `actions-sha-pinned` says "pinned to a commit
   SHA with the version in a comment"; on 2026-08-30 all 6 distinct pins were
