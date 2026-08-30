@@ -479,8 +479,8 @@ gates:
       by a click, not a commit, so no test in the tree can see it drift; the
       settings half of `posture` needs an administrator's token, which is a
       secret with a custodian, not a job token. So it runs on its own schedule
-      and on every push to main, exits 2 when it cannot look, and holds twelve
-      switches and the required-checks set to `pins/dev/posture-declared.json`
+      and on every push to main, exits 2 when it cannot look, and holds sixteen
+      switches (twelve at first; four more on 2026-08-30) and the required-checks set to `pins/dev/posture-declared.json`
       in every direction `check_problems` knows.
     proved_by:
       - kind: mutation
