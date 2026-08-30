@@ -17,7 +17,8 @@ word it needs sat in the comment (outside audit, 2026-08-30).
 
 A composite action under `.github/actions/<name>/action.yml` installs with the
 calling workflow's permissions, so its `run:` steps are read too — an outside
-audit on 2026-08-29 planted an unpinned install there and got a clean exit.
+audit on 2026-08-29 planted an unpinned install there and got a clean exit. So
+is every local action a read file names with `uses: ./<path>`, wherever it lives.
 
 exit 0 = clean or N/A · 1 = findings · 2 = called wrongly
 
@@ -82,6 +83,27 @@ TAKES_A_VALUE = frozenset(
     }
 )
 CHAIN = re.compile(r"\s*(?:&&|\|\||;|\|)\s*")
+
+# A local action is whatever `uses: ./<path>` names — GitHub reads
+# `<path>/action.yml` wherever it lives, so reading `.github/actions/` alone left
+# `uses: ./ci/actions/setup` unread: an outside audit on 2026-08-30 planted one
+# there and both pinning scanners exited 0 while CHANGELOG said composite actions
+# were read. Every file read is followed, so an action calling an action is read.
+LOCAL_USES = re.compile(r"""^\s*-?\s*uses:\s*["']?\./([^\s"']*)""", re.MULTILINE)
+
+
+def _followed(root: pathlib.Path, targets: list[pathlib.Path]) -> list[pathlib.Path]:
+    """`targets` plus every local action a read file points at, wherever it lives."""
+    seen = list(targets)
+    queue = list(targets)
+    while queue:
+        for relative in LOCAL_USES.findall(queue.pop().read_text(encoding="utf-8")):
+            for name in ("action.yml", "action.yaml"):
+                candidate = root / relative / name
+                if candidate.is_file() and candidate not in seen:
+                    seen.append(candidate)
+                    queue.append(candidate)
+    return seen
 
 
 def _targets(command: str) -> list[str]:
@@ -155,7 +177,7 @@ def main(root: pathlib.Path) -> int:
         return 0
 
     findings: list[str] = []
-    for path in targets:
+    for path in _followed(root, targets):
         # One `run:` line can chain several commands; each is judged on its own,
         # or the second hides behind the first's exemption.
         for line in (part for joined in _commands(path) for part in CHAIN.split(joined)):
