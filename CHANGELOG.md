@@ -14,6 +14,14 @@ Notable changes to this project. The format follows
   was red (outside audit, 2026-08-30, reproduced). Everything after a `#`
   outside quotes is dropped before the line is judged; a `#` inside quotes
   stays text. Proved by mutation both ways (#109).
+- **The installer names the job its kept registry lacks.** Installing into
+  a project that already has a `gates.yaml` kept it and wrote the workflow,
+  whose `scans` job the kept registry did not name — the doctor was red from
+  the first run and the installer had said only "check with the doctor"
+  (outside audit, installed into the reference implementation, 2026-08-30).
+  It now says which job has no gate and the row to add; it still exits 0,
+  because the files arrived and a consumer's CI reinstalls on every run.
+  Proved by mutation three ways (#110).
 
 ## [0.1.7] - 2026-08-30
 
