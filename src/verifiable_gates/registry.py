@@ -58,6 +58,10 @@ PILLARS = frozenset({"security", "performance", "manageability", "devx"})
 PROOF_KINDS = frozenset({"ci-red", "mutation"})
 
 REQUIRED = ("id", "title", "kind", "severity", "enforced_by", "layer", "pillar")
+# Every key a gate may carry; one outside this set is refused, not skipped — a
+# misspelt `proved_yb` is a gate with no evidence that looks like one with
+# (outside audit, 2026-08-30: an unknown key drew no complaint).
+KEYS = frozenset({*REQUIRED, "portable", "born_from", "proved_by", "watched_by"})
 GATE_ID = re.compile(r"^[a-z0-9]+(-[a-z0-9]+)*$")
 # The shape of a `proved_by.ref`: `pr/N`, `run/N` or `commit/<hex>`, optionally
 # prefixed with `owner/repo#` when the red was seen in another repository. A
@@ -199,6 +203,10 @@ def problems(gates: list[dict[str, Any]]) -> list[str]:
         if not GATE_ID.match(gate_id):
             found.append(f"{gate_id}: id must be kebab-case")
 
+        found.extend(
+            f"{gate_id}: {key!r} is not a field of a gate — nothing reads it"
+            for key in sorted(set(gate) - KEYS)
+        )
         found.extend(_vocabulary_problems(gate_id, gate))
         found.extend(_export_problems(gate_id, gate))
         if "proved_by" in gate:

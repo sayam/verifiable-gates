@@ -101,6 +101,16 @@ def test_an_internal_rule_cannot_be_published() -> None:
     assert "never published" in said
 
 
+def test_portable_on_a_rule_is_refused_as_a_gates_field() -> None:
+    """A rule here is published whole; which gates are portable is a registry's call."""
+    assert "portable is a gate's field" in complaints(a_rule(portable=True))
+
+
+def test_a_key_nobody_defined_is_refused() -> None:
+    """`born_frm` is a rule with no origin that looks like one with — refused, not skipped."""
+    assert "'whatever' is not a field of a rule" in complaints(a_rule(whatever="hello"))
+
+
 def test_a_layer_nobody_defined_is_refused() -> None:
     assert "layer 'weekly' is outside" in complaints(a_rule(layer="weekly"))
 

@@ -98,10 +98,16 @@ probe and the battery that runs it over a directory of generated applications,
 together with [the experiment](docs/comparison/) they measured. Each arrives with
 its messages as an input, so a project can keep printing in its own language.
 
-The schema encodes four rules that came from real traps, not from theory:
+The two schemas — `rules.py` for this catalogue, `registry.py` for a project's
+`gates.yaml` — encode five rules that came from real traps, not from theory:
 
-- a rule whose `layer` is `internal` **cannot** be `portable` — a rule tied to one
-  project's architecture, exported as universal, is an overclaim;
+- a gate whose `layer` is `internal` **cannot** be `portable` — a rule tied to one
+  project's architecture, exported as universal, is an overclaim; that hold is in
+  the gate schema, and the rule schema refuses `internal` outright, since a rule
+  in this catalogue is published whole (`portable` on a rule is refused as a
+  gate's field);
+- a key neither schema knows is refused, not skipped — a misspelt `born_frm` is a
+  rule with no origin that looks like one with;
 - anything exported must name the trap that created it (`born_from`), because a
   rule with no origin is a rule nobody knows when to remove;
 - `proved_by` entries must say what they caught and when — a gate nobody has seen
