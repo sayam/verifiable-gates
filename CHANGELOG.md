@@ -85,6 +85,15 @@ Notable changes to this project. The format follows
   a pull_request trigger, or neither — the worst, red with the fix named —
   are told apart, a platform path is named as such, and the summary counts
   what fired apart from what is excused. Proved by mutation four ways (#122).
+- **The bundle's own workflow is nothing of yours to check.** Installed into
+  an empty directory, the bundle wrote `gates.yml` and the two pinning scans
+  said `pass` on the file it had just written — nothing of the project's
+  measured (outside audit, 2026-08-30, reproduced). The untouched starting
+  workflow — a pinned checkout, then the doctor — is NA in both; a line added
+  or the pin loosened makes it the project's. The registry scan stays `pass`
+  on purpose: `test_box_opens_true` holds the shipped index to pass, never
+  NA, so an absent index cannot look like a satisfied one. Proved by mutation
+  four ways (#123).
 
 ### Added
 

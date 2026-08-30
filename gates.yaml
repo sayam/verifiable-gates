@@ -1653,6 +1653,16 @@ gates:
           read, red. The loop guard removed — a script calling itself, and the
           suite hung until killed. An outside audit planted the first tree on
           2026-08-30 and got exit 0.
+      - kind: mutation
+        ref: pr/123
+        date: 2026-08-30
+        caught: >-
+          Each pinning scanner with its recognition of the bundle's own starting
+          workflow switched off — `pass` again on the file the installer had
+          just written, red in the scanner case and the doctor's bare-project
+          case; the recognition loosened to any `uses:` line — a loosened pin
+          taken for the bundle's, red. An outside audit installed into an empty
+          directory on 2026-08-30 and read three passes.
 
   - id: rules-we-ship-we-keep
     title: Scanners that apply to this repository are run against this repository
@@ -1733,6 +1743,13 @@ gates:
           with a bad `kind` installed again, and `../../outside/PLANTED.txt`
           shipped through `--manifest` landed beside the destination with exit
           0, the line an outside audit planted on 2026-08-30. Red in both.
+      - kind: mutation
+        ref: pr/123
+        date: 2026-08-30
+        caught: >-
+          The bare-project case now pins the one pass an empty project earns —
+          the shipped index, held to pass by `test_box_opens_true` — and went
+          red with either pinning scanner's recognition switched off.
 
   - id: the-manifest-is-an-input
     title: The manifest is validated as data, and a rule the bundle cannot decide cannot carry a script
