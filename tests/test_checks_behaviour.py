@@ -457,6 +457,36 @@ def test_a_quoted_uses_value_is_judged_without_its_quotes(
     assert "actions/checkout@v4" in capsys.readouterr().out
 
 
+@pytest.mark.parametrize("marker", [">", "|", ">-", "|-"])
+def test_a_folded_uses_names_its_action_not_the_fold_marker(
+    tmp_path: pathlib.Path, capsys: pytest.CaptureFixture[str], marker: str
+) -> None:
+    """`uses: >` then the action on the next line — the finding has to name the action."""
+    body = f"jobs:\n  a:\n    steps:\n      - uses: {marker}\n          actions/checkout@v4\n"
+    assert scan_workflow_pinning.main(build(tmp_path, {".github/workflows/ci.yml": body})) == 1
+    out = capsys.readouterr().out
+    assert "actions/checkout@v4" in out
+    assert ": >" not in out
+    assert ": |" not in out
+
+
+def test_a_folded_uses_that_is_pinned_is_clean(
+    tmp_path: pathlib.Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    body = "jobs:\n  a:\n    steps:\n      - uses: >\n          actions/checkout@" + "a" * 40 + "\n"
+    assert scan_workflow_pinning.main(build(tmp_path, {".github/workflows/ci.yml": body})) == 0
+    assert "actions-sha-pinned" not in capsys.readouterr().out
+
+
+def test_a_fold_marker_with_nothing_after_it_is_reported_as_itself(
+    tmp_path: pathlib.Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """A dangling `uses: >` at end of file: not a traceback, and still not pinned."""
+    body = "jobs:\n  a:\n    steps:\n      - uses: >\n"
+    assert scan_workflow_pinning.main(build(tmp_path, {".github/workflows/ci.yml": body})) == 1
+    assert ": >" in capsys.readouterr().out
+
+
 # ------------------------------------------------------------ composite actions
 #
 # A step moved into `.github/actions/<name>/action.yml` runs with the calling

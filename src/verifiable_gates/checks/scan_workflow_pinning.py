@@ -26,6 +26,29 @@ import sys
 # not part of the action: a pinned `uses: "actions/checkout@<sha>"` was reported
 # as unpinned because the closing quote sat where the digit had to be.
 USES = re.compile(r"""^\s*-?\s*uses:\s*["']?([^\s"']+)""", re.MULTILINE)
+# YAML lets the value fold onto the next line — `uses: >` then the action — and
+# the regex above reported the fold marker as the action: `actions-sha-pinned:
+# ci.yml: >`, red for the right reason with a finding that named nothing (outside
+# audit, 2026-08-30). The marker is followed to the line that carries the value.
+BLOCK = re.compile(r"^[|>][-+]?$")
+
+
+def _uses_refs(text: str) -> list[str]:
+    """Every `uses:` value in the file, a folded or literal one read from its next line."""
+    lines = text.splitlines()
+    found: list[str] = []
+    for index, line in enumerate(lines):
+        match = USES.match(line)
+        if not match:
+            continue
+        ref = match.group(1)
+        if BLOCK.match(ref):
+            rest = [later.strip() for later in lines[index + 1 :] if later.strip()]
+            ref = rest[0].strip("\"'") if rest else ref
+        found.append(ref)
+    return found
+
+
 PINNED = re.compile(r"@[0-9a-f]{40}$")
 # A `docker://` step runs an image with the job's permissions, and a tag can be
 # re-pointed exactly as an action tag can — so it is held to a digest, not
@@ -105,7 +128,7 @@ def main(root: pathlib.Path) -> int:
     for path in _followed(root, workflows):
         findings += [
             f"{path.relative_to(root)}: {ref}"
-            for ref in USES.findall(path.read_text(encoding="utf-8"))
+            for ref in _uses_refs(path.read_text(encoding="utf-8"))
             if not ref.startswith(LOCAL) and not _pinned(ref)
         ]
 
