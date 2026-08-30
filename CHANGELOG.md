@@ -68,6 +68,14 @@ Notable changes to this project. The format follows
   problem now — UTC+14, so a proof written in Bangkok at 02:00 and dated
   tomorrow-in-UTC is not from the future. Proved by mutation three ways
   (#117).
+- **Both schemas refuse a key they do not know.** `rules.problems()` and
+  `registry.problems()` passed over any key they did not read, so
+  `portable: true` on a rule and a misspelt key on a gate drew nothing — and
+  README placed the internal-cannot-be-portable hold in the rule schema when
+  it lives in the gate schema, the rule schema refusing `internal` whole
+  (outside audit, 2026-08-30, reproduced). Each schema carries the keys it
+  reads and refuses the rest; README says which schema holds which rule.
+  Proved by mutation five ways (#119).
 
 ### Added
 
