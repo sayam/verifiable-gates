@@ -93,6 +93,13 @@ Notable changes to this project. The format follows
   `tests/test_decisions.py` in order, so a row removed, added or reordered is
   red until the same pull request changes the list too. Proved by mutation
   three ways (#118).
+- **The xenon ceilings are held to the row and to reality.** The three
+  ranks on ci.yml's xenon line were read by nothing — lowered, the suite
+  stayed green, while DECISIONS.md called the line a ratchet (outside audit,
+  2026-08-30, reproduced). `tests/test_own_ratchets.py` holds the line to the
+  row `xenon-floor-at-reality` and each rank to where reality sits, measured
+  with radon: a ceiling reality has dropped below is red until the line and
+  the row move up together. Proved by mutation three ways (#120).
 
 ## [0.1.7] - 2026-08-30
 
