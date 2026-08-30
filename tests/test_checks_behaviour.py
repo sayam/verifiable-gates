@@ -280,6 +280,40 @@ def test_a_configured_path_that_is_missing_is_a_finding_not_na(
     assert named in out, "the finding does not say which path is missing"
 
 
+@pytest.mark.parametrize("where", ["Dockerfile.prod", "docker/Dockerfile", "deploy/Dockerfile.web"])
+def test_an_unnamed_dockerfile_away_from_the_root_is_not_nothing(
+    tmp_path: pathlib.Path, capsys: pytest.CaptureFixture[str], where: str
+) -> None:
+    """No scaffold.json, no root Dockerfile, one somewhere else: that is a finding, not NA."""
+    root = build(tmp_path, {where: "FROM python:3.13-slim\n"})
+    assert scan_dockerfile_digest.main(root) == 1
+    out = capsys.readouterr().out
+    assert where in out
+    assert "name it under `dockerfiles`" in out
+
+
+def test_a_dockerfile_under_a_hidden_directory_is_somebody_elses(
+    tmp_path: pathlib.Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """`.venv/…/Dockerfile` is a copy of something else — still NA."""
+    root = build(tmp_path, {".venv/lib/x/Dockerfile": "FROM python:3.13-slim\n"})
+    assert scan_dockerfile_digest.main(root) == 0
+    assert capsys.readouterr().out.startswith("NA:")
+
+
+def test_a_project_that_named_its_dockerfiles_has_decided(
+    tmp_path: pathlib.Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """With `dockerfiles` written down, a `Dockerfile.prod` beside it is the project's own."""
+    files = {
+        "Dockerfile": "FROM python@sha256:" + "b" * 64 + "\n",
+        "Dockerfile.prod": "FROM python:3.13-slim\n",
+    }
+    root = build(tmp_path, files, {"dockerfiles": ["Dockerfile"]})
+    assert scan_dockerfile_digest.main(root) == 0
+    assert "Dockerfile.prod" not in capsys.readouterr().out
+
+
 def test_a_dockerfile_named_and_present_beside_one_named_and_missing_judges_both(
     tmp_path: pathlib.Path, capsys: pytest.CaptureFixture[str]
 ) -> None:

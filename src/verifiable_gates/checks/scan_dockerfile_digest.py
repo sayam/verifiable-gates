@@ -11,6 +11,13 @@ that read only uppercase `FROM` lines. So the instruction is matched in any case
 flags such as `--platform=` are stepped over so the token judged is the image, and
 `COPY --from=` is judged by the same rule.
 
+A project that has not named its Dockerfiles gets the default, `Dockerfile` at
+the root — and when that is absent, any `Dockerfile*` elsewhere in the tree is
+reported rather than passed over: an outside audit on 2026-08-30 planted an
+unpinned `Dockerfile.prod` and an unpinned `docker/Dockerfile`, each alone, and
+both answered "no Dockerfile". NA means nothing to check, not nothing looked at.
+A project that *has* named its Dockerfiles has decided; other files are its own.
+
 exit 0 = clean or N/A · 1 = findings · 2 = called wrongly
 
 Role: decider — it answers pass or fail with an exit code, and it ships as a
@@ -33,10 +40,26 @@ COPY_FROM = re.compile(r"^\s*COPY\s+(?:--\S+\s+)*?--from=(\S+)", re.MULTILINE | 
 DIGEST = re.compile(r"@sha256:[0-9a-f]{64}$")
 
 
+UNNAMED = (
+    "{path} is a Dockerfile scaffold.json does not name — name it under `dockerfiles`, "
+    "or it is never judged"
+)
 MISCONFIGURED = (
     "scaffold.json names {key} {path}, which is not there — a configured path that "
     "is missing is a broken configuration, not nothing to check"
 )
+
+
+def _unnamed(root: pathlib.Path) -> list[str]:
+    """Every `Dockerfile*` in the tree, when the project named none and has no default one.
+
+    Hidden directories (`.git`, `.venv`) hold copies of other things.
+    """
+    return [
+        UNNAMED.format(path=found.relative_to(root))
+        for found in sorted(root.rglob("Dockerfile*"))
+        if found.is_file() and not any(part.startswith(".") for part in found.parts)
+    ]
 
 
 def main(root: pathlib.Path) -> int:
@@ -56,6 +79,8 @@ def main(root: pathlib.Path) -> int:
         for n in names
         if "dockerfiles" in config and not (root / n).is_file()
     ]
+    if not dockerfiles and "dockerfiles" not in config:
+        findings += _unnamed(root)
     if not dockerfiles and not findings:
         print("NA: no Dockerfile — nothing to check yet")
         return 0
