@@ -6,6 +6,19 @@ Notable changes to this project. The format follows
 
 ## [Unreleased]
 
+## [0.1.8] - 2026-08-30
+
+The second five-model re-audit of the day, re-verified claim by claim before
+anything was touched — nineteen of one auditor's twenty findings reproduced,
+two other auditors' census findings reproduced, one finding shown to be a
+no-op edit and one already covered by a DECISIONS row — and then closed one
+pull request at a time, each with the mutation that proves it: the two pinning
+scanners read everything a job really runs, the installer refuses what leaves
+the destination and names the seam it leaves behind, three registers and two
+ratchets are held by a copy a reviewer sees, the censuses tell their states
+apart and refuse a history of the wrong records, and the documents say all of
+it before this cut (#109–#127).
+
 ### Fixed
 
 - **A trailing comment cannot pin an install.** `scan_install_pinning` checked
@@ -1096,7 +1109,8 @@ order it happened.
 - **`gates.yaml`, deliberately empty.** This repository will not list a gate
   before the thing that enforces it exists.
 
-[Unreleased]: https://github.com/sayam/verifiable-gates/compare/v0.1.7...HEAD
+[Unreleased]: https://github.com/sayam/verifiable-gates/compare/v0.1.8...HEAD
+[0.1.8]: https://github.com/sayam/verifiable-gates/releases/tag/v0.1.8
 [0.1.7]: https://github.com/sayam/verifiable-gates/releases/tag/v0.1.7
 [0.1.6]: https://github.com/sayam/verifiable-gates/releases/tag/v0.1.6
 [0.1.5]: https://github.com/sayam/verifiable-gates/releases/tag/v0.1.5
