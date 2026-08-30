@@ -80,6 +80,16 @@ jobs:
             echo "FAIL: gitleaks $pinned is pinned but $latest is out — bump the version and the checksum in security.yml (DECISIONS.md: gitleaks-pinned-by-our-checksum)"
             exit 1
           fi
+      # The archive, read back: every release has its version on Zenodo under the
+      # concept DOI the citation card advertises, and nothing sits there that was
+      # not released. Nothing read the archive until 2026-08-30 (re-audit round
+      # 24 compared 7 and 7 by hand); the archived copy is the one that cannot
+      # be corrected, so a release with no DOI is found the week it happens.
+      - name: the archive says what the releases say
+        if: ${{ !cancelled() }}
+        run: python -m verifiable_gates.zenodo --root .
+        env:
+          GH_TOKEN: ${{ github.token }}
       - name: no DECISIONS revisit date has passed
         if: ${{ !cancelled() }}
         run: pytest -q tests/test_decisions.py -p no:cacheprovider --no-cov

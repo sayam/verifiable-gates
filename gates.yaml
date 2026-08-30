@@ -41,6 +41,26 @@ gates:
           reworded away from the abstract, the author renamed on the other, and
           both cards moved together to a licence this repository does not carry.
 
+  - id: the-archive-is-read-back
+    title: Every release has its version on Zenodo under the advertised concept DOI, and nothing archived is unreleased
+    kind: test
+    severity: blocking
+    enforced_by: {job: test, tests: [tests/test_zenodo.py]}
+    layer: internal
+    pillar: devx
+    portable: false
+    born_from: >-
+      The cards in the tree are held to each other and the About field is read
+      live, but the archive — the one copy that cannot be corrected — was read
+      by nobody: the 2026-08-30 re-audit (round 24) compared Zenodo's versions
+      with the releases by hand, 7 and 7, and asked who would see the eighth.
+      `verifiable_gates.zenodo` reads every version under the concept DOI the
+      citation card advertises and holds the list to the release tags both ways;
+      `posture.yml` runs it on the weekly cron and on every push to main, so a
+      release with no DOI, or an archived record under another concept, is seen
+      the week it happens rather than at the next audit. The archive refuses a
+      page above 25, found on the first live call — so the reader pages.
+    proved_by: []
   - id: the-pins-are-audited-here
     title: The tools this repository installs for itself are audited for advisories, and every finding is judged
     kind: job
