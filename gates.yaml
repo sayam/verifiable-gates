@@ -976,6 +976,17 @@ gates:
           DECISIONS row's expiry moved to 95, `ratchets.problems` neutered to `[]`,
           and `fail_under` lowered to 99. The lowered floor is the direction a
           ratchet cannot see from its numbers, so that one is held to the row's id.
+      - kind: mutation
+        ref: pr/120
+        date: 2026-08-30
+        caught: >-
+          The xenon line: `--max-absolute C` lowered to D, red twice (the line
+          no longer says what the row decided; the ceiling sits below reality);
+          line and row lowered together, red once — the ratchet case, a
+          ceiling reality has left behind; the average ceiling raised to A on
+          both, red naming "ceiling A but reality is B". An outside audit
+          lowered the line on 2026-08-30 and 1171 tests stayed green.
+
   - id: a-number-comes-from-the-thing-itself
     title: Every figure a threshold is held against is read from the source, never from a summary
     kind: test
