@@ -76,7 +76,16 @@ Notable changes to this project. The format follows
   default cannot reach, so an ignored flag cannot hide behind the default
   (#95). Owner's decision, 2026-08-30.
 - **A pull request body edit now re-runs the checks.** The `cla` job reads the
-  description, but
+  description, but `on.pull_request` in `ci.yml` used the default event types,
+  so a contributor who fixed the line saw no new run and the 2026-08-30 re-
+  audit had to close and reopen a pull request. `ci.yml` declares `types:
+  [opened, synchronize, reopened, edited]`; the reader still yields the same
+  eight pull-request checks, a test in `tests/test_instruments_dogfood.py`
+  holds the four types (mutation-proved), and the live check was PR #93's own
+  second CI run from one body edit. CONTRIBUTING also tells a first-time
+  contributor that the wait is a maintainer's approval
+  (`first_time_contributors`), not a red. Owner's decision, 2026-08-30.
+
 - **Every action pin names its version in a trailing comment, and a test keeps
   it so.** The published rule `actions-sha-pinned` says "pinned to a commit
   SHA with the version in a comment"; on 2026-08-30 all 6 distinct pins were
