@@ -1,4 +1,5 @@
-"""gate: actions-sha-pinned — every action in a workflow is pinned to a commit SHA.
+"""gate: actions-sha-pinned — every action in a workflow is pinned to a commit SHA, with
+the version in a comment beside it.
 
 A tag can be moved; a commit cannot. And an action runs with the permissions of
 the project's own workflow, reading its source and whatever token that job holds.
@@ -25,7 +26,11 @@ import sys
 # The value may be quoted — YAML allows it and people do it — and the quotes are
 # not part of the action: a pinned `uses: "actions/checkout@<sha>"` was reported
 # as unpinned because the closing quote sat where the digit had to be.
-USES = re.compile(r"""^\s*-?\s*uses:\s*["']?([^\s"']+)""", re.MULTILINE)
+USES = re.compile(r"""^\s*-?\s*uses:\s*["']?([^\s"']+)["']?(.*)$""", re.MULTILINE)
+# The rule is a SHA *with the version in a comment* — `@<sha> # v7.0.1` — because
+# a bare SHA is a pin nobody can read or move. The comment half went unjudged
+# until an outside audit on 2026-08-30 planted a bare SHA and got exit 0.
+VERSION_COMMENT = re.compile(r"#\s*v?\d")
 # YAML lets the value fold onto the next line — `uses: >` then the action — and
 # the regex above reported the fold marker as the action: `actions-sha-pinned:
 # ci.yml: >`, red for the right reason with a finding that named nothing (outside
@@ -33,20 +38,27 @@ USES = re.compile(r"""^\s*-?\s*uses:\s*["']?([^\s"']+)""", re.MULTILINE)
 BLOCK = re.compile(r"^[|>][-+]?$")
 
 
-def _uses_refs(text: str) -> list[str]:
-    """Every `uses:` value in the file, a folded or literal one read from its next line."""
+def _uses_lines(text: str) -> list[tuple[str, str]]:
+    """Every `uses:` value in the file with what follows it on its line — a folded or
+    literal one read from its next line."""
     lines = text.splitlines()
-    found: list[str] = []
+    found: list[tuple[str, str]] = []
     for index, line in enumerate(lines):
         match = USES.match(line)
         if not match:
             continue
-        ref = match.group(1)
+        ref, after = match.group(1), match.group(2)
         if BLOCK.match(ref):
             rest = [later.strip() for later in lines[index + 1 :] if later.strip()]
-            ref = rest[0].strip("\"'") if rest else ref
-        found.append(ref)
+            ref, _, after = rest[0].partition(" ") if rest else (ref, "", "")
+            ref = ref.strip("\"'")
+        found.append((ref, after))
     return found
+
+
+def _uses_refs(text: str) -> list[str]:
+    """Every `uses:` value in the file, a folded or literal one read from its next line."""
+    return [ref for ref, _ in _uses_lines(text)]
 
 
 PINNED = re.compile(r"@[0-9a-f]{40}$")
@@ -134,11 +146,13 @@ def main(root: pathlib.Path) -> int:
 
     findings: list[str] = []
     for path in _followed(root, workflows):
-        findings += [
-            f"{path.relative_to(root)}: {ref}"
-            for ref in _uses_refs(path.read_text(encoding="utf-8"))
-            if not ref.startswith(LOCAL) and not _pinned(ref)
-        ]
+        for ref, after in _uses_lines(path.read_text(encoding="utf-8")):
+            if ref.startswith(LOCAL):
+                continue
+            if not _pinned(ref):
+                findings.append(f"{path.relative_to(root)}: {ref}")
+            elif PINNED.search(ref) and not VERSION_COMMENT.search(after):
+                findings.append(f"{path.relative_to(root)}: {ref} — pinned with no version comment")
 
     for finding in findings:
         print(f"actions-sha-pinned: {finding}")

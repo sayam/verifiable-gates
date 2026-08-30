@@ -61,7 +61,7 @@ def build(
     return root
 
 
-PINNED_ACTION = "jobs:\n  a:\n    steps:\n      - uses: actions/checkout@" + "a" * 40 + "\n"
+PINNED_ACTION = "jobs:\n  a:\n    steps:\n      - uses: actions/checkout@" + "a" * 40 + " # v4\n"
 FLOATING_ACTION = "jobs:\n  a:\n    steps:\n      - uses: actions/checkout@v4\n"
 CLEAN_ENTRYPOINT = (
     '"""No debug=True here — the words in this string must not trip it."""\n'
@@ -442,12 +442,48 @@ def test_a_docker_step_is_held_to_a_digest_not_excused(
     assert (ref in capsys.readouterr().out) is bool(exit_code)
 
 
+@pytest.mark.parametrize(
+    "line",
+    [
+        "      - uses: actions/checkout@" + "a" * 40 + "\n",
+        "      - uses: actions/checkout@" + "a" * 40 + "  # pinned\n",
+        "      - uses: >\n          actions/checkout@" + "a" * 40 + "\n",
+    ],
+)
+def test_a_sha_with_no_version_comment_is_a_pin_nobody_can_read(
+    tmp_path: pathlib.Path, capsys: pytest.CaptureFixture[str], line: str
+) -> None:
+    """The rule is a SHA *with the version in a comment*; a bare SHA is half of it."""
+    body = "jobs:\n  a:\n    steps:\n" + line
+    assert scan_workflow_pinning.main(build(tmp_path, {".github/workflows/ci.yml": body})) == 1
+    assert "pinned with no version comment" in capsys.readouterr().out
+
+
+@pytest.mark.parametrize("comment", ["# v4", "# v7.0.1", "#v4", "# 4.2.0 — checkout"])
+def test_a_sha_with_its_version_in_a_comment_is_the_whole_rule(
+    tmp_path: pathlib.Path, capsys: pytest.CaptureFixture[str], comment: str
+) -> None:
+    body = "jobs:\n  a:\n    steps:\n      - uses: actions/checkout@" + "a" * 40 + f" {comment}\n"
+    assert scan_workflow_pinning.main(build(tmp_path, {".github/workflows/ci.yml": body})) == 0
+    assert capsys.readouterr().out == ""
+
+
+def test_a_docker_digest_needs_no_version_comment(
+    tmp_path: pathlib.Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """A digest names the image itself; the version-comment half is the action rule's."""
+    body = "jobs:\n  a:\n    steps:\n      - uses: docker://alpine@sha256:" + "0" * 64 + "\n"
+    assert scan_workflow_pinning.main(build(tmp_path, {".github/workflows/ci.yml": body})) == 0
+    assert capsys.readouterr().out == ""
+
+
 @pytest.mark.parametrize("quote", ['"', "'"])
 def test_a_quoted_uses_value_is_judged_without_its_quotes(
     tmp_path: pathlib.Path, capsys: pytest.CaptureFixture[str], quote: str
 ) -> None:
     """`uses: "actions/checkout@<sha>"` is pinned; the closing quote is not part of the ref."""
-    pinned = f"jobs:\n  a:\n    steps:\n      - uses: {quote}actions/checkout@{'a' * 40}{quote}\n"
+    sha = "a" * 40
+    pinned = f"jobs:\n  a:\n    steps:\n      - uses: {quote}actions/checkout@{sha}{quote} # v4\n"
     floating = f"jobs:\n  a:\n    steps:\n      - uses: {quote}actions/checkout@v4{quote}\n"
     good = build(tmp_path / "p", {".github/workflows/ci.yml": pinned})
     assert scan_workflow_pinning.main(good) == 0
@@ -473,7 +509,8 @@ def test_a_folded_uses_names_its_action_not_the_fold_marker(
 def test_a_folded_uses_that_is_pinned_is_clean(
     tmp_path: pathlib.Path, capsys: pytest.CaptureFixture[str]
 ) -> None:
-    body = "jobs:\n  a:\n    steps:\n      - uses: >\n          actions/checkout@" + "a" * 40 + "\n"
+    body = "jobs:\n  a:\n    steps:\n      - uses: >\n          actions/checkout@" + "a" * 40
+    body += " # v4\n"
     assert scan_workflow_pinning.main(build(tmp_path, {".github/workflows/ci.yml": body})) == 0
     assert "actions-sha-pinned" not in capsys.readouterr().out
 
@@ -517,7 +554,7 @@ COMPOSITE = [
         Composite(
             scan_workflow_pinning,
             "    - uses: actions/checkout@v4\n",
-            "    - uses: actions/checkout@" + "a" * 40 + "\n",
+            "    - uses: actions/checkout@" + "a" * 40 + " # v4\n",
             "actions-sha-pinned",
         ),
         id="workflow-pinning",
@@ -698,6 +735,19 @@ def test_adr_index_reports_an_index_entry_whose_file_is_gone(
     assert "file that is gone" in capsys.readouterr().out
 
 
+def test_adr_index_reports_two_records_with_one_number(
+    tmp_path: pathlib.Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """`0001-a.md` and `0001-b.md`: a dict keyed by number kept one and lost the other silently."""
+    files = {
+        "docs/adr/0001-a.md": "# a\n",
+        "docs/adr/0001-b.md": "# b\n",
+        "docs/adr/README.md": "- [0001](0001-a.md)\n- [0001](0001-b.md)\n",
+    }
+    assert scan_adr_index.main(build(tmp_path, files)) == 1
+    assert "number used twice: 0001-a.md, 0001-b.md" in capsys.readouterr().out
+
+
 def test_adr_index_reports_a_gap_in_the_numbering(
     tmp_path: pathlib.Path, capsys: pytest.CaptureFixture[str]
 ) -> None:
@@ -744,6 +794,23 @@ def test_a_declared_purge_module_is_allowed_to_delete_for_real(
     config = {"src_path": "app", "purge_paths": ["app/purge.py"]}
     assert scan_write_discipline.main(build(tmp_path, files, config)) == 0
     assert "delete-means-soft-delete" not in capsys.readouterr().out
+
+
+@pytest.mark.parametrize(
+    ("markup", "label"),
+    [
+        ('<DIV ONCLICK="go()">go</DIV>\n', "inline handler"),
+        ('<P STYLE="color:red">x</P>\n', "inline style="),
+        ("<STYLE>a {}</STYLE>\n", "inline <style>"),
+        ("<style>\na {}\n</style>\n", "inline <style>"),
+    ],
+)
+def test_inline_markup_is_a_finding_in_any_case(
+    tmp_path: pathlib.Path, capsys: pytest.CaptureFixture[str], markup: str, label: str
+) -> None:
+    """HTML is case-insensitive and the browser blocks `ONCLICK=` exactly as `onclick=`."""
+    assert scan_templates_inline.main(build(tmp_path, {"app/templates/x.html": markup})) == 1
+    assert label in capsys.readouterr().out
 
 
 def test_a_commented_out_delete_is_not_a_finding(

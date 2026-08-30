@@ -1,4 +1,4 @@
-"""gate: adr-index-complete — the ADR index covers every record, numbered without gaps.
+"""gate: adr-index-complete — the ADR index covers every record, numbered without repeats or gaps.
 
 A stale index is worse than no index: the reader believes they are seeing all of
 it while the most recent decisions are missing. In the reference implementation
@@ -49,11 +49,20 @@ def main(root: pathlib.Path) -> int:
         print(f"NA: no {adr_dir.relative_to(root)} — nothing to check yet")
         return 0
 
-    on_disk = {m.group(1): p.name for p in adr_dir.glob("*.md") if (m := FILENAME.match(p.name))}
+    by_number: dict[str, list[str]] = {}
+    for record in sorted(adr_dir.glob("*.md")):
+        if match := FILENAME.match(record.name):
+            by_number.setdefault(match.group(1), []).append(record.name)
+    on_disk = {number: names[0] for number, names in by_number.items()}
     index = adr_dir / "README.md"
     listed = dict(INDEX_LINK.findall(index.read_text(encoding="utf-8"))) if index.is_file() else {}
 
     findings: list[str] = []
+    # Two records with one number: a dict keyed by number kept one and lost the
+    # other silently (outside audit, 2026-08-30) — the rule says without repeats.
+    findings += [
+        f"number used twice: {', '.join(names)}" for names in by_number.values() if len(names) > 1
+    ]
     if on_disk and not index.is_file():
         findings.append("records exist but there is no README.md index")
     findings += [

@@ -18,9 +18,13 @@ import pathlib
 import re
 import sys
 
+# HTML is case-insensitive and the browser blocks `ONCLICK=` exactly as it blocks
+# `onclick=` — two of these four read lowercase only until an outside audit on
+# 2026-08-30 planted uppercase attributes and a `<STYLE>` element and got exit 0.
 PATTERNS = (
-    (re.compile(r"\son\w+\s*="), "inline handler (on*=)"),
-    (re.compile(r"\sstyle\s*="), "inline style="),
+    (re.compile(r"\son\w+\s*=", re.IGNORECASE), "inline handler (on*=)"),
+    (re.compile(r"\sstyle\s*=", re.IGNORECASE), "inline style="),
+    (re.compile(r"<style[\s>]", re.IGNORECASE), "inline <style>"),
     (re.compile(r"<script(?![^>]*\bsrc\s*=)[^>]*>", re.IGNORECASE), "inline <script>"),
     (re.compile(r"javascript:", re.IGNORECASE), "javascript: URI"),
 )
