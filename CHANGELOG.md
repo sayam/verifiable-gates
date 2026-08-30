@@ -102,6 +102,11 @@ Notable changes to this project. The format follows
   live). A caller names the fields its records carry; records lacking them
   are the third answer, exit 2, and the message names `gh run list` when
   that is what it was given. Proved by mutation four ways (#124).
+- **A folded `uses:` names its action, not the fold marker.** `uses: >`
+  with the action on the next line was reported as `actions-sha-pinned:
+  ci.yml: >` — red for the right reason, naming nothing (outside audit,
+  2026-08-30, reproduced). The marker is followed to the line that carries
+  the value. Proved by mutation both ways (#125).
 
 ### Added
 

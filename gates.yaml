@@ -1684,6 +1684,15 @@ gates:
           case; the recognition loosened to any `uses:` line — a loosened pin
           taken for the bundle's, red. An outside audit installed into an empty
           directory on 2026-08-30 and read three passes.
+      - kind: mutation
+        ref: pr/125
+        date: 2026-08-30
+        caught: >-
+          The workflow scanner with a folded `uses:` no longer followed to its
+          next line — the fold marker reported as the action again, red in
+          four marker shapes and in the pinned fold judged unpinned; the next
+          line misread, red in the pinned fold. An outside audit planted
+          `uses: >` on 2026-08-30 and read a finding that named `>`.
 
   - id: rules-we-ship-we-keep
     title: Scanners that apply to this repository are run against this repository
