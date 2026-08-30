@@ -125,6 +125,14 @@ Every step below has a test or a CI step reading alongside it — the rule
 none goes stale exactly like a number with none, and this repository's own About
 field was one release away from proving it (2026-08-29).
 
+0. **Bring every document up to date first, in its own pull request** — README (both
+   languages), CONTRIBUTING, DECISIONS.md, and any docstring or `_comment` that
+   describes a behaviour the `[Unreleased]` entries changed. The numbers half is
+   held by `tests/test_own_numbers.py`; the prose half is not, and it is the
+   half an outside reader audits: on 2026-08-30 seventeen fixes were green and
+   merged while README still described the scanners as they were before them.
+   A cut whose documents lag its code archives the lag under a DOI, where it
+   cannot be corrected. Only then:
 1. Move the `[Unreleased]` entries in `CHANGELOG.md` under `## [x.y.z] - YYYY-MM-DD`,
    add its `[x.y.z]: …/releases/tag/vx.y.z` line at the foot (the test holds the
    two sets to each other), and set `__version__` in `src/verifiable_gates/__init__.py`. Those two are the
@@ -148,6 +156,9 @@ field was one release away from proving it (2026-08-29).
    both directions and only then attaches them to the release. Watch it go
    green; a downloader verifies with
    `gh attestation verify <wheel> --repo sayam/verifiable-gates`.
+6. `python -m verifiable_gates.zenodo` — reads the archive back and holds its
+   version count to the release count; the cut is done when it exits 0, not
+   when the tag exists.
 
 ## What runs on this repository's own pull requests
 
