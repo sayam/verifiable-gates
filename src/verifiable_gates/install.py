@@ -23,7 +23,10 @@ reinstalls on every run.
 **The file list comes from the manifest and nowhere else.** A file the manifest
 names but the bundle does not have makes the install **fail loudly** rather than
 land half-complete — the success condition being that deleting one file from the
-bundle turns the installer red, not quiet.
+bundle turns the installer red, not quiet. Every problem `manifest.problems()`
+can name is checked before the first copy, because `--manifest` lets a manifest
+arrive from outside this package: one that ships `../x` used to write beside
+the destination (outside audit, 2026-08-30).
 
 Role: generator — it copies files that are committed in a consumer's tree. Its
 evidence is that what arrives equals the manifest and the doctor reads it back.
@@ -71,11 +74,14 @@ def install(dest: pathlib.Path, manifest: dict[str, Any], bundle: pathlib.Path) 
     (dest / "tools" / "checks").mkdir(parents=True, exist_ok=True)
     kept_registry = False
 
+    wrong = manifest_module.problems(manifest, bundle)
+    if wrong:
+        for problem in wrong:
+            print(f"** the bundle is incomplete: {problem}", file=sys.stderr)
+        print("** refusing to install", file=sys.stderr)
+        return 1
     for name in manifest_module.shipped(manifest):
         source = bundle / name
-        if not source.is_file():
-            print(f"** the bundle is incomplete: no {name} — refusing to install", file=sys.stderr)
-            return 1
         target = _target(dest, name)
         if name in KEEP_IF_PRESENT and target.exists():
             print(f"kept: {target.relative_to(dest)} (already there)")

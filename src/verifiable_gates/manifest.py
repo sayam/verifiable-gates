@@ -94,8 +94,24 @@ def _entry_problems(
     return found
 
 
+def _leaves(name: str) -> bool:
+    """A ship name that would land outside the destination — absolute, or climbing with `..`.
+
+    `install.py` joins each name under `dest/tools/`; an outside audit on 2026-08-30
+    shipped `../../outside/PLANTED.txt` through `--manifest` and the file landed
+    beside the destination, exit 0.
+    """
+    parts = pathlib.PurePosixPath(name).parts
+    return pathlib.PurePosixPath(name).is_absolute() or ".." in parts
+
+
 def problems(manifest: dict[str, Any], bundle: pathlib.Path) -> list[str]:
     """Everything wrong with a manifest, given the directory it describes."""
+    escaping = [
+        f"ship lists {name}, which would land outside the destination"
+        for name in manifest["ship"]
+        if _leaves(name)
+    ]
     missing = [
         f"ship lists {name}, which is not in the bundle"
         for name in manifest["ship"]
@@ -106,4 +122,4 @@ def problems(manifest: dict[str, Any], bundle: pathlib.Path) -> list[str]:
         for gid, entry in sorted(manifest["gates"].items())
         for problem in _entry_problems(gid, entry, manifest, bundle)
     ]
-    return missing + entries
+    return escaping + missing + entries

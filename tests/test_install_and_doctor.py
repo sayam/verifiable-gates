@@ -21,6 +21,7 @@ Three properties, and the second is the one that decays quietly:
 from __future__ import annotations
 
 import json
+import shutil
 import subprocess
 import sys
 from typing import TYPE_CHECKING
@@ -30,6 +31,7 @@ from bundle import DOCTOR, do_install, run_doctor
 
 from verifiable_gates import gates_doctor
 from verifiable_gates import install as install_module
+from verifiable_gates import manifest as manifest_module
 
 if TYPE_CHECKING:
     import pathlib
@@ -146,6 +148,38 @@ def test_the_template_runs_the_job_the_installer_names(bundle_copy: pathlib.Path
     """`TEMPLATE_JOB` is a copy of the template's job key — this holds the copy to the original."""
     template = (bundle_copy / "ci-template.yml").read_text(encoding="utf-8")
     assert f"\n  {install_module.TEMPLATE_JOB}:\n" in template
+
+
+def test_a_manifest_that_ships_a_climbing_name_is_refused_before_any_copy(
+    tmp_path: pathlib.Path, bundle_copy: pathlib.Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """A manifest from outside the package may ship `../../x`; it must not land beside `dest`."""
+    bundle = tmp_path / "a" / "b" / "bundle"
+    shutil.copytree(bundle_copy, bundle)
+    planted = tmp_path / "a" / "outside" / "PLANTED.txt"
+    planted.parent.mkdir()
+    planted.write_text("planted\n", encoding="utf-8")
+    manifest = manifest_module.load(bundle / "overlay.json")
+    manifest["ship"].append("../../outside/PLANTED.txt")
+    (bundle / "overlay.json").write_text(json.dumps(manifest), encoding="utf-8")
+    dest = tmp_path / "c" / "dest"
+    landing = tmp_path / "c" / "outside" / "PLANTED.txt"
+
+    assert install_module.main([str(dest), "--manifest", str(bundle / "overlay.json")]) == 1
+    assert "would land outside the destination" in capsys.readouterr().err
+    assert not landing.exists(), "the file left the destination"
+    assert not (dest / "tools" / "gates_doctor.py").exists(), "nothing was copied before refusing"
+
+
+def test_a_manifest_with_a_bad_entry_is_refused_by_the_installer(
+    tmp_path: pathlib.Path, bundle_copy: pathlib.Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """Every problem `manifest.problems()` names stops the install, not only a missing file."""
+    manifest = manifest_module.load(bundle_copy / "overlay.json")
+    manifest["gates"]["actions-sha-pinned"]["kind"] = "bogus"
+    (bundle_copy / "overlay.json").write_text(json.dumps(manifest), encoding="utf-8")
+    assert do_install(tmp_path / "project", bundle_copy) == 1
+    assert "kind 'bogus'" in capsys.readouterr().err
 
 
 def test_an_incomplete_bundle_refuses_to_install(
