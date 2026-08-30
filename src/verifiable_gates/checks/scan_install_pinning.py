@@ -4,6 +4,9 @@
 it with the workflow's permissions. It has to be `--require-hashes -r <lockfile>`.
 On the node side it has to be `npm ci`: `npm install pkg@x` pins that one package
 and leaves the rest of the tree floating.
+The installers with no `pip` in the line — `uv tool install`, `uv add`, `uvx`,
+`poetry add`, `pdm add`, `pipenv install` — resolve against the index too, and
+were unread until an outside audit on 2026-08-30 planted two of them.
 
 Installing the checkout itself (`pip install --no-deps --no-build-isolation -e .`)
 is not an index install: nothing is fetched, so there is nothing to pin. That
@@ -47,6 +50,15 @@ PIP_INSTALL = re.compile(
 NPM_INSTALL = re.compile(r"(?:^|[\s/])npm\s+(?:install|i|add)\b")
 # `pipx install` / `pipx run` resolve the tool from the index like `pip install`.
 PIPX_INSTALL = re.compile(r"(?:^|[\s/])pipx\s+(?:install|run)\b")
+# So do the installers with no `pip` in the line: `uv tool install`, `uv add`,
+# `uvx`, `poetry add`, `pdm add`, `pipenv install` each resolve a name against
+# the index with nothing but a tag or a range to hold it — an outside audit on
+# 2026-08-30 planted `uv tool install ruff` and `poetry add ruff` and got exit 0
+# from a scanner that keyed on the word `pip`. `uv run --locked` and `uv sync
+# --locked` install from `uv.lock`, which carries hashes, and are left alone.
+NO_PIP_INSTALL = re.compile(
+    r"(?:^|[\s/])(?:uv\s+(?:tool\s+install|add)|uvx|poetry\s+add|pdm\s+add|pipenv\s+install)\b"
+)
 # `python -m build` (and `pyproject-build`) creates an isolated environment and
 # `pip install`s the build backend from the index, unpinned — a tool CI installs
 # for itself, under the job's privileges, with no `pip` on the line at all.
@@ -194,6 +206,11 @@ def main(root: pathlib.Path) -> int:
             if PIPX_INSTALL.search(line):
                 findings.append(
                     f"{path.relative_to(root)}: pipx resolves from the index — {line.strip()[:55]}"
+                )
+            if NO_PIP_INSTALL.search(line):
+                findings.append(
+                    f"{path.relative_to(root)}: resolves from the index with no lock"
+                    f" — {line.strip()[:50]}"
                 )
             if BUILD.search(line) and not NO_ISOLATION.search(line):
                 findings.append(

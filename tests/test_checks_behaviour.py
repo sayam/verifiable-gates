@@ -668,6 +668,39 @@ def test_npm_install_is_reported_and_names_the_alternative(
     assert "use npm ci instead" in capsys.readouterr().out, "the finding has to say what to do"
 
 
+@pytest.mark.parametrize(
+    "line",
+    [
+        "uv tool install ruff",
+        "uv add ruff",
+        "uvx ruff check .",
+        "poetry add ruff",
+        "pdm add ruff",
+        "pipenv install ruff",
+    ],
+)
+def test_an_installer_with_no_pip_in_the_line_still_resolves_from_the_index(
+    tmp_path: pathlib.Path, capsys: pytest.CaptureFixture[str], line: str
+) -> None:
+    """The scanner keyed on the word `pip`; these fetch from the index with nothing to hold them."""
+    files = {".github/workflows/ci.yml": f"jobs:\n  a:\n    steps:\n      - run: {line}\n"}
+    assert scan_install_pinning.main(build(tmp_path, files)) == 1
+    assert "resolves from the index with no lock" in capsys.readouterr().out
+
+
+@pytest.mark.parametrize(
+    "line",
+    ["uv run --locked pytest", "uv sync --locked", "uv build", "poetry install --sync"],
+)
+def test_an_install_from_a_lockfile_is_left_alone(
+    tmp_path: pathlib.Path, capsys: pytest.CaptureFixture[str], line: str
+) -> None:
+    """`uv.lock` and `poetry.lock` carry hashes — the other direction, so the regex is not `uv`."""
+    files = {".github/workflows/ci.yml": f"jobs:\n  a:\n    steps:\n      - run: {line}\n"}
+    assert scan_install_pinning.main(build(tmp_path, files)) == 0
+    assert "ci-tools-hash-pinned" not in capsys.readouterr().out
+
+
 def test_a_command_split_over_lines_is_judged_whole(
     tmp_path: pathlib.Path, capsys: pytest.CaptureFixture[str]
 ) -> None:
