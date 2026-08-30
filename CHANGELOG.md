@@ -108,6 +108,13 @@ Notable changes to this project. The format follows
   2026-08-30, reproduced). The marker is followed to the line that carries
   the value. Proved by mutation both ways (#125).
 
+### Changed
+
+- README says what the two pinning checkers read and what a fresh install's
+  one `pass` is; CONTRIBUTING lists the registers a test holds by copy, the
+  ratchets a test holds to reality, the proof-date rule, the unknown-key rule,
+  and the habit of reading the gates before changing a decider's answer.
+
 ### Added
 
 - **The posture register is held, switch by switch.** `posture-declared.json`
