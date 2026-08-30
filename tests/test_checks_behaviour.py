@@ -931,6 +931,64 @@ def test_a_trailing_comment_naming_the_flag_does_not_pin(
     assert "ci-tools-hash-pinned" in capsys.readouterr().out
 
 
+@pytest.mark.parametrize(
+    "line",
+    [
+        "MARKER=--require-hashes pip install ruff",
+        'pip install ruff "# --require-hashes"',
+        "echo --require-hashes && pip install ruff",
+    ],
+)
+def test_require_hashes_counts_only_as_an_argument_of_the_install(
+    tmp_path: pathlib.Path, capsys: pytest.CaptureFixture[str], line: str
+) -> None:
+    """The flag in an environment value, a quoted argument or another command pins nothing."""
+    files = {".github/workflows/ci.yml": f"jobs:\n  a:\n    steps:\n      - run: {line}\n"}
+    assert scan_install_pinning.main(build(tmp_path, files)) == 1
+    assert "ci-tools-hash-pinned" in capsys.readouterr().out
+
+
+@pytest.mark.parametrize(
+    "step",
+    [
+        "      - name: explain why pip install ruff is forbidden\n        run: echo ok\n",
+        "      - run: echo ok\n        env:\n          NOTE: pip install ruff is banned here\n",
+        "      - uses: ./ci/setup\n        with:\n          hint: pip install ruff\n",
+    ],
+)
+def test_only_what_run_executes_is_judged_in_a_workflow(
+    tmp_path: pathlib.Path, capsys: pytest.CaptureFixture[str], step: str
+) -> None:
+    """A `name:`, an `env:` value or a `with:` input that quotes the command runs nothing."""
+    files = {".github/workflows/ci.yml": f"jobs:\n  a:\n    steps:\n{step}"}
+    assert scan_install_pinning.main(build(tmp_path, files)) == 0
+    assert "ci-tools-hash-pinned" not in capsys.readouterr().out
+
+
+@pytest.mark.parametrize("marker", ["|", ">", "|-"])
+def test_a_run_block_is_read_to_its_end_and_no_further(
+    tmp_path: pathlib.Path, capsys: pytest.CaptureFixture[str], marker: str
+) -> None:
+    """`run: |` then the lines beneath it are the shell's; the next step's `name:` is not."""
+    body = (
+        "jobs:\n  a:\n    steps:\n"
+        f"      - run: {marker}\n          echo one\n\n          pip install ruff\n"
+        "      - name: pip install black is fine to mention\n        run: echo two\n"
+    )
+    assert scan_install_pinning.main(build(tmp_path, {".github/workflows/ci.yml": body})) == 1
+    out = capsys.readouterr().out
+    assert "pip install ruff" in out
+    assert "black" not in out
+
+
+def test_a_quoted_run_value_is_the_command_inside_the_quotes(
+    tmp_path: pathlib.Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    body = 'jobs:\n  a:\n    steps:\n      - run: "pip install ruff"\n'
+    assert scan_install_pinning.main(build(tmp_path, {".github/workflows/ci.yml": body})) == 1
+    assert "pip install ruff" in capsys.readouterr().out
+
+
 def test_a_hash_inside_quotes_is_not_a_comment(
     tmp_path: pathlib.Path, capsys: pytest.CaptureFixture[str]
 ) -> None:
