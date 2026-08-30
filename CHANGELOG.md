@@ -61,6 +61,13 @@ Notable changes to this project. The format follows
   Every read file is followed into the scripts it hands off to, scripts
   calling scripts included; a path that is absolute, missing or climbs out of
   the checkout is not ours. Proved by mutation three ways (#115).
+- **A proof dated in the future is not evidence.** The registry schema
+  checked that a `proved_by` date was a real calendar date and nothing more,
+  so `date: 2099-01-01` passed the schema and the suite (outside audit,
+  2026-08-30, reproduced). A date later than today anywhere on Earth is a
+  problem now — UTC+14, so a proof written in Bangkok at 02:00 and dated
+  tomorrow-in-UTC is not from the future. Proved by mutation three ways
+  (#117).
 
 ### Added
 
