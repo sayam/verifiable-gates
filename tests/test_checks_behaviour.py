@@ -468,6 +468,17 @@ def test_a_sha_with_its_version_in_a_comment_is_the_whole_rule(
     assert capsys.readouterr().out == ""
 
 
+def test_a_folded_uses_comment_may_sit_beside_the_marker(
+    tmp_path: pathlib.Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """`uses: > # v4` then the SHA on the next line — one step to the platform,
+    wherever the fold put the comment."""
+    body = "jobs:\n  a:\n    steps:\n      - uses: > # v4\n          actions/checkout@"
+    body += "a" * 40 + "\n"
+    assert scan_workflow_pinning.main(build(tmp_path, {".github/workflows/ci.yml": body})) == 0
+    assert capsys.readouterr().out == ""
+
+
 def test_a_docker_digest_needs_no_version_comment(
     tmp_path: pathlib.Path, capsys: pytest.CaptureFixture[str]
 ) -> None:

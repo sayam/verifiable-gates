@@ -52,9 +52,15 @@ def _uses_lines(text: str) -> list[tuple[str, str]]:
             continue
         ref, after = match.group(1), match.group(2)
         if BLOCK.match(ref):
+            # The version comment may sit beside the marker (`uses: > # v4`) or
+            # beside the value on the next line — both are the same step to the
+            # platform, so both count (outside audit, 2026-08-31: a comment on
+            # the marker line was "no version comment").
+            marker_side = after
             rest = [later.strip() for later in lines[index + 1 :] if later.strip()]
             ref, _, after = rest[0].partition(" ") if rest else (ref, "", "")
             ref = ref.strip("\"'")
+            after = f"{after} {marker_side}".strip()
         found.append((ref, after))
     return found
 

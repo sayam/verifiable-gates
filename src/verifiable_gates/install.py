@@ -70,16 +70,19 @@ def _target(dest: pathlib.Path, name: str) -> pathlib.Path:
 
 
 def install(dest: pathlib.Path, manifest: dict[str, Any], bundle: pathlib.Path) -> int:
-    dest.mkdir(parents=True, exist_ok=True)
-    (dest / "tools" / "checks").mkdir(parents=True, exist_ok=True)
     kept_registry = False
 
+    # Refuse before touching the destination: the directories used to be made
+    # first, so a refused install still left an empty `tools/checks/` behind
+    # (outside audit, 2026-08-31).
     wrong = manifest_module.problems(manifest, bundle)
     if wrong:
         for problem in wrong:
             print(f"** the bundle is incomplete: {problem}", file=sys.stderr)
         print("** refusing to install", file=sys.stderr)
         return 1
+    dest.mkdir(parents=True, exist_ok=True)
+    (dest / "tools" / "checks").mkdir(parents=True, exist_ok=True)
     for name in manifest_module.shipped(manifest):
         source = bundle / name
         target = _target(dest, name)
