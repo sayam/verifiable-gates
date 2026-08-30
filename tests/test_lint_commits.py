@@ -224,7 +224,7 @@ def a_repo(tmp_path: pathlib.Path, *messages: str) -> str:
     git(["git", "config", "user.name", "A B"])
     git(["git", "commit", "-q", "--allow-empty", "-m", "feat: base\n\nSigned-off-by: A B <a@b.co>"])
     base = subprocess.run(
-        ["git", "rev-parse", "HEAD"],  # noqa: S607
+        ["git", "rev-parse", "HEAD"],  # noqa: S607 — a fixed git command, written out in a test
         cwd=tmp_path,
         check=True,
         capture_output=True,
@@ -255,7 +255,7 @@ def test_the_range_mode_names_the_commit_it_refused(
     assert run(monkeypatch, ["--range", f"{base}..HEAD"]) == 1
     out = capsys.readouterr().out
     head = subprocess.run(
-        ["git", "rev-parse", "HEAD"],  # noqa: S607
+        ["git", "rev-parse", "HEAD"],  # noqa: S607 — a fixed git command, written out in a test
         cwd=tmp_path,
         check=True,
         capture_output=True,

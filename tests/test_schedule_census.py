@@ -317,7 +317,9 @@ def _a_git_repo(root: pathlib.Path) -> None:
         ["git", "add", "-A"],
         ["git", "commit", "-qm", "add a weekly cron"],
     ):
-        subprocess.run(command, cwd=root, check=True, capture_output=True)  # noqa: S603
+        subprocess.run(  # noqa: S603 — every argv is a literal in the tuple above
+            command, cwd=root, check=True, capture_output=True
+        )
 
 
 def test_first_seen_reads_the_commit_that_added_the_file(tmp_path: pathlib.Path) -> None:
@@ -382,7 +384,7 @@ def test_a_shallow_clone_cannot_say_when_a_file_was_added(tmp_path: pathlib.Path
     _a_git_repo(origin)
     clone = tmp_path / "clone"
     subprocess.run(  # noqa: S603 — a fixed git command, written out in a test
-        ["git", "clone", "--depth", "1", "-q", f"file://{origin}", str(clone)],  # noqa: S607
+        ["git", "clone", "--depth", "1", "-q", f"file://{origin}", str(clone)],  # noqa: S607 — git resolved from PATH, the paths are tmp_path
         check=True,
         capture_output=True,
     )

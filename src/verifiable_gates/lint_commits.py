@@ -145,7 +145,7 @@ def commits_in_range(rev_range: str) -> list[tuple[str, str, str]]:
     it exists only on the branch.
     """
     out = subprocess.run(  # noqa: S603 — input comes from CI or the developer, not a user
-        ["git", "log", "--no-merges", f"--format={LOG_FORMAT}", rev_range],  # noqa: S607
+        ["git", "log", "--no-merges", f"--format={LOG_FORMAT}", rev_range],  # noqa: S607 — git resolved from PATH, as the developer's own shell does
         capture_output=True,
         text=True,
         check=True,

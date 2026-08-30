@@ -47,7 +47,7 @@ def run(root: pathlib.Path, *args: str, when: str = "") -> None:
     # only `--date` moves the line the log prints and not the line it filters on,
     # so a test written that way passes whatever the window says.
     env = {**os.environ, "GIT_COMMITTER_DATE": when} if when else None
-    subprocess.run(  # noqa: S603
+    subprocess.run(  # noqa: S603 — git from shutil.which, args are test literals
         [binary, *args], cwd=root, check=True, capture_output=True, timeout=60, env=env
     )
 
@@ -290,7 +290,7 @@ def test_the_command_declares_a_time_budget(
 
     def watched(argv: list[str], **kwargs: object) -> subprocess.CompletedProcess[str]:
         budget.update(kwargs)
-        return real(argv, **kwargs)  # type: ignore[call-overload,no-any-return]
+        return real(argv, **kwargs)  # type: ignore[call-overload,no-any-return]  # kwargs are typed object to be recorded, not called
 
     monkeypatch.setattr(subprocess, "run", watched)
     removals.deleted_files(repo, "tests/", "1.year")

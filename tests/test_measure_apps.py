@@ -166,7 +166,7 @@ def test_the_battery_cannot_be_changed_between_arms() -> None:
     assert battery.scanner is None
     assert dataclasses.fields(battery), "Battery stopped being a record of the settings"
     with pytest.raises(dataclasses.FrozenInstanceError):
-        battery.configs = ("p/two",)  # type: ignore[misc]
+        battery.configs = ("p/two",)  # type: ignore[misc]  # the frozen-field write is the thing under test
 
 
 def test_a_row_counts_only_the_files_the_probe_read(tmp_path: pathlib.Path) -> None:
@@ -259,7 +259,7 @@ def test_a_command_declares_a_time_budget(
 
     def watched(argv: list[str], **kwargs: object) -> subprocess.CompletedProcess[str]:
         budget.update(kwargs)
-        return real(argv, **kwargs)  # type: ignore[call-overload,no-any-return]
+        return real(argv, **kwargs)  # type: ignore[call-overload,no-any-return]  # kwargs are typed object to be recorded, not called
 
     monkeypatch.setattr(subprocess, "run", watched)
     bundle = _fake_bundle(tmp_path, {"scan_clean.py": _scanner("", 0)})
