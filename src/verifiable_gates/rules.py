@@ -90,6 +90,24 @@ FRAMEWORK_NAMES = (
 )
 
 RULE_ID = re.compile(r"^[a-z0-9]+(-[a-z0-9]+)*$")
+# Every key a rule may carry. A key outside this set is data nobody reads — a
+# misspelt `born_frm` is a rule with no origin that looks like one with, and
+# `portable: true` on a rule is a gate's field: a rule in this catalogue is
+# published whole, portability is decided per gate in a registry. An outside
+# audit on 2026-08-30 wrote both and the schema said nothing.
+KEYS = frozenset(
+    {
+        "id",
+        "layer",
+        "pillar",
+        "title",
+        "title_th",
+        "born_from",
+        "born_from_th",
+        "reference",
+        "script",
+    }
+)
 
 
 def load(path: str | pathlib.Path) -> list[dict[str, Any]]:
@@ -161,6 +179,20 @@ def _field_problems(rule_id: str, rule: dict[str, Any]) -> list[str]:
     return found
 
 
+def _key_problems(rule_id: str, rule: dict[str, Any]) -> list[str]:
+    """A key the schema does not know is refused, not skipped."""
+    found: list[str] = []
+    for key in sorted(set(rule) - KEYS):
+        if key == "portable":
+            found.append(
+                f"{rule_id}: portable is a gate's field, not a rule's — a rule here is "
+                "published whole; a registry says which of its gates are portable"
+            )
+        else:
+            found.append(f"{rule_id}: {key!r} is not a field of a rule — nothing reads it")
+    return found
+
+
 def _script_problems(
     rule_id: str, script: object, package_dir: str | pathlib.Path | None
 ) -> list[str]:
@@ -192,6 +224,7 @@ def problems(
             continue
         rule_id = str(rule.get("id", f"<rule {index}>"))
         found += _field_problems(rule_id, rule)
+        found += _key_problems(rule_id, rule)
         if rule_id in seen:
             found.append(f"{rule_id}: listed more than once")
         seen.add(rule_id)

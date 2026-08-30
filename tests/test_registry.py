@@ -256,6 +256,20 @@ def test_a_date_that_is_not_a_calendar_date_is_refused(date: str) -> None:
     assert any("real YYYY-MM-DD" in problem for problem in found), date
 
 
+def test_a_key_nobody_defined_is_refused() -> None:
+    """`proved_yb` is a gate with no evidence that looks like one with — refused, not skipped."""
+    found = registry.problems([a_gate(whatever="hello")])
+    assert any("'whatever' is not a field of a gate" in problem for problem in found)
+
+
+@pytest.mark.parametrize("key", ["portable", "born_from", "proved_by", "watched_by"])
+def test_every_optional_key_the_registry_uses_is_known(key: str) -> None:
+    """The other direction: the keys this repository's registry really carries draw nothing."""
+    assert not any(
+        "is not a field of a gate" in p for p in registry.problems([a_gate(**{key: None})])
+    )
+
+
 @pytest.mark.parametrize("date", ["2099-01-01", datetime.date(2099, 1, 1)])
 def test_a_date_that_has_not_happened_yet_is_refused(date: str | datetime.date) -> None:
     """Evidence that has not happened yet is not evidence — the old check took `2099-01-01`."""
