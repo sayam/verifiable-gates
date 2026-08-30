@@ -100,6 +100,33 @@ TAKES_A_VALUE = frozenset(
 )
 CHAIN = re.compile(r"\s*(?:&&|\|\||;|\|)\s*")
 
+# The bundle's own starting workflow, as `install.py` writes `ci-template.yml`:
+# one pinned checkout and one run of the doctor. A tree where every workflow is
+# that has nothing of the project's to judge yet, and the answer is NA — so
+# "every scan NA" can mean what README says it means. An outside audit on
+# 2026-08-30 installed into an empty directory and three scans said `pass` on
+# the file the bundle had just written. Any line added or changed makes the
+# workflow the project's, and it is judged like any other.
+STEP = re.compile(r"^\s*-?\s*(uses|run):\s*(.+?)\s*$", re.MULTILINE)
+TEMPLATE_STEPS = (("uses", re.compile(r"^actions/checkout@[0-9a-f]{40}$")), ("run", None))
+DOCTOR_RUN = "python3 tools/gates_doctor.py"
+
+
+def _bundles_own(text: str) -> bool:
+    """Is this workflow the untouched starting one — a pinned checkout, then the doctor?"""
+    steps = [(kind, value.split(" #")[0].strip()) for kind, value in STEP.findall(text)]
+    if len(steps) != len(TEMPLATE_STEPS):
+        return False
+    (uses_kind, uses), (run_kind, run) = steps
+    return (
+        uses_kind == "uses"
+        and TEMPLATE_STEPS[0][1] is not None
+        and TEMPLATE_STEPS[0][1].match(uses) is not None
+        and run_kind == "run"
+        and run == DOCTOR_RUN
+    )
+
+
 # A local action is whatever `uses: ./<path>` names — GitHub reads
 # `<path>/action.yml` wherever it lives, so reading `.github/actions/` alone left
 # `uses: ./ci/actions/setup` unread: an outside audit on 2026-08-30 planted one
@@ -221,12 +248,50 @@ def _commands(path: pathlib.Path) -> list[str]:
     return joined
 
 
-def main(root: pathlib.Path) -> int:
+def _nothing_of_yours(targets: list[pathlib.Path]) -> bool:
+    """Every file read is the bundle's untouched starting workflow — said as NA."""
+    if not all(_bundles_own(path.read_text(encoding="utf-8")) for path in targets):
+        return False
+    print("NA: only the bundle's own starting workflow, untouched — nothing of yours to check yet")
+    return True
+
+
+def _files_read(root: pathlib.Path) -> list[pathlib.Path]:
+    """The files read as written: workflows, composite actions, the root Dockerfile."""
     targets = sorted((root / ".github" / "workflows").glob("*.y*ml"))
     targets += sorted((root / ".github" / "actions").glob("**/action.y*ml"))
-    targets += [p for p in [root / "Dockerfile"] if p.is_file()]
+    return targets + [p for p in [root / "Dockerfile"] if p.is_file()]
+
+
+def _line_findings(where: pathlib.Path, line: str) -> list[str]:
+    """Everything one command does that reaches an index unpinned."""
+    found: list[str] = []
+    if (
+        PIP_INSTALL.search(line)
+        and "--require-hashes" not in line
+        and _installs_from_an_index(line)
+    ):
+        found.append(f"{where}: {line.strip()[:70]}")
+    if NPM_INSTALL.search(line):
+        found.append(f"{where}: use npm ci instead — {line.strip()[:60]}")
+    if PIPX_INSTALL.search(line):
+        found.append(f"{where}: pipx resolves from the index — {line.strip()[:55]}")
+    if NO_PIP_INSTALL.search(line):
+        found.append(f"{where}: resolves from the index with no lock — {line.strip()[:50]}")
+    if BUILD.search(line) and not NO_ISOLATION.search(line):
+        found.append(
+            f"{where}: build fetches its backend unpinned;"
+            f" pin it and pass --no-isolation — {line.strip()[:50]}"
+        )
+    return found
+
+
+def main(root: pathlib.Path) -> int:
+    targets = _files_read(root)
     if not targets:
         print("NA: no workflows, composite actions or Dockerfile — nothing to check yet")
+        return 0
+    if _nothing_of_yours(targets):
         return 0
 
     findings: list[str] = []
@@ -234,30 +299,7 @@ def main(root: pathlib.Path) -> int:
         # One `run:` line can chain several commands; each is judged on its own,
         # or the second hides behind the first's exemption.
         for line in (part for joined in _commands(path) for part in CHAIN.split(joined)):
-            if (
-                PIP_INSTALL.search(line)
-                and "--require-hashes" not in line
-                and _installs_from_an_index(line)
-            ):
-                findings.append(f"{path.relative_to(root)}: {line.strip()[:70]}")
-            if NPM_INSTALL.search(line):
-                findings.append(
-                    f"{path.relative_to(root)}: use npm ci instead — {line.strip()[:60]}"
-                )
-            if PIPX_INSTALL.search(line):
-                findings.append(
-                    f"{path.relative_to(root)}: pipx resolves from the index — {line.strip()[:55]}"
-                )
-            if NO_PIP_INSTALL.search(line):
-                findings.append(
-                    f"{path.relative_to(root)}: resolves from the index with no lock"
-                    f" — {line.strip()[:50]}"
-                )
-            if BUILD.search(line) and not NO_ISOLATION.search(line):
-                findings.append(
-                    f"{path.relative_to(root)}: build fetches its backend unpinned;"
-                    f" pin it and pass --no-isolation — {line.strip()[:50]}"
-                )
+            findings += _line_findings(path.relative_to(root), line)
 
     for finding in findings:
         print(f"ci-tools-hash-pinned: {finding}")

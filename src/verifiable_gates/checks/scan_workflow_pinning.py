@@ -34,6 +34,33 @@ PINNED = re.compile(r"@[0-9a-f]{40}$")
 DIGEST = re.compile(r"@sha256:[0-9a-f]{64}$")
 LOCAL = ("./",)
 
+# The bundle's own starting workflow, as `install.py` writes `ci-template.yml`:
+# one pinned checkout and one run of the doctor. A tree where every workflow is
+# that has nothing of the project's to judge yet, and the answer is NA — so
+# "every scan NA" can mean what README says it means. An outside audit on
+# 2026-08-30 installed into an empty directory and three scans said `pass` on
+# the file the bundle had just written. Any line added or changed makes the
+# workflow the project's, and it is judged like any other.
+STEP = re.compile(r"^\s*-?\s*(uses|run):\s*(.+?)\s*$", re.MULTILINE)
+TEMPLATE_STEPS = (("uses", re.compile(r"^actions/checkout@[0-9a-f]{40}$")), ("run", None))
+DOCTOR_RUN = "python3 tools/gates_doctor.py"
+
+
+def _bundles_own(text: str) -> bool:
+    """Is this workflow the untouched starting one — a pinned checkout, then the doctor?"""
+    steps = [(kind, value.split(" #")[0].strip()) for kind, value in STEP.findall(text)]
+    if len(steps) != len(TEMPLATE_STEPS):
+        return False
+    (uses_kind, uses), (run_kind, run) = steps
+    return (
+        uses_kind == "uses"
+        and TEMPLATE_STEPS[0][1] is not None
+        and TEMPLATE_STEPS[0][1].match(uses) is not None
+        and run_kind == "run"
+        and run == DOCTOR_RUN
+    )
+
+
 # A local action is whatever `uses: ./<path>` names — GitHub reads
 # `<path>/action.yml` wherever it lives, so reading `.github/actions/` alone left
 # `uses: ./ci/actions/setup` unread: an outside audit on 2026-08-30 planted one
@@ -67,6 +94,11 @@ def main(root: pathlib.Path) -> int:
     workflows += sorted((root / ".github" / "actions").glob("**/action.y*ml"))
     if not workflows:
         print("NA: no workflows or composite actions — nothing to check yet")
+        return 0
+    if all(_bundles_own(path.read_text(encoding="utf-8")) for path in workflows):
+        print(
+            "NA: only the bundle's own starting workflow, untouched — nothing of yours to check yet"
+        )
         return 0
 
     findings: list[str] = []
