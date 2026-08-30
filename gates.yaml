@@ -60,7 +60,16 @@ gates:
       release with no DOI, or an archived record under another concept, is seen
       the week it happens rather than at the next audit. The archive refuses a
       page above 25, found on the first live call — so the reader pages.
-    proved_by: []
+    proved_by:
+      - kind: mutation
+        ref: pr/100
+        date: 2026-08-30
+        caught: >-
+          Three mutations red — the release→archive direction dropped (a release
+          with no DOI passed), the concept check dropped (a record under another
+          concept passed), and the paging stopped after page one (the 26th version
+          was never read). Found live before the tests: the archive refuses
+          `size=100` with a 400, which the first call met.
   - id: the-pins-are-audited-here
     title: The tools this repository installs for itself are audited for advisories, and every finding is judged
     kind: job
