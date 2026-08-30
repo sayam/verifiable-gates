@@ -8,6 +8,16 @@ Notable changes to this project. The format follows
 
 ### Changed
 
+- **Every action pin names its version in a trailing comment, and a test keeps
+  it so.** The published rule `actions-sha-pinned` says "pinned to a commit
+  SHA with the version in a comment"; on 2026-08-30 all 6 distinct pins were
+  SHAs and 0 carried the comment, so a reader saw forty hex digits and
+  Dependabot had no version to rewrite. Each of the 20 `uses:` lines now ends
+  with the tag the GitHub API resolves for its SHA (`v7.0.1`, `v7.0.0`,
+  `v4.2.2`, `v4.1.0`; the codeql-action commit carries only `codeql-
+  bundle-v2.26.4`, so that is what it says), and a test reads the workflows as
+  text and refuses a pin with no version behind it, per occurrence. Owner's
+  decision, 2026-08-30.
 - **Every suppression carries its reason.** The rule
   `exception-registers-are-reasoned` asks each switched-off checker to say
   why; eleven `# noqa` lines and six `# type: ignore[...]` lines said nothing.
