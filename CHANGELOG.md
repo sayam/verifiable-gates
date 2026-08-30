@@ -8,6 +8,15 @@ Notable changes to this project. The format follows
 
 ### Changed
 
+- **The two excused jobs declare their watcher, and the promise is measured.**
+  `posture` and `release-sign` are not required checks; the register excused
+  them with "the maintainer sees a red within 7 days / 1 day" in prose, and no
+  gate carried `watched_by`, so `red_streak_census` — shipped from here since
+  the extraction — had nothing to measure on this repository (re-audit round
+  7). Both gates now say `severity: watched` with a `watched_by` block holding
+  the same number, a test holds the prose to the block, and the census runs on
+  posture's cron over the last 200 runs: "every `watched_by` promise still
+  holds (2 watched workflows)". Owner's decision, 2026-08-30.
 - **The `cla` job skips by the pull request's author, not the run's actor.**
   `github.actor` is whoever triggered the run, so a maintainer re-running a
   Dependabot pull request's checks would become the actor, the job would run,

@@ -335,6 +335,31 @@ def test_every_pins_directory_is_moved_by_dependabot() -> None:
 # ---------------------------------------------------------------- posture and the census
 
 
+def test_every_excused_job_declares_a_watcher_and_the_two_promises_agree() -> None:
+    """A job excused from being required is watched by a person instead — and the days the
+    register promises in prose and the days the gate promises in `watched_by` are one number,
+    measured by `red_streak_census` on the cron (no gate declared a watcher until 2026-08-30)."""
+    register = json.loads((ROOT / "pins/dev/posture-declared.json").read_text("utf-8"))
+    gates = yaml.safe_load((ROOT / "gates.yaml").read_text("utf-8"))["gates"]
+    by_job = {g["enforced_by"].get("job"): g for g in gates if g["kind"] == "job"}
+    words = {"one": 1, "seven": 7}
+
+    for job, why in register["not_required"].items():
+        gate = by_job[job]
+        assert gate["severity"] == "watched", (job, gate["severity"])
+        promised = int(gate["watched_by"]["within_days"])
+        said = re.search(r"within (\w+) days?", why)
+        assert said is not None, why
+        spoken = words.get(said.group(1)) or int(said.group(1))
+        assert spoken == promised, (job, said.group(1), promised)
+    census = next(
+        s
+        for s in preflight.jobs_on_disk(ROOT)["posture"]["steps"]
+        if "red_streak_census" in str(s.get("run"))
+    )
+    assert census.get("if") == "${{ !cancelled() }}"
+
+
 def test_the_two_clocks_tick_on_the_cron_not_only_on_a_push() -> None:
     """The schedule census and the revisit check ran only in ci.yml's `test` job, which runs
     on push and pull request — so with nobody pushing they stopped, and GitHub's 60-day cron
