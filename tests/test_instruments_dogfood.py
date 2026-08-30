@@ -401,3 +401,32 @@ def test_the_schedule_census_runs_over_a_full_clone() -> None:
 
     assert checkout["with"]["fetch-depth"] == 0
     assert census["name"] == "every declared schedule is still firing"
+
+
+# ---------------------------------------------------------------- the pins in the workflows
+
+# The action and its 40-hex pin, then whatever follows on the line. `uses:` values
+# in the workflows are unquoted; the pinning scanner is the one that tolerates quotes.
+PINNED_USES = re.compile(r"^\s*-?\s*uses:\s*(\S+/\S+@[0-9a-f]{40})(.*)$", re.MULTILINE)
+# A tag a person can read: `v7.0.1`, or the only tag the SHA carries when the
+# upstream names its releases otherwise (`codeql-bundle-v2.26.4`).
+VERSION_COMMENT = re.compile(r"^\s+#\s*\S*v\d+(\.\d+)*\s*$")
+
+
+def test_every_action_sha_is_followed_by_its_version_in_a_comment() -> None:
+    """The rule `actions-sha-pinned` reads "pinned to a commit SHA with the version
+    in a comment". On 2026-08-30 all 6 distinct pins were SHAs and 0 of the 6 carried
+    the comment: a reader saw forty hex digits and could not tell v7 from v4, and
+    Dependabot had no version to rewrite. Read as text, not YAML — a YAML loader
+    drops the comment this test is about; and per occurrence, not per SHA, because
+    Dependabot rewrites the comment on each line it bumps.
+    """
+    workflows = sorted((ROOT / ".github" / "workflows").glob("*.yml"))
+    assert workflows
+    seen: list[str] = []
+    for path in workflows:
+        for action, rest in PINNED_USES.findall(path.read_text(encoding="utf-8")):
+            seen.append(action)
+            assert VERSION_COMMENT.match(rest), f"{path.name}: {action} names no version"
+    assert len(seen) == 20, seen
+    assert len(set(seen)) == 6, sorted(set(seen))

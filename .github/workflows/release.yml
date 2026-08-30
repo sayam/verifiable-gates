@@ -44,12 +44,12 @@ jobs:
       # pins), the artifact from the tag. Checking out only the tag and taking
       # its pins failed on the first run — a tag cut before a tool was pinned
       # cannot carry the tool that attests it.
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ github.event.inputs.tag || github.event.release.tag_name }}
           path: tagged
-      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
           python-version: "3.13"
       - name: install the hash-pinned tools
@@ -69,13 +69,13 @@ jobs:
           cyclonedx-py environment sbom-env/bin/python --of JSON -o dist/sbom.cdx.json
           python -c "import json; c=json.load(open('dist/sbom.cdx.json'))['components']; n=[x['name'] for x in c]; assert 'verifiable-gates' in n and 'PyYAML' in n, n; print(n)"
       - name: attest build provenance for the wheel and the sdist
-        uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8
+        uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
         with:
           subject-path: |
             dist/*.whl
             dist/*.tar.gz
       - name: attest the SBOM against the wheel
-        uses: actions/attest-sbom@c604332985a26aa8cf1bdc465b92731239ec6b9e
+        uses: actions/attest-sbom@c604332985a26aa8cf1bdc465b92731239ec6b9e # v4.1.0
         with:
           subject-path: dist/*.whl
           sbom-path: dist/sbom.cdx.json
