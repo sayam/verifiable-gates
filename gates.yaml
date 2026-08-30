@@ -1844,6 +1844,14 @@ gates:
           `scaffold.json` that made seven scans traceback, and a scan exiting 2
           with a usage line; both were `[found]` with stderr swallowed (outside
           audit, 2026-08-30, reproduced).
+      - kind: mutation
+        ref: pr/139
+        date: 2026-08-31
+        caught: >-
+          Two planted cases red on the doctor as it was — a scan sleeping past
+          the timeout (raw TimeoutExpired before) and a scan printing half a
+          verdict then crashing ([found] before); a warning beside a real
+          finding holds [found] either way (outside audit, 2026-08-31).
 
   - id: the-manifest-is-an-input
     title: The manifest is validated as data, and a rule the bundle cannot decide cannot carry a script
@@ -2077,6 +2085,13 @@ gates:
           not fail, it *errored* — the reader's TypeError escaped `main()` as a
           traceback, which is the answer that is neither pass, fail nor misuse.
           Restored byte for byte, exit 2 with the reader's words.
+      - kind: mutation
+        ref: pr/139
+        date: 2026-08-31
+        caught: >-
+          A gate sleeping past GATE_TIMEOUT_SECONDS returned a red result whose
+          cause names the timeout — the same plant killed the harness with a raw
+          TimeoutExpired before (outside audit, 2026-08-31, reproduced).
 
   - id: a-published-rule-carries-its-origin
     title: A published rule names the incident behind it, belongs to a published layer, and names no framework

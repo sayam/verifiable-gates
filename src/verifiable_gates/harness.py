@@ -45,14 +45,21 @@ def run_test_gate(gate: dict[str, Any], root: pathlib.Path) -> dict[str, Any]:
     """Run one gate's tests in the given tree, and say why if it failed."""
     files = gate["enforced_by"]["tests"]
     started = time.monotonic()
-    result = subprocess.run(  # noqa: S603 — same interpreter, paths from a checked registry
-        [sys.executable, "-m", "pytest", "-q", "--no-header", *files],
-        cwd=root,
-        capture_output=True,
-        text=True,
-        check=False,
-        timeout=GATE_TIMEOUT_SECONDS,
-    )
+    try:
+        result = subprocess.run(  # noqa: S603 — same interpreter, paths from a checked registry
+            [sys.executable, "-m", "pytest", "-q", "--no-header", *files],
+            cwd=root,
+            capture_output=True,
+            text=True,
+            check=False,
+            timeout=GATE_TIMEOUT_SECONDS,
+        )
+    except subprocess.TimeoutExpired:
+        # A hung gate is a red answer, not a traceback — the loop can act on a
+        # cause; it cannot act on `TimeoutExpired` (outside audit, 2026-08-31).
+        seconds = round(time.monotonic() - started, 2)
+        cause = f"timed out after {GATE_TIMEOUT_SECONDS}s — the gate never answered"
+        return {"status": "fail", "seconds": seconds, "cause": cause}
     seconds = round(time.monotonic() - started, 2)
     if result.returncode == 0:
         return {"status": "pass", "seconds": seconds}

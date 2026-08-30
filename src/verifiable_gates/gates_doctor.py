@@ -30,7 +30,11 @@ A scan that exits without a verdict — a traceback on a broken `scaffold.json`,
 exit 2 — is `[error]`, not `[found]`: its stderr is passed through and it is
 counted apart from the findings, because a tool that crashed has judged nothing
 (an outside audit on 2026-08-30 fed a malformed config and the doctor answered
-`[found]` seven times with the tracebacks swallowed). It is still red.
+`[found]` seven times with the tracebacks swallowed). It is still red. The same
+answer for a scan that hangs past its timeout (the doctor tracebacked with
+`TimeoutExpired`, outside audit 2026-08-31) and for one that printed part of a
+verdict and then crashed — a traceback on stderr beside exit 1 means the scan
+did not finish judging, however much it said first.
 
 exit 0 = clean · 1 = findings, or an incomplete install · 2 = called wrongly
 
@@ -97,22 +101,33 @@ def check_installed(root: pathlib.Path, manifest: dict[str, Any], bundle: pathli
     return 0
 
 
+# One scan gets five minutes — a scan is a file read, not a build; one that is
+# still running has hung, and a hang is an answer the report has to carry.
+SCAN_TIMEOUT = 300
+
+
 def run_scans(root: pathlib.Path, manifest: dict[str, Any], bundle: pathlib.Path) -> int:
     """Run every scan, reporting each gate rather than stopping at the first finding."""
     failed: list[str] = []
     broken: list[str] = []
     for gid, script in scan_entries(manifest):
-        result = subprocess.run(  # noqa: S603 — argv is built here, interpreter is sys.executable
-            [sys.executable, str(bundle / script), str(root)],
-            capture_output=True,
-            text=True,
-            check=False,
-            timeout=300,
-        )
+        try:
+            result = subprocess.run(  # noqa: S603 — argv is built here, interpreter is sys.executable
+                [sys.executable, str(bundle / script), str(root)],
+                capture_output=True,
+                text=True,
+                check=False,
+                timeout=SCAN_TIMEOUT,
+            )
+        except subprocess.TimeoutExpired:
+            print(f"[error] {gid} — the scan did not answer (timed out after {SCAN_TIMEOUT}s)")
+            broken.append(gid)
+            continue
         sys.stderr.write(result.stderr)
+        crashed = "Traceback (most recent call last)" in result.stderr
         if result.returncode == 0:
             print(f"[{'NA' if result.stdout.startswith('NA:') else 'pass':>5}] {gid}")
-        elif result.returncode == 1 and result.stdout.strip():
+        elif result.returncode == 1 and result.stdout.strip() and not crashed:
             print(f"[found] {gid}")
             sys.stdout.write(result.stdout)
             failed.append(gid)

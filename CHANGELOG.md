@@ -8,6 +8,17 @@ Notable changes to this project. The format follows
 
 ### Fixed
 
+- **A hang and a half-finished scan are answers, not tracebacks.** A scan
+  that slept past the doctor's timeout killed the doctor with a raw
+  `TimeoutExpired`; the harness died the same way on a hung gate; and a scan
+  that printed part of a verdict and then crashed was labelled `[found]`
+  (outside audit, 2026-08-31, all reproduced). The doctor now reports
+  `[error] <gate> — the scan did not answer (timed out after 300s)`, treats
+  exit 1 with a traceback on stderr as `[error]` however much stdout came
+  first — a warning on stderr beside a real finding is still `[found]` — and
+  the harness returns a red result whose cause says the gate timed out.
+  Proved by mutation three ways; the warning case holds its direction either
+  way (#139).
 - **`csp-no-inline` reads markup the way a browser does.** An `onclick=` at
   a wrapped line's start or after a `/` was unread (the pattern wanted
   whitespace before it), a `<script` whose tag closes on a later line was
