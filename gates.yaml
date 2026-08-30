@@ -73,6 +73,13 @@ gates:
           concept passed), and the paging stopped after page one (the 26th version
           was never read). Found live before the tests: the archive refuses
           `size=100` with a 400, which the first call met.
+      - kind: mutation
+        ref: pr/104
+        date: 2026-08-30
+        caught: >-
+          `_uncountable` dropped from `problems()` and the duplicate-version branch
+          disabled — each red in the test that feeds two `0.1.6` records and one
+          without a version, the input the pre-cut review used to get a green.
   - id: the-pins-are-audited-here
     title: The tools this repository installs for itself are audited for advisories, and every finding is judged
     kind: job
@@ -1222,6 +1229,12 @@ gates:
           `required_signatures` not read — each red. The last was found live first:
           the first `posture --settings` run with the wider register had `blind`
           report a declared switch the reader never asked for.
+      - kind: mutation
+        ref: pr/104
+        date: 2026-08-30
+        caught: >-
+          The alerts switch's refusal check widened back to any "404" — a 403 whose
+          words contain 404 read as "off" instead of the third answer, red.
 
   - id: every-advisory-has-been-judged
     title: Every finding has been decided about, and every decision still describes something
