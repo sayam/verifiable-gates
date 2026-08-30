@@ -917,6 +917,24 @@ gates:
           project did not mention, and accepting a misspelled kind that then
           behaved like a floor.
 
+  - id: our-own-floors-sit-against-reality
+    title: The docstring and coverage floors in pyproject are held by the ratchet module this repository ships
+    kind: test
+    severity: blocking
+    enforced_by: {job: test, tests: [tests/test_own_ratchets.py]}
+    layer: internal
+    pillar: devx
+    portable: false
+    born_from: >-
+      `ratchets` shipped from here, proved on fakes, and was pointed at nobody:
+      this repository's own floors were "moved up only" by a comment in ci.yml
+      and a row in DECISIONS.md, which the 2026-08-30 re-audit (rounds 14 and
+      23) counted among the declared rules with no machine behind them. The
+      docstring floor is now measured live and held with the slack the DECISIONS
+      row `interrogate-at-84` names (the floor moves at 90, so the test and the
+      row go red on the same day); the coverage floor is held at the top of its
+      scale, where the tool itself refuses a run beneath it.
+    proved_by: []
   - id: a-number-comes-from-the-thing-itself
     title: Every figure a threshold is held against is read from the source, never from a summary
     kind: test

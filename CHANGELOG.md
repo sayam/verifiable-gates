@@ -8,6 +8,16 @@ Notable changes to this project. The format follows
 
 ### Added
 
+- **The ratchet module is pointed at this repository's own floors.** It
+  shipped from here, proved on fakes, while the docstring and coverage floors
+  in `pyproject.toml` were "moved up only" by a comment and a DECISIONS row —
+  the rule `ratchets-do-not-drift-below-reality` with no machine behind it
+  (re-audit rounds 14 and 23). `tests/test_own_ratchets.py` measures
+  `interrogate` live and holds the floor with the slack the row
+  `interrogate-at-84` names — six points, so the test and the row go red on
+  the same day coverage reaches 90 — and holds `fail_under` at 100, the top
+  of its scale. Gate `our-own-floors-sit-against-reality`. Owner's decision,
+  2026-08-30.
 - **The archive is read back.** Nothing read Zenodo: the cards in the tree
   are held to each other and the About field is read live, but the archived
   copy — the one that cannot be corrected — was compared with the releases
