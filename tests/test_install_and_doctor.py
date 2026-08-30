@@ -65,6 +65,10 @@ def test_the_doctor_runs_the_scans_on_a_bare_project(
     assert done.returncode == 0, done.stdout + done.stderr
     assert "[   NA]" in done.stdout, "an empty project should be all not-applicable"
     assert "[found]" not in done.stdout
+    passes = [line for line in done.stdout.splitlines() if line.startswith("[ pass]")]
+    assert passes == ["[ pass] gates-registry-total"], (
+        "only the shipped index is measured on an empty project — see test_box_opens_true"
+    )
 
 
 def test_the_doctor_reports_findings_and_names_them(

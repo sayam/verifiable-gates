@@ -16,6 +16,7 @@ from __future__ import annotations
 
 import importlib
 import json
+import re
 from typing import TYPE_CHECKING, Any, NamedTuple
 
 import bundle
@@ -34,6 +35,7 @@ from verifiable_gates.checks import (
 
 if TYPE_CHECKING:
     import pathlib
+    from types import ModuleType
 
 
 class Case(NamedTuple):
@@ -570,6 +572,60 @@ def test_a_local_action_that_does_not_exist_is_nothing_to_read(
     caller = {".github/workflows/ci.yml": "jobs:\n  a:\n    steps:\n      - uses: ./nowhere\n"}
     assert case.module.main(build(tmp_path, caller)) == 0
     assert case.gate not in capsys.readouterr().out
+
+
+# ------------------------------------------- the bundle's own starting workflow
+#
+# Installed into an empty directory, the bundle writes `.github/workflows/gates.yml`
+# and `gates.yaml`; the two pinning scans then said `pass` on the workflow it had
+# just written — nothing of the project's measured (outside audit, 2026-08-30).
+# The registry scan is different on purpose: the shipped index is real content
+# that has to be true about itself, and `tests/test_box_opens_true.py` holds it
+# to *pass*, never NA, so an absent index cannot look like a satisfied one.
+
+TEMPLATE = (bundle.BUNDLE / "ci-template.yml").read_text(encoding="utf-8")
+DEFAULT_REGISTRY = (bundle.BUNDLE / "gates.yaml.default").read_text(encoding="utf-8")
+STARTING = {".github/workflows/gates.yml": TEMPLATE, "gates.yaml": DEFAULT_REGISTRY}
+OWN_SCANNERS = [
+    pytest.param(scan_workflow_pinning, id="workflow-pinning"),
+    pytest.param(scan_install_pinning, id="install-pinning"),
+]
+
+
+@pytest.mark.parametrize("scanner", OWN_SCANNERS)
+def test_the_untouched_starting_workflow_is_nothing_of_yours(
+    tmp_path: pathlib.Path, capsys: pytest.CaptureFixture[str], scanner: ModuleType
+) -> None:
+    assert scanner.main(build(tmp_path, STARTING)) == 0
+    out = capsys.readouterr().out
+    assert out.startswith("NA:"), out
+    assert "bundle's own" in out
+
+
+@pytest.mark.parametrize("scanner", OWN_SCANNERS)
+def test_a_starting_workflow_with_a_line_added_is_the_projects_and_is_judged(
+    tmp_path: pathlib.Path, capsys: pytest.CaptureFixture[str], scanner: ModuleType
+) -> None:
+    """One floating action appended: no longer the bundle's, and red for it or not NA."""
+    edited = TEMPLATE + "      - uses: evil/act@v1\n      - run: pip install ruff\n"
+    files = {**STARTING, ".github/workflows/gates.yml": edited}
+    assert scanner.main(build(tmp_path, files)) == 1
+    assert not capsys.readouterr().out.startswith("NA:")
+
+
+@pytest.mark.parametrize("scanner", OWN_SCANNERS)
+def test_a_starting_workflow_whose_pin_was_loosened_is_judged(
+    tmp_path: pathlib.Path, capsys: pytest.CaptureFixture[str], scanner: ModuleType
+) -> None:
+    """The one edit that matters most is not the bundle's any more — and is not NA."""
+    loosened = re.sub(r"actions/checkout@[0-9a-f]{40}", "actions/checkout@v7", TEMPLATE)
+    files = {**STARTING, ".github/workflows/gates.yml": loosened}
+    code = scanner.main(build(tmp_path, files))
+    out = capsys.readouterr().out
+    assert not out.startswith("NA:"), out
+    if scanner is scan_workflow_pinning:
+        assert code == 1
+        assert "actions/checkout@v7" in out
 
 
 # ---------------------------------------------------------------- the ADR index
