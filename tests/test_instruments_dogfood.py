@@ -18,7 +18,7 @@ import tomllib
 import pytest
 import yaml
 
-from verifiable_gates import check_issue_handoff, harness, preflight
+from verifiable_gates import check_issue_handoff, harness, measure, preflight, workflows
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 
@@ -500,3 +500,42 @@ def test_a_body_edit_reruns_the_checks_that_read_the_body() -> None:
     declared = body.get(True, body.get("on"))
 
     assert set(declared["pull_request"]["types"]) == {"opened", "synchronize", "reopened", "edited"}
+
+
+# ------------------------------------------- two published rules, pointed at home
+#
+# `rules.yaml` publishes `jobs-declare-a-time-budget` and
+# `exception-registers-are-reasoned`, and until 2026-08-30 nothing here read this
+# repository's own `timeout-minutes` or its own suppression lines: an outside audit
+# removed one of each and 1171 tests stayed green. The measuring module was
+# proved on fakes and pointed at nobody — the shape the second rule's own
+# born_from describes.
+
+SUPPRESSED_LINES = 110  # every one with a reason; a new one moves this number, visibly
+
+
+def test_every_job_in_our_own_workflows_declares_a_time_budget() -> None:
+    """`timeout-minutes` on every job — a job that hangs is a runner nobody gets back."""
+    without: list[str] = []
+    for name, workflow in workflows.all_workflows(workflows.workflow_dir(ROOT)).items():
+        for job_name, job in workflows.jobs(workflow).items():
+            if "uses" in job:  # a reusable workflow carries its own budget
+                continue
+            if not isinstance(job.get("timeout-minutes"), int):
+                without.append(f"{name}: {job_name}")
+    assert without == [], f"jobs with no timeout-minutes: {without}"
+
+
+def test_our_own_suppressions_all_carry_a_reason() -> None:
+    """The register of switched-off checks, read for once — a line with no why is a gap."""
+    counts = measure.suppression_counts(ROOT, ("src/**/*.py", "tests/**/*.py"))
+    assert counts["suppressions_without_reason"] == 0, counts
+
+
+def test_the_number_of_suppressions_is_the_one_written_here() -> None:
+    """A suppression added or removed changes this number in the same pull request."""
+    counts = measure.suppression_counts(ROOT, ("src/**/*.py", "tests/**/*.py"))
+    assert counts["suppressions"] == SUPPRESSED_LINES, (
+        f"{counts['suppressions']} lines switch a check off, this file says "
+        f"{SUPPRESSED_LINES} — rewrite the number here, with the reason on the new line"
+    )
