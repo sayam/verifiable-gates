@@ -464,6 +464,14 @@ gates:
           A row with its `why` emptied went red by id; a duplicated id went red;
           a revisit date set to yesterday went red naming the decision; a column
           renamed in the header went red.
+      - kind: mutation
+        ref: pr/118
+        date: 2026-08-30
+        caught: >-
+          The record itself: `strict-checks-off` deleted, red; a probe row
+          added, red; two rows swapped, red. An outside audit did the first two
+          on 2026-08-30 and the suite stayed green — every row's shape was held,
+          which rows existed was not.
 
   - id: the-posture-is-read-on-a-schedule
     title: Branch protection and the repository switches are read weekly and on every push, and held to the register

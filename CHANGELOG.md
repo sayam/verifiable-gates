@@ -79,6 +79,12 @@ Notable changes to this project. The format follows
   names and what each wants, two-way, the way `test_gate_evidence.py` holds
   proof rows: turned, removed or added is red until the same pull request
   changes both. Proved by mutation four ways (#116).
+- **The DECISIONS rows are held by id.** Every row's shape was held; which
+  rows existed was not — a row deleted or added left the suite green (outside
+  audit, 2026-08-30, reproduced both ways). The ids are copied into
+  `tests/test_decisions.py` in order, so a row removed, added or reordered is
+  red until the same pull request changes the list too. Proved by mutation
+  three ways (#118).
 
 ## [0.1.7] - 2026-08-30
 
