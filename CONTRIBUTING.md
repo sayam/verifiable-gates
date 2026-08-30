@@ -68,7 +68,12 @@ teaches rules it does not follow, and the answer was 2.7%.
   proved there before it moved here). A ref is `pr/N`, `run/N` or
   `commit/<sha>`, with `owner/repo#` in front when it is not this repository —
   the schema holds the shape, and a real calendar date beside it, because a
-  ref nobody can look up is not evidence. `proved_by` itself is optional for exactly one reason: the
+  ref nobody can look up is not evidence. The ref is the pull request or run
+  where the red *was seen*, not the one that added the job: the two security
+  proofs cited the pull request that added `codeql` and `secret-scan`, whose
+  every check is green, while the red sat on a throwaway pull request and its
+  run — an outside reader followed the ref and called the proof unverifiable
+  (2026-08-30). Prefer `run/N` when the run is what went red. `proved_by` itself is optional for exactly one reason: the
   list of gates that have never gone red can only shrink, and a gate that has not
   yet had its defect is still a gate.
 - **`preflight --root` runs the workflow's `run:` steps in a local bash**, because
