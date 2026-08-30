@@ -338,10 +338,11 @@ gates:
       directions — the same shape as the advisory register.
     proved_by:
       - kind: ci-red
-        ref: pr/45
+        ref: run/33244862480
         date: 2026-08-29
         caught: >-
-          A throwaway branch planted `eval()` over request input; the analysis
+          A throwaway pull request (#46, closed unmerged) planted `eval()` over
+          request input; the analysis
           raised the alert and the decider step went red with the rule named —
           `alert CodeQL/py/code-injection (open) has not been judged`. The same
           pull request's CodeQL step itself stayed green, which is the reason the
@@ -365,10 +366,11 @@ gates:
       explain.
     proved_by:
       - kind: ci-red
-        ref: pr/45
+        ref: run/33244862480
         date: 2026-08-29
         caught: >-
-          A throwaway branch first committed the documented AWS example key, and
+          A throwaway pull request (#46, closed unmerged) first committed the
+          documented AWS example key, and
           the job stayed **green** — gitleaks allowlists that exact value, so the
           probe proved nothing and is recorded here so nobody repeats it. A second
           commit planted a token in the `ghp_` shape: red, `leaks found: 1`, with
