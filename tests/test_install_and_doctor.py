@@ -317,3 +317,70 @@ def test_a_clean_run_returns_zero_in_process(
     output = capsys.readouterr().out
     assert "[found]" not in output
     assert "waiting on this project's own tests" in output
+
+
+# ---------------------------------------------------------------- --root, like the other tools
+#
+# Every other tool here takes `--root`. The re-audit's operator typed it at the
+# doctor and got a usage error (round 18, 2026-08-30). The flag is an alias for
+# the positional, and the two must answer alike.
+#
+# The tests below point the doctor at a project that is NOT the one above its
+# bundle. That is deliberate: a `--root` that parsed but was ignored would fall
+# back to the default, and on the usual layout the default is the same directory
+# — the mutation would pass. Only a root that differs from the default can show
+# that the flag was read.
+
+
+def _elsewhere(tmp_path: pathlib.Path) -> pathlib.Path:
+    """A second, dirty project the installed bundle knows nothing about."""
+    other = tmp_path / "elsewhere"
+    other.mkdir()
+    (other / "scaffold.json").write_text(json.dumps({"entrypoints": ["run.py"]}), encoding="utf-8")
+    (other / "run.py").write_text("app = object()\napp.run(debug=True)\n", encoding="utf-8")
+    return other
+
+
+def test_root_flag_answers_exactly_as_the_positional(
+    tmp_path: pathlib.Path, installed: pathlib.Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    other = _elsewhere(tmp_path)
+    capsys.readouterr()
+
+    manifest = str(installed / "tools" / "overlay.json")
+    positional = gates_doctor.main([str(other), "--manifest", manifest])
+    by_position = capsys.readouterr().out
+    flagged = gates_doctor.main(["--root", str(other), "--manifest", manifest])
+    by_flag = capsys.readouterr().out
+
+    assert positional == flagged == 1
+    assert "[found] no-debug-entrypoint" in by_flag, "--root did not reach the scans"
+    assert by_flag == by_position, "the two spellings of the root must give one report"
+
+
+def test_root_flag_works_when_the_doctor_is_run_as_a_file(
+    tmp_path: pathlib.Path, installed: pathlib.Path
+) -> None:
+    """The operator's exact call, against the shipped file rather than the module."""
+    other = _elsewhere(tmp_path)
+
+    done = subprocess.run(  # noqa: S603 — argv is built here, interpreter is sys.executable
+        [sys.executable, str(installed / DOCTOR), "--root", str(other)],
+        capture_output=True,
+        text=True,
+        check=False,
+        timeout=300,
+    )
+    assert done.returncode == 1, done.stdout + done.stderr
+    assert "[found] no-debug-entrypoint" in done.stdout
+
+
+def test_naming_the_root_twice_is_a_misuse(
+    installed: pathlib.Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """Exit 2 with a message — not a silent choice between two directories."""
+    manifest = str(installed / "tools" / "overlay.json")
+    with pytest.raises(SystemExit) as raised:
+        gates_doctor.main([str(installed), "--root", str(installed), "--manifest", manifest])
+    assert raised.value.code == 2
+    assert "not both" in capsys.readouterr().err

@@ -7,7 +7,12 @@ its first dependency. That constraint is why the manifest is JSON rather than
 YAML, and why the few lines of manifest reading here are not shared with
 `verifiable_gates.manifest` — the duplication is small and the property is not.
 
-    python3 gates_doctor.py [root] [--manifest path] [--installed]
+    python3 gates_doctor.py [root | --root DIR] [--manifest path] [--installed]
+
+The project can be named either way. Every other tool in this bundle takes
+`--root`, and an operator who reaches for the same spelling here should be
+answered, not shown a usage error. Naming it twice is a misuse (exit 2): two
+roots that differ would leave the report silently about one of them.
 
 **Two modes that measure different things, and the difference is the point:**
 
@@ -117,6 +122,9 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument(
         "root", nargs="?", help="the project to look at (default: above the bundle)"
     )
+    parser.add_argument(
+        "--root", dest="root_option", metavar="DIR", help="the same, spelt like the other tools"
+    )
     parser.add_argument("--manifest", help="path to overlay.json (default: beside this file)")
     parser.add_argument(
         "--installed",
@@ -124,12 +132,15 @@ def main(argv: list[str] | None = None) -> int:
         help="check the bundle arrived intact, without judging the project",
     )
     args = parser.parse_args(argv)
+    if args.root is not None and args.root_option is not None:
+        parser.error("give the project once: either as the positional root or as --root, not both")
+    root_arg = args.root_option if args.root is None else args.root
 
     manifest_path = (
         pathlib.Path(args.manifest).resolve() if args.manifest else here / "overlay.json"
     )
     bundle = manifest_path.parent
-    root = pathlib.Path(args.root).resolve() if args.root else bundle.parent
+    root = pathlib.Path(root_arg).resolve() if root_arg else bundle.parent
     manifest = load_manifest(manifest_path)
 
     if args.installed:
