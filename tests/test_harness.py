@@ -49,6 +49,19 @@ def a_tree(root: pathlib.Path, body: str) -> pathlib.Path:
 # ---------------------------------------------------------------- one gate
 
 
+def test_a_gate_that_hangs_is_a_red_answer_not_a_traceback(
+    tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """`TimeoutExpired` used to escape; the loop can act on a cause, not on a traceback."""
+    monkeypatch.setattr(harness, "GATE_TIMEOUT_SECONDS", 1)
+    sleeping = "import time\n\ndef test_slow():\n    time.sleep(30)\n"
+
+    result = harness.run_test_gate(a_gate(), a_tree(tmp_path, sleeping))
+
+    assert result["status"] == "fail"
+    assert "timed out after 1s" in result["cause"]
+
+
 def test_a_passing_gate_reports_pass_and_a_duration(tmp_path: pathlib.Path) -> None:
     result = harness.run_test_gate(a_gate(), a_tree(tmp_path, PASSING))
     assert result["status"] == "pass"

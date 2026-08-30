@@ -214,6 +214,66 @@ def test_a_scan_that_crashes_is_an_error_with_its_traceback_not_a_finding(
     assert "JSONDecodeError" in done.stderr
 
 
+def test_a_scan_that_hangs_is_an_error_not_a_traceback(
+    tmp_path: pathlib.Path,
+    bundle_copy: pathlib.Path,
+    capsys: pytest.CaptureFixture[str],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The doctor used to die of `TimeoutExpired`; a hang is an answer the report carries."""
+    project = tmp_path / "project"
+    assert do_install(project, bundle_copy) == 0
+    (project / "tools" / "checks" / "scan_workflow_pinning.py").write_text(
+        "import time\ntime.sleep(30)\n", encoding="utf-8"
+    )
+    monkeypatch.setattr(gates_doctor, "SCAN_TIMEOUT", 1)
+    capsys.readouterr()
+
+    code = gates_doctor.main([str(project), "--manifest", str(project / "tools" / "overlay.json")])
+    out = capsys.readouterr().out
+    assert code == 1
+    assert "[error] actions-sha-pinned — the scan did not answer (timed out after 1s)" in out
+    assert "did not answer, which is no verdict" in out
+
+
+def test_a_scan_that_prints_half_a_verdict_and_crashes_is_an_error(
+    tmp_path: pathlib.Path, bundle_copy: pathlib.Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """Exit 1 with stdout *and* a traceback on stderr: the scan did not finish judging."""
+    project = tmp_path / "project"
+    assert do_install(project, bundle_copy) == 0
+    (project / "tools" / "checks" / "scan_workflow_pinning.py").write_text(
+        "print('actions-sha-pinned: x.yml: half a verdict')\nraise RuntimeError('boom')\n",
+        encoding="utf-8",
+    )
+    capsys.readouterr()
+
+    done = run_doctor(project)
+    assert done.returncode == 1
+    assert "[error] actions-sha-pinned" in done.stdout
+    assert "[found] actions-sha-pinned" not in done.stdout
+    assert "RuntimeError: boom" in done.stderr
+
+
+def test_a_scan_that_warns_on_stderr_beside_a_real_finding_is_still_found(
+    tmp_path: pathlib.Path, bundle_copy: pathlib.Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """The other direction: a warning is not a traceback; the verdict stands."""
+    project = tmp_path / "project"
+    assert do_install(project, bundle_copy) == 0
+    (project / "tools" / "checks" / "scan_workflow_pinning.py").write_text(
+        "import sys\nprint('actions-sha-pinned: x.yml: actions/checkout@v4')\n"
+        "print('warning: slow tree', file=sys.stderr)\nsys.exit(1)\n",
+        encoding="utf-8",
+    )
+    capsys.readouterr()
+
+    done = run_doctor(project)
+    assert done.returncode == 1
+    assert "[found] actions-sha-pinned" in done.stdout
+    assert "warning: slow tree" in done.stderr
+
+
 def test_a_scan_that_is_called_wrongly_is_an_error_too(
     tmp_path: pathlib.Path, bundle_copy: pathlib.Path, capsys: pytest.CaptureFixture[str]
 ) -> None:
