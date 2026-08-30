@@ -13,6 +13,10 @@ is not an index install: nothing is fetched, so there is nothing to pin. That
 exemption needs all three halves, and there is a test for each of them — see
 `_installs_from_an_index`.
 
+A `run:` line that hands off to a shell script in the checkout is followed into
+the script, because the install it hides runs with the job's permissions all the
+same (outside audit, 2026-08-30: `pip install ruff` in `scripts/setup.sh`, exit 0).
+
 Comments are stripped before checking — these files like to explain themselves by
 quoting the very command they are telling you not to use. A comment at the end of
 a line goes too: `pip install ruff  # TODO --require-hashes` was green because the
@@ -164,6 +168,43 @@ def _without_comment(line: str) -> str:
     return line
 
 
+# A `run:` line that hands off to a shell script in the checkout — `./scripts/
+# setup.sh`, `bash scripts/setup.sh`, `sh …`, `source …`, `. …` — installs with
+# the job's permissions from lines the workflow never shows. An outside audit on
+# 2026-08-30 planted `pip install ruff` in a script the workflow called and got
+# exit 0. Every script a read file names is read too, scripts calling scripts
+# included; a path that climbs out of the checkout or is absolute is not ours.
+SCRIPT = re.compile(
+    r"(?:^|[\s;&|(])(?:(?:bash|sh|source|\.)\s+)?(?P<path>(?:\./)?[\w./-]+\.(?:sh|bash))(?=[\s;&|)]|$)"
+)
+
+
+def _scripts_named(root: pathlib.Path, path: pathlib.Path) -> list[pathlib.Path]:
+    """The shell scripts in the checkout that one read file hands off to."""
+    named = [
+        pathlib.PurePosixPath(match.group("path"))
+        for line in _commands(path)
+        for match in SCRIPT.finditer(line)
+    ]
+    return [
+        root / name
+        for name in named
+        if not name.is_absolute() and ".." not in name.parts and (root / name).is_file()
+    ]
+
+
+def _with_scripts(root: pathlib.Path, targets: list[pathlib.Path]) -> list[pathlib.Path]:
+    """`targets` plus every shell script they hand off to, however deep."""
+    seen = list(targets)
+    queue = list(targets)
+    while queue:
+        for script in _scripts_named(root, queue.pop()):
+            if script not in seen:
+                seen.append(script)
+                queue.append(script)
+    return seen
+
+
 def _commands(path: pathlib.Path) -> list[str]:
     joined, buffer = [], ""
     for raw in path.read_text(encoding="utf-8").splitlines():
@@ -189,7 +230,7 @@ def main(root: pathlib.Path) -> int:
         return 0
 
     findings: list[str] = []
-    for path in _followed(root, targets):
+    for path in _with_scripts(root, _followed(root, targets)):
         # One `run:` line can chain several commands; each is judged on its own,
         # or the second hides behind the first's exemption.
         for line in (part for joined in _commands(path) for part in CHAIN.split(joined)):

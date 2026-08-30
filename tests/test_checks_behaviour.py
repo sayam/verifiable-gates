@@ -701,6 +701,84 @@ def test_an_install_from_a_lockfile_is_left_alone(
     assert "ci-tools-hash-pinned" not in capsys.readouterr().out
 
 
+SCRIPT_CALLERS = [
+    "./scripts/setup.sh",
+    "bash scripts/setup.sh",
+    "sh ./scripts/setup.sh",
+    "source scripts/setup.sh",
+    ". scripts/setup.sh",
+    "make lint && ./scripts/setup.sh --fast",
+]
+
+
+@pytest.mark.parametrize("call", SCRIPT_CALLERS)
+def test_an_install_hidden_in_a_shell_script_ci_runs_is_read(
+    tmp_path: pathlib.Path, capsys: pytest.CaptureFixture[str], call: str
+) -> None:
+    """The workflow shows `./scripts/setup.sh`; the `pip install` is in the script."""
+    files = {
+        ".github/workflows/ci.yml": f"jobs:\n  a:\n    steps:\n      - run: {call}\n",
+        "scripts/setup.sh": "#!/bin/sh\n# pip install ruff <- a comment\npip install ruff\n",
+    }
+    assert scan_install_pinning.main(build(tmp_path, files)) == 1
+    out = capsys.readouterr().out
+    assert "scripts/setup.sh: pip install ruff" in out
+
+
+def test_a_script_calling_a_script_is_followed(
+    tmp_path: pathlib.Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    files = {
+        ".github/workflows/ci.yml": "jobs:\n  a:\n    steps:\n      - run: ./scripts/setup.sh\n",
+        "scripts/setup.sh": "#!/bin/sh\n./scripts/inner.sh\n",
+        "scripts/inner.sh": "pip install ruff\n",
+    }
+    assert scan_install_pinning.main(build(tmp_path, files)) == 1
+    assert "scripts/inner.sh: pip install ruff" in capsys.readouterr().out
+
+
+def test_a_clean_shell_script_is_left_alone(
+    tmp_path: pathlib.Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """The other direction: a script that pins is not reported for being a script."""
+    files = {
+        ".github/workflows/ci.yml": "jobs:\n  a:\n    steps:\n      - run: ./scripts/setup.sh\n",
+        "scripts/setup.sh": "pip install --require-hashes -r pins/dev/requirements.txt\n",
+    }
+    assert scan_install_pinning.main(build(tmp_path, files)) == 0
+    assert "ci-tools-hash-pinned" not in capsys.readouterr().out
+
+
+@pytest.mark.parametrize(
+    "call", ["./scripts/gone.sh", "bash /usr/local/bin/setup.sh", "sh ../elsewhere/setup.sh"]
+)
+def test_a_script_that_is_not_ours_to_read_is_nothing(
+    tmp_path: pathlib.Path, capsys: pytest.CaptureFixture[str], call: str
+) -> None:
+    """Missing, absolute, or climbing out of the checkout: not read, not a traceback."""
+    files = {".github/workflows/ci.yml": f"jobs:\n  a:\n    steps:\n      - run: {call}\n"}
+    root = build(tmp_path / "project", files)
+    (tmp_path / "elsewhere").mkdir()
+    (tmp_path / "elsewhere" / "setup.sh").write_text("pip install ruff\n", encoding="utf-8")
+    assert scan_install_pinning.main(root) == 0
+    assert "ci-tools-hash-pinned" not in capsys.readouterr().out
+
+
+def test_a_script_named_twice_and_calling_itself_is_read_once(
+    tmp_path: pathlib.Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """Two steps call it and it calls itself: one reading, one finding, no loop."""
+    files = {
+        ".github/workflows/ci.yml": (
+            "jobs:\n  a:\n    steps:\n"
+            "      - run: ./scripts/setup.sh\n      - run: ./scripts/setup.sh\n"
+        ),
+        "scripts/setup.sh": "./scripts/setup.sh\npip install ruff\n",
+    }
+    assert scan_install_pinning.main(build(tmp_path, files)) == 1
+    assert capsys.readouterr().out.count("scripts/setup.sh: pip install ruff") == 1
+
+
 def test_a_command_split_over_lines_is_judged_whole(
     tmp_path: pathlib.Path, capsys: pytest.CaptureFixture[str]
 ) -> None:
