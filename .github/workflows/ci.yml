@@ -12,7 +12,12 @@ name: CI
 on:
   push:
     branches: [main]
+  # `edited` is added to the defaults because the `cla` job reads the pull
+  # request body: a contributor who fixes the description must get a new run
+  # without closing and reopening (the 2026-08-30 re-audit had to). It re-runs
+  # every job in this file on a body edit — accepted, the file is small.
   pull_request:
+    types: [opened, synchronize, reopened, edited]
 
 permissions:
   contents: read
