@@ -365,6 +365,13 @@ gates:
           hardcoded instead of read from security.yml, and its `exit 1` turned to
           `exit 0` — each red in the test that runs the block through bash on a
           tree pinning 8.0.0.
+      - kind: mutation
+        ref: pr/105
+        date: 2026-08-30
+        caught: >-
+          The mover's bare `grep | head | sed` pipeline put back: on a tree whose
+          download line changed shape the step aborted with no message, and the test
+          that expects "could not read the pinned gitleaks version" went red.
 
   - id: a-release-carries-its-sbom-and-provenance
     title: A release's wheel, sdist and SBOM are built in CI, attested keyless, and verified both ways before they are attached
