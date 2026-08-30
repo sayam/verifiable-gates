@@ -494,6 +494,15 @@ def test_the_selected_actions_detail_is_read_and_a_pattern_is_not_github_owned(
     assert posture.setting_problems(state, {"selected_actions": want}) != []
 
 
+def test_a_selected_actions_answer_that_is_not_a_mapping_is_the_third_answer(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A 409 body or an error string in place of the detail is "could not look", not a value."""
+    a_platform(monkeypatch, PROTECTION, REPO, selected=["not", "a", "mapping"])  # type: ignore[arg-type]  # the platform's shape, not ours
+
+    assert posture.platform_state("main")[0]["selected_actions"] is None
+
+
 def test_the_selected_actions_detail_is_none_when_the_policy_is_not_selected(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
