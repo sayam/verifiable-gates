@@ -200,6 +200,13 @@ gates:
           switched to `hatchling` in `pyproject.toml` alone — each red in the test
           that holds the two requirement lists to the pins. Found by the pre-cut
           review of 2026-08-30.
+      - kind: mutation
+        ref: pr/94
+        date: 2026-08-30
+        caught: >-
+          Stripping the version comment from one SHA-pinned `uses:` line in
+          posture.yml failed the dogfood test with "names no version", and swapping
+          one pin for a floating `@v7` failed its occurrence count (19 == 20).
 
   - id: the-security-policy-quotes-one-set-of-numbers
     title: SECURITY.md exists, quotes one set of timeframes, names no address, and points at a live channel
