@@ -26,7 +26,10 @@ import sys
 # The value may be quoted — YAML allows it and people do it — and the quotes are
 # not part of the action: a pinned `uses: "actions/checkout@<sha>"` was reported
 # as unpinned because the closing quote sat where the digit had to be.
-USES = re.compile(r"""^\s*-?\s*uses:\s*["']?([^\s"']+)["']?(.*)$""", re.MULTILINE)
+# YAML allows a space before the colon (`uses :`) and a flow-style step
+# (`- {uses: actions/checkout@v4}`) — the platform reads both, and both were
+# unread here (outside audit, 2026-08-31).
+USES = re.compile(r"""^\s*-?\s*\{?\s*uses\s*:\s*["']?([^\s"',}]+)["']?(.*)$""", re.MULTILINE)
 # The rule is a SHA *with the version in a comment* — `@<sha> # v7.0.1` — because
 # a bare SHA is a pin nobody can read or move. The comment half went unjudged
 # until an outside audit on 2026-08-30 planted a bare SHA and got exit 0.

@@ -105,7 +105,15 @@ TAKES_A_VALUE = frozenset(
         "--python",
     }
 )
-CHAIN = re.compile(r"\s*(?:&&|\|\||;|\|)\s*")
+# One `run:` line can chain several commands — and a command can carry another
+# inside `$( )`, backticks, a `( )` subshell or an `sh -c "…"` string; each of
+# those executes for real, and a scanner that read only the outer command let
+# `$(pip install ruff)` and `sh -c "pip install ruff"` through (outside audit,
+# 2026-08-31). Each boundary starts a new command to judge.
+CHAIN = re.compile(r"\s*(?:&&|\|\||;|\|)\s*|\$\(|`|(?<!\S)\(|\s-c\s+[\"']")
+# A command that only *says* the words — `echo pip install ruff` — installs
+# nothing: the shell runs `echo`. It was a finding (outside audit, 2026-08-31).
+PROSE = frozenset({"echo", "printf"})
 
 # The bundle's own starting workflow, as `install.py` writes `ci-template.yml`:
 # one pinned checkout and one run of the doctor. A tree where every workflow is
@@ -142,7 +150,7 @@ def _bundles_own(text: str) -> bool:
 # YAML lets the value fold onto the next line — `uses: >` then `./ci/action` —
 # and a regex that wanted `./` on the `uses:` line left that action unread
 # (outside audit, 2026-08-30: an unpinned install behind it exited 0).
-USES = re.compile(r"""^\s*-?\s*uses:\s*["']?([^\s"']+)""")
+USES = re.compile(r"""^\s*-?\s*\{?\s*uses\s*:\s*["']?([^\s"',}]+)""")
 BLOCK = re.compile(r"^[|>][-+]?$")
 
 
@@ -281,7 +289,11 @@ def _with_scripts(root: pathlib.Path, targets: list[pathlib.Path]) -> list[pathl
 # runner: a `name:` that says "explain why pip install ruff is forbidden" was a
 # finding, and an `env:` value was a `--require-hashes` that pip never saw
 # (outside audit, 2026-08-30). A script and a Dockerfile are read whole.
-RUN = re.compile(r"^(\s*-?\s*)run:\s*(.*?)\s*$")
+# YAML allows a space before the colon (`run :`) and a flow-style step
+# (`- {run: pip install ruff}`) — PyYAML and the platform both read them, and
+# both shapes were unread here (outside audit, 2026-08-31).
+RUN = re.compile(r"^(\s*-?\s*)run\s*:\s*(.*?)\s*$")
+FLOW_RUN = re.compile(r"\{[^{}]*?\brun\s*:\s*([^,}]*)")
 YAML = {".yml", ".yaml"}
 
 
@@ -297,8 +309,12 @@ def _run_lines(text: str) -> list[str]:
     found: list[str] = []
     index = 0
     while index < len(lines):
-        match = RUN.match(lines[index])
+        flow = FLOW_RUN.search(lines[index])
+        match = None if flow else RUN.match(lines[index])
         index += 1
+        if flow:
+            found.append(_unquoted(flow.group(1).strip()))
+            continue
         if not match:
             continue
         indent, value = len(match.group(1)), match.group(2)
@@ -358,6 +374,9 @@ def _pip_requires_hashes(command: str) -> bool:
 def _line_findings(where: pathlib.Path, line: str) -> list[str]:
     """Everything one command does that reaches an index unpinned."""
     found: list[str] = []
+    words = line.split()
+    if words and words[0] in PROSE:
+        return found
     if (
         PIP_INSTALL.search(line)
         and not _pip_requires_hashes(line)

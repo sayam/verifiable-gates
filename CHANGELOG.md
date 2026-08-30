@@ -6,6 +6,21 @@ Notable changes to this project. The format follows
 
 ## [Unreleased]
 
+### Fixed
+
+- **A command boundary is not a hiding place, and every YAML shape the
+  platform reads is read.** `$(pip install ruff)`, a backtick form, a `( )`
+  subshell and `sh -c "pip install ruff"` all execute the install and all
+  exited 0 — the scanner wanted whitespace before `pip`; meanwhile
+  `echo pip install ruff`, which installs nothing, was a finding. Each
+  boundary now starts a new command to judge, and a command whose first word
+  is `echo`/`printf` is prose. `uses :`/`run :` (space before the colon) and
+  flow-style `- {uses: …}`/`- {run: …}` — valid YAML the platform parses —
+  were unread by both pinning scanners and are now read (outside audit,
+  2026-08-31, all reproduced). Proved by mutation: ten of the twelve new
+  cases red on the old scanners; the other two hold the clean direction
+  either way (#137).
+
 ## [0.1.9] - 2026-08-30
 
 The third outside round of the day, four models this time, re-verified
