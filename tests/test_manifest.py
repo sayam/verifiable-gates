@@ -116,6 +116,16 @@ def test_a_script_listed_in_ship_but_absent_from_disk_is_caught(tmp_path: pathli
     assert any("missing from the bundle" in problem for problem in found)
 
 
+@pytest.mark.parametrize("name", ["../../outside/PLANTED.txt", "/etc/PLANTED.txt", "a/../../b.py"])
+def test_a_ship_name_that_leaves_the_destination_is_caught(
+    tmp_path: pathlib.Path, name: str
+) -> None:
+    """`install.py` joins ship names under `dest/tools/`; a climbing name lands elsewhere."""
+    manifest = {"ship": [*VALID["ship"], name], "gates": VALID["gates"]}
+    found = manifest_module.problems(manifest, a_bundle(tmp_path))
+    assert f"ship lists {name}, which would land outside the destination" in found
+
+
 @pytest.mark.parametrize(
     ("content", "error", "needle"),
     [
