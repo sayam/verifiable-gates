@@ -1242,6 +1242,13 @@ gates:
         caught: >-
           The alerts switch's refusal check widened back to any "404" — a 403 whose
           words contain 404 read as "off" instead of the third answer, red.
+      - kind: mutation
+        ref: pr/106
+        date: 2026-08-30
+        caught: >-
+          The selected-actions detail: its patterns not read, and the detail never
+          read at all — each red in the test that puts a pattern `*` under
+          "selected" and expects a wrong value.
 
   - id: every-advisory-has-been-judged
     title: Every finding has been decided about, and every decision still describes something
