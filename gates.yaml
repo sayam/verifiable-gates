@@ -1558,6 +1558,16 @@ gates:
           case; the quote tracking removed — the install chained after
           `echo "step #1"` dropped with the comment, red in the other. An outside
           audit planted the first line on 2026-08-30 and got exit 0.
+      - kind: mutation
+        ref: pr/112
+        date: 2026-08-30
+        caught: >-
+          Each pinning scanner with the following of `uses: ./<path>` switched
+          off — a floating action and an unpinned install under
+          `ci/actions/setup/action.yml`, and the same one level down spelled
+          `action.yaml`, green again; red in two cases per scanner. An outside
+          audit planted the first tree on 2026-08-30 against a CHANGELOG line
+          that said composite actions were read, and both scanners exited 0.
 
   - id: rules-we-ship-we-keep
     title: Scanners that apply to this repository are run against this repository
