@@ -774,6 +774,14 @@ gates:
           fail**, so both fakes now refuse after a few calls: a hang and a slow
           test give the same signal, which is the reason this project makes every
           command declare a time budget.
+      - kind: mutation
+        ref: pr/91
+        date: 2026-08-30
+        caught: >-
+          The census's first subject on this repository: the posture gate's
+          severity put back to `blocking`, its promise changed from 7 to 3 days, and
+          the census step dropped from the cron — three mutations, each red in the
+          test that holds the register's prose to the gates' `watched_by`.
 
   - id: a-rerun-cannot-erase-a-failure-from-the-count
     title: Failures a rerun turned green are still counted, and classified by who broke
