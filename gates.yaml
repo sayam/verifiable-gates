@@ -1257,6 +1257,15 @@ gates:
           The selected-actions detail: its patterns not read, and the detail never
           read at all — each red in the test that puts a pattern `*` under
           "selected" and expects a wrong value.
+      - kind: mutation
+        ref: pr/116
+        date: 2026-08-30
+        caught: >-
+          The register itself, four ways: `enforce_admins.want` flipped, red;
+          `sha_pinning_required` removed, red twice; a switch added, red; a why
+          emptied, red. An outside audit did the first two on 2026-08-30 and
+          the suite stayed green — the job that reads the register is not a
+          required check, so nothing in a pull request saw either.
 
   - id: every-advisory-has-been-judged
     title: Every finding has been decided about, and every decision still describes something

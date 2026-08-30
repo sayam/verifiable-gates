@@ -62,6 +62,17 @@ Notable changes to this project. The format follows
   calling scripts included; a path that is absolute, missing or climbs out of
   the checkout is not ours. Proved by mutation three ways (#115).
 
+### Added
+
+- **The posture register is held, switch by switch.** `posture-declared.json`
+  is read by a job that is not a required check (it needs the administrator's
+  token, which a pull request does not get), so a switch turned off or
+  removed in a pull request was seen by nothing (outside audit, 2026-08-30,
+  reproduced both ways). `tests/test_posture.py` carries a copy of the switch
+  names and what each wants, two-way, the way `test_gate_evidence.py` holds
+  proof rows: turned, removed or added is red until the same pull request
+  changes both. Proved by mutation four ways (#116).
+
 ## [0.1.7] - 2026-08-30
 
 The owner's decisions after the 2026-08-30 re-audit, each carried in by its
