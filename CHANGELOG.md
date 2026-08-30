@@ -39,6 +39,14 @@ Notable changes to this project. The format follows
   reproduced). Every file read is followed through its `uses: ./<path>` lines
   to `<path>/action.yml` or `action.yaml`, an action calling an action
   included. Proved by mutation in each scanner (#112).
+- **An unnamed Dockerfile away from the root is not nothing.** The Dockerfile
+  scanner read the default root `Dockerfile`, so a project that had not named
+  its Dockerfiles got "NA: no Dockerfile" for an unpinned `Dockerfile.prod`
+  or `docker/Dockerfile` (outside audit, 2026-08-30, reproduced). When nothing
+  is named and the default is absent, every `Dockerfile*` in the tree is a
+  finding that says to name it under `dockerfiles` — NA means nothing to
+  check, not nothing looked at. A project that named its files has decided.
+  Proved by mutation both ways (#113).
 
 ## [0.1.7] - 2026-08-30
 

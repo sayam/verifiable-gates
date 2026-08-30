@@ -1568,6 +1568,16 @@ gates:
           `action.yaml`, green again; red in two cases per scanner. An outside
           audit planted the first tree on 2026-08-30 against a CHANGELOG line
           that said composite actions were read, and both scanners exited 0.
+      - kind: mutation
+        ref: pr/113
+        date: 2026-08-30
+        caught: >-
+          The Dockerfile scanner with its tree walk removed — `Dockerfile.prod`,
+          `docker/Dockerfile` and `deploy/Dockerfile.web`, each alone and
+          unpinned, answered "no Dockerfile" again; red in three cases. The walk
+          applied to a project that had named its files — red in six clean-tree
+          cases, so it cannot widen into a project that has decided. An outside
+          audit planted the first two trees on 2026-08-30 and got NA, exit 0.
 
   - id: rules-we-ship-we-keep
     title: Scanners that apply to this repository are run against this repository
