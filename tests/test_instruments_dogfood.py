@@ -363,8 +363,8 @@ def test_every_excused_job_declares_a_watcher_and_the_two_promises_agree() -> No
 def test_the_gitleaks_pin_has_a_mover_on_the_cron(tmp_path: pathlib.Path) -> None:
     """The binary is fetched by URL with our checksum, invisible to Dependabot; the upstream
     signs nothing (checked 2026-08-30), so the mover is a cron step that is red the week a
-    newer release exists. Run through bash twice: on this tree (green while the pin is
-    current) and on a tree pinning 8.0.0 (red, naming both versions)."""
+    newer release exists. Run through bash with a fake `gh` on PATH that answers `v8.30.1`:
+    a tree pinning 8.30.1 is green, a tree pinning 8.0.0 is red naming both versions."""
     step = next(
         s
         for s in preflight.jobs_on_disk(ROOT)["posture"]["steps"]
@@ -372,23 +372,33 @@ def test_the_gitleaks_pin_has_a_mover_on_the_cron(tmp_path: pathlib.Path) -> Non
     )
     assert step.get("if") == "${{ !cancelled() }}"
     assert "grep -oE 'gitleaks_" in step["run"], "the version has to come from security.yml"
+    fake_bin = tmp_path / "bin"
+    fake_bin.mkdir()
+    (fake_bin / "gh").write_text("#!/bin/sh\necho v8.30.1\n", encoding="utf-8")
+    (fake_bin / "gh").chmod(0o755)
+    real = (ROOT / ".github" / "workflows" / "security.yml").read_text(encoding="utf-8")
 
-    def run_in(tree: pathlib.Path) -> subprocess.CompletedProcess[str]:
+    def run_with(version: str) -> subprocess.CompletedProcess[str]:
+        tree = tmp_path / version
+        (tree / ".github" / "workflows").mkdir(parents=True)
+        (tree / ".github" / "workflows" / "security.yml").write_text(
+            real.replace("8.30.1", version), encoding="utf-8"
+        )
         return subprocess.run(  # noqa: S603 — the step's own block, under bash from PATH
             ["bash", "-c", step["run"]],  # noqa: S607 — bash from PATH, as the runner finds it
             cwd=tree,
             check=False,
             capture_output=True,
             text=True,
+            env={"PATH": f"{fake_bin}:/usr/bin:/bin"},
         )
 
-    stale = tmp_path / ".github" / "workflows"
-    stale.mkdir(parents=True)
-    real = (ROOT / ".github" / "workflows" / "security.yml").read_text(encoding="utf-8")
-    (stale / "security.yml").write_text(real.replace("8.30.1", "8.0.0"), encoding="utf-8")
-    behind = run_in(tmp_path)
-    assert behind.returncode == 1, behind.stderr
-    assert "gitleaks 8.0.0 is pinned but" in behind.stdout
+    current = run_with("8.30.1")
+    assert current.returncode == 0, current.stdout + current.stderr
+    assert "8.30.1 is the latest release" in current.stdout
+    behind = run_with("8.0.0")
+    assert behind.returncode == 1, behind.stdout + behind.stderr
+    assert "gitleaks 8.0.0 is pinned but 8.30.1 is out" in behind.stdout
 
 
 def test_the_two_clocks_tick_on_the_cron_not_only_on_a_push() -> None:
