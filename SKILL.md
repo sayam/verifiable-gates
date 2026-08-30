@@ -94,7 +94,7 @@ a theory) · **Enforced in the reference** (how one project enforces it today).
 
 ### `dialect-discipline`
 
-**Rule:** Time columns use UTCDateTime (migrations included) · String columns declare a length · written once, runs on three brands
+**Rule:** Time columns are stored in UTC at full precision (migrations included) · string columns declare a length · written once, runs on every database brand the project targets
 
 **Born from:** MySQL's DATETIME truncates sub-second precision silently — records created milliseconds apart get the same timestamp and then sort in the wrong order · findable only by firing the suite at a real brand.
 
@@ -494,7 +494,7 @@ a theory) · **Enforced in the reference** (how one project enforces it today).
 
 ### `a11y-real-browser`
 
-**Rule:** pa11y with a real Chromium, scanning dark mode, the optional themes and Thai as well
+**Rule:** Accessibility is checked in a real browser after the CSS has run, in every theme and every language the application ships
 
 **Born from:** Contrast after the CSS has run, against the names assistive technology actually computes, cannot be checked from template files — it needs a real browser, and dark mode and other languages have different contrast.
 
@@ -558,7 +558,7 @@ a theory) · **Enforced in the reference** (how one project enforces it today).
 
 ### `alerts-fire-for-real`
 
-**Rule:** Alert rules in the Loki ruler must actually fire when events are fired at them, not merely have the stack come up
+**Rule:** Alert rules must actually fire when the events they watch for are fired at the stack, not merely exist while the stack comes up
 
 **Born from:** ADR 0037 — a rule counting only 401s falls silent exactly when the attack is heaviest, because the quota cuts in at 5 and the rest become 429 · what must be proved is that the alert fires, not that a rule exists.
 
@@ -574,7 +574,7 @@ a theory) · **Enforced in the reference** (how one project enforces it today).
 
 ### `purge-timer-real-systemd`
 
-**Rule:** The expiry-purge job is installed on a real scheduler (here systemd) and its failures are visible
+**Rule:** The expiry-purge job is installed on a real scheduler and its failures are visible to a person, not only to the exit code
 
 **Born from:** Retention periods become real only when something runs purge on a schedule — and periodic work that goes quiet when it fails is worse than none · `$?` inside an if! branch is always 0 · audit round 10 item 4 added a layer: this gate's idea of "visible" covered only **the exit code the script hands systemd**, while what happens after that is a state somebody has to walk over and ask about — so the unit needs an OnFailure that leaves a machine-searchable line, and the job has to check that it still points somewhere and that the target unit was installed too.
 

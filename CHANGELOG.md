@@ -31,6 +31,22 @@ Notable changes to this project. The format follows
 
 ### Changed
 
+- **Four baseline titles say the mechanism, not one stack's tool.** The
+  re-audit (round 23) read eight baseline rules as architecture-bound; on a
+  full reading four name a tool or one project's choice in the universal
+  sentence itself — `purge-timer-real-systemd` ("here systemd"),
+  `alerts-fire-for-real` ("the Loki ruler"), `dialect-discipline`
+  ("UTCDateTime", "three brands"), `a11y-real-browser` ("pa11y with a real
+  Chromium … and Thai") — and are reworded in both languages to what any
+  stack must keep: a real scheduler whose failures a person sees; alert rules
+  that fire when their events are fired at the stack; time in UTC at full
+  precision on every brand the project targets; accessibility in a real
+  browser in every theme and language shipped. The tool stays in
+  `born_from` and `reference`, where it is evidence. Ids are unchanged, so
+  nothing reads as a removal. The other four (`n-minus-one-served`,
+  `backup-restore-drilled-every-push`, the two TLS rules) are universal as
+  written — expand–contract, a rehearsed restore and a refusing server are
+  not one stack's choices — and stay. Owner's decision, 2026-08-30.
 - **`github/codeql-action` is pinned to a release tag.** The SHA it sat on
   (`486fec2a`, a 2026-08-21 merge) carried only the bundle tag
   `codeql-bundle-v2.26.4` — no `v4.x.y` release pointed at it, which the
