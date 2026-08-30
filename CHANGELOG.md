@@ -47,6 +47,13 @@ Notable changes to this project. The format follows
   finding that says to name it under `dockerfiles` — NA means nothing to
   check, not nothing looked at. A project that named its files has decided.
   Proved by mutation both ways (#113).
+- **Installers with no `pip` in the line are read.** The install scanner
+  keyed on the word `pip`, so `uv tool install`, `uv add`, `uvx`,
+  `poetry add`, `pdm add` and `pipenv install` resolved from the index unread
+  (outside audit, 2026-08-30, reproduced with the first and `poetry add`).
+  Each is a finding now; `uv run --locked`, `uv sync --locked`, `uv build`
+  and `poetry install` install from a lock that carries hashes and are left
+  alone, held by a test. Proved by mutation both ways (#114).
 
 ## [0.1.7] - 2026-08-30
 
