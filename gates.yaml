@@ -308,8 +308,14 @@ gates:
   - id: a-release-carries-its-sbom-and-provenance
     title: A release's wheel, sdist and SBOM are built in CI, attested keyless, and verified both ways before they are attached
     kind: job
-    severity: blocking
+    severity: watched
     enforced_by: {job: release-sign}
+    watched_by:
+      who: the maintainer
+      within_days: 1
+      cadence: per release
+      how: >-
+        The release page shows the job beside the assets it attaches, and the maintainer publishes releases by hand; `not_required.release-sign` promises one day, and a test holds the two numbers together.
     layer: internal
     pillar: security
     portable: false
@@ -394,8 +400,14 @@ gates:
   - id: the-posture-is-read-on-a-schedule
     title: Branch protection and the repository switches are read weekly and on every push, and held to the register
     kind: job
-    severity: blocking
+    severity: watched
     enforced_by: {job: posture}
+    watched_by:
+      who: the maintainer
+      within_days: 7
+      cadence: weekly, the platform's cron, and every push to main
+      how: >-
+        The run page is the record and the platform e-mails the workflow's author on a scheduled failure; `pins/dev/posture-declared.json` `not_required.posture` makes the same seven-day promise, and a test holds the two numbers together. `red_streak_census`, on the same cron, measures how long a red actually stood against this number.
     layer: internal
     pillar: security
     portable: false

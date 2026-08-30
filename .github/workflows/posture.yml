@@ -54,6 +54,14 @@ jobs:
         run: python -m verifiable_gates.schedule_census --root .
         env:
           GH_TOKEN: ${{ github.token }}
+      # The promise the two watched gates make — "seen within N days" — measured
+      # against how long a red actually stood, not checked for shape (re-audit
+      # round 7: no gate here declared a watcher, so this census had no subject).
+      - name: every watched_by promise held up in practice
+        if: ${{ !cancelled() }}
+        run: python -m verifiable_gates.red_streak_census --root . --limit 200
+        env:
+          GH_TOKEN: ${{ github.token }}
       - name: no DECISIONS revisit date has passed
         if: ${{ !cancelled() }}
         run: pytest -q tests/test_decisions.py -p no:cacheprovider --no-cov
