@@ -102,7 +102,12 @@ counts only as an argument of the install itself. An install is judged
 whether it says `pip`, `pipx`, `uv tool install`, `uv add`, `uvx`, `poetry add`,
 `pdm add` or `pipenv install`; `uv run --locked`, `uv sync --locked` and `uv build`
 install from a lock and are left alone. A `uses:` folded onto the next line is
-read from that line.
+read from that line. `actions-sha-pinned` judges both halves of its title: a
+floating tag is a finding, and so is a commit SHA with no version comment beside
+it — a pin nobody can read or move (a `docker://` digest needs none). Of the
+other checkers, `adr-index-complete` reports two records sharing a number as
+well as a gap, and `csp-no-inline` reads `ONCLICK=`, `STYLE=` and a `<style>`
+element the way a browser does — in any case.
 
 Since the extraction finished, so are the deciders that used to live in the
 reference implementation: ratchets and the measurements that feed them, the
@@ -184,7 +189,10 @@ repo นี้เผยแพร่ ส่วน `gates.yaml` คือสิ่
 composite action ที่ `uses: ./<path>` ชี้ไม่ว่าอยู่ที่ไหนหรือพับบรรทัดอย่างไร และเชลล์สคริปต์ที่ `run:`
 เรียกต่อ ไม่ว่าจะรู้จากชื่อ `.sh` หรือจาก shebang โดยตัดคอมเมนต์ก่อน · ใน workflow ตัดสินเฉพาะสิ่งที่
 `run:` รันจริง (`name:` หรือ `env:` ที่ยกคำสั่งมาพูดถึงเป็นแค่ข้อความ) และ `--require-hashes` นับเมื่อเป็น
-อาร์กิวเมนต์ของคำสั่งติดตั้งเองเท่านั้น · `Dockerfile*` ที่มีอยู่แต่ไม่ได้ตั้งชื่อไว้ใน `scaffold.json` ถือเป็น
+อาร์กิวเมนต์ของคำสั่งติดตั้งเองเท่านั้น · `actions-sha-pinned` ตัดสินทั้งสองครึ่งของชื่อกฎ: tag ลอยเป็น finding และ
+commit SHA ที่ไม่มี comment บอกเวอร์ชันข้าง ๆ ก็เป็น finding (digest ของ `docker://` ไม่ต้องมี) ·
+`adr-index-complete` รายงานบันทึกสองฉบับที่ใช้เลขเดียวกันเช่นเดียวกับเลขที่ขาด · `csp-no-inline` อ่าน
+`ONCLICK=` `STYLE=` และ `<style>` แบบไม่สนตัวพิมพ์เหมือนที่เบราว์เซอร์อ่าน · `Dockerfile*` ที่มีอยู่แต่ไม่ได้ตั้งชื่อไว้ใน `scaffold.json` ถือเป็น
 finding ไม่ใช่ "ไม่มี Dockerfile"
 
 **คลังเก็บสองภาษา**: อังกฤษเป็นข้อความที่เผยแพร่ ส่วนถ้อยคำไทยต้นฉบับอยู่ในฟิลด์
