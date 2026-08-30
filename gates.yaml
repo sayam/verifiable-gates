@@ -440,6 +440,15 @@ gates:
           `required_conversation_resolution` proved nothing: its toggle endpoint
           answered 404 both ways and the platform never changed, which two green
           runs would have hidden had the state not been read back each time.
+      - kind: ci-red
+        ref: run/33282261202
+        date: 2026-08-30
+        caught: >-
+          Both directions, live, for the four switches added that day:
+          `sha_pinning_required` turned off on the platform — the dispatched job
+          went red naming it and its declared value; turned back on — green with
+          all 16 switches holding (run 33282291263). The custodian's fine-grained
+          token reads the Actions policy and the alerts switch.
 
   - id: a-declared-schedule-is-watched
     title: The schedule census runs on every test job, over a full clone, so a silent cron is red

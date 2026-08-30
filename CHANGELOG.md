@@ -19,7 +19,9 @@ Notable changes to this project. The format follows
   required, GitHub-owned actions only, alerts on — and the fourth is declared
   off with its reason (DECISIONS.md `git-signing-not-required`). The first
   live run of the wider reader caught the reader itself: `required_signatures`
-  was declared and not read, and `blind` said so. Owner's decision, 2026-08-30.
+  was declared and not read, and `blind` said so. Proved live both ways on
+  the platform's own job: `sha_pinning_required` off → red naming it (run
+  33282261202); on → green, 16 switches holding. Owner's decision, 2026-08-30.
 - **The two clocks tick on the platform's cron, not only on a push.** The
   schedule census and the DECISIONS revisit check ran in ci.yml's `test` job
   alone — on push and pull request — so with nobody pushing they stopped, and
