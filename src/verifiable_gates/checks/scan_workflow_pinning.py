@@ -89,7 +89,15 @@ def _bundles_own(text: str) -> bool:
 # `uses: ./ci/actions/setup` unread: an outside audit on 2026-08-30 planted one
 # there and both pinning scanners exited 0 while CHANGELOG said composite actions
 # were read. Every file read is followed, so an action calling an action is read.
-LOCAL_USES = re.compile(r"""^\s*-?\s*uses:\s*["']?\./([^\s"']*)""", re.MULTILINE)
+# The path is read the way every `uses:` is, so `uses: >` with `./ci/action` on
+# the next line is followed too — a folded *remote* action was named after the
+# 2026-08-30 audit while a folded local one was still unread (outside audit,
+# 2026-08-30: a nested `@v4` behind it exited 0).
+
+
+def _local_uses(text: str) -> list[str]:
+    """The paths of every local action the file names, folded or not."""
+    return [ref[2:] for ref in _uses_refs(text) if ref.startswith("./")]
 
 
 def _followed(root: pathlib.Path, targets: list[pathlib.Path]) -> list[pathlib.Path]:
@@ -97,7 +105,7 @@ def _followed(root: pathlib.Path, targets: list[pathlib.Path]) -> list[pathlib.P
     seen = list(targets)
     queue = list(targets)
     while queue:
-        for relative in LOCAL_USES.findall(queue.pop().read_text(encoding="utf-8")):
+        for relative in _local_uses(queue.pop().read_text(encoding="utf-8")):
             for name in ("action.yml", "action.yaml"):
                 candidate = root / relative / name
                 if candidate.is_file() and candidate not in seen:

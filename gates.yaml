@@ -1701,6 +1701,14 @@ gates:
           four marker shapes and in the pinned fold judged unpinned; the next
           line misread, red in the pinned fold. An outside audit planted
           `uses: >` on 2026-08-30 and read a finding that named `>`.
+      - kind: mutation
+        ref: pr/130
+        date: 2026-08-30
+        caught: >-
+          Nine planted cases red on the scanners as they were — a local action
+          behind `uses: >`, `|` and `>-` for both pinning scanners, and an
+          extensionless script called three ways — while a Python tool with no
+          shell shebang stays unread (outside audit, 2026-08-30, reproduced).
 
   - id: rules-we-ship-we-keep
     title: Scanners that apply to this repository are run against this repository

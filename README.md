@@ -93,8 +93,9 @@ file says nothing about the project.
 
 **What the two pinning checkers read.** `ci-tools-hash-pinned` and
 `actions-sha-pinned` read every workflow, every composite action a workflow names
-with `uses: ./<path>` wherever it lives, and — for installs — every shell script a
-`run:` line hands off to, with comments stripped first. An install is judged
+with `uses: ./<path>` wherever it lives, folded or not, and — for installs — every
+shell script a `run:` line hands off to, known by its `.sh` name or by its shebang,
+with comments stripped first. An install is judged
 whether it says `pip`, `pipx`, `uv tool install`, `uv add`, `uvx`, `poetry add`,
 `pdm add` or `pipenv install`; `uv run --locked`, `uv sync --locked` and `uv build`
 install from a lock and are left alone. A `uses:` folded onto the next line is
@@ -176,8 +177,8 @@ repo นี้เผยแพร่ ส่วน `gates.yaml` คือสิ่
 ด่านเดียวที่ `pass` คือทะเบียนที่ส่งมากับบันเดิล (`gates-registry-total`) ส่วน workflow
 ตั้งต้นที่ตัวติดตั้งเขียนให้เป็น `NA` สำหรับตัวตรวจ pin ทั้งสองจนกว่าจะมีบรรทัดถูกแก้ —
 เขียวบนไฟล์ของบันเดิลเองไม่ได้บอกอะไรเกี่ยวกับโปรเจกต์ · ตัวตรวจ pin อ่าน workflow ทุกไฟล์
-composite action ที่ `uses: ./<path>` ชี้ไม่ว่าอยู่ที่ไหน และเชลล์สคริปต์ที่ `run:` เรียกต่อ
-โดยตัดคอมเมนต์ก่อน · `Dockerfile*` ที่มีอยู่แต่ไม่ได้ตั้งชื่อไว้ใน `scaffold.json` ถือเป็น
+composite action ที่ `uses: ./<path>` ชี้ไม่ว่าอยู่ที่ไหนหรือพับบรรทัดอย่างไร และเชลล์สคริปต์ที่ `run:`
+เรียกต่อ ไม่ว่าจะรู้จากชื่อ `.sh` หรือจาก shebang โดยตัดคอมเมนต์ก่อน · `Dockerfile*` ที่มีอยู่แต่ไม่ได้ตั้งชื่อไว้ใน `scaffold.json` ถือเป็น
 finding ไม่ใช่ "ไม่มี Dockerfile"
 
 **คลังเก็บสองภาษา**: อังกฤษเป็นข้อความที่เผยแพร่ ส่วนถ้อยคำไทยต้นฉบับอยู่ในฟิลด์
