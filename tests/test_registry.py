@@ -256,6 +256,21 @@ def test_a_date_that_is_not_a_calendar_date_is_refused(date: str) -> None:
     assert any("real YYYY-MM-DD" in problem for problem in found), date
 
 
+@pytest.mark.parametrize("date", ["2099-01-01", datetime.date(2099, 1, 1)])
+def test_a_date_that_has_not_happened_yet_is_refused(date: str | datetime.date) -> None:
+    """Evidence that has not happened yet is not evidence — the old check took `2099-01-01`."""
+    proof = {"kind": "mutation", "ref": "pr/1", "date": date, "caught": "it went red"}
+    found = registry.problems([a_gate(proved_by=[proof])])
+    assert any("has not happened yet" in problem for problem in found), date
+
+
+def test_a_date_that_is_today_anywhere_on_earth_is_not_in_the_future() -> None:
+    """A proof written today in Bangkok at 02:00 is dated tomorrow in UTC; it is still today."""
+    noon_utc = datetime.datetime(2026, 8, 30, 12, 0, tzinfo=datetime.UTC)
+    assert registry._latest_today(noon_utc) == datetime.date(2026, 8, 31)  # noqa: SLF001 — the clock is the thing under test
+    assert registry._latest_today() >= datetime.datetime.now(datetime.UTC).date()  # noqa: SLF001 — and the default is the real clock
+
+
 # ---------------------------------------------------------------- dogfood
 
 
