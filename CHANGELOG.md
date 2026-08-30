@@ -8,6 +8,12 @@ Notable changes to this project. The format follows
 
 ### Changed
 
+- **The `cla` job skips by the pull request's author, not the run's actor.**
+  `github.actor` is whoever triggered the run, so a maintainer re-running a
+  Dependabot pull request's checks would become the actor, the job would run,
+  and the bot's body has no line — a red on a bump for the wrong reason
+  (re-audit round 22). The condition reads `pull_request.user.login`; a test
+  holds it. Owner's decision, 2026-08-30.
 - **Four more switches in the platform register.** The re-audit's first
   round read four live switches the rule `platform-posture-verified` names
   and the register did not: `sha_pinning_required` off (the rule's own
