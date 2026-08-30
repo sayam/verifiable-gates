@@ -77,11 +77,36 @@ teaches rules it does not follow, and the answer was 2.7%.
   `env:` the workflow declares, and any variable its own text names; a borrowed
   variable is printed before the step runs. Nothing else from your shell reaches
   it.
-- **Thresholds move one way.** Coverage starts at 100 here because the repository
-  started empty; lowering it is a decision someone signs, not a convenience.
-- **`layer: internal` can never be `portable: true`** — a rule tied to one
-  project's architecture, exported as universal, is an overclaim. The schema
-  refuses it.
+- **Thresholds move one way, and a test holds each one.** Coverage starts at 100
+  here because the repository started empty; lowering it is a decision someone
+  signs, not a convenience. `tests/test_own_ratchets.py` holds the `interrogate`
+  floor to `DECISIONS.md` `interrogate-at-84`, and the three `xenon` ranks on
+  ci.yml's line to the row `xenon-floor-at-reality` *and* to where reality sits
+  (measured with `radon`) — a ceiling reality has dropped below is red until the
+  line and the row move up together.
+- **A register is held by a copy in a test, two-way.** The switches in
+  `pins/dev/posture-declared.json` and what each wants (`HELD` in
+  `tests/test_posture.py`), the row ids of `DECISIONS.md` in order (`HELD` in
+  `tests/test_decisions.py`), and the number of suppression lines under `src/`
+  and `tests/` (`SUPPRESSED_LINES` in `tests/test_instruments_dogfood.py`). A
+  switch turned, a row removed or added, a suppression added: red until the same
+  pull request changes the copy too, where a reviewer sees both. Every
+  suppression carries a reason on its line; every job in every workflow declares
+  `timeout-minutes`.
+- **A proof is dated no later than today** — anywhere on Earth (UTC+14), so a
+  proof written here at 02:00 and dated tomorrow-in-UTC is not "from the
+  future"; `2099-01-01` is.
+- **Both schemas refuse a key they do not know.** `rules.py` and `registry.py`
+  each carry the set of keys they read; a misspelt `born_frm` is refused, not
+  skipped. **`layer: internal` can never be `portable: true`** — a rule tied to
+  one project's architecture, exported as universal, is an overclaim. That hold
+  is in the gate schema; the rule schema refuses `internal` outright, and
+  `portable` on a rule as a gate's field.
+- **A finding's fix can contradict a gate that already decided the behaviour.**
+  Before changing what a decider answers, grep `tests/` and `DECISIONS.md` for
+  that answer, and run the full suite before the mutation proofs: making every
+  scan `NA` on a fresh install would have undone `tests/test_box_opens_true.py`,
+  which holds the shipped index to *pass*, never `NA` (2026-08-30).
 
 ## Where the work happens
 
