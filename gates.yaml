@@ -1630,6 +1630,14 @@ gates:
           red in the test that ties `TEMPLATE_JOB` to it. An outside audit
           installed into the reference implementation on 2026-08-30 and the
           doctor was red before anyone had done anything.
+      - kind: mutation
+        ref: pr/111
+        date: 2026-08-30
+        caught: >-
+          The installer put back to its missing-file check alone — the manifest
+          with a bad `kind` installed again, and `../../outside/PLANTED.txt`
+          shipped through `--manifest` landed beside the destination with exit
+          0, the line an outside audit planted on 2026-08-30. Red in both.
 
   - id: the-manifest-is-an-input
     title: The manifest is validated as data, and a rule the bundle cannot decide cannot carry a script
@@ -1657,6 +1665,13 @@ gates:
           script, both went red. Every schema rule has a case that breaks it alone,
           because a validator that only ever sees valid input is one nobody has
           watched work.
+      - kind: mutation
+        ref: pr/111
+        date: 2026-08-30
+        caught: >-
+          The climb check switched off (`_leaves` always false): red on
+          `../../outside/x`, on an absolute path and on `a/../../b.py`, and red
+          in the installer's end-to-end case that watches the landing spot.
 
   - id: the-shipped-reader-agrees-with-the-real-one
     title: The hand-written YAML reader agrees with PyYAML on this repository's own files
