@@ -6,6 +6,18 @@ Notable changes to this project. The format follows
 
 ## [Unreleased]
 
+### Fixed
+
+- **The step gates are held by a copy, two-way.** A test gate is held by its
+  test file and a job gate by its job (`scan_gates_registry`), but a gate one
+  named step enforces (`kind: step`) was held by nothing: an outside audit on
+  2026-08-30 deleted each of the two alone and 1275 tests stayed green. The
+  two are now copied into `HELD_STEP_GATES` in
+  `tests/test_instruments_dogfood.py` with the job and step each names — a
+  step gate removed, added or renamed, or its step gone from the workflow, is
+  red until the same pull request changes the copy. Proved by mutation three
+  ways (#129).
+
 ## [0.1.8] - 2026-08-30
 
 The second five-model re-audit of the day, re-verified claim by claim before

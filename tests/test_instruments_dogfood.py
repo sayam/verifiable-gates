@@ -332,6 +332,44 @@ def test_every_pins_directory_is_moved_by_dependabot() -> None:
     assert watched == on_disk, (watched, on_disk)
 
 
+# ---------------------------------------------------------------- the step gates
+
+# The gates one named step of a job enforces (`kind: step`), held by copy two-way
+# like the rows of DECISIONS.md: a step gate leaves or joins the registry only by
+# leaving or joining this tuple, and the step it names has to be in the workflow
+# under that name. Test gates are held by their test files and job gates by their
+# jobs (`scan_gates_registry`); an outside audit on 2026-08-30 deleted each of the
+# two step gates alone and the suite stayed green — nothing held that kind.
+HELD_STEP_GATES = (
+    ("a-declared-schedule-is-watched", "test", "every declared schedule is still firing"),
+    (
+        "the-about-field-is-read-not-remembered",
+        "test",
+        "the About field says what the repository measures",
+    ),
+)
+
+
+def test_every_step_gate_is_held_by_copy_and_its_step_is_in_the_workflow() -> None:
+    """A step gate leaves the registry only by leaving `HELD_STEP_GATES` too — and arrives
+    the same way; and the step it names is a step the job really runs."""
+    gates = yaml.safe_load((ROOT / "gates.yaml").read_text("utf-8"))["gates"]
+    present = tuple(
+        (g["id"], g["enforced_by"]["job"], g["enforced_by"]["step"])
+        for g in gates
+        if g["kind"] == "step"
+    )
+    assert present == HELD_STEP_GATES, (
+        f"removed {sorted(set(HELD_STEP_GATES) - set(present))}, added "
+        f"{sorted(set(present) - set(HELD_STEP_GATES))}, or reordered — change both in one"
+        " pull request"
+    )
+    jobs = preflight.jobs_on_disk(ROOT)
+    for gid, job, step in HELD_STEP_GATES:
+        names = [s.get("name") for s in jobs[job]["steps"]]
+        assert step in names, (gid, job, step, names)
+
+
 # ---------------------------------------------------------------- posture and the census
 
 
