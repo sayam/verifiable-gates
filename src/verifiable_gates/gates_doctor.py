@@ -26,6 +26,12 @@ tests. They are never folded into the pass count, because a rule this bundle
 cannot decide must not look like one it decided. `NA` is reported separately from
 `pass` for the same reason: a scan with nothing to look at has not agreed with you.
 
+A scan that exits without a verdict — a traceback on a broken `scaffold.json`,
+exit 2 — is `[error]`, not `[found]`: its stderr is passed through and it is
+counted apart from the findings, because a tool that crashed has judged nothing
+(an outside audit on 2026-08-30 fed a malformed config and the doctor answered
+`[found]` seven times with the tracebacks swallowed). It is still red.
+
 exit 0 = clean · 1 = findings, or an incomplete install · 2 = called wrongly
 
 Role: reader — it reports where a project stands. Its evidence is that each
@@ -94,6 +100,7 @@ def check_installed(root: pathlib.Path, manifest: dict[str, Any], bundle: pathli
 def run_scans(root: pathlib.Path, manifest: dict[str, Any], bundle: pathlib.Path) -> int:
     """Run every scan, reporting each gate rather than stopping at the first finding."""
     failed: list[str] = []
+    broken: list[str] = []
     for gid, script in scan_entries(manifest):
         result = subprocess.run(  # noqa: S603 — argv is built here, interpreter is sys.executable
             [sys.executable, str(bundle / script), str(root)],
@@ -102,18 +109,23 @@ def run_scans(root: pathlib.Path, manifest: dict[str, Any], bundle: pathlib.Path
             check=False,
             timeout=300,
         )
+        sys.stderr.write(result.stderr)
         if result.returncode == 0:
             print(f"[{'NA' if result.stdout.startswith('NA:') else 'pass':>5}] {gid}")
-        else:
+        elif result.returncode == 1 and result.stdout.strip():
             print(f"[found] {gid}")
             sys.stdout.write(result.stdout)
             failed.append(gid)
+        else:
+            print(f"[error] {gid} — the scan did not answer (exit {result.returncode})")
+            broken.append(gid)
 
     print(f"\nwaiting on this project's own tests: {suite_count(manifest)} gates")
     if failed:
         print(f"** scans found problems in {len(failed)} gates: {', '.join(failed)}")
-        return 1
-    return 0
+    if broken:
+        print(f"** {len(broken)} scans did not answer, which is no verdict: {', '.join(broken)}")
+    return 1 if failed or broken else 0
 
 
 def main(argv: list[str] | None = None) -> int:
