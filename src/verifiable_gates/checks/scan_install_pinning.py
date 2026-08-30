@@ -11,7 +11,9 @@ exemption needs all three halves, and there is a test for each of them — see
 `_installs_from_an_index`.
 
 Comments are stripped before checking — these files like to explain themselves by
-quoting the very command they are telling you not to use.
+quoting the very command they are telling you not to use. A comment at the end of
+a line goes too: `pip install ruff  # TODO --require-hashes` was green because the
+word it needs sat in the comment (outside audit, 2026-08-30).
 
 A composite action under `.github/actions/<name>/action.yml` installs with the
 calling workflow's permissions, so its `run:` steps are read too — an outside
@@ -115,12 +117,25 @@ def _installs_from_an_index(command: str) -> bool:
     )
 
 
+def _without_comment(line: str) -> str:
+    """The line up to its first `#` outside quotes — a `#` inside quotes is text."""
+    quote = ""
+    for index, char in enumerate(line):
+        if quote:
+            quote = "" if char == quote else quote
+        elif char in "\"'":
+            quote = char
+        elif char == "#":
+            return line[:index]
+    return line
+
+
 def _commands(path: pathlib.Path) -> list[str]:
     joined, buffer = [], ""
     for raw in path.read_text(encoding="utf-8").splitlines():
         if raw.lstrip().startswith("#"):
             continue
-        buffer += raw.rstrip()
+        buffer += _without_comment(raw).rstrip()
         if buffer.endswith("\\"):
             buffer = buffer[:-1]
             continue
