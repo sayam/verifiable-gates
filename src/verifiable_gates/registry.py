@@ -98,21 +98,28 @@ def load(path: str | pathlib.Path) -> list[dict[str, Any]]:
     return gates
 
 
-def _is_a_date(value: object) -> bool:
+def _as_date(value: object) -> datetime.date | None:
     """A real calendar date written YYYY-MM-DD — `9999-99-99` has the shape and is not one.
 
     PyYAML already turns an unquoted `2026-08-29` into a `datetime.date`, so a
     date object is one that parsed; what arrives as a string did not.
     """
     if isinstance(value, datetime.date):
-        return True
+        return value
     if not isinstance(value, str) or len(value) != len("YYYY-MM-DD"):
-        return False
+        return None
     try:
-        datetime.date.fromisoformat(value)
+        return datetime.date.fromisoformat(value)
     except ValueError:
-        return False
-    return True
+        return None
+
+
+def _latest_today(now: datetime.datetime | None = None) -> datetime.date:
+    """The date it already is somewhere on Earth (UTC+14) — a proof written today in
+    Bangkok at 02:00 is dated tomorrow in UTC, and that is not a proof from the future.
+    """
+    now = now or datetime.datetime.now(datetime.UTC)
+    return (now + datetime.timedelta(hours=14)).date()
 
 
 def _proof_problems(where: str, proofs: Any) -> list[str]:  # noqa: ANN401 — shape is what we check
@@ -134,8 +141,13 @@ def _proof_problems(where: str, proofs: Any) -> list[str]:  # noqa: ANN401 — s
                 f"{at} ref {ref!r} is not pr/N, run/N or commit/<sha>, optionally "
                 "behind owner/repo# — a ref nobody can look up is not evidence"
             )
-        if not _is_a_date(proof.get("date")):
+        date = _as_date(proof.get("date"))
+        if date is None:
             found.append(f"{at} date must be a real YYYY-MM-DD date, got {proof.get('date')!r}")
+        elif date > _latest_today():
+            # An outside audit on 2026-08-30 wrote `date: 2099-01-01` and the
+            # schema took it: evidence that has not happened yet is not evidence.
+            found.append(f"{at} date {date.isoformat()} has not happened yet")
         if not str(proof.get("caught", "")).strip():
             found.append(
                 f"{at} caught is empty — evidence that does not say what it proved is unusable"
