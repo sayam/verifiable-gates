@@ -10,3 +10,5 @@ build/
 *.egg-info/
 # the fail-fix harness's per-machine round log (`harness.ROUND_LOG`)
 .gate-rounds.jsonl
+# the coding harness keeps agent worktrees here; never part of the tree
+.claude/
