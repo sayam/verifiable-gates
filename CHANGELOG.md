@@ -31,6 +31,14 @@ Notable changes to this project. The format follows
   before the first copy, refusing on any problem it names. The DECISIONS row
   `manifest-problems-is-a-test-time-check` is recorded as expired — its own
   condition was met by `--manifest`. Proved by mutation both ways (#111).
+- **A local action is read wherever it lives.** Both pinning scanners read
+  composite actions only under `.github/actions/`, while GitHub runs
+  `uses: ./<path>` from anywhere — an outside audit planted a floating action
+  and an unpinned install under `ci/actions/setup/` and both scanners exited
+  0, against the 0.1.4 line that said composite actions were read (2026-08-30,
+  reproduced). Every file read is followed through its `uses: ./<path>` lines
+  to `<path>/action.yml` or `action.yaml`, an action calling an action
+  included. Proved by mutation in each scanner (#112).
 
 ## [0.1.7] - 2026-08-30
 
