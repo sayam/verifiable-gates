@@ -94,6 +94,14 @@ Notable changes to this project. The format follows
   on purpose: `test_box_opens_true` holds the shipped index to pass, never
   NA, so an absent index cannot look like a satisfied one. Proved by mutation
   four ways (#123).
+- **A history of the wrong records is unreadable, not zero.** The one reader
+  the censuses share held the shape of the whole — a list, non-empty — and
+  nothing about the records: `gh run list --json` fed to `--input` made
+  `rerun_census` count zero failures over a hundred runs holding thirteen and
+  `red_streak_census` raise `KeyError` (outside audit, 2026-08-30, reproduced
+  live). A caller names the fields its records carry; records lacking them
+  are the third answer, exit 2, and the message names `gh run list` when
+  that is what it was given. Proved by mutation four ways (#124).
 
 ### Added
 

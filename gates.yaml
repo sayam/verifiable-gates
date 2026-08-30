@@ -840,6 +840,15 @@ gates:
           caught file error back to a traceback, and making the red-streak census
           demand runs even when no gate declares a watcher, where the honest
           answer is "nothing to measure" and not "cannot see".
+      - kind: mutation
+        ref: pr/124
+        date: 2026-08-30
+        caught: >-
+          The hold on record fields switched off — a list of the wrong records
+          read as a history again, red five ways across the reader and both
+          censuses; the `gh run list` hint dropped, red twice. An outside audit
+          fed a hundred `gh run list --json` rows to `--input` on 2026-08-30:
+          one census counted zero failures over thirteen, the other raised.
 
   - id: watcher-promises-are-measured-against-reality
     title: A declared `within_days` is measured, not merely checked for shape
@@ -892,6 +901,12 @@ gates:
           counted as blocking, red; the platform's own run judged like ours,
           red. An outside audit read "(it blocks)" beside the Dependabot runs
           on 2026-08-30 — nothing blocks on those.
+      - kind: mutation
+        ref: pr/124
+        date: 2026-08-30
+        caught: >-
+          The census naming no record fields — `createdAt` where `created_at`
+          was expected raised `KeyError` again instead of the third answer, red.
 
   - id: a-rerun-cannot-erase-a-failure-from-the-count
     title: Failures a rerun turned green are still counted, and classified by who broke
@@ -940,6 +955,12 @@ gates:
           The stderr line for an unreadable annotations call removed — the reader
           fell back to empty in silence again, red in the test that reads stderr.
           Found by the pre-cut review of 2026-08-30.
+      - kind: mutation
+        ref: pr/124
+        date: 2026-08-30
+        caught: >-
+          The census naming no record fields — `gh run list --json` rows read
+          as a clean window again, "failed … : 0", red.
 
   - id: a-threshold-sits-against-reality-both-ways
     title: A ratchet's threshold is held to what is true today, in both directions
