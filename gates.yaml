@@ -1620,6 +1620,16 @@ gates:
           Making the doctor ignore --root (root_arg = args.root) fails two tests,
           which point the flag at a project the default cannot reach; dropping the
           both-given check fails test_naming_the_root_twice_is_a_misuse (exit 2).
+      - kind: mutation
+        ref: pr/110
+        date: 2026-08-30
+        caught: >-
+          The warning for a kept `gates.yaml` that names no gate for the
+          template's job — removed, red; its regex loosened to any `job:`, red
+          on the registry that names only `test`; the template's job renamed,
+          red in the test that ties `TEMPLATE_JOB` to it. An outside audit
+          installed into the reference implementation on 2026-08-30 and the
+          doctor was red before anyone had done anything.
 
   - id: the-manifest-is-an-input
     title: The manifest is validated as data, and a rule the bundle cannot decide cannot carry a script
