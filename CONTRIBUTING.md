@@ -40,6 +40,12 @@ style difference.
    reads the line (name and address both, like the sign-off); Dependabot is
    skipped, since a version bump carries no copyright.
 
+If this is your first pull request here, its workflows do not start until a
+maintainer approves them — the repository's policy is `first_time_contributors`,
+so the eight required checks show as *expected* until then. That wait is the
+maintainer, not a red. Editing the description re-runs the checks (the `cla`
+job reads it, so a fixed line gets its own run).
+
 ## The rules this repository holds itself to
 
 They are the rules it exists to export, so it has to pass them first — audit

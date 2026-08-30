@@ -430,3 +430,14 @@ def test_every_action_sha_is_followed_by_its_version_in_a_comment() -> None:
             assert VERSION_COMMENT.match(rest), f"{path.name}: {action} names no version"
     assert len(seen) == 20, seen
     assert len(set(seen)) == 6, sorted(set(seen))
+
+
+def test_a_body_edit_reruns_the_checks_that_read_the_body() -> None:
+    """The `cla` job reads the pull request description, but `on.pull_request` with the
+    default types does not fire on `edited` — so a contributor who fixed the line saw no
+    new run, and the 2026-08-30 re-audit had to close and reopen the pull request. The
+    three defaults stay, since dropping one would silence the whole file."""
+    body = yaml.safe_load((ROOT / ".github" / "workflows" / "ci.yml").read_text(encoding="utf-8"))
+    declared = body.get(True, body.get("on"))
+
+    assert set(declared["pull_request"]["types"]) == {"opened", "synchronize", "reopened", "edited"}
