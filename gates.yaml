@@ -799,6 +799,14 @@ gates:
           tolerance, watching by the longest declared period instead of the
           shortest so the fast schedule could go quiet unseen, and asking the
           platform for runs of every event rather than scheduled ones.
+      - kind: mutation
+        ref: pr/122
+        date: 2026-08-30
+        caught: >-
+          The summary made to say "every declared schedule is still firing"
+          whatever had fired — red in the young-cron case and in the two-shape
+          table. An outside audit read that line above a cron that had never
+          fired on 2026-08-30.
 
   - id: a-census-over-nothing-counts-nothing
     title: A run history the censuses cannot see is the third answer, never a pass
@@ -875,6 +883,15 @@ gates:
           severity put back to `blocking`, its promise changed from 7 to 3 days, and
           the census step dropped from the cron — three mutations, each red in the
           test that holds the register's prose to the gates' `watched_by`.
+      - kind: mutation
+        ref: pr/122
+        date: 2026-08-30
+        caught: >-
+          The three states collapsed one at a time: the unwatched, unblocked
+          workflow no longer a finding, red; a pull_request trigger no longer
+          counted as blocking, red; the platform's own run judged like ours,
+          red. An outside audit read "(it blocks)" beside the Dependabot runs
+          on 2026-08-30 — nothing blocks on those.
 
   - id: a-rerun-cannot-erase-a-failure-from-the-count
     title: Failures a rerun turned green are still counted, and classified by who broke

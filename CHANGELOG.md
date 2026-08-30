@@ -76,6 +76,15 @@ Notable changes to this project. The format follows
   (outside audit, 2026-08-30, reproduced). Each schema carries the keys it
   reads and refuses the rest; README says which schema holds which rule.
   Proved by mutation five ways (#119).
+- **The censuses tell their three states apart.** `red_streak_census`
+  printed "no gate declares a watcher (it blocks)" for any workflow without
+  a promise — for the platform's own Dependabot runs and for release.yml,
+  none of which a merge blocks on; `schedule_census` summed up "every
+  declared schedule is still firing" above a cron that had never fired and
+  was merely not due yet (outside audit, 2026-08-30, reproduced). A promise,
+  a pull_request trigger, or neither — the worst, red with the fix named —
+  are told apart, a platform path is named as such, and the summary counts
+  what fired apart from what is excused. Proved by mutation four ways (#122).
 
 ### Added
 
