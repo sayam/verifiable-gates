@@ -8,6 +8,12 @@ Notable changes to this project. The format follows
 
 ### Changed
 
+- **`github/codeql-action` is pinned to a release tag.** The SHA it sat on
+  (`486fec2a`, a 2026-08-21 merge) carried only the bundle tag
+  `codeql-bundle-v2.26.4` — no `v4.x.y` release pointed at it, which the
+  version-comment test from the same day could only record. Both `init` and
+  `analyze` now sit on `cdf488f5`, the commit release `v4.37.9` names
+  (2026-08-26), and the comment says so. Owner's decision, 2026-08-30.
 - **The gitleaks pin has a mover.** The binary is fetched by URL and held to a
   sha256 written in `security.yml`, so Dependabot never sees it and nothing
   said when to bump it (re-audit round 15). The upstream signs nothing —
