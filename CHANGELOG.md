@@ -6,6 +6,19 @@ Notable changes to this project. The format follows
 
 ## [Unreleased]
 
+### Added
+
+- **The archive is read back.** Nothing read Zenodo: the cards in the tree
+  are held to each other and the About field is read live, but the archived
+  copy — the one that cannot be corrected — was compared with the releases
+  by hand (re-audit round 24: 7 and 7). `verifiable_gates.zenodo` now reads
+  every version under the concept DOI the citation card advertises and holds
+  the list to the release tags both ways, and refuses a record under another
+  concept; `posture.yml` runs it on the cron and on every push to main. The
+  archive turned out to refuse a page above 25 on the first live call, so the
+  reader pages. Live: "8 versions under 10.5281/zenodo.22103110, 8 releases".
+  Gate `the-archive-is-read-back`. Owner's decision, 2026-08-30.
+
 ### Changed
 
 - **`github/codeql-action` is pinned to a release tag.** The SHA it sat on
