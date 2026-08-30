@@ -39,8 +39,9 @@ __all__ = [
     "versions",
 ]
 
-# Every command fired outward declares a ceiling — the archive is somebody else's service.
-NETWORK_TIMEOUT_SECONDS = 60
+# Every command fired outward declares a ceiling — the archive is somebody else's
+# service, and it gets the same budget the platform does.
+NETWORK_TIMEOUT_SECONDS = gh.NETWORK_TIMEOUT_SECONDS
 API = "https://zenodo.org/api/records"
 DOI_LINE = re.compile(r"^doi: (10\.5281/zenodo\.(\d+))\s*$", re.MULTILINE)
 
@@ -83,13 +84,34 @@ def fetch_records(
     raise RuntimeError("the archive kept answering full pages — more than 1000 versions?")
 
 
+def _version(record: dict[str, Any]) -> str:
+    metadata = record.get("metadata")
+    return str(metadata.get("version") or "") if isinstance(metadata, dict) else ""
+
+
 def versions(records: list[dict[str, Any]]) -> dict[str, str]:
-    """Archived version → its own DOI."""
-    return {
-        str(record["metadata"]["version"]): str(record.get("doi") or "")
-        for record in records
-        if isinstance(record.get("metadata"), dict) and record["metadata"].get("version")
-    }
+    """Archived version → its own DOI, for the records that carry a version."""
+    return {_version(r): str(r.get("doi") or "") for r in records if _version(r)}
+
+
+def _uncountable(records: list[dict[str, Any]]) -> list[str]:
+    """Records the version map cannot represent: two under one version, or none at all.
+
+    A dict keyed by version keeps the last record and drops the rest in silence —
+    the review of 2026-08-30 fed two `0.1.6` records and one without a version and
+    got "1 version, the archive says what the releases say".
+    """
+    found: list[str] = []
+    seen: dict[str, str] = {}
+    for record in records:
+        version, doi = _version(record), str(record.get("doi") or "(no doi)")
+        if not version:
+            found.append(f"record {doi} carries no version — it cannot be matched to a release")
+        elif version in seen:
+            found.append(f"records {seen[version]} and {doi} both claim version {version}")
+        else:
+            seen[version] = doi
+    return found
 
 
 def problems(
@@ -103,6 +125,7 @@ def problems(
         f"archived version {v} ({archived[v]}) has no release here"
         for v in sorted(set(archived) - released)
     ]
+    found += _uncountable(records)
     for record in records:
         said = str(record.get("conceptdoi") or "")
         if said != concept:
@@ -113,10 +136,15 @@ def problems(
     return found
 
 
+def bare(tag: str) -> str:
+    """A release tag as the archive spells the version — without the leading `v`."""
+    return tag.removeprefix("v")
+
+
 def _released() -> set[str]:
-    """Release tags on the platform, with the `v` the archive does not carry."""
+    """Release tags on the platform, spelled as the archive spells them."""
     tags = gh.api_pages("repos/:owner/:repo/releases")
-    return {str(row.get("tag_name", "")).removeprefix("v") for row in tags if isinstance(row, dict)}
+    return {bare(str(row.get("tag_name", ""))) for row in tags if isinstance(row, dict)}
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -135,10 +163,7 @@ def main(argv: list[str] | None = None) -> int:
             else fetch_records(record_id)
         )
         released = (
-            {
-                str(tag).removeprefix("v")
-                for tag in json.loads(pathlib.Path(args.releases).read_text("utf-8"))
-            }
+            {bare(str(tag)) for tag in json.loads(pathlib.Path(args.releases).read_text("utf-8"))}
             if args.releases
             else _released()
         )

@@ -453,7 +453,9 @@ def test_a_platform_the_token_cannot_read_is_the_third_answer(
 
 
 @pytest.mark.parametrize(
-    ("alerts", "value"), [("204", True), ("404", False), ("403", None)], ids=["on", "off", "blind"]
+    ("alerts", "value"),
+    [("204", True), ("404", False), ("403", None), ("403: see /repos/x/404-org", None)],
+    ids=["on", "off", "blind", "a-404-in-the-words-is-not-the-status"],
 )
 def test_the_alerts_switch_is_read_by_status_code_with_a_third_answer(
     monkeypatch: pytest.MonkeyPatch,

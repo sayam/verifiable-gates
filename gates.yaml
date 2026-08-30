@@ -42,7 +42,7 @@ gates:
           both cards moved together to a licence this repository does not carry.
 
   - id: the-archive-is-read-back
-    title: Every release has its version on Zenodo under the advertised concept DOI, and nothing archived is unreleased
+    title: The archive reader holds Zenodo's versions to the releases both ways, and posture's cron runs it live
     kind: test
     severity: blocking
     enforced_by: {job: test, tests: [tests/test_zenodo.py]}
@@ -55,11 +55,14 @@ gates:
       by nobody: the 2026-08-30 re-audit (round 24) compared Zenodo's versions
       with the releases by hand, 7 and 7, and asked who would see the eighth.
       `verifiable_gates.zenodo` reads every version under the concept DOI the
-      citation card advertises and holds the list to the release tags both ways;
-      `posture.yml` runs it on the weekly cron and on every push to main, so a
-      release with no DOI, or an archived record under another concept, is seen
-      the week it happens rather than at the next audit. The archive refuses a
-      page above 25, found on the first live call — so the reader pages.
+      citation card advertises and holds the list to the release tags both ways.
+      This gate is the reader's behaviour, proved offline in the `test` job; the
+      live read is a step of `posture.yml` — weekly and on every push to main —
+      whose gate is `watched`, seen within seven days, so a release with no DOI is
+      seen the week it happens rather than at the next audit, not the minute it
+      happens. The archive refuses a page above 25, found on the first live call
+      — so the reader pages; and a record with no version, or two under one
+      version, is red rather than dropped by the map (pre-cut review, 2026-08-30).
     proved_by:
       - kind: mutation
         ref: pr/100

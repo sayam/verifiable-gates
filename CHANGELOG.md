@@ -29,6 +29,18 @@ Notable changes to this project. The format follows
   reader pages. Live: "8 versions under 10.5281/zenodo.22103110, 8 releases".
   Gate `the-archive-is-read-back`. Owner's decision, 2026-08-30.
 
+### Fixed
+
+- **The archive reader refuses what its map cannot count.** `versions()`
+  keyed the records by version, so two records under `0.1.6` and one with no
+  version at all collapsed to "1 version — the archive says what the releases
+  say" (pre-cut review of `v0.1.6..main`, reproduced). Both shapes are named
+  and red now. Also from that review: the reader shares `gh`'s time budget
+  instead of copying the number, spells a tag one way, and its gate says where
+  the live read runs (posture's watched cron, seven days) rather than implying
+  the `test` job reads the archive; and `posture`'s alerts switch reads "off"
+  only from the platform's own `HTTP 404`, not from any 404 in the message.
+
 ### Changed
 
 - **Four baseline titles say the mechanism, not one stack's tool.** The

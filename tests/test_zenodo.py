@@ -97,8 +97,43 @@ def test_a_record_under_another_concept_is_red(
     )
 
 
-def test_a_record_without_a_version_is_skipped_not_a_crash() -> None:
-    assert zenodo.versions([{"doi": "x", "metadata": {}}, {"doi": "y"}]) == {}
+def test_a_record_without_a_version_is_skipped_by_the_map_and_reported_by_problems() -> None:
+    """The map cannot hold it; the check must still say it is there."""
+    records = [
+        {"doi": "x", "conceptdoi": CONCEPT, "metadata": {}},
+        {"doi": "y", "conceptdoi": CONCEPT},
+    ]
+
+    assert zenodo.versions(records) == {}
+    assert zenodo.problems({}, set(), CONCEPT, []) == []
+    found = zenodo.problems({}, set(), CONCEPT, records)
+    assert found == [
+        "record x carries no version — it cannot be matched to a release",
+        "record y carries no version — it cannot be matched to a release",
+    ]
+
+
+def test_two_records_under_one_version_are_red_not_collapsed(
+    tmp_path: pathlib.Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """A dict keyed by version keeps the last record: the review of 2026-08-30 fed two
+    `0.1.6` records and one without a version and got "the archive says what the releases
+    say". Both are named now, and the exit is 1."""
+    records = [
+        record("0.1.6", "10.5281/zenodo.1"),
+        record("0.1.6", "10.5281/zenodo.2"),
+        {"doi": "10.5281/zenodo.3", "conceptdoi": CONCEPT, "metadata": {}},
+    ]
+
+    assert zenodo.main(a_tree(tmp_path, records, ["v0.1.6"])) == 1
+    err = capsys.readouterr().err
+    assert "records 10.5281/zenodo.1 and 10.5281/zenodo.2 both claim version 0.1.6" in err
+    assert "record 10.5281/zenodo.3 carries no version" in err
+
+
+def test_a_tag_is_spelled_as_the_archive_spells_it() -> None:
+    assert zenodo.bare("v0.1.6") == "0.1.6"
+    assert zenodo.bare("evidence-freeze-1") == "evidence-freeze-1"
 
 
 def test_an_archive_that_cannot_be_asked_is_exit_2(
