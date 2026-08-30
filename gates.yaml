@@ -318,6 +318,14 @@ gates:
           commit planted a token in the `ghp_` shape: red, `leaks found: 1`, with
           neither the value nor the file printed (verbose off, redact on), 57
           commits scanned. The branch was deleted, never merged.
+      - kind: mutation
+        ref: pr/97
+        date: 2026-08-30
+        caught: >-
+          The gitleaks pin's mover on the cron: the step removed, the version
+          hardcoded instead of read from security.yml, and its `exit 1` turned to
+          `exit 0` — each red in the test that runs the block through bash on a
+          tree pinning 8.0.0.
 
   - id: a-release-carries-its-sbom-and-provenance
     title: A release's wheel, sdist and SBOM are built in CI, attested keyless, and verified both ways before they are attached
