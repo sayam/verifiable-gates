@@ -1001,6 +1001,76 @@ def test_a_trailing_comment_naming_the_flag_does_not_pin(
 @pytest.mark.parametrize(
     "line",
     [
+        "echo $(pip install ruff)",
+        "echo `pip install ruff`",
+        "(pip install ruff)",
+        'sh -c "pip install ruff"',
+        "bash -c 'pip install ruff'",
+    ],
+)
+def test_an_install_behind_a_command_boundary_is_still_an_install(
+    tmp_path: pathlib.Path, capsys: pytest.CaptureFixture[str], line: str
+) -> None:
+    """`$( )`, backticks, a subshell and `sh -c` all execute what they carry."""
+    files = {".github/workflows/ci.yml": f"jobs:\n  a:\n    steps:\n      - run: {line}\n"}
+    assert scan_install_pinning.main(build(tmp_path, files)) == 1
+    assert "ci-tools-hash-pinned" in capsys.readouterr().out
+
+
+@pytest.mark.parametrize("line", ["echo pip install ruff", "printf 'pip install ruff'"])
+def test_a_command_that_only_says_the_words_installs_nothing(
+    tmp_path: pathlib.Path, capsys: pytest.CaptureFixture[str], line: str
+) -> None:
+    """The shell runs `echo`; the words are prose (a chained real install is its own command)."""
+    files = {".github/workflows/ci.yml": f"jobs:\n  a:\n    steps:\n      - run: {line}\n"}
+    assert scan_install_pinning.main(build(tmp_path, files)) == 0
+    assert "ci-tools-hash-pinned" not in capsys.readouterr().out
+
+
+def test_an_echo_chained_to_a_real_install_still_reports_the_install(
+    tmp_path: pathlib.Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    body = "jobs:\n  a:\n    steps:\n      - run: echo installing && pip install ruff\n"
+    assert scan_install_pinning.main(build(tmp_path, {".github/workflows/ci.yml": body})) == 1
+    assert "pip install ruff" in capsys.readouterr().out
+
+
+@pytest.mark.parametrize(
+    "step",
+    ["      - run : pip install ruff\n", "      - {run: pip install ruff}\n"],
+)
+def test_a_yaml_shape_the_platform_reads_is_read_here_too(
+    tmp_path: pathlib.Path, capsys: pytest.CaptureFixture[str], step: str
+) -> None:
+    """A space before the colon and a flow-style step are both valid YAML."""
+    files = {".github/workflows/ci.yml": f"jobs:\n  a:\n    steps:\n{step}"}
+    assert scan_install_pinning.main(build(tmp_path, files)) == 1
+    assert "pip install ruff" in capsys.readouterr().out
+
+
+@pytest.mark.parametrize(
+    "step",
+    ["      - uses : actions/checkout@v4\n", "      - {uses: actions/checkout@v4}\n"],
+)
+def test_a_yaml_shaped_uses_is_judged_too(
+    tmp_path: pathlib.Path, capsys: pytest.CaptureFixture[str], step: str
+) -> None:
+    files = {".github/workflows/ci.yml": f"jobs:\n  a:\n    steps:\n{step}"}
+    assert scan_workflow_pinning.main(build(tmp_path, files)) == 1
+    assert "actions/checkout@v4" in capsys.readouterr().out
+
+
+def test_a_flow_style_pinned_uses_with_its_comment_is_clean(
+    tmp_path: pathlib.Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    body = "jobs:\n  a:\n    steps:\n      - {uses: actions/checkout@" + "a" * 40 + "} # v4\n"
+    assert scan_workflow_pinning.main(build(tmp_path, {".github/workflows/ci.yml": body})) == 0
+    assert capsys.readouterr().out == ""
+
+
+@pytest.mark.parametrize(
+    "line",
+    [
         "MARKER=--require-hashes pip install ruff",
         'pip install ruff "# --require-hashes"',
         "echo --require-hashes && pip install ruff",

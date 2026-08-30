@@ -98,7 +98,10 @@ with `uses: ./<path>` wherever it lives, folded or not, and — for installs —
 shell script a `run:` line hands off to, known by its `.sh` name or by its shebang,
 with comments stripped first. In a workflow only what `run:` executes is judged —
 a `name:` or an `env:` that quotes the command is prose — and `--require-hashes`
-counts only as an argument of the install itself. An install is judged
+counts only as an argument of the install itself. A command inside `$( )`,
+backticks, a `( )` subshell or an `sh -c` string executes and is judged; a bare
+`echo` of the words is prose. The YAML shapes `uses :` and `- {uses: …}` are
+read the way the platform reads them. An install is judged
 whether it says `pip`, `pipx`, `uv tool install`, `uv add`, `uvx`, `poetry add`,
 `pdm add` or `pipenv install`; `uv run --locked`, `uv sync --locked` and `uv build`
 install from a lock and are left alone. A `uses:` folded onto the next line is
@@ -189,7 +192,8 @@ repo นี้เผยแพร่ ส่วน `gates.yaml` คือสิ่
 composite action ที่ `uses: ./<path>` ชี้ไม่ว่าอยู่ที่ไหนหรือพับบรรทัดอย่างไร และเชลล์สคริปต์ที่ `run:`
 เรียกต่อ ไม่ว่าจะรู้จากชื่อ `.sh` หรือจาก shebang โดยตัดคอมเมนต์ก่อน · ใน workflow ตัดสินเฉพาะสิ่งที่
 `run:` รันจริง (`name:` หรือ `env:` ที่ยกคำสั่งมาพูดถึงเป็นแค่ข้อความ) และ `--require-hashes` นับเมื่อเป็น
-อาร์กิวเมนต์ของคำสั่งติดตั้งเองเท่านั้น · `actions-sha-pinned` ตัดสินทั้งสองครึ่งของชื่อกฎ: tag ลอยเป็น finding และ
+อาร์กิวเมนต์ของคำสั่งติดตั้งเองเท่านั้น · คำสั่งใน `$( )` backtick subshell หรือสตริงของ `sh -c` รันจริงจึงถูกตัดสิน
+ส่วน `echo` ที่แค่พูดคำนั้นเป็นข้อความ · รูป YAML `uses :` และ `- {uses: …}` ถูกอ่านแบบเดียวกับที่แพลตฟอร์มอ่าน · `actions-sha-pinned` ตัดสินทั้งสองครึ่งของชื่อกฎ: tag ลอยเป็น finding และ
 commit SHA ที่ไม่มี comment บอกเวอร์ชันข้าง ๆ ก็เป็น finding (digest ของ `docker://` ไม่ต้องมี) ·
 `adr-index-complete` รายงานบันทึกสองฉบับที่ใช้เลขเดียวกันเช่นเดียวกับเลขที่ขาด · `csp-no-inline` อ่าน
 `ONCLICK=` `STYLE=` และ `<style>` แบบไม่สนตัวพิมพ์เหมือนที่เบราว์เซอร์อ่าน · `Dockerfile*` ที่มีอยู่แต่ไม่ได้ตั้งชื่อไว้ใน `scaffold.json` ถือเป็น

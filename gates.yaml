@@ -1731,6 +1731,15 @@ gates:
           `<STYLE>` and `<style>` in a template (outside audit, 2026-08-30,
           reproduced); a folded pinned value with its comment beside it was
           read as unpinned by the old reader.
+      - kind: mutation
+        ref: pr/137
+        date: 2026-08-31
+        caught: >-
+          Ten planted cases red on the scanners as they were — an install
+          behind `$( )`, backticks, a subshell and `sh -c` (green before), an
+          `echo` of the words (red before), and `uses :`, `run :` and
+          flow-style steps (unread before); a flow-style pinned uses with its
+          comment stays clean (outside audit, 2026-08-31, reproduced).
 
   - id: rules-we-ship-we-keep
     title: Scanners that apply to this repository are run against this repository
