@@ -8,6 +8,14 @@ Notable changes to this project. The format follows
 
 ### Changed
 
+- **Every suppression carries its reason.** The rule
+  `exception-registers-are-reasoned` asks each switched-off checker to say
+  why; eleven `# noqa` lines and six `# type: ignore[...]` lines said nothing.
+  Each now names the fact that makes the suppression right at that line — a
+  fixed git argv, a binary from `shutil.which`, a `None` that is what GitHub
+  sends for an empty body. For `type: ignore` the reason is a second `#`
+  comment on the same line, since mypy does not read an em dash after the
+  bracket. No behaviour changed; no new gate. Owner's decision, 2026-08-30.
 - **The two excused jobs declare their watcher, and the promise is measured.**
   `posture` and `release-sign` are not required checks; the register excused
   them with "the maintainer sees a red within 7 days / 1 day" in prose, and no
