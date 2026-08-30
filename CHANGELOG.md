@@ -38,7 +38,9 @@ Notable changes to this project. The format follows
   `*` under "selected" would have been "all" with a different word and a
   green census (pre-cut review). `posture` reads the detail when the policy is
   "selected", and the register declares it: GitHub-owned only, no marketplace,
-  no patterns. Seventeen switches now.
+  no patterns. Seventeen switches now; proved live both ways on the platform's
+  own job — a pattern `*` added → red printing both details (run 33289361339),
+  removed → green.
 - **The gitleaks mover says what it could not read.** Its `grep | head | sed`
   ran under `set -euo pipefail`, so a download line that changed shape aborted
   the step with no words at all (pre-cut review, reproduced: exit 1, empty).

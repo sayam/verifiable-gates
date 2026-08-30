@@ -536,6 +536,14 @@ gates:
           went red naming it and its declared value; turned back on — green with
           all 16 switches holding (run 33282291263). The custodian's fine-grained
           token reads the Actions policy and the alerts switch.
+      - kind: ci-red
+        ref: run/33289361339
+        date: 2026-08-30
+        caught: >-
+          The selected-actions detail, both ways live: a pattern `*` put under
+          "selected" on the platform — the dispatched job went red printing the
+          detail and the declared one; the pattern removed — green with all 17
+          switches holding (run 33289388186).
 
   - id: a-declared-schedule-is-watched
     title: The schedule census runs on every test job, over a full clone, so a silent cron is red
