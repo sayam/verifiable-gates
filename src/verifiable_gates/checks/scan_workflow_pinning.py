@@ -6,7 +6,8 @@ the project's own workflow, reading its source and whatever token that job holds
 A composite action under `.github/actions/<name>/action.yml` runs its `uses:`
 steps with those same permissions, and moving a step into one used to move it
 out of this scanner's sight — an outside audit on 2026-08-29 planted a floating
-action there and got a clean exit. Both places are read.
+action there and got a clean exit. Both places are read, and so is every local
+action a read file names with `uses: ./<path>`, wherever it lives.
 
 exit 0 = clean or N/A · 1 = findings · 2 = called wrongly
 
@@ -33,6 +34,27 @@ PINNED = re.compile(r"@[0-9a-f]{40}$")
 DIGEST = re.compile(r"@sha256:[0-9a-f]{64}$")
 LOCAL = ("./",)
 
+# A local action is whatever `uses: ./<path>` names — GitHub reads
+# `<path>/action.yml` wherever it lives, so reading `.github/actions/` alone left
+# `uses: ./ci/actions/setup` unread: an outside audit on 2026-08-30 planted one
+# there and both pinning scanners exited 0 while CHANGELOG said composite actions
+# were read. Every file read is followed, so an action calling an action is read.
+LOCAL_USES = re.compile(r"""^\s*-?\s*uses:\s*["']?\./([^\s"']*)""", re.MULTILINE)
+
+
+def _followed(root: pathlib.Path, targets: list[pathlib.Path]) -> list[pathlib.Path]:
+    """`targets` plus every local action a read file points at, wherever it lives."""
+    seen = list(targets)
+    queue = list(targets)
+    while queue:
+        for relative in LOCAL_USES.findall(queue.pop().read_text(encoding="utf-8")):
+            for name in ("action.yml", "action.yaml"):
+                candidate = root / relative / name
+                if candidate.is_file() and candidate not in seen:
+                    seen.append(candidate)
+                    queue.append(candidate)
+    return seen
+
 
 def _pinned(ref: str) -> bool:
     if ref.startswith("docker://"):
@@ -48,7 +70,7 @@ def main(root: pathlib.Path) -> int:
         return 0
 
     findings: list[str] = []
-    for path in workflows:
+    for path in _followed(root, workflows):
         findings += [
             f"{path.relative_to(root)}: {ref}"
             for ref in USES.findall(path.read_text(encoding="utf-8"))

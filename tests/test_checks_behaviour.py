@@ -498,6 +498,46 @@ def test_a_composite_action_alone_is_something_to_check(
     assert not capsys.readouterr().out.startswith("NA:")
 
 
+OUTSIDE_ACTION = "ci/actions/setup/action.yml"
+OUTSIDE_CALLER = {
+    ".github/workflows/ci.yml": "jobs:\n  a:\n    steps:\n      - uses: ./ci/actions/setup\n"
+}
+
+
+@pytest.mark.parametrize("case", COMPOSITE)
+def test_a_local_action_outside_dot_github_is_read_too(
+    tmp_path: pathlib.Path, capsys: pytest.CaptureFixture[str], case: Composite
+) -> None:
+    """GitHub runs `uses: ./ci/actions/setup` like any other — so it is read like any other."""
+    root = build(tmp_path, {**OUTSIDE_CALLER, OUTSIDE_ACTION: COMPOSITE_HEAD + case.dirty})
+    assert case.module.main(root) == 1, "a local action outside .github/ was not judged"
+    assert OUTSIDE_ACTION in capsys.readouterr().out
+
+
+@pytest.mark.parametrize("case", COMPOSITE)
+def test_an_action_calling_an_action_is_followed(
+    tmp_path: pathlib.Path, capsys: pytest.CaptureFixture[str], case: Composite
+) -> None:
+    """A clean action that calls a dirty one, one level down and spelled `action.yaml`."""
+    files = {
+        **OUTSIDE_CALLER,
+        OUTSIDE_ACTION: COMPOSITE_HEAD + "    - uses: ./ci/actions/inner\n",
+        "ci/actions/inner/action.yaml": COMPOSITE_HEAD + case.dirty,
+    }
+    assert case.module.main(build(tmp_path, files)) == 1
+    assert "ci/actions/inner/action.yaml" in capsys.readouterr().out
+
+
+@pytest.mark.parametrize("case", COMPOSITE)
+def test_a_local_action_that_does_not_exist_is_nothing_to_read(
+    tmp_path: pathlib.Path, capsys: pytest.CaptureFixture[str], case: Composite
+) -> None:
+    """`uses: ./nowhere` with no file behind it: GitHub's problem, not a traceback here."""
+    caller = {".github/workflows/ci.yml": "jobs:\n  a:\n    steps:\n      - uses: ./nowhere\n"}
+    assert case.module.main(build(tmp_path, caller)) == 0
+    assert case.gate not in capsys.readouterr().out
+
+
 # ---------------------------------------------------------------- the ADR index
 #
 # Four findings from one scanner, so each gets its own case rather than sharing
