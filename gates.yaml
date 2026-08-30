@@ -1549,6 +1549,15 @@ gates:
           exemption — the bare `pip install --no-deps -e .` line went green again,
           red in the exemption table. The line was this repository's own, in four
           jobs, until the pre-cut review of 2026-08-30.
+      - kind: mutation
+        ref: pr/109
+        date: 2026-08-30
+        caught: >-
+          The install scanner restored to reading the whole line — `pip install
+          ruff  # TODO: use --require-hashes one day` green again, red in the new
+          case; the quote tracking removed — the install chained after
+          `echo "step #1"` dropped with the comment, red in the other. An outside
+          audit planted the first line on 2026-08-30 and got exit 0.
 
   - id: rules-we-ship-we-keep
     title: Scanners that apply to this repository are run against this repository
