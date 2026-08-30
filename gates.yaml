@@ -253,6 +253,15 @@ gates:
           Stripping the version comment from one SHA-pinned `uses:` line in
           posture.yml failed the dogfood test with "names no version", and swapping
           one pin for a floating `@v7` failed its occurrence count (19 == 20).
+      - kind: mutation
+        ref: pr/121
+        date: 2026-08-30
+        caught: >-
+          Two published rules read against this tree for the first time: the
+          first `timeout-minutes` removed from ci.yml, red; the budget replaced
+          by a word, red; a suppression's reason stripped in zenodo.py, red; a
+          reasoned suppression added, red in the count. An outside audit did
+          the first and the third on 2026-08-30 and 1171 tests stayed green.
 
   - id: the-security-policy-quotes-one-set-of-numbers
     title: SECURITY.md exists, quotes one set of timeframes, names no address, and points at a live channel
