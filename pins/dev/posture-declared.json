@@ -1,5 +1,5 @@
 {
-  "_comment": "What the platform must say about this repository, with why. Held by posture.yml (weekly, and on every push to main) with an administrator's token; setting_problems/unreadable/check_problems decide. A switch with no why is one the next person turns off to make something else work.",
+  "_comment": "What the platform must say about this repository, with why. Held by posture.yml (weekly, and on every push to main) with an administrator's token; setting_problems/unreadable/check_problems decide. A switch with no why is one the next person turns off to make something else work. The list of switches and what each wants is copied into tests/test_posture.py, so turning or removing one is red until the same pull request changes both.",
   "branch": "main",
   "settings": {
     "enforce_admins": {

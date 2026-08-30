@@ -649,3 +649,58 @@ def test_contributing_names_exactly_the_checks_the_register_requires() -> None:
         f"CONTRIBUTING names {sorted(named)}; the workflows and the register require "
         f"{sorted(required)} on a pull request"
     )
+
+
+# ------------------------------------------------ the register itself is held
+#
+# `pins/dev/posture-declared.json` says what the platform must say, and the job
+# that reads it is not a required check (it needs the administrator's token,
+# which a pull request does not get). So a switch could be turned off, or
+# removed, in a pull request no check would see — an outside audit on
+# 2026-08-30 did both and the suite stayed green. This is the same shrink-only
+# hold `tests/test_gate_evidence.py` keeps on proof rows: the names below and
+# what they want are a copy, and a change to the register has to change this
+# file in the same pull request, where a reviewer sees both.
+
+REGISTER = pathlib.Path(__file__).resolve().parent.parent / "pins" / "dev" / "posture-declared.json"
+HELD: dict[str, object] = {
+    "enforce_admins": True,
+    "required_linear_history": True,
+    "allow_force_pushes": False,
+    "allow_deletions": False,
+    "required_conversation_resolution": True,
+    "strict_status_checks": False,
+    "required_approving_review_count": 0,
+    "allow_squash_merge": False,
+    "allow_merge_commit": False,
+    "allow_rebase_merge": True,
+    "delete_branch_on_merge": True,
+    "web_commit_signoff_required": True,
+    "sha_pinning_required": True,
+    "allowed_actions": "selected",
+    "dependabot_alerts": True,
+    "required_signatures": False,
+    "selected_actions": {
+        "github_owned_allowed": True,
+        "verified_allowed": False,
+        "patterns_allowed": [],
+    },
+}
+
+
+def test_the_register_holds_every_switch_it_held() -> None:
+    """A switch leaves the register only by leaving this list too — and arrives the same way."""
+    declared = json.loads(REGISTER.read_text(encoding="utf-8"))["settings"]
+    assert sorted(declared) == sorted(HELD), (
+        "the register and this list name different switches — "
+        f"missing here {sorted(set(HELD) - set(declared))}, new there "
+        f"{sorted(set(declared) - set(HELD))}; change both in one pull request"
+    )
+
+
+@pytest.mark.parametrize("name", sorted(HELD))
+def test_a_switch_still_wants_what_it_wanted(name: str) -> None:
+    """Turning a switch is a decision; it is made here as well as in the register."""
+    declared = json.loads(REGISTER.read_text(encoding="utf-8"))["settings"]
+    assert declared[name]["want"] == HELD[name], f"{name} was turned; turn it here too, with why"
+    assert str(declared[name].get("why", "")).strip(), f"{name} has no why"
