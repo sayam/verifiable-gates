@@ -13,7 +13,10 @@ Notable changes to this project. The format follows
   `codeql-bundle-v2.26.4` — no `v4.x.y` release pointed at it, which the
   version-comment test from the same day could only record. Both `init` and
   `analyze` now sit on `cdf488f5`, the commit release `v4.37.9` names
-  (2026-08-26), and the comment says so. Owner's decision, 2026-08-30.
+  (2026-08-26), and the comment says so. (The first pull request for this,
+  #98, carried this entry and not the change — a `sed` with `#` as its
+  delimiter and a `#` in the pattern; the pin moved in the next.) Owner's
+  decision, 2026-08-30.
 - **The gitleaks pin has a mover.** The binary is fetched by URL and held to a
   sha256 written in `security.yml`, so Dependabot never sees it and nothing
   said when to bump it (re-audit round 15). The upstream signs nothing —
