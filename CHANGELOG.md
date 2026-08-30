@@ -8,6 +8,14 @@ Notable changes to this project. The format follows
 
 ### Changed
 
+- **`tools/gates_doctor.py` takes `--root DIR` as well as the positional
+  root.** Every other tool here takes `--root`; the re-audit's operator typed
+  it at the doctor and got a usage error (round 18, 2026-08-30). The two
+  spellings answer identically, the no-argument default is unchanged, and
+  naming the project both ways is a misuse (exit 2, with a message). The file
+  stays stdlib-only. Proved by tests that point `--root` at a directory the
+  default cannot reach, so an ignored flag cannot hide behind the default
+  (#95). Owner's decision, 2026-08-30.
 - **A pull request body edit now re-runs the checks.** The `cla` job reads the
   description, but
 - **Every action pin names its version in a trailing comment, and a test keeps
