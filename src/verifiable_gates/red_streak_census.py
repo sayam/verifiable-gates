@@ -189,7 +189,11 @@ def main(argv: list[str] | None = None) -> int:
         # A promise exists, so an empty history is not an answer — it is the
         # census being unable to see, and that must not round to "kept".
         runs = history.read(
-            args.input, lambda: _fetch(args.limit), shape=list, must_hold_something=True
+            args.input,
+            lambda: _fetch(args.limit),
+            shape=list,
+            must_hold_something=True,
+            fields=("path", "created_at"),
         )
     except (PermissionError, RuntimeError) as problem:
         print(

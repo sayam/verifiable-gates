@@ -285,6 +285,24 @@ def test_a_broken_promise_returns_a_blocking_code(
     assert "not being kept" in capsys.readouterr().err
 
 
+def test_the_output_of_gh_run_list_is_the_third_answer_not_a_traceback(
+    tmp_path: pathlib.Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """`createdAt` where `created_at` was expected raised KeyError (2026-08-30) — exit 2 now."""
+    a_workflow(tmp_path / ".github" / "workflows", "nightly.yml", CRON_ONLY)
+    a_registry(tmp_path, WATCHED)
+    runs = tmp_path / "gh.json"
+    runs.write_text(
+        '[{"databaseId": 1, "createdAt": "2026-08-30T00:00:00Z", "conclusion": "failure"}]',
+        encoding="utf-8",
+    )
+
+    assert census.main(["--root", str(tmp_path), "--input", str(runs)]) == 2
+    err = capsys.readouterr().err
+    assert "cannot read the run history" in err
+    assert "record 0 has no ['path', 'created_at']" in err
+
+
 def test_an_unreadable_history_is_its_own_answer(
     tmp_path: pathlib.Path, capsys: pytest.CaptureFixture[str], monkeypatch: pytest.MonkeyPatch
 ) -> None:

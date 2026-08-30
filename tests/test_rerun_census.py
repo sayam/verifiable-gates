@@ -841,3 +841,20 @@ def test_a_history_of_the_wrong_shape_is_unreadable(
 
     assert census.main(["--root", str(tmp_path), "--input", str(path)]) == 2, why
     assert "never become a silent skip" in capsys.readouterr().err
+
+
+def test_the_output_of_gh_run_list_is_the_third_answer_not_zero_failures(
+    tmp_path: pathlib.Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """A hundred `gh run list --json` rows with failures counted as a clean window (2026-08-30)."""
+    rows = [
+        {"databaseId": n, "createdAt": "2026-08-30T00:00:00Z", "conclusion": "failure"}
+        for n in range(3)
+    ]
+    path = tmp_path / "gh.json"
+    path.write_text(json.dumps(rows), encoding="utf-8")
+
+    assert census.main(["--root", str(tmp_path), "--input", str(path)]) == 2
+    err = capsys.readouterr().err
+    assert "cannot read the run history" in err
+    assert "gh run list --json" in err
