@@ -121,7 +121,10 @@ jobs:
   # copyright in a version bump, so its pull requests are skipped, and a skipped
   # required check is a pass on the platform.
   cla:
-    if: github.event_name == 'pull_request' && github.actor != 'dependabot[bot]'
+    # By the pull request's *author*, not the run's actor: a maintainer who re-runs
+    # a Dependabot pull request's checks becomes the actor, and the bot's body has
+    # no line — a red on a bump for the wrong reason (re-audit round 22, 2026-08-30).
+    if: github.event_name == 'pull_request' && github.event.pull_request.user.login != 'dependabot[bot]'
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:

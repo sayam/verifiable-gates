@@ -103,6 +103,17 @@ def test_the_handoff_job_reads_what_the_module_reads() -> None:
     assert "if: github.event_name == 'pull_request'" in ci, "the gate means nothing off a PR"
 
 
+def test_the_cla_job_skips_by_the_pull_requests_author_not_the_runs_actor() -> None:
+    """`github.actor` is whoever triggered the run: a maintainer re-running a Dependabot pull
+    request's checks becomes the actor, the job runs, and the bot's body has no line — red
+    on a bump for the wrong reason. The author of the pull request is the bot every time."""
+    condition = str(preflight.jobs_on_disk(ROOT)["cla"].get("if"))
+
+    assert "github.event.pull_request.user.login != 'dependabot[bot]'" in condition
+    assert "github.actor" not in condition, condition
+    assert "github.event_name == 'pull_request'" in condition
+
+
 def test_the_example_line_contributing_shows_is_one_the_job_accepts() -> None:
     """A document's example that the gate refuses teaches the wrong shape — and the
     template `<name> <email>` reads as two placeholders when the brackets are literal."""
