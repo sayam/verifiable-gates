@@ -6,6 +6,19 @@ Notable changes to this project. The format follows
 
 ## [Unreleased]
 
+## [0.1.9] - 2026-08-30
+
+The third outside round of the day, four models this time, re-verified
+finding by finding before anything was touched — of one auditor's twelve, five
+reproduced as gaps and one as a proof pointing at the wrong pull request; the
+rest were already decided, refuted by the tool itself, or wording — and then
+closed one pull request at a time, each with the mutation that proves it: the
+step gates are held by a copy, both pinning scanners follow a folded local
+action and a script known by its shebang, the doctor tells a crashed scan from
+a finding, `--require-hashes` counts only where pip reads it and only `run:` is
+read, three scanners hold the whole of the title they decide, and the two
+security proofs name the run that went red (#129–#135).
+
 ### Fixed
 
 - **The two security proofs name the run that went red.** Both `ci-red` rows
@@ -1168,7 +1181,8 @@ order it happened.
 - **`gates.yaml`, deliberately empty.** This repository will not list a gate
   before the thing that enforces it exists.
 
-[Unreleased]: https://github.com/sayam/verifiable-gates/compare/v0.1.8...HEAD
+[Unreleased]: https://github.com/sayam/verifiable-gates/compare/v0.1.9...HEAD
+[0.1.9]: https://github.com/sayam/verifiable-gates/releases/tag/v0.1.9
 [0.1.8]: https://github.com/sayam/verifiable-gates/releases/tag/v0.1.8
 [0.1.7]: https://github.com/sayam/verifiable-gates/releases/tag/v0.1.7
 [0.1.6]: https://github.com/sayam/verifiable-gates/releases/tag/v0.1.6
