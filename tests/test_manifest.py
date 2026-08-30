@@ -16,8 +16,11 @@ import json
 import pathlib
 
 import pytest
+import yaml
 
 from verifiable_gates import manifest as manifest_module
+
+ROOT = pathlib.Path(__file__).resolve().parent.parent
 
 BUNDLE = pathlib.Path(__file__).resolve().parent.parent / "src" / "verifiable_gates"
 
@@ -145,3 +148,18 @@ def test_an_unusable_manifest_raises_rather_than_reports(
     path.write_text(content, encoding="utf-8")
     with pytest.raises(error, match=needle):
         manifest_module.load(path)
+
+
+def test_the_overlay_says_of_each_rule_exactly_what_the_catalogue_says() -> None:
+    """The shipped overlay's scan gates and `rules.yaml` are one register in two files:
+    same ids, same titles, two-way. All nine titles had drifted, and a test held only
+    that a title was non-empty (outside audit, 2026-08-31)."""
+    overlay = json.loads((ROOT / "src" / "verifiable_gates" / "overlay.json").read_text("utf-8"))
+    rules = yaml.safe_load((ROOT / "rules.yaml").read_text("utf-8"))["rules"]
+    scripted = {rule["id"]: rule["title"] for rule in rules if "script" in rule}
+    shipped = {
+        gid: entry["title"]
+        for gid, entry in overlay["gates"].items()
+        if entry.get("kind") == "scan"
+    }
+    assert shipped == scripted, "an id or a title differs between overlay.json and rules.yaml"

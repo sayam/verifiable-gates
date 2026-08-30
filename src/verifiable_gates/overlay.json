@@ -23,47 +23,47 @@
     "actions-sha-pinned": {
       "kind": "scan",
       "script": "checks/scan_workflow_pinning.py",
-      "title": "Every action in a workflow is pinned to a commit SHA"
+      "title": "Every action is pinned to a commit SHA with the version in a comment"
     },
     "adr-index-complete": {
       "kind": "scan",
       "script": "checks/scan_adr_index.py",
-      "title": "The ADR index covers every record, numbered without gaps"
+      "title": "The ADR index covers every record, numbered without repeats or gaps · and supersessions are recorded in both directions"
     },
     "ci-tools-hash-pinned": {
       "kind": "scan",
       "script": "checks/scan_install_pinning.py",
-      "title": "Tools CI installs for itself are pinned by hash"
+      "title": "Tools CI installs for itself are pinned by hash, on both the Python and the Node side"
     },
     "csp-no-inline": {
       "kind": "scan",
       "script": "checks/scan_templates_inline.py",
-      "title": "Templates carry no inline handler, style, or script"
+      "title": "CSP is pure self — no inline script, style, or handler anywhere"
     },
     "delete-means-soft-delete": {
       "kind": "scan",
       "script": "checks/scan_write_discipline.py",
-      "title": "A real delete lives only in the declared purge modules"
+      "title": "Delete means hide (soft delete) — only purge removes rows for real"
     },
     "gates-registry-total": {
       "kind": "scan",
       "script": "checks/scan_gates_registry.py",
-      "title": "The gate index matches reality in both directions"
+      "title": "The gate index matches reality in both directions, and every test file is accounted for"
     },
     "image-digest-pinned": {
       "kind": "scan",
       "script": "checks/scan_dockerfile_digest.py",
-      "title": "A base image is pinned by digest, not only by tag"
+      "title": "The base image is pinned to a manifest-index digest and Dependabot moves it"
     },
     "logic-knows-no-http": {
       "kind": "scan",
       "script": "checks/scan_service_layer.py",
-      "title": "The service layer imports nothing from the request side"
+      "title": "All logic lives in the service layer and knows nothing about HTTP"
     },
     "no-debug-entrypoint": {
       "kind": "scan",
       "script": "checks/scan_entrypoint_debug.py",
-      "title": "An entrypoint cannot open a debug console, even run wrongly"
+      "title": "No entrypoint file can open a debug console, even when the wrong one is run"
     }
   },
   "requires": {

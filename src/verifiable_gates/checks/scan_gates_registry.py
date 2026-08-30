@@ -269,10 +269,14 @@ def load(text: str) -> object:
     return value
 
 
-def workflow_jobs(root: pathlib.Path) -> tuple[dict[str, list[str]], list[str]]:
-    """job → the names of its named steps, plus a list of files that could not be read."""
+def workflow_jobs(root: pathlib.Path) -> tuple[dict[str, list[str]], list[str], list[str]]:
+    """job → the names of its named steps, the files that could not be read, and the
+    job names two workflow files both define — the platform runs both while a dict
+    keyed by name kept one, so the second was covered by the first's gate in
+    silence (outside audit, 2026-08-31)."""
     jobs: dict[str, list[str]] = {}
     unreadable: list[str] = []
+    homes: dict[str, list[str]] = {}
     for path in sorted((root / ".github" / "workflows").glob("*.y*ml")):
         try:
             workflow = load(path.read_text(encoding="utf-8"))
@@ -287,7 +291,14 @@ def workflow_jobs(root: pathlib.Path) -> tuple[dict[str, list[str]], list[str]]:
             jobs[str(name)] = [
                 str(s["name"]) for s in steps if isinstance(s, dict) and s.get("name")
             ]
-    return jobs, unreadable
+            homes.setdefault(str(name), []).append(str(path.relative_to(root)))
+    clashes = [
+        f"job {name} is defined in {' and '.join(files)} — one gate cannot hold two jobs"
+        f" of one name; rename one"
+        for name, files in sorted(homes.items())
+        if len(files) > 1
+    ]
+    return jobs, unreadable, clashes
 
 
 def _gate_findings(gates: list[object]) -> tuple[list[str], list[dict[str, Any]]]:
@@ -410,8 +421,9 @@ def main(root: pathlib.Path) -> int:
         if not gates and not shape:
             findings.append(f"{registry.name} lists no gates — an empty index enforces nothing")
 
-        jobs, unreadable = workflow_jobs(root)
+        jobs, unreadable, clashes = workflow_jobs(root)
         findings += [f"a workflow could not be read — {problem}" for problem in unreadable]
+        findings += clashes
         findings += _forward(gates, jobs, root)
 
         covered = {str(gate["enforced_by"]["job"]) for gate in gates}

@@ -1894,6 +1894,13 @@ gates:
           The climb check switched off (`_leaves` always false): red on
           `../../outside/x`, on an absolute path and on `a/../../b.py`, and red
           in the installer's end-to-end case that watches the landing spot.
+      - kind: mutation
+        ref: pr/141
+        date: 2026-08-31
+        caught: >-
+          All nine overlay titles edited away from the catalogue's (and one id
+          renamed) — green before the hold, red after; the only earlier hold was
+          that a title existed (outside audit, 2026-08-31, reproduced).
 
   - id: the-shipped-reader-agrees-with-the-real-one
     title: The hand-written YAML reader agrees with PyYAML on this repository's own files
@@ -1931,6 +1938,13 @@ gates:
           The scanner restored to its v0.1.3 text, where a `gates_path` the
           project named and did not have answered `NA: no docs/gates.yaml`, exit
           0 — the new case went red on that answer. Restored byte for byte.
+      - kind: mutation
+        ref: pr/141
+        date: 2026-08-31
+        caught: >-
+          A job name planted in two workflow files was counted once and covered
+          by one gate in silence — now a finding naming both files (outside
+          audit, 2026-08-31, reproduced).
 
   - id: the-box-opens-already-true
     title: A fresh install's registry passes its own check, and is not skipped as not-applicable
