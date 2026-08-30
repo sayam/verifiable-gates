@@ -934,7 +934,15 @@ gates:
       row `interrogate-at-84` names (the floor moves at 90, so the test and the
       row go red on the same day); the coverage floor is held at the top of its
       scale, where the tool itself refuses a run beneath it.
-    proved_by: []
+    proved_by:
+      - kind: mutation
+        ref: pr/101
+        date: 2026-08-30
+        caught: >-
+          Four mutations red — the docstring floor lowered to 70 in pyproject, the
+          DECISIONS row's expiry moved to 95, `ratchets.problems` neutered to `[]`,
+          and `fail_under` lowered to 99. The lowered floor is the direction a
+          ratchet cannot see from its numbers, so that one is held to the row's id.
   - id: a-number-comes-from-the-thing-itself
     title: Every figure a threshold is held against is read from the source, never from a summary
     kind: test
