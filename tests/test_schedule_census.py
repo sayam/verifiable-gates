@@ -168,6 +168,39 @@ def test_a_healthy_project_passes(
     assert "still firing" in capsys.readouterr().out
 
 
+def test_the_summary_counts_what_fired_apart_from_what_is_excused(
+    tmp_path: pathlib.Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """A young cron that never fired is excused, not "still firing" — the line says which."""
+    a_workflow(tmp_path / ".github" / "workflows", "weekly.yml", "0 5 * * 1")
+    _a_git_repo(tmp_path)
+    state = tmp_path / "state.json"
+    state.write_text('{"last_scheduled_run": {"weekly.yml": null}}', encoding="utf-8")
+    soon = "2026-08-27T00:00:00+00:00"
+
+    code = census.main(["--root", str(tmp_path), "--input", str(state), "--now", soon])
+
+    out = capsys.readouterr().out
+    assert code == 0
+    assert "still firing" not in out
+    assert "0 of 1 declared schedules are firing" in out
+    assert "1 declared but not due yet" in out
+    assert "1 have never fired" in out
+
+
+@pytest.mark.parametrize(
+    ("declared", "fired", "waiting", "needle"),
+    [
+        (2, 2, 0, "every declared schedule is still firing within its period (2 workflows)"),
+        (2, 1, 1, "1 of 2 declared schedules are firing"),
+    ],
+)
+def test_the_summary_line_in_both_shapes(
+    declared: int, fired: int, waiting: int, needle: str
+) -> None:
+    assert needle in census.summary(declared, fired, waiting)
+
+
 def test_a_quiet_schedule_returns_a_blocking_code(
     tmp_path: pathlib.Path, capsys: pytest.CaptureFixture[str]
 ) -> None:

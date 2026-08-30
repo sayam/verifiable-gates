@@ -295,7 +295,8 @@ def main(argv: list[str] | None = None) -> int:
     born = first_seen(pathlib.Path(args.root), list(schedules))
     found = problems(schedules, last, now, args.tolerance, born)
 
-    for line in not_due_yet(schedules, last, born, now, args.tolerance):
+    waiting = not_due_yet(schedules, last, born, now, args.tolerance)
+    for line in waiting:
         print(f"  declared but not due yet: {line}")
 
     for line in unverifiable_schedules(pathlib.Path(args.root)):
@@ -307,8 +308,20 @@ def main(argv: list[str] | None = None) -> int:
             print(f"  - {line}", file=sys.stderr)
         return 1
 
-    print(f"every declared schedule is still firing within its period ({len(schedules)} workflows)")
+    print(summary(len(schedules), sum(last.get(n) is not None for n in schedules), len(waiting)))
     return 0
+
+
+def summary(declared: int, fired: int, waiting: int) -> str:
+    """The one line a reader sees on exit 0 — it has to count what has fired apart
+    from what is merely excused. An outside audit on 2026-08-30 read "every declared
+    schedule is still firing" above a cron that had never fired once."""
+    if fired == declared:
+        return f"every declared schedule is still firing within its period ({declared} workflows)"
+    return (
+        f"{fired} of {declared} declared schedules are firing within their period; "
+        f"{waiting} declared but not due yet — {declared - fired} have never fired"
+    )
 
 
 if __name__ == "__main__":
