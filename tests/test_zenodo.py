@@ -136,6 +136,33 @@ def test_a_tag_is_spelled_as_the_archive_spells_it() -> None:
     assert zenodo.bare("evidence-freeze-1") == "evidence-freeze-1"
 
 
+@pytest.mark.parametrize(
+    "records",
+    [{"hits": []}, ["a string", "another"], "just text"],
+    ids=["dict", "list-of-strings", "string"],
+)
+def test_a_records_file_of_the_wrong_shape_is_refused_not_a_traceback(
+    tmp_path: pathlib.Path, capsys: pytest.CaptureFixture[str], records: object
+) -> None:
+    """A wrong shape got an AttributeError where every other bad input gets exit 2."""
+    argv = a_tree(tmp_path, [], ["v0.1.0"])
+    (tmp_path / "records.json").write_text(json.dumps(records), encoding="utf-8")
+
+    assert zenodo.main(argv) == 2
+    assert "does not hold a list of record mappings" in capsys.readouterr().err
+
+
+def test_a_releases_file_of_the_wrong_shape_is_refused_too(
+    tmp_path: pathlib.Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """`str()` coerced any shape into a tag silently; a dict is not a list of tags."""
+    argv = a_tree(tmp_path, [record("0.1.0", "10.5281/zenodo.1")], [])
+    (tmp_path / "releases.json").write_text(json.dumps({"tag": "v0.1.0"}), encoding="utf-8")
+
+    assert zenodo.main(argv) == 2
+    assert "does not hold a list of tag strings" in capsys.readouterr().err
+
+
 def test_an_archive_that_cannot_be_asked_is_exit_2(
     tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
 ) -> None:

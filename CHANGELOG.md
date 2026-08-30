@@ -8,6 +8,12 @@ Notable changes to this project. The format follows
 
 ### Fixed
 
+- **`zenodo` refuses a wrong-shaped file the way it refuses every other
+  unreadable input.** `--records` holding a dict or a list of strings died
+  of `AttributeError`, and a wrong-shaped releases file was coerced through
+  `str()` silently (outside audit, 2026-08-31, reproduced). Both are now
+  "cannot read the archive or the releases: …" and exit 2, the same answer a
+  missing or unparsable file gets. Proved by mutation four ways (#140).
 - **A hang and a half-finished scan are answers, not tracebacks.** A scan
   that slept past the doctor's timeout killed the doctor with a raw
   `TimeoutExpired`; the harness died the same way on a hung gate; and a scan

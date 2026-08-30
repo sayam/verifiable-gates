@@ -136,6 +136,23 @@ def problems(
     return found
 
 
+def _record_list(loaded: object) -> list[dict[str, Any]]:
+    """The records file's content, or a refusal — a wrong shape got an AttributeError
+    traceback where every other unreadable input gets exit 2 (outside audit, 2026-08-31)."""
+    if not isinstance(loaded, list) or not all(isinstance(r, dict) for r in loaded):
+        message = "the records file does not hold a list of record mappings"
+        raise ValueError(message)
+    return loaded
+
+
+def _tag_list(loaded: object) -> list[str]:
+    """The releases file's content, or a refusal — `str()` was coercing any shape silently."""
+    if not isinstance(loaded, list) or not all(isinstance(t, str) for t in loaded):
+        message = "the releases file does not hold a list of tag strings"
+        raise ValueError(message)
+    return loaded
+
+
 def bare(tag: str) -> str:
     """A release tag as the archive spells the version — without the leading `v`."""
     return tag.removeprefix("v")
@@ -158,16 +175,17 @@ def main(argv: list[str] | None = None) -> int:
     try:
         concept, record_id = concept_doi(root / "CITATION.cff")
         records = (
-            json.loads(pathlib.Path(args.records).read_text(encoding="utf-8"))
+            _record_list(json.loads(pathlib.Path(args.records).read_text(encoding="utf-8")))
             if args.records
             else fetch_records(record_id)
         )
-        released = (
-            {bare(str(tag)) for tag in json.loads(pathlib.Path(args.releases).read_text("utf-8"))}
+        tags = (
+            _tag_list(json.loads(pathlib.Path(args.releases).read_text("utf-8")))
             if args.releases
-            else _released()
+            else None
         )
-    except (PermissionError, RuntimeError, OSError, json.JSONDecodeError) as problem:
+        released = {bare(tag) for tag in tags} if tags is not None else _released()
+    except (PermissionError, RuntimeError, OSError, ValueError) as problem:
         print(f"cannot read the archive or the releases: {problem}", file=sys.stderr)
         return 2
     archived = versions(records)

@@ -80,6 +80,14 @@ gates:
           `_uncountable` dropped from `problems()` and the duplicate-version branch
           disabled — each red in the test that feeds two `0.1.6` records and one
           without a version, the input the pre-cut review used to get a green.
+      - kind: mutation
+        ref: pr/140
+        date: 2026-08-31
+        caught: >-
+          Four planted files red on the module as it was — records as a dict,
+          a list of strings and bare text (AttributeError tracebacks before),
+          and releases as a dict (coerced through str() silently before); each
+          now answers exit 2 with the file named (outside audit, 2026-08-31).
   - id: the-pins-are-audited-here
     title: The tools this repository installs for itself are audited for advisories, and every finding is judged
     kind: job
