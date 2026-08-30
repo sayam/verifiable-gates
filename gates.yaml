@@ -141,6 +141,13 @@ gates:
           The failure echo's broken quoting put back — the test that runs the FAIL
           branch through bash saw stderr "No such file or directory" and no example
           on stdout. Found by the pre-cut review of 2026-08-30.
+      - kind: mutation
+        ref: pr/90
+        date: 2026-08-30
+        caught: >-
+          The skip condition put back to `github.actor` — red in the test that holds
+          it to the pull request's author. On the same pull request the job ran and
+          passed for a human author, so the change did not widen the skip.
 
   - id: preflight-and-the-harness-walk-this-repository
     title: The developer-side instruments this bundle ships are pointed at this repository
