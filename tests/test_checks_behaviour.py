@@ -594,6 +594,18 @@ def test_an_action_calling_an_action_is_followed(
     assert "ci/actions/inner/action.yaml" in capsys.readouterr().out
 
 
+@pytest.mark.parametrize("marker", [">", "|", ">-"])
+@pytest.mark.parametrize("case", COMPOSITE)
+def test_a_folded_local_uses_is_followed_like_a_plain_one(
+    tmp_path: pathlib.Path, capsys: pytest.CaptureFixture[str], case: Composite, marker: str
+) -> None:
+    """`uses: >` then `./ci/actions/setup` on the next line names the same action GitHub runs."""
+    caller = f"jobs:\n  a:\n    steps:\n      - uses: {marker}\n          ./ci/actions/setup\n"
+    files = {".github/workflows/ci.yml": caller, OUTSIDE_ACTION: COMPOSITE_HEAD + case.dirty}
+    assert case.module.main(build(tmp_path, files)) == 1, "a folded local action was not followed"
+    assert OUTSIDE_ACTION in capsys.readouterr().out
+
+
 @pytest.mark.parametrize("case", COMPOSITE)
 def test_a_local_action_that_does_not_exist_is_nothing_to_read(
     tmp_path: pathlib.Path, capsys: pytest.CaptureFixture[str], case: Composite
@@ -809,6 +821,31 @@ def test_an_install_hidden_in_a_shell_script_ci_runs_is_read(
     assert scan_install_pinning.main(build(tmp_path, files)) == 1
     out = capsys.readouterr().out
     assert "scripts/setup.sh: pip install ruff" in out
+
+
+@pytest.mark.parametrize("call", ["./scripts/setup", "bash scripts/setup", ". scripts/setup"])
+def test_a_script_with_no_extension_is_known_by_its_shebang(
+    tmp_path: pathlib.Path, capsys: pytest.CaptureFixture[str], call: str
+) -> None:
+    """`./scripts/setup` under `#!/usr/bin/env bash` is a shell script by all but its name."""
+    files = {
+        ".github/workflows/ci.yml": f"jobs:\n  a:\n    steps:\n      - run: {call}\n",
+        "scripts/setup": "#!/usr/bin/env bash\npip install ruff\n",
+    }
+    assert scan_install_pinning.main(build(tmp_path, files)) == 1
+    assert "scripts/setup: pip install ruff" in capsys.readouterr().out
+
+
+def test_a_file_with_no_extension_and_no_shell_shebang_is_not_a_script(
+    tmp_path: pathlib.Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """The other direction: a Python tool that only *prints* the words is not read as shell."""
+    files = {
+        ".github/workflows/ci.yml": "jobs:\n  a:\n    steps:\n      - run: ./tools/report\n",
+        "tools/report": "#!/usr/bin/env python3\nprint('pip install ruff')\n",
+    }
+    assert scan_install_pinning.main(build(tmp_path, files)) == 0
+    assert "ci-tools-hash-pinned" not in capsys.readouterr().out
 
 
 def test_a_script_calling_a_script_is_followed(

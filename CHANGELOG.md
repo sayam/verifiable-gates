@@ -8,6 +8,16 @@ Notable changes to this project. The format follows
 
 ### Fixed
 
+- **A folded local action and an extensionless script are followed too.**
+  Both pinning scanners followed `uses: ./ci/action` but wanted the `./` on
+  the `uses:` line, so `uses: >` with the path on the next line was unread —
+  an unpinned `actions/checkout@v4` and a `pip install ruff` behind it both
+  exited 0 (outside audit, 2026-08-30, reproduced); and a hand-off was a
+  script only by its `.sh` name, so `./scripts/setup` with a bash shebang was
+  unread. The local path is now read the way every `uses:` value is, and a
+  file with no extension is a shell script when its first line is a shell
+  shebang — a Python tool that prints the words is still not read as shell.
+  Proved by mutation: nine new cases red on the old scanners (#130).
 - **The step gates are held by a copy, two-way.** A test gate is held by its
   test file and a job gate by its job (`scan_gates_registry`), but a gate one
   named step enforces (`kind: step`) was held by nothing: an outside audit on

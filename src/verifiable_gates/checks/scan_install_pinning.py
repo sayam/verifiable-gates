@@ -13,9 +13,10 @@ is not an index install: nothing is fetched, so there is nothing to pin. That
 exemption needs all three halves, and there is a test for each of them — see
 `_installs_from_an_index`.
 
-A `run:` line that hands off to a shell script in the checkout is followed into
-the script, because the install it hides runs with the job's permissions all the
-same (outside audit, 2026-08-30: `pip install ruff` in `scripts/setup.sh`, exit 0).
+A `run:` line that hands off to a shell script in the checkout — by its `.sh` name or by
+the shebang on its first line — is followed into the script, because the install it
+hides runs with the job's permissions all the same (outside audit, 2026-08-30: `pip
+install ruff` in `scripts/setup.sh`, exit 0).
 
 Comments are stripped before checking — these files like to explain themselves by
 quoting the very command they are telling you not to use. A comment at the end of
@@ -25,7 +26,8 @@ word it needs sat in the comment (outside audit, 2026-08-30).
 A composite action under `.github/actions/<name>/action.yml` installs with the
 calling workflow's permissions, so its `run:` steps are read too — an outside
 audit on 2026-08-29 planted an unpinned install there and got a clean exit. So
-is every local action a read file names with `uses: ./<path>`, wherever it lives.
+is every local action a read file names with `uses: ./<path>`, wherever it lives
+and however the value is folded.
 
 exit 0 = clean or N/A · 1 = findings · 2 = called wrongly
 
@@ -132,7 +134,28 @@ def _bundles_own(text: str) -> bool:
 # `uses: ./ci/actions/setup` unread: an outside audit on 2026-08-30 planted one
 # there and both pinning scanners exited 0 while CHANGELOG said composite actions
 # were read. Every file read is followed, so an action calling an action is read.
-LOCAL_USES = re.compile(r"""^\s*-?\s*uses:\s*["']?\./([^\s"']*)""", re.MULTILINE)
+# YAML lets the value fold onto the next line — `uses: >` then `./ci/action` —
+# and a regex that wanted `./` on the `uses:` line left that action unread
+# (outside audit, 2026-08-30: an unpinned install behind it exited 0).
+USES = re.compile(r"""^\s*-?\s*uses:\s*["']?([^\s"']+)""")
+BLOCK = re.compile(r"^[|>][-+]?$")
+
+
+def _local_uses(text: str) -> list[str]:
+    """The paths of every local action the file names, folded or not."""
+    lines = text.splitlines()
+    found: list[str] = []
+    for index, line in enumerate(lines):
+        match = USES.match(line)
+        if not match:
+            continue
+        ref = match.group(1)
+        if BLOCK.match(ref):
+            rest = [later.strip() for later in lines[index + 1 :] if later.strip()]
+            ref = rest[0].strip("\"'") if rest else ref
+        if ref.startswith("./"):
+            found.append(ref[2:])
+    return found
 
 
 def _followed(root: pathlib.Path, targets: list[pathlib.Path]) -> list[pathlib.Path]:
@@ -140,7 +163,7 @@ def _followed(root: pathlib.Path, targets: list[pathlib.Path]) -> list[pathlib.P
     seen = list(targets)
     queue = list(targets)
     while queue:
-        for relative in LOCAL_USES.findall(queue.pop().read_text(encoding="utf-8")):
+        for relative in _local_uses(queue.pop().read_text(encoding="utf-8")):
             for name in ("action.yml", "action.yaml"):
                 candidate = root / relative / name
                 if candidate.is_file() and candidate not in seen:
@@ -201,22 +224,38 @@ def _without_comment(line: str) -> str:
 # 2026-08-30 planted `pip install ruff` in a script the workflow called and got
 # exit 0. Every script a read file names is read too, scripts calling scripts
 # included; a path that climbs out of the checkout or is absolute is not ours.
+# A script is one by its `.sh`/`.bash` name, or — `./scripts/setup`, `bash
+# scripts/setup` — by a shell shebang on its first line: the name was the only
+# test until an outside audit on 2026-08-30 planted an extensionless one.
 SCRIPT = re.compile(
-    r"(?:^|[\s;&|(])(?:(?:bash|sh|source|\.)\s+)?(?P<path>(?:\./)?[\w./-]+\.(?:sh|bash))(?=[\s;&|)]|$)"
+    r"(?:^|[\s;&|(])(?:(?:bash|sh|source|\.)\s+(?P<run>[\w./-]+)"
+    r"|(?P<own>\./[\w./-]+)|(?P<named>[\w./-]+\.(?:sh|bash)))(?=[\s;&|)]|$)"
 )
+SHEBANG = re.compile(r"^#!.*\b(?:ba|z|da|k)?sh\b")
+
+
+def _is_shell_script(path: pathlib.Path) -> bool:
+    if path.suffix in {".sh", ".bash"}:
+        return True
+    with path.open("rb") as handle:
+        first = handle.readline(200).decode("utf-8", errors="replace")
+    return SHEBANG.match(first) is not None
 
 
 def _scripts_named(root: pathlib.Path, path: pathlib.Path) -> list[pathlib.Path]:
     """The shell scripts in the checkout that one read file hands off to."""
     named = [
-        pathlib.PurePosixPath(match.group("path"))
+        pathlib.PurePosixPath(match.group("run") or match.group("own") or match.group("named"))
         for line in _commands(path)
         for match in SCRIPT.finditer(line)
     ]
     return [
         root / name
         for name in named
-        if not name.is_absolute() and ".." not in name.parts and (root / name).is_file()
+        if not name.is_absolute()
+        and ".." not in name.parts
+        and (root / name).is_file()
+        and _is_shell_script(root / name)
     ]
 
 
