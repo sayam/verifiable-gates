@@ -6,7 +6,8 @@
 #
 # Weekly, and on every push to main: a switch changes by a click, not a commit,
 # so a push is not the only moment it can drift. The schedule is watched by the
-# schedule census in ci.yml, so a cron that stops firing is itself red.
+# schedule census — in ci.yml's test job on every push, and in this job's own
+# cron since 2026-08-30 — so a cron that stops firing is itself red.
 #
 # The secret POSTURE_TOKEN is a fine-grained PAT with administration:read on
 # this repository. Without it the job exits 2 — "could not look" — never green.
@@ -72,7 +73,11 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
-          pinned=$(grep -oE 'gitleaks_[0-9]+\.[0-9]+\.[0-9]+_linux' .github/workflows/security.yml | head -1 | sed -E 's/gitleaks_(.*)_linux/\1/')
+          pinned=$(grep -oE 'gitleaks_[0-9]+\.[0-9]+\.[0-9]+_linux' .github/workflows/security.yml | head -1 | sed -E 's/gitleaks_(.*)_linux/\1/' || true)
+          if [ -z "$pinned" ]; then
+            echo "FAIL: could not read the pinned gitleaks version out of security.yml — the download line changed shape; fix the grep here (DECISIONS.md: gitleaks-pinned-by-our-checksum)"
+            exit 1
+          fi
           latest=$(gh release view --repo gitleaks/gitleaks --json tagName --jq .tagName | sed 's/^v//')
           if [ "$pinned" = "$latest" ]; then
             echo "gitleaks $pinned is the latest release"

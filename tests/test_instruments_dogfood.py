@@ -395,6 +395,24 @@ def test_the_gitleaks_pin_has_a_mover_on_the_cron(tmp_path: pathlib.Path) -> Non
 
     current = run_with("8.30.1")
     assert current.returncode == 0, current.stdout + current.stderr
+    # A security.yml whose download line changed shape: the grep matches nothing,
+    # and under `set -euo pipefail` that used to abort the step with no words at
+    # all (pre-cut review, 2026-08-30) — now it says what it could not read.
+    tree = tmp_path / "unreadable" / ".github" / "workflows"
+    tree.mkdir(parents=True)
+    (tree / "security.yml").write_text(
+        real.replace("gitleaks_8.30.1_linux", "gitleaks-linux"), "utf-8"
+    )
+    unreadable = subprocess.run(  # noqa: S603 — the step's own block, under bash from PATH
+        ["bash", "-c", step["run"]],  # noqa: S607 — bash from PATH, as the runner finds it
+        cwd=tmp_path / "unreadable",
+        check=False,
+        capture_output=True,
+        text=True,
+        env={"PATH": f"{fake_bin}:/usr/bin:/bin"},
+    )
+    assert unreadable.returncode == 1
+    assert "could not read the pinned gitleaks version" in unreadable.stdout, unreadable.stderr
     assert "8.30.1 is the latest release" in current.stdout
     behind = run_with("8.0.0")
     assert behind.returncode == 1, behind.stdout + behind.stderr

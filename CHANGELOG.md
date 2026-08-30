@@ -31,6 +31,14 @@ Notable changes to this project. The format follows
 
 ### Fixed
 
+- **The gitleaks mover says what it could not read.** Its `grep | head | sed`
+  ran under `set -euo pipefail`, so a download line that changed shape aborted
+  the step with no words at all (pre-cut review, reproduced: exit 1, empty).
+  It now prints which file it could not read the pin from and where the
+  decision lives; the test runs that tree through the block too. Also from
+  the review: the posture gate's `born_from` said "twelve switches" beside a
+  proof that says sixteen, and `posture.yml`'s header still placed the
+  schedule census in ci.yml alone — both say what is true now.
 - **The archive reader refuses what its map cannot count.** `versions()`
   keyed the records by version, so two records under `0.1.6` and one with no
   version at all collapsed to "1 version — the archive says what the releases
@@ -89,8 +97,8 @@ Notable changes to this project. The format follows
   (#95). Owner's decision, 2026-08-30.
 - **A pull request body edit now re-runs the checks.** The `cla` job reads the
   description, but `on.pull_request` in `ci.yml` used the default event types,
-  so a contributor who fixed the line saw no new run and the 2026-08-30 re-
-  audit had to close and reopen a pull request. `ci.yml` declares `types:
+  so a contributor who fixed the line saw no new run and the 2026-08-30
+  re-audit had to close and reopen a pull request. `ci.yml` declares `types:
   [opened, synchronize, reopened, edited]`; the reader still yields the same
   eight pull-request checks, a test in `tests/test_instruments_dogfood.py`
   holds the four types (mutation-proved), and the live check was PR #93's own
