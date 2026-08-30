@@ -7,7 +7,9 @@ of this repository's deliberate choices as gaps, because the reasons lived in
 comments and commit messages — places an outside reader does not look. This file
 is where they live now, and `tests/test_decisions.py` holds its shape: every row
 has a reason and an expiry condition, ids are unique, and a row whose `revisit`
-date has passed turns the suite red until somebody re-decides it.
+date has passed turns the suite red until somebody re-decides it. The ids are
+copied into that test too, so a row removed or added is red until the same pull
+request changes both.
 
 Columns: **id** · **decided** (date) · **decision** · **why** · **expires when**
 (the observable condition; the row is deleted or rewritten when it holds) ·
