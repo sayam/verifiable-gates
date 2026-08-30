@@ -22,6 +22,15 @@ Notable changes to this project. The format follows
   It now says which job has no gate and the row to add; it still exits 0,
   because the files arrived and a consumer's CI reinstalls on every run.
   Proved by mutation three ways (#110).
+- **The installer refuses a manifest that leaves the destination.** Every
+  `ship` name was joined under `dest/tools/` and `manifest.problems()` had no
+  caller in `install.py`, so a manifest reaching it through `--manifest` with
+  `../../outside/PLANTED.txt` wrote the file beside the destination and
+  exited 0 (outside audit, 2026-08-30, reproduced). `problems()` names a
+  `ship` entry that is absolute or climbs with `..`, and `install()` runs it
+  before the first copy, refusing on any problem it names. The DECISIONS row
+  `manifest-problems-is-a-test-time-check` is recorded as expired — its own
+  condition was met by `--manifest`. Proved by mutation both ways (#111).
 
 ## [0.1.7] - 2026-08-30
 
