@@ -16,7 +16,7 @@
     "developer experience"
   ],
   "description": "<p>A catalogue of production-discipline rules for software projects, extracted from a reference implementation where each one was learned from a real failure. Every rule records the incident behind it, so a reader can judge whether the conditions that produced it still hold; a rule with no incident is a preference, and preferences do not earn a gate.</p><p>A rule and its enforcement are kept in separate files because they have separate lifetimes. The bundle ships nine standalone checkers that decide part of the catalogue mechanically in a project that has installed nothing, an installer and a doctor that run them, and a renderer that turns the catalogue into rule sheets an AI coding agent can be handed. The reference implementation is held to every rule published here, and a test in that project checks both directions. The code is Apache-2.0; the rule catalogue and the documentation are CC BY 4.0.</p>",
-  "version": "0.1.7",
+  "version": "0.1.8",
   "publication_date": "2026-08-30",
   "related_identifiers": [
     {
