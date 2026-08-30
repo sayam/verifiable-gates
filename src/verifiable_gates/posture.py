@@ -308,9 +308,27 @@ def platform_state(branch: str) -> tuple[dict[str, object], set[str]]:
     actions = gh.api("repos/:owner/:repo/actions/permissions")
     for key in ("allowed_actions", "sha_pinning_required"):
         state[key] = actions.get(key) if isinstance(actions, dict) else None
+    # "selected" alone says nothing about *which* — a pattern `*` under it is
+    # "all" with a different word (pre-cut review, 2026-08-30). The detail is
+    # read when the policy is "selected"; otherwise it is not a thing that exists.
+    state["selected_actions"] = (
+        _selected_actions() if state["allowed_actions"] == "selected" else None
+    )
     state["dependabot_alerts"] = _alerts_switch()
     required = set(checks.get("contexts") or []) if isinstance(checks, dict) else set()
     return state, required
+
+
+def _selected_actions() -> dict[str, object] | None:
+    """The three fields of the selected-actions policy, in a shape a register can equal."""
+    detail = gh.api("repos/:owner/:repo/actions/permissions/selected-actions")
+    if not isinstance(detail, dict):
+        return None
+    return {
+        "github_owned_allowed": detail.get("github_owned_allowed"),
+        "verified_allowed": detail.get("verified_allowed"),
+        "patterns_allowed": sorted(str(p) for p in detail.get("patterns_allowed") or []),
+    }
 
 
 def _alerts_switch() -> bool | None:

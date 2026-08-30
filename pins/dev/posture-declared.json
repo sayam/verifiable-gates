@@ -69,6 +69,14 @@
     "required_signatures": {
       "want": false,
       "why": "commits are not GPG/SSH-signed here; authorship is the DCO sign-off, held by commit-lint and web_commit_signoff_required, and requiring signatures would refuse the maintainer's own rebase merges — DECISIONS.md: git-signing-not-required. Declared so the switch cannot be flipped on by a click and start refusing merges unexplained"
+    },
+    "selected_actions": {
+      "want": {
+        "github_owned_allowed": true,
+        "verified_allowed": false,
+        "patterns_allowed": []
+      },
+      "why": "the detail behind 'selected': every action used here is GitHub's own, so nothing verified-by-marketplace and no pattern is allowed — a pattern '*' under 'selected' is 'all' with a different word (pre-cut review, 2026-08-30)"
     }
   },
   "not_required": {
