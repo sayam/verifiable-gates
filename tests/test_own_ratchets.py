@@ -14,11 +14,20 @@ Two floors, two shapes:
 - **coverage** — `fail_under` is 100, the top of its scale, and the tool itself refuses
   a run beneath it. There is no slack to measure above 100; what is held is that the
   number is still 100 (a lowered floor is a decision someone signs, not a convenience).
+- **xenon** — three ranks on one line of ci.yml, read by nothing until an outside audit
+  on 2026-08-30 lowered one and the suite stayed green. The line has to say what the
+  row `xenon-floor-at-reality` decided, and each rank has to sit where reality sits:
+  measured with `radon`, the same tool xenon reads, a worst block, worst module or
+  average that ranks *better* than its ceiling is a ceiling left behind — move it up
+  in the line and the row, in the same change.
 """
 
 from __future__ import annotations
 
+import json
 import pathlib
+import re
+import subprocess
 import tomllib
 
 import pytest
@@ -92,3 +101,78 @@ def test_the_declared_floor_is_the_one_the_decisions_row_names() -> None:
     decided = float(row.split("|")[1].strip().rsplit("-", 1)[1])
 
     assert declared_floors()["interrogate"] == decided, (declared_floors(), decided)
+
+
+# ------------------------------------------------------------------------ xenon
+
+XENON_LINE = re.compile(
+    r"xenon --max-absolute (?P<absolute>[A-F]) --max-modules (?P<modules>[A-F])"
+    r" --max-average (?P<average>[A-F]) src"
+)
+XENON_ROW = re.compile(
+    r"(?P<absolute>[A-F]) \(block\) / (?P<modules>[A-F]) \(module\)"
+    r" / (?P<average>[A-F]) \(average\)"
+)
+
+
+def declared_ceilings() -> dict[str, str]:
+    """The three ranks on ci.yml's xenon line."""
+    text = (ROOT / ".github" / "workflows" / "ci.yml").read_text(encoding="utf-8")
+    match = XENON_LINE.search(text)
+    assert match, "ci.yml no longer runs xenon with three explicit ranks"
+    return match.groupdict()
+
+
+def decided_ceilings() -> dict[str, str]:
+    """The three ranks the row `xenon-floor-at-reality` decided."""
+    text = (ROOT / "DECISIONS.md").read_text(encoding="utf-8")
+    row = next(line for line in text.splitlines() if line.startswith("| xenon-floor-at-"))
+    match = XENON_ROW.search(row)
+    assert match, row
+    return match.groupdict()
+
+
+def rank(complexity: float) -> str:
+    """radon's rank for a complexity — the scale xenon judges by."""
+    edges = ((5, "A"), (10, "B"), (20, "C"), (30, "D"), (40, "E"))
+    return next((letter for edge, letter in edges if complexity <= edge), "F")
+
+
+def measured_ceilings() -> dict[str, str]:
+    """Where reality sits: the worst block, the worst module, the average — via radon."""
+    done = subprocess.run(
+        ["radon", "cc", "-j", "src"],  # noqa: S607 — found on PATH like xenon itself
+        capture_output=True,
+        text=True,
+        check=True,
+        timeout=120,
+        cwd=ROOT,
+    )
+    per_module = {
+        path: [block["complexity"] for block in blocks]
+        for path, blocks in json.loads(done.stdout).items()
+        if blocks
+    }
+    every = [c for blocks in per_module.values() for c in blocks]
+    return {
+        "absolute": rank(max(every)),
+        "modules": rank(max(sum(blocks) / len(blocks) for blocks in per_module.values())),
+        "average": rank(sum(every) / len(every)),
+    }
+
+
+def test_the_xenon_line_says_what_the_decisions_row_decided() -> None:
+    """Lowering a ceiling is one edit to ci.yml that no tool sees; the row has to move with it."""
+    assert declared_ceilings() == decided_ceilings()
+
+
+@pytest.mark.parametrize("which", ["absolute", "modules", "average"])
+def test_each_xenon_ceiling_sits_where_reality_sits(which: str) -> None:
+    """A ceiling reality has dropped below is a ceiling left behind — move it up, and the row."""
+    declared = declared_ceilings()[which]
+    measured = measured_ceilings()[which]
+    assert measured <= declared, f"{which}: ceiling {declared} but reality is {measured}"
+    assert measured == declared, (
+        f"{which}: ceiling {declared} but reality now ranks {measured} — move the ceiling up "
+        "in ci.yml and in DECISIONS.md `xenon-floor-at-reality`, in the same change"
+    )
