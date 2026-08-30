@@ -87,9 +87,11 @@ teaches rules it does not follow, and the answer was 2.7%.
 - **A register is held by a copy in a test, two-way.** The switches in
   `pins/dev/posture-declared.json` and what each wants (`HELD` in
   `tests/test_posture.py`), the row ids of `DECISIONS.md` in order (`HELD` in
-  `tests/test_decisions.py`), and the number of suppression lines under `src/`
-  and `tests/` (`SUPPRESSED_LINES` in `tests/test_instruments_dogfood.py`). A
-  switch turned, a row removed or added, a suppression added: red until the same
+  `tests/test_decisions.py`), the gates one named step enforces and the step
+  each names (`HELD_STEP_GATES` in `tests/test_instruments_dogfood.py`), and the
+  number of suppression lines under `src/` and `tests/` (`SUPPRESSED_LINES` in
+  the same file). A switch turned, a row or a step gate removed or added, a
+  suppression added: red until the same
   pull request changes the copy too, where a reviewer sees both. Every
   suppression carries a reason on its line; every job in every workflow declares
   `timeout-minutes`.

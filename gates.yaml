@@ -262,6 +262,14 @@ gates:
           by a word, red; a suppression's reason stripped in zenodo.py, red; a
           reasoned suppression added, red in the count. An outside audit did
           the first and the third on 2026-08-30 and 1171 tests stayed green.
+      - kind: mutation
+        ref: pr/129
+        date: 2026-08-30
+        caught: >-
+          Three planted defects red — a step gate deleted from the registry, a
+          step gate added, and the step it names renamed in `ci.yml`; before
+          the hold, deleting either step gate left all 1275 tests green
+          (outside audit, 2026-08-30, reproduced).
 
   - id: the-security-policy-quotes-one-set-of-numbers
     title: SECURITY.md exists, quotes one set of timeframes, names no address, and points at a live channel
