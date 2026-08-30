@@ -76,3 +76,27 @@ def test_empty_is_allowed_when_the_caller_says_it_means_something(tmp_path: path
     path.write_text("{}", encoding="utf-8")
 
     assert history.read(str(path), dict, shape=dict, must_hold_something=False) == {}
+
+
+def test_a_record_without_the_fields_the_caller_named_is_unreadable() -> None:
+    """A list of the wrong records is not this history — said with the record and the field."""
+    with pytest.raises(history.UnreadableError, match=r"record 1 has no \['created_at'\]"):
+        history.read(
+            None, lambda: [{"created_at": "x"}, {"other": 1}], shape=list, fields=("created_at",)
+        )
+
+
+def test_a_record_that_is_not_a_mapping_is_unreadable() -> None:
+    with pytest.raises(history.UnreadableError, match="record 0 is a int, not a mapping"):
+        history.read(None, lambda: [1], shape=list, fields=("id",))
+
+
+def test_the_output_of_gh_run_list_is_named_as_such() -> None:
+    """`databaseId`/`createdAt` is the shape people have to hand; the message says what to do."""
+    record = {"databaseId": 1, "createdAt": "2026-08-30T00:00:00Z", "conclusion": "failure"}
+    with pytest.raises(history.UnreadableError, match="looks like `gh run list --json`"):
+        history.read(None, lambda: [record], shape=list, fields=("id", "failures"))
+
+
+def test_fields_are_not_asked_of_a_mapping_history() -> None:
+    assert history.read(None, lambda: {"a": 1}, shape=dict, fields=("x",)) == {"a": 1}
