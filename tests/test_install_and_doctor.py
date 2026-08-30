@@ -95,6 +95,59 @@ def test_a_second_install_keeps_the_decisions_already_made(
     assert "# mine" in (project / "gates.yaml").read_text(encoding="utf-8")
 
 
+def test_a_kept_registry_that_names_no_gate_for_the_job_is_said_out_loud(
+    tmp_path: pathlib.Path, bundle_copy: pathlib.Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """A project with its own `gates.yaml` gets the workflow, and the seam between them named."""
+    project = tmp_path / "project"
+    project.mkdir()
+    (project / "gates.yaml").write_text("version: 1\ngates: []\n", encoding="utf-8")
+    assert do_install(project, bundle_copy) == 0
+    out, err = capsys.readouterr()
+    assert "kept: gates.yaml" in out
+    assert "names no gate for job `scans`" in err
+    assert "enforced_by: {job: scans}" in err
+    assert run_doctor(project).returncode == 1, (
+        "the seam the installer named is the doctor's finding"
+    )
+
+
+def test_a_kept_registry_that_names_the_job_is_quiet(
+    tmp_path: pathlib.Path, bundle_copy: pathlib.Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """The other direction: a kept registry with a row for `scans` earns no warning."""
+    project = tmp_path / "project"
+    project.mkdir()
+    (project / "gates.yaml").write_text(
+        "version: 1\ngates:\n  - id: scans-run\n    title: t\n    kind: job\n"
+        "    severity: blocking\n    enforced_by: {job: scans}\n",
+        encoding="utf-8",
+    )
+    assert do_install(project, bundle_copy) == 0
+    assert "names no gate" not in capsys.readouterr().err
+
+
+def test_a_kept_registry_naming_only_other_jobs_still_gets_the_warning(
+    tmp_path: pathlib.Path, bundle_copy: pathlib.Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """The reference implementation's shape: every gate points at `test`, none at `scans`."""
+    project = tmp_path / "project"
+    project.mkdir()
+    (project / "gates.yaml").write_text(
+        "version: 1\ngates:\n  - id: own\n    title: t\n    kind: job\n"
+        "    severity: blocking\n    enforced_by: {job: test}\n",
+        encoding="utf-8",
+    )
+    assert do_install(project, bundle_copy) == 0
+    assert "names no gate for job `scans`" in capsys.readouterr().err
+
+
+def test_the_template_runs_the_job_the_installer_names(bundle_copy: pathlib.Path) -> None:
+    """`TEMPLATE_JOB` is a copy of the template's job key — this holds the copy to the original."""
+    template = (bundle_copy / "ci-template.yml").read_text(encoding="utf-8")
+    assert f"\n  {install_module.TEMPLATE_JOB}:\n" in template
+
+
 def test_an_incomplete_bundle_refuses_to_install(
     tmp_path: pathlib.Path, bundle_copy: pathlib.Path, capsys: pytest.CaptureFixture[str]
 ) -> None:
