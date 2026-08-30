@@ -1740,6 +1740,15 @@ gates:
           `echo` of the words (red before), and `uses :`, `run :` and
           flow-style steps (unread before); a flow-style pinned uses with its
           comment stays clean (outside audit, 2026-08-31, reproduced).
+      - kind: mutation
+        ref: pr/138
+        date: 2026-08-31
+        caught: >-
+          Seven planted cases red on the scanner as it was — a wrapped
+          `onclick=`/`style=` at column 0, a `/onclick=`, a `<script` closing
+          on a later line, a dangling `<style` (all green before) and two
+          comments that merely mention the words (both red before); a sourced
+          script stays clean on any line (outside audit, 2026-08-31).
 
   - id: rules-we-ship-we-keep
     title: Scanners that apply to this repository are run against this repository

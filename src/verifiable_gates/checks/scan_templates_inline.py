@@ -2,7 +2,9 @@
 
 Under a `'self'`-only Content Security Policy the browser blocks these **silently**;
 there is no server-side error to notice. So the check has to read the files rather
-than wait for a symptom.
+than wait for a symptom — the way a browser reads them: attributes in any case,
+at a line's start as after a space, a tag read to its `>` on whatever line that
+is, and comments blanked first, because a comment explains rather than runs.
 
 exit 0 = clean or N/A · 1 = findings · 2 = called wrongly
 
@@ -21,13 +23,38 @@ import sys
 # HTML is case-insensitive and the browser blocks `ONCLICK=` exactly as it blocks
 # `onclick=` — two of these four read lowercase only until an outside audit on
 # 2026-08-30 planted uppercase attributes and a `<STYLE>` element and got exit 0.
+# An attribute can open a line — `<button` then `onclick=` on the next, at
+# column 0 — or follow a `/`; a pattern that wanted whitespace before it read
+# neither (outside audit, 2026-08-31). Text merely *mentioning* the words stays
+# a finding on purpose: without parsing, reading it as safe is the wrong guess.
 PATTERNS = (
-    (re.compile(r"\son\w+\s*=", re.IGNORECASE), "inline handler (on*=)"),
-    (re.compile(r"\sstyle\s*=", re.IGNORECASE), "inline style="),
-    (re.compile(r"<style[\s>]", re.IGNORECASE), "inline <style>"),
-    (re.compile(r"<script(?![^>]*\bsrc\s*=)[^>]*>", re.IGNORECASE), "inline <script>"),
+    (re.compile(r"(?:^|[\s\"'/])on\w+\s*=", re.IGNORECASE), "inline handler (on*=)"),
+    (re.compile(r"(?:^|[\s\"'/])style\s*=", re.IGNORECASE), "inline style="),
+    (re.compile(r"<style\b", re.IGNORECASE), "inline <style>"),
     (re.compile(r"javascript:", re.IGNORECASE), "javascript: URI"),
 )
+# A `<script` tag can close on a later line — `<script` then `type="module">` —
+# and a per-line pattern that wanted the `>` on the same line read past it
+# (outside audit, 2026-08-31). The tag is read to its `>` wherever that is.
+SCRIPT_OPEN = re.compile(r"<script\b", re.IGNORECASE)
+SRC_IN_TAG = re.compile(r"\bsrc\s*=", re.IGNORECASE)
+COMMENT = re.compile(r"<!--.*?-->", re.DOTALL)
+
+
+def _without_comments(text: str) -> str:
+    """Comments blanked, newlines kept — `<!-- onclick= -->` explains, it does not run."""
+    return COMMENT.sub(lambda match: re.sub(r"[^\n]", " ", match.group()), text)
+
+
+def _script_lines(text: str) -> list[int]:
+    """The line of every `<script` whose tag, read to its `>`, names no `src=`."""
+    found: list[int] = []
+    for match in SCRIPT_OPEN.finditer(text):
+        close = text.find(">", match.end())
+        tag = text[match.end() : close] if close != -1 else text[match.end() :]
+        if not SRC_IN_TAG.search(tag):
+            found.append(text.count("\n", 0, match.start()) + 1)
+    return found
 
 
 MISCONFIGURED = (
@@ -58,12 +85,15 @@ def main(root: pathlib.Path) -> int:
 
     findings: list[str] = []
     for path in sorted(templates.rglob("*.html")):
-        for lineno, line in enumerate(path.read_text(encoding="utf-8").splitlines(), 1):
-            findings += [
-                f"{path.relative_to(root)}:{lineno} {label}"
-                for pattern, label in PATTERNS
-                if pattern.search(line)
-            ]
+        text = _without_comments(path.read_text(encoding="utf-8"))
+        hits = [
+            (lineno, label)
+            for lineno, line in enumerate(text.splitlines(), 1)
+            for pattern, label in PATTERNS
+            if pattern.search(line)
+        ]
+        hits += [(lineno, "inline <script>") for lineno in _script_lines(text)]
+        findings += [f"{path.relative_to(root)}:{lineno} {label}" for lineno, label in sorted(hits)]
 
     for finding in findings:
         print(f"csp-no-inline: {finding}")

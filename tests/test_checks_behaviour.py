@@ -813,6 +813,41 @@ def test_inline_markup_is_a_finding_in_any_case(
     assert label in capsys.readouterr().out
 
 
+@pytest.mark.parametrize(
+    ("markup", "label"),
+    [
+        ('<button\nonclick="go()">x</button>\n', "inline handler"),
+        ('<button\nstyle="color:red">x</button>\n', "inline style="),
+        ('<a href="x"/onclick="go()">x</a>\n', "inline handler"),
+        ('<script\n  type="module">\nalert(1)\n</script>\n', "inline <script>"),
+        ("<div><style\n>a {}</style></div>\n", "inline <style>"),
+    ],
+)
+def test_markup_split_over_lines_is_read_the_way_a_browser_reads_it(
+    tmp_path: pathlib.Path, capsys: pytest.CaptureFixture[str], markup: str, label: str
+) -> None:
+    """An attribute at column 0 after a wrap, after a `/`, or a tag closing on a later line."""
+    assert scan_templates_inline.main(build(tmp_path, {"app/templates/x.html": markup})) == 1
+    assert label in capsys.readouterr().out
+
+
+@pytest.mark.parametrize(
+    "markup",
+    [
+        "<!-- never write onclick= or style= here -->\n<p>x</p>\n",
+        "<!-- <script>alert(1)</script> -->\n<p>x</p>\n",
+        '<script\n  src="app.js"></script>\n',
+        '<script src="app.js"></script>\n',
+    ],
+)
+def test_a_comment_explains_and_a_sourced_script_loads(
+    tmp_path: pathlib.Path, capsys: pytest.CaptureFixture[str], markup: str
+) -> None:
+    """`<!-- onclick= -->` runs nothing, and `src=` is the allowed shape on any line."""
+    assert scan_templates_inline.main(build(tmp_path, {"app/templates/x.html": markup})) == 0
+    assert "csp-no-inline" not in capsys.readouterr().out
+
+
 def test_a_commented_out_delete_is_not_a_finding(
     tmp_path: pathlib.Path, capsys: pytest.CaptureFixture[str]
 ) -> None:

@@ -8,6 +8,18 @@ Notable changes to this project. The format follows
 
 ### Fixed
 
+- **`csp-no-inline` reads markup the way a browser does.** An `onclick=` at
+  a wrapped line's start or after a `/` was unread (the pattern wanted
+  whitespace before it), a `<script` whose tag closes on a later line was
+  unread (the pattern wanted the `>` on the same line), a `<style` at a
+  line's end was unread — and a `<!-- comment -->` that merely mentions the
+  words was a finding (outside audit, 2026-08-31, all reproduced). Attributes
+  now match at a line's start and after `/`, a `<script` tag is read to its
+  `>` wherever that is with `src=` still the allowed shape, `<style\b` needs
+  no character after it, and comments are blanked first, newlines kept, so
+  line numbers stay true. Proved by mutation: seven of the nine new cases
+  red on the old scanner; the sourced-script pair holds the clean direction
+  either way (#138).
 - **A command boundary is not a hiding place, and every YAML shape the
   platform reads is read.** `$(pip install ruff)`, a backtick form, a `( )`
   subshell and `sh -c "pip install ruff"` all execute the install and all
