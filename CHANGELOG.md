@@ -6,6 +6,15 @@ Notable changes to this project. The format follows
 
 ## [Unreleased]
 
+### Fixed
+
+- **A trailing comment cannot pin an install.** `scan_install_pinning` checked
+  for `--require-hashes` on the whole line, so `pip install ruff  # TODO: use
+  --require-hashes one day` was green while the same line without its comment
+  was red (outside audit, 2026-08-30, reproduced). Everything after a `#`
+  outside quotes is dropped before the line is judged; a `#` inside quotes
+  stays text. Proved by mutation both ways (#109).
+
 ## [0.1.7] - 2026-08-30
 
 The owner's decisions after the 2026-08-30 re-audit, each carried in by its
