@@ -1503,6 +1503,13 @@ gates:
           test reached: a scan that exists but does not compile, and the clean run
           returning 0, which had only ever been exercised through a subprocess
           where a wrong exit code is easy to lose among captured output.
+      - kind: mutation
+        ref: pr/95
+        date: 2026-08-30
+        caught: >-
+          Making the doctor ignore --root (root_arg = args.root) fails two tests,
+          which point the flag at a project the default cannot reach; dropping the
+          both-given check fails test_naming_the_root_twice_is_a_misuse (exit 2).
 
   - id: the-manifest-is-an-input
     title: The manifest is validated as data, and a rule the bundle cannot decide cannot carry a script
