@@ -100,6 +100,14 @@ Notable changes to this project. The format follows
   row `xenon-floor-at-reality` and each rank to where reality sits, measured
   with radon: a ceiling reality has dropped below is red until the line and
   the row move up together. Proved by mutation three ways (#120).
+- **Two published rules are read against this repository.** `rules.yaml`
+  publishes `jobs-declare-a-time-budget` and `exception-registers-are-reasoned`,
+  and nothing here read this repository's own `timeout-minutes` or its own
+  suppression lines — one of each removed, the suite stayed green (outside
+  audit, 2026-08-30, reproduced). `tests/test_instruments_dogfood.py` reads
+  every job for an integer budget, every suppression under `src/` and
+  `tests/` for a reason, and holds their number. Proved by mutation four
+  ways (#121).
 
 ## [0.1.7] - 2026-08-30
 
