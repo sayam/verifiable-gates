@@ -1796,6 +1796,14 @@ gates:
           The bare-project case now pins the one pass an empty project earns —
           the shipped index, held to pass by `test_box_opens_true` — and went
           red with either pinning scanner's recognition switched off.
+      - kind: mutation
+        ref: pr/131
+        date: 2026-08-30
+        caught: >-
+          Two planted cases red on the doctor as it was — a malformed
+          `scaffold.json` that made seven scans traceback, and a scan exiting 2
+          with a usage line; both were `[found]` with stderr swallowed (outside
+          audit, 2026-08-30, reproduced).
 
   - id: the-manifest-is-an-input
     title: The manifest is validated as data, and a rule the bundle cannot decide cannot carry a script

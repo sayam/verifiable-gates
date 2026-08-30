@@ -195,6 +195,42 @@ def test_an_incomplete_bundle_refuses_to_install(
     assert "the bundle is incomplete" in capsys.readouterr().err
 
 
+def test_a_scan_that_crashes_is_an_error_with_its_traceback_not_a_finding(
+    tmp_path: pathlib.Path, bundle_copy: pathlib.Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """A broken `scaffold.json` makes the scans traceback; the doctor must say so, not `[found]`."""
+    project = tmp_path / "project"
+    assert do_install(project, bundle_copy) == 0
+    capsys.readouterr()
+    (project / "scaffold.json").write_text("{bad", encoding="utf-8")
+
+    done = run_doctor(project)
+    assert done.returncode == 1
+    assert "[found]" not in done.stdout
+    assert "[error] no-debug-entrypoint — the scan did not answer (exit 1)" in done.stdout
+    assert "scans did not answer, which is no verdict" in done.stdout
+    assert "found problems" not in done.stdout
+    assert "Traceback" in done.stderr
+    assert "JSONDecodeError" in done.stderr
+
+
+def test_a_scan_that_is_called_wrongly_is_an_error_too(
+    tmp_path: pathlib.Path, bundle_copy: pathlib.Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """Exit 2 with a usage line on stderr is the scanner's protocol for misuse — no verdict."""
+    project = tmp_path / "project"
+    assert do_install(project, bundle_copy) == 0
+    capsys.readouterr()
+    (project / "tools" / "checks" / "scan_workflow_pinning.py").write_text(
+        "import sys\nprint('usage: nope', file=sys.stderr)\nsys.exit(2)\n", encoding="utf-8"
+    )
+
+    done = run_doctor(project)
+    assert done.returncode == 1
+    assert "[error] actions-sha-pinned — the scan did not answer (exit 2)" in done.stdout
+    assert "usage: nope" in done.stderr
+
+
 def test_the_doctor_notices_a_scan_that_went_missing_after_install(
     tmp_path: pathlib.Path, bundle_copy: pathlib.Path, capsys: pytest.CaptureFixture[str]
 ) -> None:
@@ -264,6 +300,23 @@ def test_the_doctor_reports_a_finding_when_called_in_process(
     code = gates_doctor.main([str(project), "--manifest", str(project / "tools" / "overlay.json")])
     assert code == 1
     assert "[found] no-debug-entrypoint" in capsys.readouterr().out
+
+
+def test_the_doctor_reports_a_crashed_scan_when_called_in_process(
+    tmp_path: pathlib.Path, bundle_copy: pathlib.Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """The same `[error]` answer through the library entry point, stderr passed through."""
+    project = tmp_path / "project"
+    assert do_install(project, bundle_copy) == 0
+    (project / "scaffold.json").write_text("{bad", encoding="utf-8")
+    capsys.readouterr()
+
+    code = gates_doctor.main([str(project), "--manifest", str(project / "tools" / "overlay.json")])
+    captured = capsys.readouterr()
+    assert code == 1
+    assert "[error] no-debug-entrypoint" in captured.out
+    assert "did not answer, which is no verdict" in captured.out
+    assert "JSONDecodeError" in captured.err
 
 
 def test_the_doctor_checks_the_install_when_called_in_process(

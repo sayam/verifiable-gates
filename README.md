@@ -84,7 +84,8 @@ project where every rule is `NA` exits 0 — that is "nothing was measured", not
 project passed" (a path that `scaffold.json` *names* and the project does not have is
 never `NA`, though: that is a broken configuration, and it is a finding; and a
 `Dockerfile*` the project has but never named is a finding too, not "no
-Dockerfile"); and `rules.problems()` only checks that a `script:` exists when it is
+Dockerfile"; and a scan that crashes is `[error]` with its traceback passed through,
+never `[found]` — red, but no verdict); and `rules.problems()` only checks that a `script:` exists when it is
 given the package directory (`package_dir=`), as the doctor does. On a fresh
 install the only `pass` is the shipped index (`gates-registry-total`), which has
 to be true about itself; the starting workflow the installer wrote is `NA` to the
@@ -173,7 +174,8 @@ repo นี้เผยแพร่ ส่วน `gates.yaml` คือสิ่
 
 **บันเดิลตัดสินได้ 9 จาก 92** — เฉพาะกฎที่มี `script:` เท่านั้นที่ doctor กับ installer
 ตัดสินให้ อีก 83 ข้อคือแผ่นกฎที่ agent ถูกบังคับด้วยการอ่าน · doctor รายงานกฎที่ตัดสินไม่ได้เป็น `NA`
-และโปรเจกต์ที่ทุกข้อเป็น `NA` ออก 0 แปลว่า "ไม่ได้วัดอะไร" ไม่ใช่ "ผ่าน" · หลังติดตั้งใหม่
+และโปรเจกต์ที่ทุกข้อเป็น `NA` ออก 0 แปลว่า "ไม่ได้วัดอะไร" ไม่ใช่ "ผ่าน" · สแกนที่ล่มรายงานเป็น
+`[error]` พร้อมส่ง traceback ต่อ ไม่ใช่ `[found]` · หลังติดตั้งใหม่
 ด่านเดียวที่ `pass` คือทะเบียนที่ส่งมากับบันเดิล (`gates-registry-total`) ส่วน workflow
 ตั้งต้นที่ตัวติดตั้งเขียนให้เป็น `NA` สำหรับตัวตรวจ pin ทั้งสองจนกว่าจะมีบรรทัดถูกแก้ —
 เขียวบนไฟล์ของบันเดิลเองไม่ได้บอกอะไรเกี่ยวกับโปรเจกต์ · ตัวตรวจ pin อ่าน workflow ทุกไฟล์

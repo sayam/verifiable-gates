@@ -8,6 +8,13 @@ Notable changes to this project. The format follows
 
 ### Fixed
 
+- **The doctor tells a crashed scan from a finding.** A scan that exited
+  without a verdict — seven tracebacks on a malformed `scaffold.json`, or exit
+  2 with a usage line — was printed as `[found]` with its stderr swallowed
+  (outside audit, 2026-08-30, reproduced), so a broken tool read as a broken
+  project with nothing to say why. It is now `[error] <gate> — the scan did
+  not answer (exit N)`, its stderr passed through, counted apart from the
+  findings as "no verdict", and still red. Proved by mutation two ways (#131).
 - **A folded local action and an extensionless script are followed too.**
   Both pinning scanners followed `uses: ./ci/action` but wanted the `./` on
   the `uses:` line, so `uses: >` with the path on the next line was unread —
