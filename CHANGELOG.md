@@ -8,6 +8,15 @@ Notable changes to this project. The format follows
 
 ### Fixed
 
+- **Two more registers are held, not trusted.** The shipped `overlay.json`
+  described its nine scan gates in words of its own — all nine titles had
+  drifted from `rules.yaml`, and the only test held that a title was
+  non-empty; the titles are now the catalogue's, held two-way by a test, so
+  either file edited alone is red. And a job name defined in two workflow
+  files was counted once by `scan_gates_registry` — the platform runs both,
+  while the second was covered by the first's gate in silence; it is now a
+  finding naming both files (outside audit, 2026-08-31, both reproduced).
+  Proved by mutation both ways (#141).
 - **`zenodo` refuses a wrong-shaped file the way it refuses every other
   unreadable input.** `--records` holding a dict or a list of strings died
   of `AttributeError`, and a wrong-shaped releases file was coerced through

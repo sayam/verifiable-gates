@@ -259,6 +259,26 @@ def test_a_job_that_no_gate_claims(
     assert "job with no gate in the index: brand_new" in capsys.readouterr().out
 
 
+def test_one_job_name_in_two_workflow_files_is_a_finding(
+    tmp_path: pathlib.Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """The platform runs both; a dict keyed by name kept one, so the second was
+    covered by the first's gate in silence."""
+    registry = (
+        "version: 1\ngates:\n  - id: a-rule\n    title: t\n    kind: job\n"
+        "    enforced_by: {job: build}\n"
+    )
+    project = a_project(tmp_path, registry)
+    for name in ("one.yml", "two.yml"):
+        (project / ".github" / "workflows" / name).write_text(
+            "jobs:\n  build:\n    steps:\n      - run: true\n", encoding="utf-8"
+        )
+    assert scanner.main(project) == 1
+    out = capsys.readouterr().out
+    assert "job build is defined in" in out
+    assert "one.yml and " in out
+
+
 def test_a_test_file_that_no_gate_claims(
     tmp_path: pathlib.Path, capsys: pytest.CaptureFixture[str]
 ) -> None:
