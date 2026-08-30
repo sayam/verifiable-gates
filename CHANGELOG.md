@@ -8,6 +8,13 @@ Notable changes to this project. The format follows
 
 ### Fixed
 
+- **The two security proofs name the run that went red.** Both `ci-red` rows
+  cited `pr/45` — the pull request that *added* the jobs, whose every check is
+  green — while the red was seen on the throwaway pull request #46, closed
+  unmerged, in run 33244862480 (`codeql` and `secret-scan` both `failure`); an
+  outside audit on 2026-08-30 followed the ref, found only green, and called
+  the proof unverifiable. The rows now cite `run/33244862480` and say which
+  pull request it belongs to (#134).
 - **Three scanners now hold the whole of the title they decide.** An outside
   audit on 2026-08-30 read each rule's title against its scanner and planted
   the clause the scanner did not read (all reproduced): `actions-sha-pinned`
