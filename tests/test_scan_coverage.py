@@ -108,17 +108,17 @@ def repo(tmp_path: pathlib.Path) -> pathlib.Path:
         ["config", "user.email", "nobody@example.invalid"],
         ["config", "user.name", "Nobody"],
     ):
-        subprocess.run(  # noqa: S603
+        subprocess.run(  # noqa: S603 — git from shutil.which, args are test literals
             [binary, *args], cwd=tmp_path, check=True, capture_output=True, timeout=60
         )
     for name in ("app/a.py", "tests/test_a.py", "migrations/m.py", "app/notes.md"):
         path = tmp_path / name
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_text("x\n", encoding="utf-8")
-    subprocess.run(  # noqa: S603
+    subprocess.run(  # noqa: S603 — git from shutil.which, a fixed argv
         [binary, "add", "-A"], cwd=tmp_path, check=True, capture_output=True, timeout=60
     )
-    subprocess.run(  # noqa: S603
+    subprocess.run(  # noqa: S603 — git from shutil.which, a fixed argv
         [binary, "commit", "-q", "-m", "first"],
         cwd=tmp_path,
         check=True,
@@ -161,10 +161,10 @@ def test_a_skip_matches_a_directory_not_a_prefix_of_a_name(repo: pathlib.Path) -
     (repo / "apple" / "c.py").write_text("x\n", encoding="utf-8")
     binary = shutil.which("git")
     assert binary
-    subprocess.run(  # noqa: S603
+    subprocess.run(  # noqa: S603 — git from shutil.which, a fixed argv
         [binary, "add", "-A"], cwd=repo, check=True, capture_output=True, timeout=60
     )
-    subprocess.run(  # noqa: S603
+    subprocess.run(  # noqa: S603 — git from shutil.which, a fixed argv
         [binary, "commit", "-q", "-m", "more"],
         cwd=repo,
         check=True,
@@ -194,7 +194,7 @@ def test_the_command_declares_a_time_budget(
 
     def watched(argv: list[str], **kwargs: object) -> subprocess.CompletedProcess[str]:
         budget.update(kwargs)
-        return real(argv, **kwargs)  # type: ignore[call-overload,no-any-return]
+        return real(argv, **kwargs)  # type: ignore[call-overload,no-any-return]  # kwargs are typed object to be recorded, not called
 
     monkeypatch.setattr(subprocess, "run", watched)
     scan_coverage.tracked_files(repo, "*.py")

@@ -99,10 +99,10 @@ def test_a_missing_body_is_treated_as_no_declaration() -> None:
     handoff. Reading it as "nothing to object to" would turn the commonest pull
     request shape there is — no body at all — into a silent way through.
     """
-    assert handoff.problems(CLOSING, LABELLED, body=None) == handoff.problems(  # type: ignore[arg-type]
+    assert handoff.problems(CLOSING, LABELLED, body=None) == handoff.problems(  # type: ignore[arg-type]  # None is what GitHub sends for an empty body
         CLOSING, LABELLED, body=""
     )
-    assert handoff.problems(CLOSING, LABELLED, body=None)  # type: ignore[arg-type]
+    assert handoff.problems(CLOSING, LABELLED, body=None)  # type: ignore[arg-type]  # the same null, must still object
 
 
 # ---------------------------------------------------------------- the report
