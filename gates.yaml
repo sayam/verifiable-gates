@@ -1757,6 +1757,14 @@ gates:
           on a later line, a dangling `<style` (all green before) and two
           comments that merely mention the words (both red before); a sourced
           script stays clean on any line (outside audit, 2026-08-31).
+      - kind: mutation
+        ref: pr/142
+        date: 2026-08-31
+        caught: >-
+          A folded uses with its version comment beside the fold marker and the
+          SHA on the next line was 'pinned with no version comment' before and
+          is clean now; the bare folded SHA is still a finding (outside audit,
+          2026-08-31, reproduced).
 
   - id: rules-we-ship-we-keep
     title: Scanners that apply to this repository are run against this repository
@@ -1860,6 +1868,13 @@ gates:
           the timeout (raw TimeoutExpired before) and a scan printing half a
           verdict then crashing ([found] before); a warning beside a real
           finding holds [found] either way (outside audit, 2026-08-31).
+      - kind: mutation
+        ref: pr/142
+        date: 2026-08-31
+        caught: >-
+          A refused install pointed at a fresh destination left the destination
+          absent — the same refusal had made empty directories there before
+          (outside audit, 2026-08-31, reproduced).
 
   - id: the-manifest-is-an-input
     title: The manifest is validated as data, and a rule the bundle cannot decide cannot carry a script

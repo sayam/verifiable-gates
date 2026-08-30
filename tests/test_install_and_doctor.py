@@ -154,6 +154,22 @@ def test_the_template_runs_the_job_the_installer_names(bundle_copy: pathlib.Path
     assert f"\n  {install_module.TEMPLATE_JOB}:\n" in template
 
 
+def test_a_refused_install_leaves_no_trace_at_the_destination(
+    tmp_path: pathlib.Path, bundle_copy: pathlib.Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """The directories used to be made before the refusal — an empty `tools/checks/`
+    at a destination the install refused is a trace of work that never happened."""
+    bad = manifest_module.load(bundle_copy / "overlay.json")
+    bad["ship"].append("../escape.txt")
+    (bundle_copy / "overlay.json").write_text(json.dumps(bad), encoding="utf-8")
+    dest = tmp_path / "never-touched"
+
+    code = install_module.main([str(dest), "--manifest", str(bundle_copy / "overlay.json")])
+    capsys.readouterr()
+    assert code == 1
+    assert not dest.exists(), "a refused install made directories anyway"
+
+
 def test_a_manifest_that_ships_a_climbing_name_is_refused_before_any_copy(
     tmp_path: pathlib.Path, bundle_copy: pathlib.Path, capsys: pytest.CaptureFixture[str]
 ) -> None:

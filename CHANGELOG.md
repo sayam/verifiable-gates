@@ -8,6 +8,12 @@ Notable changes to this project. The format follows
 
 ### Fixed
 
+- **Two small seams.** A refused install had already made `tools/checks/`
+  at the destination — the directories are now made only after the manifest
+  passes, so a refusal leaves no trace; and a folded `uses: > # v4` was
+  "pinned with no version comment" because only the value line's remainder
+  was read — the marker line's comment now counts too (outside audit,
+  2026-08-31, both reproduced). Proved by mutation both ways (#142).
 - **Two more registers are held, not trusted.** The shipped `overlay.json`
   described its nine scan gates in words of its own — all nine titles had
   drifted from `rules.yaml`, and the only test held that a title was
