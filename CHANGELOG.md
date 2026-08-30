@@ -6,6 +6,17 @@ Notable changes to this project. The format follows
 
 ## [Unreleased]
 
+## [0.1.7] - 2026-08-30
+
+The owner's decisions after the 2026-08-30 re-audit, each carried in by its
+own pull request with the mutation that proves it and, where the platform is
+involved, a live flip on the platform's own job: the two clocks and the
+archive read on the cron, four more switches and their detail in the posture
+register, the gitleaks pin with a mover, the ratchet module on this
+repository's own floors, and a batch of four smaller items run as parallel
+worktree agents. A review of the whole `v0.1.6..main` diff before this cut
+found seven more, closed in #103–#107.
+
 ### Added
 
 - **The ratchet module is pointed at this repository's own floors.** It
@@ -944,7 +955,8 @@ order it happened.
 - **`gates.yaml`, deliberately empty.** This repository will not list a gate
   before the thing that enforces it exists.
 
-[Unreleased]: https://github.com/sayam/verifiable-gates/compare/v0.1.6...HEAD
+[Unreleased]: https://github.com/sayam/verifiable-gates/compare/v0.1.7...HEAD
+[0.1.7]: https://github.com/sayam/verifiable-gates/releases/tag/v0.1.7
 [0.1.6]: https://github.com/sayam/verifiable-gates/releases/tag/v0.1.6
 [0.1.5]: https://github.com/sayam/verifiable-gates/releases/tag/v0.1.5
 [0.1.4]: https://github.com/sayam/verifiable-gates/releases/tag/v0.1.4
