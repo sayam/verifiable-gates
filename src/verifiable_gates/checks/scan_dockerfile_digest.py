@@ -62,6 +62,21 @@ def _unnamed(root: pathlib.Path) -> list[str]:
     ]
 
 
+def _unpinned(root: pathlib.Path, path: pathlib.Path) -> list[str]:
+    """Every image one Dockerfile pulls in without a digest."""
+    text = path.read_text(encoding="utf-8")
+    stages = {stage.lower() for stage in STAGE.findall(text)}
+    refs = [("FROM", ref) for ref in FROM_LINE.findall(text)]
+    refs += [("COPY --from", ref) for ref in COPY_FROM.findall(text)]
+    return [
+        f"{path.relative_to(root)}: {how} {ref}"
+        for how, ref in refs
+        # A stage name is a local alias, not an image — and names are also
+        # case-insensitive. A bare stage *index* (`--from=0`) is one too.
+        if ref.lower() not in stages and not ref.isdigit() and not DIGEST.search(ref)
+    ]
+
+
 def main(root: pathlib.Path) -> int:
     config_path = root / "scaffold.json"
     # A project that has not configured the bundle is not a misuse — the paths
@@ -86,17 +101,7 @@ def main(root: pathlib.Path) -> int:
         return 0
 
     for path in dockerfiles:
-        text = path.read_text(encoding="utf-8")
-        stages = {stage.lower() for stage in STAGE.findall(text)}
-        refs = [("FROM", ref) for ref in FROM_LINE.findall(text)]
-        refs += [("COPY --from", ref) for ref in COPY_FROM.findall(text)]
-        findings += [
-            f"{path.relative_to(root)}: {how} {ref}"
-            for how, ref in refs
-            # A stage name is a local alias, not an image — and names are also
-            # case-insensitive. A bare stage *index* (`--from=0`) is one too.
-            if ref.lower() not in stages and not ref.isdigit() and not DIGEST.search(ref)
-        ]
+        findings += _unpinned(root, path)
 
     for finding in findings:
         print(f"image-digest-pinned: {finding}")
