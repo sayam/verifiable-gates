@@ -84,8 +84,9 @@ project where every rule is `NA` exits 0 — that is "nothing was measured", not
 project passed" (a path that `scaffold.json` *names* and the project does not have is
 never `NA`, though: that is a broken configuration, and it is a finding; and a
 `Dockerfile*` the project has but never named is a finding too, not "no
-Dockerfile"; and a scan that crashes is `[error]` with its traceback passed through,
-never `[found]` — red, but no verdict); and `rules.problems()` only checks that a `script:` exists when it is
+Dockerfile"; and a scan that crashes, hangs past its timeout, or answers half a verdict
+before crashing is `[error]` with its stderr passed through, never `[found]` — red,
+but no verdict); and `rules.problems()` only checks that a `script:` exists when it is
 given the package directory (`package_dir=`), as the doctor does. On a fresh
 install the only `pass` is the shipped index (`gates-registry-total`), which has
 to be true about itself; the starting workflow the installer wrote is `NA` to the
@@ -110,7 +111,8 @@ floating tag is a finding, and so is a commit SHA with no version comment beside
 it — a pin nobody can read or move (a `docker://` digest needs none). Of the
 other checkers, `adr-index-complete` reports two records sharing a number as
 well as a gap, and `csp-no-inline` reads `ONCLICK=`, `STYLE=` and a `<style>`
-element the way a browser does — in any case.
+element the way a browser does — in any case, split over lines or not, with
+comments blanked first.
 
 Since the extraction finished, so are the deciders that used to live in the
 reference implementation: ratchets and the measurements that feed them, the
@@ -184,8 +186,8 @@ repo นี้เผยแพร่ ส่วน `gates.yaml` คือสิ่
 
 **บันเดิลตัดสินได้ 9 จาก 92** — เฉพาะกฎที่มี `script:` เท่านั้นที่ doctor กับ installer
 ตัดสินให้ อีก 83 ข้อคือแผ่นกฎที่ agent ถูกบังคับด้วยการอ่าน · doctor รายงานกฎที่ตัดสินไม่ได้เป็น `NA`
-และโปรเจกต์ที่ทุกข้อเป็น `NA` ออก 0 แปลว่า "ไม่ได้วัดอะไร" ไม่ใช่ "ผ่าน" · สแกนที่ล่มรายงานเป็น
-`[error]` พร้อมส่ง traceback ต่อ ไม่ใช่ `[found]` · หลังติดตั้งใหม่
+และโปรเจกต์ที่ทุกข้อเป็น `NA` ออก 0 แปลว่า "ไม่ได้วัดอะไร" ไม่ใช่ "ผ่าน" · สแกนที่ล่ม ค้างเกินเวลา หรือพิมพ์คำตัดสินได้ครึ่งเดียวแล้วพัง
+รายงานเป็น `[error]` พร้อมส่ง stderr ต่อ ไม่ใช่ `[found]` · หลังติดตั้งใหม่
 ด่านเดียวที่ `pass` คือทะเบียนที่ส่งมากับบันเดิล (`gates-registry-total`) ส่วน workflow
 ตั้งต้นที่ตัวติดตั้งเขียนให้เป็น `NA` สำหรับตัวตรวจ pin ทั้งสองจนกว่าจะมีบรรทัดถูกแก้ —
 เขียวบนไฟล์ของบันเดิลเองไม่ได้บอกอะไรเกี่ยวกับโปรเจกต์ · ตัวตรวจ pin อ่าน workflow ทุกไฟล์
@@ -196,7 +198,8 @@ composite action ที่ `uses: ./<path>` ชี้ไม่ว่าอยู
 ส่วน `echo` ที่แค่พูดคำนั้นเป็นข้อความ · รูป YAML `uses :` และ `- {uses: …}` ถูกอ่านแบบเดียวกับที่แพลตฟอร์มอ่าน · `actions-sha-pinned` ตัดสินทั้งสองครึ่งของชื่อกฎ: tag ลอยเป็น finding และ
 commit SHA ที่ไม่มี comment บอกเวอร์ชันข้าง ๆ ก็เป็น finding (digest ของ `docker://` ไม่ต้องมี) ·
 `adr-index-complete` รายงานบันทึกสองฉบับที่ใช้เลขเดียวกันเช่นเดียวกับเลขที่ขาด · `csp-no-inline` อ่าน
-`ONCLICK=` `STYLE=` และ `<style>` แบบไม่สนตัวพิมพ์เหมือนที่เบราว์เซอร์อ่าน · `Dockerfile*` ที่มีอยู่แต่ไม่ได้ตั้งชื่อไว้ใน `scaffold.json` ถือเป็น
+`ONCLICK=` `STYLE=` และ `<style>` แบบไม่สนตัวพิมพ์และไม่สนการตัดบรรทัด เหมือนที่เบราว์เซอร์อ่าน
+โดยลบคอมเมนต์ก่อน · `Dockerfile*` ที่มีอยู่แต่ไม่ได้ตั้งชื่อไว้ใน `scaffold.json` ถือเป็น
 finding ไม่ใช่ "ไม่มี Dockerfile"
 
 **คลังเก็บสองภาษา**: อังกฤษเป็นข้อความที่เผยแพร่ ส่วนถ้อยคำไทยต้นฉบับอยู่ในฟิลด์
