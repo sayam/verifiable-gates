@@ -609,6 +609,33 @@ def test_a_command_split_over_lines_is_judged_whole(
     assert "ci-tools-hash-pinned" not in capsys.readouterr().out
 
 
+def test_a_trailing_comment_naming_the_flag_does_not_pin(
+    tmp_path: pathlib.Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """`pip install ruff  # TODO --require-hashes` is unpinned — the flag is in the comment."""
+    files = {
+        ".github/workflows/ci.yml": (
+            "jobs:\n  a:\n    steps:\n"
+            "      - run: pip install ruff  # TODO: use --require-hashes one day\n"
+        )
+    }
+    assert scan_install_pinning.main(build(tmp_path, files)) == 1
+    assert "ci-tools-hash-pinned" in capsys.readouterr().out
+
+
+def test_a_hash_inside_quotes_is_not_a_comment(
+    tmp_path: pathlib.Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """The install chained after a quoted `#` is still read — the quote is text, not a comment."""
+    files = {
+        ".github/workflows/ci.yml": (
+            'jobs:\n  a:\n    steps:\n      - run: echo "step #1" && pip install ruff\n'
+        )
+    }
+    assert scan_install_pinning.main(build(tmp_path, files)) == 1
+    assert "ci-tools-hash-pinned" in capsys.readouterr().out
+
+
 def test_a_split_command_that_is_still_unpinned_is_reported(
     tmp_path: pathlib.Path, capsys: pytest.CaptureFixture[str]
 ) -> None:
