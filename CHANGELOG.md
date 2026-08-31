@@ -6,6 +6,23 @@ Notable changes to this project. The format follows
 
 ## [Unreleased]
 
+### Changed
+
+- **Two sentences that said more than had been checked.** The pinning scanner's
+  own docstring read "It has to be `--require-hashes -r <lockfile>`" while the
+  scanner accepts `--require-hashes` without `-r` on purpose — pip refuses that
+  form on its own, so repeating the refusal would add a rule without adding a
+  catch (DECISIONS `pip-uppercase-not-a-gap`); the docstring now says what the
+  scanner requires and why the `-r` is not part of it. And the DECISIONS row
+  `dependency-licences-read-at-the-pin` recorded that an audit had "verified
+  every current pin permissive", which is not what the pins say: `certifi`
+  (MPL-2.0), `chardet` (LGPL-2.1+) and `fqdn` (MPL-2.0) arrive transitively
+  under `pip-audit` and `cyclonedx-bom`. The decision is unchanged and still
+  right — they are build and test tools this repository does not distribute, so
+  no obligation reaches the published work — but the row now says that instead
+  of the stronger thing (five-model round 5, kimi F-8 and grok-4.5 F-3, both
+  re-read against the installed metadata on 2026-09-01).
+
 ### Fixed
 
 - **`kind` decides whether a gate is ever run, so it is held to what enforces

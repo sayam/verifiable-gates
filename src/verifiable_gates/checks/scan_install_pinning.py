@@ -1,7 +1,11 @@
 """gate: ci-tools-hash-pinned — tools CI installs for itself are pinned by hash.
 
 `pip install <name>` takes whatever is newest at the second the job runs, and runs
-it with the workflow's permissions. It has to be `--require-hashes -r <lockfile>`.
+it with the workflow's permissions. It has to carry `--require-hashes`, normally as
+`--require-hashes -r <lockfile>`. The `-r` is not required *here*: pip refuses
+`--require-hashes` with nothing to read hashes from, so a scanner repeating that
+refusal would add a rule without adding a catch (DECISIONS `pip-uppercase-not-a-gap`,
+which is also why the word `pip` is read in lower case only).
 On the node side it has to be `npm ci`: `npm install pkg@x` pins that one package
 and leaves the rest of the tree floating.
 The installers with no `pip` in the line — `uv tool install`, `uv add`, `uvx`,
