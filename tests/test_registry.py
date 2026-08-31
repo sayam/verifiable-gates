@@ -281,8 +281,8 @@ def test_a_date_that_has_not_happened_yet_is_refused(date: str | datetime.date) 
 def test_a_date_that_is_today_anywhere_on_earth_is_not_in_the_future() -> None:
     """A proof written today in Bangkok at 02:00 is dated tomorrow in UTC; it is still today."""
     noon_utc = datetime.datetime(2026, 8, 30, 12, 0, tzinfo=datetime.UTC)
-    assert registry._latest_today(noon_utc) == datetime.date(2026, 8, 31)  # noqa: SLF001 — the clock is the thing under test
-    assert registry._latest_today() >= datetime.datetime.now(datetime.UTC).date()  # noqa: SLF001 — and the default is the real clock
+    assert registry.latest_today(noon_utc) == datetime.date(2026, 8, 31)
+    assert registry.latest_today() >= datetime.datetime.now(datetime.UTC).date()
 
 
 # ---------------------------------------------------------------- dogfood

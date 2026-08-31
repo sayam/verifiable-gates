@@ -16,6 +16,8 @@ import re
 
 import pytest
 
+from verifiable_gates import registry
+
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 RECORD = ROOT / "DECISIONS.md"
 COLUMNS = ("id", "decided", "decision", "why", "expires when", "revisit")
@@ -57,7 +59,11 @@ def test_every_row_says(column: str) -> None:
 
 
 def test_dates_are_iso_and_not_in_the_future() -> None:
-    today = datetime.datetime.now(datetime.UTC).date().isoformat()
+    """ "Today" is the date it already is somewhere on Earth, the same answer the gate
+    registry gives: a row written at 05:00 in Bangkok and dated with the machine's own
+    `date` was "in the future" against plain UTC and turned the suite red, while the same
+    date in a `proved_by` row passed (self-audit round 7, 2026-09-01)."""
+    today = registry.latest_today().isoformat()
     for row in rows():
         assert ISO.match(row["decided"]), f"{row['id']}: decided {row['decided']!r}"
         assert row["decided"] <= today, f"{row['id']}: decided in the future"
@@ -144,3 +150,19 @@ def test_a_decision_that_never_expires_is_one_this_file_names() -> None:
     never = {row["id"] for row in rows() if row["expires when"].lower().startswith("never")}
     newly, no_longer = sorted(never - NEVER_EXPIRES), sorted(NEVER_EXPIRES - never)
     assert never == set(NEVER_EXPIRES), f"newly permanent {newly}, no longer {no_longer}"
+
+
+def test_a_date_that_is_today_somewhere_on_earth_is_not_the_future() -> None:
+    """The boundary the two registers used to disagree about: at 22:00 UTC it is already
+    tomorrow in Kiritimati, and a person east of UTC dates a row with their own clock."""
+    noon_utc = datetime.datetime(2026, 8, 31, 12, 0, tzinfo=datetime.UTC)
+
+    assert registry.latest_today(noon_utc) == datetime.date(2026, 9, 1)
+    assert registry.latest_today(noon_utc).isoformat() > "2026-08-31"
+
+
+def test_a_date_two_days_ahead_is_still_the_future() -> None:
+    """The rule is one day of grace, not an open door."""
+    noon_utc = datetime.datetime(2026, 8, 31, 12, 0, tzinfo=datetime.UTC)
+
+    assert registry.latest_today(noon_utc).isoformat() < "2026-09-02"

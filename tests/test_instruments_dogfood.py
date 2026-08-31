@@ -553,7 +553,10 @@ def test_a_body_edit_reruns_the_checks_that_read_the_body() -> None:
 # proved on fakes and pointed at nobody — the shape the second rule's own
 # born_from describes.
 
-SUPPRESSED_LINES = 110  # every one with a reason; a new one moves this number, visibly
+# 110 → 108 on 2026-09-01: publishing `registry.latest_today()` so `DECISIONS.md`
+# and `gates.yaml` answer "what day is it" the same way removed the two `SLF001`
+# suppressions the tests needed to reach it while it was private (round 7).
+SUPPRESSED_LINES = 108  # every one with a reason; a new one moves this number, visibly
 
 
 def test_every_job_in_our_own_workflows_declares_a_time_budget() -> None:
