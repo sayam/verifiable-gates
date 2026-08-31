@@ -88,6 +88,14 @@ gates:
           a list of strings and bare text (AttributeError tracebacks before),
           and releases as a dict (coerced through str() silently before); each
           now answers exit 2 with the file named (outside audit, 2026-08-31).
+      - kind: mutation
+        ref: pr/160
+        date: 2026-08-31
+        caught: >-
+          `urlopen` asked without `timeout=` — the one network call here no
+          test held; the argument dropped left the suite green (self-audit,
+          2026-08-31), red now.
+
   - id: the-pins-are-audited-here
     title: The tools this repository installs for itself are audited for advisories, and every finding is judged
     kind: job

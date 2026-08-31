@@ -8,6 +8,13 @@ Notable changes to this project. The format follows
 
 ### Fixed
 
+- **The archive's time budget is held by a test.** `zenodo._page` asks
+  `urlopen` with `timeout=`, and every other network call here is held to its
+  budget by a test — this one was not: the argument dropped left the suite
+  green, and a socket that never answers would have held the posture cron
+  forever (self-audit, 2026-08-31, reproduced on v0.1.10). Proved by mutation:
+  the test is red with the argument gone (#160).
+
 - **A name is not whitespace.** `Signed-off-by:    <a@b.co>` and
   `I have read and agree to CLA.md v1. —    <a@b.co>` — three spaces, or a
   tab, where the name goes — passed the module's and both CI greps' `.+`, so a
