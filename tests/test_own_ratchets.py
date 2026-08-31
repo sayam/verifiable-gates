@@ -176,3 +176,19 @@ def test_each_xenon_ceiling_sits_where_reality_sits(which: str) -> None:
         f"{which}: ceiling {declared} but reality now ranks {measured} — move the ceiling up "
         "in ci.yml and in DECISIONS.md `xenon-floor-at-reality`, in the same change"
     )
+
+
+def test_the_interrogate_row_says_the_numbers_this_test_and_pyproject_use() -> None:
+    """DECISIONS `interrogate-at-84` names the floor (84%) and the move point (90) in prose;
+    only its id was held, so the words could say any number (self-audit, 2026-08-31)."""
+    row = next(
+        line
+        for line in (ROOT / "DECISIONS.md").read_text(encoding="utf-8").splitlines()
+        if line.startswith("| interrogate-at-84 |")
+    )
+    said_floor = re.search(r"floor is (\d+)%", row)
+    said_move = re.search(r"reaches (\d+)", row)
+    assert said_floor, row
+    assert said_move, row
+    assert float(said_floor.group(1)) == declared_floors()["interrogate"], row
+    assert float(said_move.group(1)) == INTERROGATE_MOVES_AT, row

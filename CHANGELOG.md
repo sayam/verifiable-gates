@@ -8,6 +8,16 @@ Notable changes to this project. The format follows
 
 ### Fixed
 
+- **A DECISIONS row is held by its clock and its words, not only its id.** A
+  `revisit` date could be removed from a row, an `expires when` could be
+  rewritten to "Never", and the `interrogate-at-84` row could say "floor is
+  80%" — all green, because the copy in `tests/test_decisions.py` held ids
+  alone (self-audit, 2026-08-31, each reproduced on v0.1.10). The copy now
+  carries each row's revisit date, the set of rows that never expire is
+  named, and the interrogate row's two numbers are read against the floor
+  pyproject declares and the move point the ratchet test uses. Proved by
+  mutation: three planted drifts red (#168).
+
 - **The steps two gates promise are held.** `the-archive-is-read-back` says
   "posture's cron runs it live", and `our-own-floors-sit-against-reality`
   holds the docstring floor — yet the `python -m verifiable_gates.zenodo
