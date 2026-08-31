@@ -180,9 +180,10 @@ def main(argv: list[str] | None = None) -> int:
 
     try:
         promised = promised_days(registry, workflows.workflow_dir(root))
-    except OSError as problem:
+    except (OSError, UnicodeDecodeError) as problem:
         # `--input` was given this answer in round 1; `--root` was not, and a root
-        # that is not there was a traceback (round 2, 2026-08-31).
+        # that is not there was a traceback (round 2, 2026-08-31). A registry or a
+        # workflow that is not UTF-8 was still one until round 3 (2026-09-01).
         print(f"cannot read the registry or the workflows: {problem}", file=sys.stderr)
         return 2
     if not promised:

@@ -84,6 +84,16 @@ def render(
     return "\n".join(lines)
 
 
+def _catalogue(path: str) -> list[Any]:
+    """The rule catalogue, or the third answer — a catalogue that is not UTF-8, or is
+    not there, was a traceback and exit 1 (self-audit round 3, 2026-09-01)."""
+    try:
+        return catalogue.load(path)
+    except (OSError, UnicodeDecodeError) as unreadable:
+        print(f"cannot read the catalogue: {path}: {unreadable}", file=sys.stderr)
+        raise SystemExit(2) from unreadable
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="Render a rule sheet from a rule catalogue.")
     parser.add_argument("--catalogue", default="rules.yaml", help="the catalogue to read")
@@ -110,7 +120,7 @@ def main(argv: list[str] | None = None) -> int:
     )
     args = parser.parse_args(argv)
 
-    rules = catalogue.load(args.catalogue)
+    rules = _catalogue(args.catalogue)
     problems = catalogue.problems(rules)
     if problems:
         for problem in problems:

@@ -323,3 +323,27 @@ def test_a_preamble_that_is_not_there_is_a_misuse(
 
     assert skill.main(argv) == 2
     assert "cannot read the preamble" in capsys.readouterr().err
+
+
+def test_a_catalogue_that_is_not_utf_8_is_a_misuse(
+    tmp_path: pathlib.Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """The preamble was given the third answer in round 2; the catalogue beside it was
+    still read bare (self-audit round 3, 2026-09-01)."""
+    bad, preamble = a_project(tmp_path, CATALOGUE)
+    bad.write_bytes("rules: caf\xe9\n".encode("latin-1"))
+
+    with pytest.raises(SystemExit) as refused:
+        skill.main(
+            [
+                "--catalogue",
+                str(bad),
+                "--preamble",
+                str(preamble),
+                "--out",
+                str(tmp_path / "SKILL.md"),
+            ]
+        )
+
+    assert refused.value.code == 2
+    assert "cannot read the catalogue" in capsys.readouterr().err

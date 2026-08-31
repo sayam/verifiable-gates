@@ -2220,3 +2220,23 @@ def test_a_workflow_that_is_not_utf_8_is_named_as_unreadable(
 
     assert scan_gates_registry.main(tmp_path) == 1
     assert "not UTF-8" in capsys.readouterr().out
+
+
+@pytest.mark.parametrize(
+    "module",
+    [scan_gates_registry, scan_service_layer, scan_entrypoint_debug],
+    ids=lambda m: m.__name__.rsplit(".", 1)[-1],
+)
+def test_a_scaffold_that_is_not_utf_8_is_the_third_answer(
+    tmp_path: pathlib.Path, capsys: pytest.CaptureFixture[str], module: ModuleType
+) -> None:
+    """Three scanners routed the files they *judge* around undecodable bytes and went on
+    reading the configuration beside them bare — found by pointing the doctor at such a
+    tree after the first fix of this round (self-audit round 3, 2026-09-01)."""
+    (tmp_path / "scaffold.json").write_bytes(b'{"app": "caf\xe9"}\n')
+
+    with pytest.raises(SystemExit) as refused:
+        module.main(tmp_path)
+
+    assert refused.value.code == 2
+    assert "cannot read the tree" in capsys.readouterr().err
