@@ -1926,6 +1926,15 @@ gates:
           installs that reach an index, all green on the scanner as it was;
           six installs from a lock, or with nothing to fetch, stay clean either
           way (self-audit, 2026-08-31).
+      - kind: mutation
+        ref: pr/164
+        date: 2026-08-31
+        caught: >-
+          A supersession recorded on one side only, an index link with a
+          title in its text, a table-row index, and a record named in
+          capitals — six cases red on `adr-index-complete` as it was, which
+          had no code for the title's last clause; three two-way spellings
+          hold clean either way (self-audit, 2026-08-31).
 
   - id: rules-we-ship-we-keep
     title: Scanners that apply to this repository are run against this repository

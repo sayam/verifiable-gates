@@ -8,6 +8,18 @@ Notable changes to this project. The format follows
 
 ### Fixed
 
+- **`adr-index-complete` reads supersessions, and every common index shape.**
+  The title's last clause — "supersessions are recorded in both directions" —
+  had no code behind it: a record saying `Supersedes: 0001` while 0001 said
+  nothing was clean; an index link with a title in its text
+  (`[0001: Use X](…)`) or a table row (`| 0001 | [Use X](…) |`) was "missing
+  from the index"; and a record named in capitals was not a record at all
+  (self-audit, 2026-08-31, each reproduced on v0.1.10). `Supersedes:` and
+  `Superseded by:` (plain, bold or hyphenated, with or without `ADR-`) are read
+  from both records and each side has to name the other; both link shapes
+  count; file names match in any case. Proved by mutation: six cases red on the
+  old scanner (#164).
+
 - **Every installer that reaches an index is read — the Node side too.**
   `uv tool run` (`uvx` spelled out), `uv run --with <pkg>` (resolved before it
   runs), `pip wheel` (an isolated build fetching its backend like `python -m
