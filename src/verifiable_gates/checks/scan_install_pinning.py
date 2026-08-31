@@ -59,7 +59,15 @@ import sys
 PIP_INSTALL = re.compile(
     r"(?:^|[\s/])pip(?:3(?:\.\d+)?)?(?:\s+--?[A-Za-z][\w-]*(?:=\S+|\s+[^-\s]\S*)?)*\s+install(?=\s|$)"
 )
-NPM_INSTALL = re.compile(r"(?:^|[\s/])npm\s+(?:install|i|add)\b")
+# The Node side is wider than `npm install`: `npx <pkg>` and `npm exec <pkg>` fetch a
+# package to run it, `yarn add` and `pnpm add` resolve one against the registry the
+# way `npm install <pkg>` does — the title promises both sides and the scanner read
+# one command (self-audit, 2026-08-31, each exited 0). `npm ci`, `yarn install
+# --frozen-lockfile`/`--immutable` and `pnpm install --frozen-lockfile` install from a
+# lock and are left alone.
+NPM_INSTALL = re.compile(
+    r"(?:^|[\s/])(?:npm\s+(?:install|i|add|exec)|npx|yarn\s+add|pnpm\s+(?:add|dlx))\b"
+)
 # `pipx install` / `pipx run` resolve the tool from the index like `pip install`.
 PIPX_INSTALL = re.compile(r"(?:^|[\s/])pipx\s+(?:install|run)\b")
 # So do the installers with no `pip` in the line: `uv tool install`, `uv add`,
@@ -68,15 +76,23 @@ PIPX_INSTALL = re.compile(r"(?:^|[\s/])pipx\s+(?:install|run)\b")
 # 2026-08-30 planted `uv tool install ruff` and `poetry add ruff` and got exit 0
 # from a scanner that keyed on the word `pip`. `uv run --locked` and `uv sync
 # --locked` install from `uv.lock`, which carries hashes, and are left alone.
+# `uv tool run` is `uvx` spelled out, and `uv run --with <pkg>` resolves that package
+# against the index before it runs — both unread (self-audit, 2026-08-31, proved
+# against uv 0.12.7).
 NO_PIP_INSTALL = re.compile(
-    r"(?:^|[\s/])(?:uv\s+(?:tool\s+install|add)|uvx|poetry\s+add|pdm\s+add|pipenv\s+install)\b"
+    r"(?:^|[\s/])(?:uv\s+(?:tool\s+(?:install|run)|add|run\s+(?:\S+\s+)*?--with(?:=|\s))"
+    r"|uvx|poetry\s+add|pdm\s+add|pipenv\s+install)\b"
 )
 # `python -m build` (and `pyproject-build`) creates an isolated environment and
 # `pip install`s the build backend from the index, unpinned — a tool CI installs
 # for itself, under the job's privileges, with no `pip` on the line at all.
 # `--no-isolation` makes the backend come from whatever the job already pinned.
-BUILD = re.compile(r"(?:^|[\s/])(?:python(?:3(?:\.\d+)?)?\s+-m\s+build|pyproject-build)\b")
-NO_ISOLATION = re.compile(r"(?:^|\s)(?:--no-isolation|-n)(?:\s|$)")
+# `pip wheel` builds in an isolated environment exactly as `python -m build` does,
+# fetching the backend from the index (self-audit, 2026-08-31: unread).
+BUILD = re.compile(
+    r"(?:^|[\s/])(?:python(?:3(?:\.\d+)?)?\s+-m\s+build|pyproject-build|pip(?:3(?:\.\d+)?)?\s+wheel)\b"
+)
+NO_ISOLATION = re.compile(r"(?:^|\s)(?:--no-isolation|--no-build-isolation|-n)(?:\s|$)")
 # `pip install --no-deps -e .` installs the checkout itself and resolves nothing
 # from an index, so there is no hash to pin and nothing an attacker could swap.
 # **Both halves are required.** `--no-deps requests` still reaches the index, and

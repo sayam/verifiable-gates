@@ -1917,6 +1917,15 @@ gates:
           after `cd` — all findings on the scanner as it was; six that pip
           would still fetch unpinned stay findings either way (self-audit,
           2026-08-31, each proved against pip 26.2.1).
+      - kind: mutation
+        ref: pr/163
+        date: 2026-08-31
+        caught: >-
+          `uv tool run`, `uv run --with`, `pip wheel` in an isolated build,
+          `npx`, `npm exec`, `yarn add`, `pnpm add` and `pnpm dlx` — nine
+          installs that reach an index, all green on the scanner as it was;
+          six installs from a lock, or with nothing to fetch, stay clean either
+          way (self-audit, 2026-08-31).
 
   - id: rules-we-ship-we-keep
     title: Scanners that apply to this repository are run against this repository
