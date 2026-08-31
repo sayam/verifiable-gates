@@ -575,3 +575,19 @@ def test_a_flow_mapping_can_be_a_list_item() -> None:
 
 def test_a_flow_list_can_be_a_list_item() -> None:
     assert scanner.load("a:\n  - [x, y]\n") == {"a": [["x", "y"]]}
+
+
+def test_a_gate_listing_tests_under_another_kind(
+    tmp_path: pathlib.Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """The files above are looked for only while `kind` reads `test`, and the harness
+    runs a gate only while it reads the same. A row listing tests under any other kind
+    is a gate nothing runs and nothing looks for, still counted by the index — one word
+    on one row, every reader green (self-audit round 2, 2026-08-31)."""
+    registry = (
+        "version: 1\ngates:\n  - id: a-rule\n    title: t\n    kind: job\n"
+        "    enforced_by: {job: test, tests: [tests/test_a.py]}\n"
+    )
+
+    assert scanner.main(a_project(tmp_path, registry)) == 1
+    assert "lists tests" in capsys.readouterr().out

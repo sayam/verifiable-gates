@@ -291,3 +291,39 @@ def test_a_date_that_is_today_anywhere_on_earth_is_not_in_the_future() -> None:
 def test_this_repos_own_registry_passes_its_own_schema() -> None:
     """The house that produces registries passes its own — starting from when it is empty."""
     assert registry.problems(registry.load(ROOT / "gates.yaml")) == []
+
+
+def test_a_gate_that_lists_tests_under_another_kind_is_refused() -> None:
+    """`kind` is not a label: the harness runs a gate only while it reads `test`, and the
+    shipped scanner looks for the named files only for the same value. One word changed on
+    one row took the harness from 43 pass · 11 skip to 42 · 12 with every reader still
+    green (self-audit round 2, 2026-08-31)."""
+    gate = {
+        "id": "a-gate",
+        "title": "A gate",
+        "kind": "job",
+        "severity": "blocking",
+        "enforced_by": {"job": "test", "tests": ["tests/test_a.py"]},
+        "layer": "internal",
+        "pillar": "devx",
+    }
+
+    found = registry.problems([gate])
+
+    assert any("lists tests" in problem for problem in found), found
+
+
+def test_a_job_gate_with_no_tests_is_still_well_formed() -> None:
+    """The other direction — the nine job gates and two step gates of this repository
+    name no test files, and must not be caught by the rule above."""
+    gate = {
+        "id": "a-gate",
+        "title": "A gate",
+        "kind": "job",
+        "severity": "blocking",
+        "enforced_by": {"job": "test"},
+        "layer": "internal",
+        "pillar": "devx",
+    }
+
+    assert registry.problems([gate]) == []

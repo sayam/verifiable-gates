@@ -8,6 +8,18 @@ Notable changes to this project. The format follows
 
 ### Fixed
 
+- **`kind` decides whether a gate is ever run, so it is held to what enforces
+  it.** Changing one word on one row — `kind: test` to `kind: job`, with the
+  `tests:` list left in place — took the harness from `43 pass · 11 skip` to
+  `42 · 12` and stopped the shipped scanner looking for that gate's test files,
+  while the whole suite, all fourteen readers and the registry's count of 54
+  gates stayed green (self-audit round 2, 2026-08-31). The harness runs a gate
+  only while `kind` reads `test`, and the scanner checks the named files exist
+  only for the same value, so any other kind beside a `tests:` list is a gate
+  nothing runs and nothing looks for. Both the register's own reader and the
+  scanner shipped to other projects now refuse that row. Proved by mutation:
+  two cases red with each half put back.
+
 - **A tree that is not there is no verdict, not a clean one.** Every one of the
   nine shipped scanners answered a root that does not exist — and a root that is
   a regular file — with `NA: no docs/adr — nothing to check yet` and exit 0: the

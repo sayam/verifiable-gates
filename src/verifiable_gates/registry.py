@@ -169,6 +169,29 @@ def _vocabulary_problems(gate_id: str, gate: dict[str, Any]) -> list[str]:
     ]
 
 
+def _enforcement_problems(gate_id: str, gate: dict[str, Any]) -> list[str]:
+    """`kind` and `enforced_by` have to describe the same enforcement.
+
+    `kind` is not a label: the harness runs a gate only while it reads `test`, and
+    the shipped scanner checks that the named files exist only for the same value.
+    A gate that lists `tests:` under any other kind is one whose test files nothing
+    runs and nothing looks for — the harness reported it as "skip, needs CI" and
+    every reader stayed green (self-audit round 2, 2026-08-31: one word changed on
+    one row took the harness from 43 pass · 11 skip to 42 · 12, exit 0 throughout).
+    """
+    enforced = gate.get("enforced_by")
+    if not isinstance(enforced, dict) or gate.get("kind") not in KINDS:
+        return []  # already said by another check
+    if enforced.get("tests") and gate.get("kind") != "test":
+        return [
+            (
+                f"{gate_id}: kind {gate['kind']!r} lists tests — a gate the harness does "
+                "not run, whose test files nothing checks for, while the index counts it"
+            )
+        ]
+    return []
+
+
 def _export_problems(gate_id: str, gate: dict[str, Any]) -> list[str]:
     """A rule that claims to be universal has to be one, and has to say where it came from."""
     if not gate.get("portable"):
@@ -209,6 +232,7 @@ def problems(gates: list[dict[str, Any]]) -> list[str]:
         )
         found.extend(_vocabulary_problems(gate_id, gate))
         found.extend(_export_problems(gate_id, gate))
+        found.extend(_enforcement_problems(gate_id, gate))
         if "proved_by" in gate:
             found.extend(_proof_problems(gate_id, gate["proved_by"]))
 
