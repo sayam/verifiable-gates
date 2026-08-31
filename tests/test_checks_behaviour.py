@@ -1991,3 +1991,74 @@ def test_an_install_from_a_lock_or_with_nothing_to_fetch_stays_clean(
     files = {".github/workflows/ci.yml": STEP.format(line=line)}
     assert scan_install_pinning.main(build(tmp_path, files)) == 0
     assert capsys.readouterr().out == ""
+
+
+OLD_ADR = "# 1. Use X\n\nStatus: Accepted\n"
+NEW_ADR = "# 2. Use Y\n\nStatus: Accepted\nSupersedes: 0001\n"
+INDEX_TWO = "- [0001](0001-a.md)\n- [0002](0002-b.md)\n"
+
+
+@pytest.mark.parametrize(
+    ("old", "new", "needle"),
+    [
+        (OLD_ADR, NEW_ADR, "0002 supersedes 0001, but 0001 does not say"),
+        (
+            OLD_ADR + "Superseded by: 0002\n",
+            "# 2. Use Y\n\nStatus: Accepted\n",
+            "0001 is superseded by 0002, but 0002 does not say",
+        ),
+    ],
+    ids=["one-way-forward", "one-way-backward"],
+)
+def test_a_supersession_recorded_on_one_side_only_is_a_finding(
+    tmp_path: pathlib.Path, capsys: pytest.CaptureFixture[str], old: str, new: str, needle: str
+) -> None:
+    """The title promises supersessions in both directions; the scanner had no code for
+    either (self-audit, 2026-08-31)."""
+    files = {"docs/adr/0001-a.md": old, "docs/adr/0002-b.md": new, "docs/adr/README.md": INDEX_TWO}
+    assert scan_adr_index.main(build(tmp_path, files, ADR_CONFIG)) == 1
+    assert needle in capsys.readouterr().out
+
+
+@pytest.mark.parametrize(
+    "spelling",
+    ["Superseded by: 0002", "**Superseded by:** ADR-0002", "superseded-by: 0002"],
+    ids=["plain", "bold-with-prefix", "hyphenated"],
+)
+def test_a_supersession_recorded_on_both_sides_is_clean(
+    tmp_path: pathlib.Path, capsys: pytest.CaptureFixture[str], spelling: str
+) -> None:
+    files = {
+        "docs/adr/0001-a.md": OLD_ADR + spelling + "\n",
+        "docs/adr/0002-b.md": NEW_ADR,
+        "docs/adr/README.md": INDEX_TWO,
+    }
+    assert scan_adr_index.main(build(tmp_path, files, ADR_CONFIG)) == 0
+    assert capsys.readouterr().out == ""
+
+
+@pytest.mark.parametrize(
+    "index",
+    [
+        "- [0001: Use X](0001-a.md)\n",
+        "| 0001 | [Use X](0001-a.md) |\n",
+        "| n | title |\n|---|---|\n| 0001 | [Use X](0001-a.md) | accepted |\n",
+    ],
+    ids=["title-in-the-link-text", "table-row", "table-with-header"],
+)
+def test_an_index_link_by_any_common_shape_counts(
+    tmp_path: pathlib.Path, capsys: pytest.CaptureFixture[str], index: str
+) -> None:
+    """`[0001: Use X](…)` and a table row were "missing from the index" (self-audit,
+    2026-08-31)."""
+    files = {"docs/adr/0001-a.md": ADR_BODY, "docs/adr/README.md": index}
+    assert scan_adr_index.main(build(tmp_path, files, ADR_CONFIG)) == 0
+    assert capsys.readouterr().out == ""
+
+
+def test_a_record_named_in_capitals_is_a_record(
+    tmp_path: pathlib.Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    files = {"docs/adr/0001-Use-X.md": ADR_BODY, "docs/adr/README.md": "| index |\n"}
+    assert scan_adr_index.main(build(tmp_path, files, ADR_CONFIG)) == 1
+    assert "missing from the index: 0001-Use-X.md" in capsys.readouterr().out
