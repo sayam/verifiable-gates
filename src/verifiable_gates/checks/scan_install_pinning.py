@@ -101,7 +101,9 @@ NO_ISOLATION = re.compile(r"(?:^|\s)(?:--no-isolation|--no-build-isolation|-n)(?
 # local target has to be the *only* target: `--no-deps requests .` has both
 # halves and still fetches `requests` from the index — an outside audit on
 # 2026-08-29 planted exactly that line and the exemption covered it.
-LOCAL_TARGET = re.compile(r"^(?:\.|\./|/)")
+# A path is local by its `./`, `/` or `.` — or by being a wheel file wherever it
+# sits: `dist/*.whl` without the `./` was "from an index" (self-audit, 2026-08-31).
+LOCAL_TARGET = re.compile(r"^(?:\.|\./|/|.*\.whl$)")
 # Options whose next token is a value, not a package — `-r`/`-c` are left out on
 # purpose: a requirements file names packages, so it is an index install.
 TAKES_A_VALUE = frozenset(

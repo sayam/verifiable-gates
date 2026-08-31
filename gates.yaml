@@ -2006,6 +2006,13 @@ gates:
           cases red on `image-digest-pinned` as it was, which judged one half
           of its title; a mover declared in quotes holds clean either way
           (self-audit, 2026-08-31).
+      - kind: mutation
+        ref: pr/172
+        date: 2026-08-31
+        caught: >-
+          `pip install --no-deps dist/*.whl` — the wheel just built, named
+          without `./` — a finding on the scanner as it was; two cases red
+          with the wheel clause removed (self-audit round 2, 2026-08-31).
 
   - id: rules-we-ship-we-keep
     title: Scanners that apply to this repository are run against this repository
