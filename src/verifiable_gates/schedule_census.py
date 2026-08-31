@@ -275,12 +275,25 @@ def main(argv: list[str] | None = None) -> int:
         return 0
 
     try:
-        # An empty object is a usable answer here — "no scheduled run ever" —
-        # and `problems()` already closes on it, so only the shape is held.
+        # The answer is an object carrying `last_scheduled_run`, a mapping from
+        # workflow file to its last scheduled stamp or `null` — `{}` and
+        # `{"foo": 1}` used to read as "never fired", exit 0 (self-audit,
+        # 2026-08-31); an object of the wrong shape is unreadable, not never.
         state = history.read(
-            args.input, lambda: fetch(list(schedules)), shape=dict, must_hold_something=False
+            args.input,
+            lambda: fetch(list(schedules)),
+            shape=dict,
+            must_hold_something=False,
+            fields={"last_scheduled_run": (dict,)},
         )
-    except (PermissionError, RuntimeError) as problem:
+        last = state["last_scheduled_run"]
+        history.read(None, lambda: list(last.values()), shape=list, must_hold_something=False)
+        for name, stamp in last.items():
+            if stamp is not None and not isinstance(stamp, str):
+                raise history.UnreadableError(f"{name}: last run is {stamp!r}, not a stamp")
+            if stamp is not None:
+                datetime.datetime.fromisoformat(stamp)
+    except (PermissionError, RuntimeError, ValueError) as problem:
         print(
             f"cannot read the run history: {problem}\n"
             "**This must never become a silent skip** — a watcher that goes quiet when "
@@ -291,7 +304,6 @@ def main(argv: list[str] | None = None) -> int:
         return 2
 
     now = args.now or datetime.datetime.now(datetime.UTC).isoformat()
-    last = state.get("last_scheduled_run") or {}
     born = first_seen(pathlib.Path(args.root), list(schedules))
     found = problems(schedules, last, now, args.tolerance, born)
 

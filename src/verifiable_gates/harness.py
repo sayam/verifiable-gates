@@ -29,6 +29,8 @@ import sys
 import time
 from typing import Any
 
+import yaml
+
 from verifiable_gates import registry
 
 __all__ = ["ROUND_LOG", "main", "run_all", "run_test_gate"]
@@ -105,7 +107,9 @@ def main(argv: list[str] | None = None) -> int:
 
     try:
         gates = registry.load(args.registry)
-    except (TypeError, ValueError) as error:
+    except (TypeError, ValueError, OSError, yaml.YAMLError) as error:
+        # …and YAML the parser rejects, or a file that is not there, are the same
+        # misuse — each was a traceback with exit 1 before (self-audit, 2026-08-31).
         # An index the harness cannot read is a misuse (exit 2) — not a pass, and
         # not a traceback whose exit code is whatever the interpreter made of it.
         print(f"cannot read the registry: {error}", file=sys.stderr)

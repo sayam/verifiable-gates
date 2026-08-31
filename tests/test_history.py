@@ -8,11 +8,14 @@ One reader, one contract, one test file that holds it.
 
 from __future__ import annotations
 
+import datetime
 from typing import TYPE_CHECKING
 
 import pytest
 
 from verifiable_gates import history
+
+STAMP = (datetime.datetime,)
 
 if TYPE_CHECKING:
     import pathlib
@@ -98,5 +101,49 @@ def test_the_output_of_gh_run_list_is_named_as_such() -> None:
         history.read(None, lambda: [record], shape=list, fields=("id", "failures"))
 
 
-def test_fields_are_not_asked_of_a_mapping_history() -> None:
-    assert history.read(None, lambda: {"a": 1}, shape=dict, fields=("x",)) == {"a": 1}
+def test_a_mapping_history_is_held_to_its_fields_too() -> None:
+    """`{}` and `{"foo": 1}` read as a schedule history that had never fired (self-audit,
+    2026-08-31); a mapping lacking the field the census reads is not that history."""
+    with pytest.raises(history.UnreadableError, match="has no \\['x'\\]"):
+        history.read(None, lambda: {"a": 1}, shape=dict, fields=("x",))
+    assert history.read(None, lambda: {"x": 1}, shape=dict, fields=("x",)) == {"x": 1}
+
+
+@pytest.mark.parametrize(
+    ("record", "needle"),
+    [
+        ({"id": 1, "failures": "oops"}, "failures is a str, not list"),
+        ({"id": 1, "failures": 7}, "failures is a int, not list"),
+        ({"id": 1, "failures": None}, "failures is a NoneType, not list"),
+        ({"id": 1, "failures": [], "attempt": "2"}, "attempt is a str, not int"),
+    ],
+    ids=["str", "int", "null", "attempt-str"],
+)
+def test_a_field_of_the_wrong_kind_is_unreadable(record: dict[str, object], needle: str) -> None:
+    """Every key present and the wrong kinds behind them raised from inside the count with
+    exit 1 — the code for a broken promise (self-audit, 2026-08-31)."""
+    fields: dict[str, tuple[type, ...]] = {
+        "id": (int, str),
+        "failures": (list,),
+        "?attempt": (int,),
+    }
+    with pytest.raises(history.UnreadableError, match=needle):
+        history.read(None, lambda: [record], shape=list, fields=fields)
+
+
+@pytest.mark.parametrize("stamp", [1700000000, "yesterday", "", "2026-13-01T00:00:00Z"])
+def test_a_stamp_that_is_not_a_timestamp_is_unreadable(stamp: object) -> None:
+    with pytest.raises(history.UnreadableError, match=r"not (an )?ISO timestamp"):
+        history.read(
+            None, lambda: [{"created_at": stamp}], shape=list, fields={"?created_at": STAMP}
+        )
+
+
+def test_an_optional_field_may_be_absent_but_not_wrong() -> None:
+    """`?name` holds the kind of what is there; a record without it is fine."""
+    assert history.read(None, lambda: [{}], shape=list, fields={"?created_at": STAMP}) == [{}]
+    stamp = "2026-08-31T00:00:00+00:00"
+    found = history.read(
+        None, lambda: [{"created_at": stamp}], shape=list, fields={"?created_at": STAMP}
+    )
+    assert found == [{"created_at": stamp}]

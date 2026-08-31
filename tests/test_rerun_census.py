@@ -858,3 +858,23 @@ def test_the_output_of_gh_run_list_is_the_third_answer_not_zero_failures(
     err = capsys.readouterr().err
     assert "cannot read the run history" in err
     assert "gh run list --json" in err
+
+
+@pytest.mark.parametrize(
+    "record",
+    [
+        {"id": 1, "attempt": 1, "failures": "oops"},
+        {"id": 1, "attempt": 1, "failures": 7},
+        {"id": 1, "attempt": 1, "failures": None},
+        {"id": 1, "attempt": "2", "failures": []},
+    ],
+    ids=["failures-str", "failures-int", "failures-null", "attempt-str"],
+)
+def test_a_record_of_the_wrong_kinds_is_unreadable_not_a_broken_promise(
+    tmp_path: pathlib.Path, capsys: pytest.CaptureFixture[str], record: dict[str, Any]
+) -> None:
+    """Keys present, kinds wrong: a traceback and exit 1 before (self-audit, 2026-08-31)."""
+    a_workflow(tmp_path / ".github" / "workflows", "ci.yml", "jobs:\n  lint:\n    steps: []\n")
+    records = a_records_file(tmp_path, [record])
+    assert census.main(["--root", str(tmp_path), "--input", str(records)]) == 2
+    assert "cannot read the run history" in capsys.readouterr().err
