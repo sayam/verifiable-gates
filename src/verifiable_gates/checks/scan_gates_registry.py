@@ -281,14 +281,44 @@ def load(text: str) -> object:
     return value
 
 
-def workflow_jobs(root: pathlib.Path) -> tuple[dict[str, list[str]], list[str], list[str]]:
-    """job → the names of its named steps, the files that could not be read, and the
-    job names two workflow files both define — the platform runs both while a dict
-    keyed by name kept one, so the second was covered by the first's gate in
-    silence (outside audit, 2026-08-31)."""
+def _toothless(workflow: dict[str, Any], job: dict[str, Any]) -> str:
+    """Why this job cannot turn the build red — empty while it can.
+
+    A gate names a job so that the job fails when the rule is broken. Three shapes
+    take that away without touching the index: a workflow with no trigger never runs
+    at all, `if: false` never starts the job, and `continue-on-error: true` lets it
+    fail while the run stays green. Adding the third to this repository's own `test`
+    job — the job forty-five of its fifty-four gates name — left the whole suite, every
+    reader and this scanner green (self-audit round 3, 2026-09-01).
+
+    A `kind: step` gate is judged the same way one level down, under the key
+    `job:step`: the step it names carrying `continue-on-error: true` takes the teeth
+    from that gate while the job around it keeps its own.
+
+    Only the unambiguous shapes are judged: a `workflow_dispatch`-only or
+    `schedule`-only workflow is a deliberate choice this repository makes itself, for
+    `release-sign` and `posture`, and an `if:` holding an expression is not a literal.
+    """
+    if "on" not in workflow:
+        return "the workflow it is in has no trigger, so it never runs"
+    if job.get("if") is False:
+        return "the job is `if: false`, so it never starts"
+    if job.get("continue-on-error") is True:
+        return "the job is `continue-on-error: true`, so it cannot fail the run"
+    return ""
+
+
+def workflow_jobs(
+    root: pathlib.Path,
+) -> tuple[dict[str, list[str]], list[str], list[str], dict[str, str]]:
+    """job → the names of its named steps, the files that could not be read, the job
+    names two workflow files both define — the platform runs both while a dict keyed by
+    name kept one, so the second was covered by the first's gate in silence (outside
+    audit, 2026-08-31) — and the jobs that cannot fail the build at all."""
     jobs: dict[str, list[str]] = {}
     unreadable: list[str] = []
     homes: dict[str, list[str]] = {}
+    toothless: dict[str, str] = {}
     for path in sorted((root / ".github" / "workflows").glob("*.y*ml")):
         try:
             workflow = load(path.read_text(encoding="utf-8"))
@@ -310,13 +340,21 @@ def workflow_jobs(root: pathlib.Path) -> tuple[dict[str, list[str]], list[str], 
                 str(s["name"]) for s in steps if isinstance(s, dict) and s.get("name")
             ]
             homes.setdefault(str(name), []).append(str(path.relative_to(root)))
+            why = _toothless(workflow, job) if isinstance(job, dict) else ""
+            if why:
+                toothless[str(name)] = why
+            for step in steps:
+                if isinstance(step, dict) and step.get("continue-on-error") is True:
+                    toothless[f"{name}:{step.get('name')}"] = (
+                        "the step it names is `continue-on-error: true`, so it cannot fail"
+                    )
     clashes = [
         f"job {name} is defined in {' and '.join(files)} — one gate cannot hold two jobs"
         f" of one name; rename one"
         for name, files in sorted(homes.items())
         if len(files) > 1
     ]
-    return jobs, unreadable, clashes
+    return jobs, unreadable, clashes, toothless
 
 
 def _gate_findings(gates: list[object]) -> tuple[list[str], list[dict[str, Any]]]:
@@ -463,10 +501,24 @@ def main(root: pathlib.Path) -> int:
         if not gates and not shape:
             findings.append(f"{registry.name} lists no gates — an empty index enforces nothing")
 
-        jobs, unreadable, clashes = workflow_jobs(root)
+        jobs, unreadable, clashes, toothless = workflow_jobs(root)
         findings += [f"a workflow could not be read — {problem}" for problem in unreadable]
         findings += clashes
         findings += _forward(gates, jobs, root)
+        findings += [
+            f"{gate['id']}: {toothless[str(gate['enforced_by']['job'])]} — a gate whose job "
+            "cannot turn the build red is a row in the index and nothing else"
+            for gate in gates
+            if str(gate["enforced_by"]["job"]) in toothless
+        ]
+        findings += [
+            f"{gate['id']}: {toothless[key]} — a gate whose step cannot turn the build "
+            "red is a row in the index and nothing else"
+            for gate in gates
+            if gate["kind"] == "step"
+            and (key := f"{gate['enforced_by']['job']}:{gate['enforced_by'].get('step')}")
+            in toothless
+        ]
 
         covered = {str(gate["enforced_by"]["job"]) for gate in gates}
         findings += [

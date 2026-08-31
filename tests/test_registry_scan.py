@@ -28,7 +28,10 @@ from verifiable_gates.checks import scan_gates_registry as scanner
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 
-PINNED = "jobs:\n  test:\n    steps:\n      - name: a step\n        run: true\n"
+# A workflow with no `on:` never runs, and a gate naming a job in one is a row and
+# nothing else — so the fixture every case here builds on carries a trigger, as a
+# real workflow must (self-audit round 3, 2026-09-01).
+PINNED = "on: push\njobs:\n  test:\n    steps:\n      - name: a step\n        run: true\n"
 
 
 def build(
@@ -591,3 +594,75 @@ def test_a_gate_listing_tests_under_another_kind(
 
     assert scanner.main(a_project(tmp_path, registry)) == 1
     assert "lists tests" in capsys.readouterr().out
+
+
+# ---------------------------------------------------------------- teeth
+
+
+TOOTHLESS_JOB = (
+    "version: 1\ngates:\n  - id: a-rule\n    title: t\n    kind: job\n    enforced_by: {job: x}\n"
+)
+STEPS = "    runs-on: ubuntu-latest\n    steps:\n      - run: echo\n"
+
+
+@pytest.mark.parametrize(
+    ("workflow", "said"),
+    [
+        (f"name: t\njobs:\n  x:\n{STEPS}", "no trigger"),
+        (f"name: t\non: push\njobs:\n  x:\n    if: false\n{STEPS}", "`if: false`"),
+        (
+            f"name: t\non: push\njobs:\n  x:\n    continue-on-error: true\n{STEPS}",
+            "cannot fail the run",
+        ),
+    ],
+    ids=["no-trigger", "if-false", "continue-on-error"],
+)
+def test_a_gate_whose_job_cannot_turn_the_build_red(
+    tmp_path: pathlib.Path, capsys: pytest.CaptureFixture[str], workflow: str, said: str
+) -> None:
+    """A gate names a job so that the job fails when the rule is broken. Three shapes take
+    that away without touching the index — and adding `continue-on-error: true` to this
+    repository's own `test` job, which forty-five of its fifty-four gates name, left the
+    whole suite, every reader and this scanner green (self-audit round 3, 2026-09-01)."""
+    root = a_project(tmp_path, TOOTHLESS_JOB)
+    (root / ".github" / "workflows" / "ci.yml").write_text(workflow, encoding="utf-8")
+
+    assert scanner.main(root) == 1
+    assert said in capsys.readouterr().out
+
+
+def test_a_step_gate_whose_step_cannot_fail(
+    tmp_path: pathlib.Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """One level down: the step a `kind: step` gate names carrying `continue-on-error`
+    takes the teeth from that gate while the job around it keeps its own."""
+    registry = (
+        "version: 1\ngates:\n  - id: a-rule\n    title: t\n    kind: step\n"
+        "    enforced_by: {job: x, step: lint}\n"
+    )
+    root = a_project(tmp_path, registry)
+    (root / ".github" / "workflows" / "ci.yml").write_text(
+        "name: t\non: push\njobs:\n  x:\n    runs-on: ubuntu-latest\n    steps:\n"
+        "      - name: lint\n        continue-on-error: true\n        run: echo\n",
+        encoding="utf-8",
+    )
+
+    assert scanner.main(root) == 1
+    assert "cannot fail" in capsys.readouterr().out
+
+
+def test_a_job_that_can_fail_is_left_alone(
+    tmp_path: pathlib.Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """The other direction, and the shapes deliberately not judged: a workflow started
+    only by `workflow_dispatch` or a schedule is how this repository runs `release-sign`
+    and `posture`, and an `if:` holding an expression is not a literal false."""
+    root = a_project(tmp_path, TOOTHLESS_JOB)
+    (root / ".github" / "workflows" / "ci.yml").write_text(
+        "name: t\non: workflow_dispatch\njobs:\n  x:\n"
+        "    if: github.event_name == 'push'\n" + STEPS,
+        encoding="utf-8",
+    )
+
+    assert scanner.main(root) == 0
+    assert capsys.readouterr().out == ""
