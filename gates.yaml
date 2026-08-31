@@ -2113,6 +2113,15 @@ gates:
           red a project can only answer by deleting the gate; three cases
           red, and three more hold the direction that must stay red,
           including a heredoc fed to bash (self-audit round 6, 2026-09-01).
+      - kind: mutation
+        ref: pr/186
+        date: 2026-09-01
+        caught: >-
+          The four scanners put back — a directory that exists and holds
+          nothing they read fell silent, which the doctor prints as [ pass];
+          a Go project's app/ of `.go` files came back passed by a scanner
+          that never opened a file. Four cases red, six hold the direction
+          that must not change (self-audit round 8, 2026-09-01).
 
   - id: rules-we-ship-we-keep
     title: Scanners that apply to this repository are run against this repository
