@@ -8,6 +8,15 @@ Notable changes to this project. The format follows
 
 ### Fixed
 
+- **The checks switched off in pyproject are a register too.** Ruff's `ignore`
+  list and `per-file-ignores` relax whole classes of check for the tree or a
+  directory — what `exception-registers-are-reasoned` is about — and the
+  suppression census counted `# noqa` lines only, so a code added to either
+  list was seen by nothing (self-audit, 2026-08-31). Both lists are now a copy
+  in `tests/test_instruments_dogfood.py`, held two-way like `SUPPRESSED_LINES`,
+  and every group of entries has to sit under a reason. Proved by mutation: a
+  code added to `ignore` is red against the copy (#170).
+
 - **The words beside two registers are held.** CONTRIBUTING's "the eight
   required checks" sat beside a list a test holds to the register, and the
   word could go to "seven" alone; CLA.md's `v1` appears in its title, its
