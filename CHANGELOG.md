@@ -8,6 +8,23 @@ Notable changes to this project. The format follows
 
 ### Fixed
 
+- **The installer judges the destination before the first copy, and refuses
+  plainly.** A `tools/` or `.github/workflows/` that was a symlink leading
+  outside the destination took all fourteen files with it, exit 0;
+  `--manifest bundle.json` landed sixteen files and then died looking for
+  `overlay.json`; a manifest that was not JSON, not an object, missing
+  `gates`, or a missing file, and a destination that was a file or could not
+  be written, were each a raw traceback with exit 1 — the code that means
+  "refused"; and `job: scans` inside a comment of a kept `gates.yaml` silenced
+  the warning that the job has no gate (self-audit, 2026-08-31, every case
+  reproduced on v0.1.10). Now a directory on the way to a target that resolves
+  outside the destination, a destination that is a file or unwritable, and an
+  incomplete bundle are all refused before anything is written; the manifest
+  is copied from wherever it was named, under `tools/overlay.json`; a
+  manifest that cannot be read is "cannot read the manifest: …" and exit 2;
+  and comments in the kept registry are not rows. Proved by mutation: twelve
+  cases red on the old installer (#154).
+
 - **A file Python cannot parse is refused, not a traceback.** `no-debug-entrypoint`
   and `logic-knows-no-http` read the AST; a file with a syntax error made each
   die with a traceback and exit 1 — the code that means "findings" — instead of

@@ -37,7 +37,7 @@ def load(path: str | pathlib.Path) -> dict[str, Any]:
     for key in ("ship", "gates"):
         if key not in raw:
             raise KeyError(f"{path}: manifest has no '{key}'")
-    if not isinstance(raw["ship"], list):
+    if not isinstance(raw["ship"], list) or not all(isinstance(n, str) for n in raw["ship"]):
         raise TypeError(f"{path}: 'ship' must be a list of file names")
     if not isinstance(raw["gates"], dict):
         raise TypeError(f"{path}: 'gates' must be an object keyed by gate id")
