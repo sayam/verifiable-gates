@@ -2052,6 +2052,15 @@ gates:
           `pip install --no-deps dist/*.whl` — the wheel just built, named
           without `./` — a finding on the scanner as it was; two cases red
           with the wheel clause removed (self-audit round 2, 2026-08-31).
+      - kind: mutation
+        ref: pr/174
+        date: 2026-08-31
+        caught: >-
+          Each of the nine scanners put back — a root that does not exist
+          and a root that is a regular file were 'NA … nothing to check yet'
+          and exit 0, the answer for a project with nothing of that kind
+          given about a project that is not there; eighteen cases red (self-
+          audit round 2, 2026-08-31).
 
   - id: rules-we-ship-we-keep
     title: Scanners that apply to this repository are run against this repository
