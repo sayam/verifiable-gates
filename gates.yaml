@@ -1935,6 +1935,15 @@ gates:
           capitals — six cases red on `adr-index-complete` as it was, which
           had no code for the title's last clause; three two-way spellings
           hold clean either way (self-audit, 2026-08-31).
+      - kind: mutation
+        ref: pr/165
+        date: 2026-08-31
+        caught: >-
+          `FROM scratch` a finding, and a digest-pinned Dockerfile with no
+          `docker` ecosystem in dependabot.yml (or no file at all) clean — three
+          cases red on `image-digest-pinned` as it was, which judged one half
+          of its title; a mover declared in quotes holds clean either way
+          (self-audit, 2026-08-31).
 
   - id: rules-we-ship-we-keep
     title: Scanners that apply to this repository are run against this repository

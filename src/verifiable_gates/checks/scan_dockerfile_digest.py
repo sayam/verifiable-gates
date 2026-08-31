@@ -1,8 +1,12 @@
 """gate: image-digest-pinned — a base image is pinned by digest, not only by tag.
 
 A tag can be re-pointed, and then the image that passed the tests is not the image
-that was deployed. Pinning also needs someone moving the pins (Dependabot's docker
-ecosystem); that half is checked by the project's own dependabot gate, not here.
+that was deployed. Pinning also needs someone moving the pins — the title says
+"and Dependabot moves it", so a judged Dockerfile with no `docker` ecosystem in
+`.github/dependabot.yml` is a finding: a digest nobody moves is a vulnerability
+kept on ice. That half was delegated to another gate and checked nowhere, and
+`FROM scratch` — the empty image, which has no digest to pin — was a finding
+(self-audit, 2026-08-31).
 
 Dockerfile instructions are case-insensitive, and an image can enter a build
 through `COPY --from=<image>` as well as `FROM` — an outside audit on 2026-08-29
@@ -38,6 +42,18 @@ STAGE = re.compile(r"^\s*FROM\s+.*?\s+AS\s+(\S+)", re.MULTILINE | re.IGNORECASE)
 # `COPY --from=<image-or-stage>` pulls an image into the build exactly as FROM does.
 COPY_FROM = re.compile(r"^\s*COPY\s+(?:--\S+\s+)*?--from=(\S+)", re.MULTILINE | re.IGNORECASE)
 DIGEST = re.compile(r"@sha256:[0-9a-f]{64}$")
+# `scratch` is the empty starting image — nothing is pulled, so there is nothing to pin.
+SCRATCH = "scratch"
+DOCKER_ECOSYSTEM = re.compile(r"""package-ecosystem\s*:\s*["']?docker["']?\s*$""", re.MULTILINE)
+NO_MOVER = (
+    "no `package-ecosystem: docker` in .github/dependabot.yml — a digest nobody moves is a "
+    "vulnerability kept on ice"
+)
+
+
+def _nothing_moves_the_pins(root: pathlib.Path) -> bool:
+    config = root / ".github" / "dependabot.yml"
+    return not (config.is_file() and DOCKER_ECOSYSTEM.search(config.read_text(encoding="utf-8")))
 
 
 UNNAMED = (
@@ -73,7 +89,7 @@ def _unpinned(root: pathlib.Path, path: pathlib.Path) -> list[str]:
         for how, ref in refs
         # A stage name is a local alias, not an image — and names are also
         # case-insensitive. A bare stage *index* (`--from=0`) is one too.
-        if ref.lower() not in stages and not ref.isdigit() and not DIGEST.search(ref)
+        if ref.lower() not in {*stages, SCRATCH} and not ref.isdigit() and not DIGEST.search(ref)
     ]
 
 
@@ -102,6 +118,8 @@ def main(root: pathlib.Path) -> int:
 
     for path in dockerfiles:
         findings += _unpinned(root, path)
+    if dockerfiles and _nothing_moves_the_pins(root):
+        findings.append(NO_MOVER)
 
     for finding in findings:
         print(f"image-digest-pinned: {finding}")

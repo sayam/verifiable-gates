@@ -61,6 +61,12 @@ def build(
     return root
 
 
+MOVER = {
+    ".github/dependabot.yml": (
+        "version: 2\nupdates:\n  - package-ecosystem: docker\n    directory: /\n"
+        "    schedule: {interval: weekly}\n"
+    )
+}
 PINNED_ACTION = "jobs:\n  a:\n    steps:\n      - uses: actions/checkout@" + "a" * 40 + " # v4\n"
 FLOATING_ACTION = "jobs:\n  a:\n    steps:\n      - uses: actions/checkout@v4\n"
 CLEAN_ENTRYPOINT = (
@@ -88,8 +94,8 @@ CASES = [
     pytest.param(
         Case(
             scan_dockerfile_digest,
-            {"Dockerfile": "FROM python:3.13-slim\n"},
-            {"Dockerfile": "FROM python@sha256:" + "b" * 64 + "\n"},
+            {"Dockerfile": "FROM python:3.13-slim\n", **MOVER},
+            {"Dockerfile": "FROM python@sha256:" + "b" * 64 + "\n", **MOVER},
             {"dockerfiles": ["Dockerfile"]},
             "image-digest-pinned",
         ),
@@ -310,6 +316,7 @@ def test_a_project_that_named_its_dockerfiles_has_decided(
     files = {
         "Dockerfile": "FROM python@sha256:" + "b" * 64 + "\n",
         "Dockerfile.prod": "FROM python:3.13-slim\n",
+        **MOVER,
     }
     root = build(tmp_path, files, {"dockerfiles": ["Dockerfile"]})
     assert scan_dockerfile_digest.main(root) == 0
@@ -322,7 +329,7 @@ def test_a_dockerfile_named_and_present_beside_one_named_and_missing_judges_both
     """One missing name is a finding on its own; it does not hide the file that is there."""
     pinned = "FROM python@sha256:" + "b" * 64 + "\n"
     config = {"dockerfiles": ["Dockerfile", "docker/Dockerfile"]}
-    root = build(tmp_path, {"Dockerfile": pinned}, config)
+    root = build(tmp_path, {"Dockerfile": pinned, **MOVER}, config)
     assert scan_dockerfile_digest.main(root) == 1
     out = capsys.readouterr().out
     assert "docker/Dockerfile" in out
@@ -1364,7 +1371,7 @@ def test_the_dockerfile_scanner_stays_quiet_when_every_image_is_pinned(
     tmp_path: pathlib.Path, dockerfile: str
 ) -> None:
     """A stage alias or index is a local name, not an image — refusing it is a false red."""
-    root = build(tmp_path, {"Dockerfile": dockerfile}, {"dockerfiles": ["Dockerfile"]})
+    root = build(tmp_path, {"Dockerfile": dockerfile, **MOVER}, {"dockerfiles": ["Dockerfile"]})
 
     assert scan_dockerfile_digest.main(root) == 0
 
@@ -2062,3 +2069,50 @@ def test_a_record_named_in_capitals_is_a_record(
     files = {"docs/adr/0001-Use-X.md": ADR_BODY, "docs/adr/README.md": "| index |\n"}
     assert scan_adr_index.main(build(tmp_path, files, ADR_CONFIG)) == 1
     assert "missing from the index: 0001-Use-X.md" in capsys.readouterr().out
+
+
+PINNED_IMAGE = "FROM python@sha256:" + "b" * 64 + "\n"
+
+
+def test_scratch_is_the_empty_image_and_needs_no_digest(
+    tmp_path: pathlib.Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """`FROM scratch` pulls nothing — it was a finding (self-audit, 2026-08-31)."""
+    files = {"Dockerfile": "FROM scratch\nCOPY app /app\n", **MOVER}
+    assert scan_dockerfile_digest.main(build(tmp_path, files, {"dockerfiles": ["Dockerfile"]})) == 0
+    assert capsys.readouterr().out == ""
+
+
+@pytest.mark.parametrize(
+    "files",
+    [
+        {},
+        {
+            ".github/dependabot.yml": (
+                "version: 2\nupdates:\n  - package-ecosystem: pip\n    directory: /\n"
+            )
+        },
+    ],
+    ids=["no-dependabot-file", "dependabot-without-docker"],
+)
+def test_a_digest_nobody_moves_is_a_finding(
+    tmp_path: pathlib.Path, capsys: pytest.CaptureFixture[str], files: dict[str, str]
+) -> None:
+    """The title says "and Dependabot moves it"; the scanner checked the digest and
+    delegated the mover to nowhere (self-audit, 2026-08-31)."""
+    root = build(tmp_path, {"Dockerfile": PINNED_IMAGE, **files}, {"dockerfiles": ["Dockerfile"]})
+    assert scan_dockerfile_digest.main(root) == 1
+    assert "package-ecosystem: docker" in capsys.readouterr().out
+
+
+def test_a_mover_declared_in_quotes_counts(
+    tmp_path: pathlib.Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    mover = {
+        ".github/dependabot.yml": (
+            'version: 2\nupdates:\n  - package-ecosystem: "docker"\n    directory: "/"\n'
+        )
+    }
+    root = build(tmp_path, {"Dockerfile": PINNED_IMAGE, **mover}, {"dockerfiles": ["Dockerfile"]})
+    assert scan_dockerfile_digest.main(root) == 0
+    assert capsys.readouterr().out == ""
