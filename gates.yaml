@@ -1989,6 +1989,14 @@ gates:
           traceback, and `job: scans` in a comment silencing the kept-registry
           warning; a symlink that stays inside holds either way (self-audit,
           2026-08-31).
+      - kind: mutation
+        ref: pr/156
+        date: 2026-08-31
+        caught: >-
+          Under one pipe for both streams, the second scan's traceback
+          surfaced above the first gate's line on the doctor as it was — stdout
+          block-buffered, stderr not — and could not be matched to its gate;
+          red on the old doctor, in order on this one (self-audit, 2026-08-31).
 
   - id: the-manifest-is-an-input
     title: The manifest is validated as data, and a rule the bundle cannot decide cannot carry a script

@@ -80,10 +80,14 @@ def do_install(dest: pathlib.Path, bundle: pathlib.Path) -> int:
     return install_module.install(dest, manifest_module.load(bundle / "overlay.json"), bundle)
 
 
-def run_doctor(project: pathlib.Path, *args: str) -> subprocess.CompletedProcess[str]:
+def run_doctor(
+    project: pathlib.Path, *args: str, one_stream: bool = False
+) -> subprocess.CompletedProcess[str]:
+    """The doctor as CI runs it; `one_stream` folds stderr into stdout the way a log does."""
     return subprocess.run(  # noqa: S603 — argv is built here, interpreter is sys.executable
         [sys.executable, str(project / DOCTOR), str(project), *args],
-        capture_output=True,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.STDOUT if one_stream else subprocess.PIPE,
         text=True,
         check=False,
         timeout=300,

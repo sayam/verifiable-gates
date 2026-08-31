@@ -123,7 +123,13 @@ def run_scans(root: pathlib.Path, manifest: dict[str, Any], bundle: pathlib.Path
             print(f"[error] {gid} — the scan did not answer (timed out after {SCAN_TIMEOUT}s)")
             broken.append(gid)
             continue
+        # Under a pipe — a CI log — stdout is block-buffered and stderr is not, so
+        # every scan's stderr surfaced above the first gate line and a traceback
+        # could not be matched to its gate (self-audit, 2026-08-31). Flush what
+        # was said so far, then pass the stderr through where it belongs.
+        sys.stdout.flush()
         sys.stderr.write(result.stderr)
+        sys.stderr.flush()
         crashed = "Traceback (most recent call last)" in result.stderr
         if result.returncode == 0:
             print(f"[{'NA' if result.stdout.startswith('NA:') else 'pass':>5}] {gid}")
