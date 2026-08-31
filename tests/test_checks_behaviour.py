@@ -1653,3 +1653,54 @@ def test_another_steps_working_directory_does_not_move_this_one(
     }
     assert scan_install_pinning.main(build(tmp_path, files)) == 0
     assert capsys.readouterr().out == ""
+
+
+@pytest.mark.parametrize(
+    ("files", "line"),
+    [
+        ({"app/templates/p.html": '<button onclick\n="go()">b</button>\n'}, 1),
+        ({"app/templates/p.html": '<button onclick\n=\n"go()">b</button>\n'}, 1),
+        ({"app/templates/p.html": '<a href="&#106;avascript:alert(1)">x</a>\n'}, 1),
+        ({"app/templates/p.html": '<a href="&#10;java&#115;cript:alert(1)">x</a>\n'}, 1),
+        ({"app/templates/p.htm": '<button onclick="go()">b</button>\n'}, 1),
+        ({"app/templates/p.jinja2": '<p>\n<button onclick="go()">b</button>\n'}, 2),
+        ({"app/templates/x/p.j2": '<button onclick="go()">b</button>\n'}, 1),
+    ],
+    ids=[
+        "name-then-equals-on-the-next-line",
+        "name-equals-value-on-three-lines",
+        "entity-encoded-scheme",
+        "entity-encoded-scheme-with-a-newline-inside",
+        "htm-suffix",
+        "jinja2-suffix",
+        "j2-suffix-nested",
+    ],
+)
+def test_markup_read_the_way_a_browser_reads_it(
+    tmp_path: pathlib.Path, capsys: pytest.CaptureFixture[str], files: dict[str, str], line: int
+) -> None:
+    """The `=` may follow the name on a later line; entities inside an attribute value
+    decode before the scheme is read (a `&#10;` cannot hide it or move a line); a
+    template is one by any of its suffixes (self-audit, 2026-08-31: all exited 0)."""
+    assert scan_templates_inline.main(build(tmp_path, files)) == 1
+    out = capsys.readouterr().out
+    assert f":{line} " in out
+    assert "inline handler" in out or "javascript: URI" in out
+
+
+@pytest.mark.parametrize(
+    "text",
+    [
+        '<!-- onclick="x" never closes\n<p>rest</p>\n',
+        "<p>Write &lt;script src=x&gt; in text and nothing runs</p>\n",
+    ],
+    ids=["unclosed-comment", "entities-in-text-stay-text"],
+)
+def test_what_the_browser_never_runs_is_clean(
+    tmp_path: pathlib.Path, capsys: pytest.CaptureFixture[str], text: str
+) -> None:
+    """A `<!--` that never closes comments out the rest of the file; entities outside an
+    attribute value are the characters they show, not markup (self-audit, 2026-08-31:
+    the unclosed comment was a finding)."""
+    assert scan_templates_inline.main(build(tmp_path, {"app/templates/p.html": text})) == 0
+    assert capsys.readouterr().out == ""
