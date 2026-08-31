@@ -6,6 +6,14 @@ regex**, because these files like to explain in a comment or docstring why they 
 *not* set `debug=True` — the same characters, the opposite meaning. Dogfooding
 against the reference implementation caught that false positive on day one.
 
+`debug=True` is one spelling of five. Flask's `run()` does `self.debug = bool(debug)`
+and hands werkzeug `use_debugger=self.debug`, so `debug=1`, `app.debug = True` before
+the run, `app.config["DEBUG"] = True`, `run(use_debugger=True)` and `run(**{"debug":
+True})` all open the same console — and all five passed a scanner that read only the
+literal keyword (self-audit, 2026-08-31, each proved live against Flask 3.1.3). Every
+spelling with a real constant behind it is judged; a value computed at runtime is not,
+because a scanner that guesses at `os.environ` is a scanner that lies.
+
 exit 0 = clean or N/A · 1 = findings · 2 = called wrongly
 
 Role: decider — it answers pass or fail with an exit code, and it ships as a
@@ -20,22 +28,61 @@ import json
 import pathlib
 import sys
 
+DEBUG_KEYWORDS = ("debug", "use_debugger")
 
-def _debug_run_calls(tree: ast.AST) -> list[int]:
-    """Lines holding `<anything>.run(..., debug=True, ...)` — real constants only."""
-    return [
-        node.lineno
-        for node in ast.walk(tree)
-        if isinstance(node, ast.Call)
-        and isinstance(node.func, ast.Attribute)
-        and node.func.attr == "run"
-        and any(
-            keyword.arg == "debug"
-            and isinstance(keyword.value, ast.Constant)
-            and keyword.value.value is True
-            for keyword in node.keywords
-        )
-    ]
+
+def _truthy_constant(node: ast.AST) -> bool:
+    """A literal the interpreter would call true — `True`, `1`, `"yes"`; nothing computed."""
+    return isinstance(node, ast.Constant) and bool(node.value) and node.value is not Ellipsis
+
+
+def _run_call_debug(node: ast.Call) -> tuple[int, str] | None:
+    """`<x>.run(debug=1)`, `.run(use_debugger=True)` or `.run(**{"debug": True})`."""
+    if not (isinstance(node.func, ast.Attribute) and node.func.attr == "run"):
+        return None
+    for keyword in node.keywords:
+        if keyword.arg in DEBUG_KEYWORDS and _truthy_constant(keyword.value):
+            return node.lineno, f".run({keyword.arg}={ast.unparse(keyword.value)})"
+        if keyword.arg is None and isinstance(keyword.value, ast.Dict):
+            for key, value in zip(keyword.value.keys, keyword.value.values, strict=True):
+                if (
+                    isinstance(key, ast.Constant)
+                    and key.value in DEBUG_KEYWORDS
+                    and _truthy_constant(value)
+                ):
+                    return node.lineno, f".run(**{{{key.value!r}: {ast.unparse(value)}}})"
+    return None
+
+
+def _assignment_debug(node: ast.Assign) -> tuple[int, str] | None:
+    """`<x>.debug = True` or `<x>.config["DEBUG"] = True` — the switch flipped before the run."""
+    if not _truthy_constant(node.value):
+        return None
+    for target in node.targets:
+        if isinstance(target, ast.Attribute) and target.attr == "debug":
+            return node.lineno, f".debug = {ast.unparse(node.value)}"
+        if (
+            isinstance(target, ast.Subscript)
+            and isinstance(target.value, ast.Attribute)
+            and target.value.attr == "config"
+            and isinstance(target.slice, ast.Constant)
+            and target.slice.value == "DEBUG"
+        ):
+            return node.lineno, f'.config["DEBUG"] = {ast.unparse(node.value)}'
+    return None
+
+
+def _shape(node: ast.AST) -> tuple[int, str] | None:
+    if isinstance(node, ast.Call):
+        return _run_call_debug(node)
+    if isinstance(node, ast.Assign):
+        return _assignment_debug(node)
+    return None
+
+
+def _debug_findings(tree: ast.AST) -> list[tuple[int, str]]:
+    """Every line that opens the debugger with a real constant — and how it spells it."""
+    return sorted(found for node in ast.walk(tree) if (found := _shape(node)))
 
 
 MISCONFIGURED = (
@@ -68,7 +115,7 @@ def main(root: pathlib.Path) -> int:
     for path in present:
         tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
         findings += [
-            f"{path.relative_to(root)}:{line} .run(debug=True)" for line in _debug_run_calls(tree)
+            f"{path.relative_to(root)}:{line} {shape}" for line, shape in _debug_findings(tree)
         ]
     for finding in findings:
         print(f"no-debug-entrypoint: {finding}")

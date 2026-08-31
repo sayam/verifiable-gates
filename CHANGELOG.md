@@ -6,6 +6,20 @@ Notable changes to this project. The format follows
 
 ## [Unreleased]
 
+### Fixed
+
+- **Every spelling that opens the debugger is a finding, not only `debug=True`.**
+  Flask's `run()` does `self.debug = bool(debug)` and hands werkzeug
+  `use_debugger=self.debug`, so `app.run(debug=1)`, `app.debug = True` before
+  the run, `app.config["DEBUG"] = True`, `run(use_debugger=True)` and
+  `run(**{"debug": True})` all open the console that executes code from a web
+  page — and all five passed `scan_entrypoint_debug`, which read one literal
+  keyword (self-audit, 2026-08-31, each proved live on Flask 3.1.3). Every
+  spelling with a real constant behind it is judged and named in the finding;
+  a value computed at runtime is left alone, because a scanner that guesses at
+  `os.environ` is a scanner that lies. Proved by mutation: five cases red on
+  the old scanner, seven look-alikes clean either way (#146).
+
 ### Added
 
 - **The three decisions round 4 left open are recorded where a reader looks.**

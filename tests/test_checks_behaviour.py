@@ -1367,3 +1367,45 @@ def test_the_dockerfile_scanner_stays_quiet_when_every_image_is_pinned(
     root = build(tmp_path, {"Dockerfile": dockerfile}, {"dockerfiles": ["Dockerfile"]})
 
     assert scan_dockerfile_digest.main(root) == 0
+
+
+@pytest.mark.parametrize(
+    ("source", "shape"),
+    [
+        ("app.run(debug=1)\n", ".run(debug=1)"),
+        ("app.debug = True\napp.run()\n", ".debug = True"),
+        ("app.run(use_debugger=True)\n", ".run(use_debugger=True)"),
+        ("app.run(**{'debug': True})\n", ".run(**{'debug': True})"),
+        ("app.run(**{'port': 5000, 'debug': True})\n", ".run(**{'debug': True})"),
+        ('app.config["DEBUG"] = True\napp.run()\n', '.config["DEBUG"] = True'),
+    ],
+)
+def test_every_spelling_that_opens_the_debugger_is_a_finding(
+    tmp_path: pathlib.Path, capsys: pytest.CaptureFixture[str], source: str, shape: str
+) -> None:
+    """Flask does `self.debug = bool(debug)` and hands werkzeug `use_debugger=self.debug` —
+    five spellings, one console (self-audit, 2026-08-31, each proved live on Flask 3.1.3)."""
+    files = {"run.py": "app = object()\n" + source}
+    assert scan_entrypoint_debug.main(build(tmp_path, files)) == 1
+    assert f"run.py:2 {shape}" in capsys.readouterr().out
+
+
+@pytest.mark.parametrize(
+    "source",
+    [
+        "app.run(debug=False)\n",
+        "app.run(debug=0)\n",
+        "app.debug = False\napp.run()\n",
+        'app.config["DEBUG"] = os.environ.get("DEBUG")\napp.run()\n',
+        "app.run(debug=DEBUG)\n",
+        "app.run(**{'port': 5000})\n",
+        'app.config["TESTING"] = True\napp.run()\n',
+    ],
+)
+def test_a_switch_left_off_or_computed_at_runtime_is_not_judged(
+    tmp_path: pathlib.Path, capsys: pytest.CaptureFixture[str], source: str
+) -> None:
+    """A false constant is off; a value read at runtime is unknown, and unknown is not a finding."""
+    files = {"run.py": "import os\napp = object()\ncache = object()\n" + source}
+    assert scan_entrypoint_debug.main(build(tmp_path, files)) == 0
+    assert capsys.readouterr().out == ""
