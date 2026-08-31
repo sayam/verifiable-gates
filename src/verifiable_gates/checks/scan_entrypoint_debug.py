@@ -113,7 +113,17 @@ def main(root: pathlib.Path) -> int:
 
     findings: list[str] = []
     for path in present:
-        tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
+        try:
+            tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
+        except (SyntaxError, ValueError) as error:
+            # A file Python cannot parse is not a verdict either way — said plainly,
+            # exit 2, the way every other unreadable input is refused (self-audit,
+            # 2026-08-31: a traceback and exit 1, which reads as "findings").
+            print(
+                f"no-debug-entrypoint: cannot read {path.relative_to(root)} — {error}",
+                file=sys.stderr,
+            )
+            return 2
         findings += [
             f"{path.relative_to(root)}:{line} {shape}" for line, shape in _debug_findings(tree)
         ]

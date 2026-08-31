@@ -8,6 +8,14 @@ Notable changes to this project. The format follows
 
 ### Fixed
 
+- **A file Python cannot parse is refused, not a traceback.** `no-debug-entrypoint`
+  and `logic-knows-no-http` read the AST; a file with a syntax error made each
+  die with a traceback and exit 1 — the code that means "findings" — instead of
+  the "cannot read …" and exit 2 every other unreadable input gets (self-audit,
+  2026-08-31, both reproduced on v0.1.10). Both now say which file they could
+  not read, on stderr, and exit 2, which the doctor reports as `[error]`.
+  Proved by mutation: two cases red on the old scanners (#153).
+
 - **`logic-knows-no-http` sees every road a request symbol takes into the
   service layer.** `import flask` followed by `flask.request.args`, `from
   flask import *`, `from flask.globals import request` and werkzeug's own
