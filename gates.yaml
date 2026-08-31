@@ -2085,6 +2085,15 @@ gates:
           Dockerfile, workflow, registry, index and scaffold each died of a
           raw UnicodeDecodeError and exit 1, the code that means findings;
           ten cases red now (self-audit round 3, 2026-09-01).
+      - kind: mutation
+        ref: pr/183
+        date: 2026-09-01
+        caught: >-
+          The widened guards put back — a file each scanner may not open was
+          a raw PermissionError and exit 1 in all nine, because the guard of
+          round 3 was written for UnicodeDecodeError alone; nine cases red
+          now, asked with one tree whose every file is unreadable (self-
+          audit round 5, 2026-09-01).
 
   - id: rules-we-ship-we-keep
     title: Scanners that apply to this repository are run against this repository
