@@ -62,7 +62,9 @@ MAX_TITLE = 72
 # `Signed-off-by: Name <email>` — the shape `git commit -s` writes, and the shape
 # other projects' DCO bots read. **An address is required**: a signature with no
 # way to reach the signer certifies nothing anybody can follow up on.
-SIGN_OFF = re.compile(r"^Signed-off-by: .+ <[^<>@\s]+@[^<>\s]+>\s*$", re.MULTILINE)
+# The name is at least one character that is not a space — `Signed-off-by:    <a@b.co>`
+# passed `.+`, three spaces making a name (self-audit, 2026-08-31).
+SIGN_OFF = re.compile(r"^Signed-off-by: [^\s<>][^<>]*? <[^<>@\s]+@[^<>\s]+>\s*$", re.MULTILINE)
 
 # Trailers that credit somebody who did not sign. Matched case-insensitively
 # because git itself treats trailer keys that way (`Co-Authored-By` and

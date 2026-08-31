@@ -128,6 +128,7 @@ def test_every_forbidden_trailer_is_named_once() -> None:
         ("feat(x): ok\n\nSigned-off-by: No Address\n", "a signature with no way to reply"),
         ("feat(x): ok\n\nsigned-off-by: a <a@b.co>\n", "lowercase — not what git writes"),
         ("feat(x): ok\n\nSigned-off-by: A B <a@b.co> and more\n", "trailing text"),
+        ("feat(x): ok\n\nSigned-off-by:    <a@b.co>\n", "spaces where the name goes"),
     ],
 )
 def test_an_unsigned_commit_is_caught(message: str, why: str) -> None:
@@ -381,6 +382,8 @@ def test_the_ci_regex_and_the_module_agree_on_a_subject(title: str) -> None:
         "feat: ok\n\nA body.\n\nSigned-off-by: A B <a@b.co>\nReviewed-by: C <c@d.io>\n",
         "feat: ok\n\nSigned-off-by: A B <a@b.co>   \n",
         "feat: ok\n\nSigned-off-by:  <@>\n",
+        "feat: ok\n\nSigned-off-by:    <a@b.co>\n",
+        "feat: ok\n\nSigned-off-by: \t <a@b.co>\n",
         "feat: ok\n\nSigned-off-by: <a@b.co>\n",
         "feat: ok\n\nSigned-off-by: No Address\n",
         "feat: ok\n\nSigned-off-by: A B <a@b.co> and more\n",
