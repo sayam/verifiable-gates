@@ -6,6 +6,20 @@ Notable changes to this project. The format follows
 
 ## [Unreleased]
 
+### Added
+
+- **The three decisions round 4 left open are recorded where a reader looks.**
+  Five DECISIONS rows: the SAST here is CodeQL, not the semgrep step the
+  published rule names (`codeql-not-semgrep`); there is no risk register and
+  no cadence register here — the rules are published, not practised, and the
+  rows say why and what ends that (`no-risk-register-here`,
+  `no-cadence-register-here`); `scan_write_discipline` reads `session.delete(`
+  textually and the row scopes the scan, not the rule
+  (`write-scanner-reads-session-delete`); the dependency half of
+  `licensing-no-copyleft` is read by a person at the pin
+  (`dependency-licences-read-at-the-pin`). Each row carries its expiry
+  condition; all five are held by the copy in `tests/test_decisions.py` (#145).
+
 ## [0.1.10] - 2026-08-31
 
 The fourth outside round, six models on v0.1.9, re-verified finding by finding
