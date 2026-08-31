@@ -101,7 +101,11 @@ quoted or not, from wherever the shell stands (a `cd dir &&` before it, or the
 step's `working-directory:`), with comments stripped first — a `#` inside a word
 (`$#`, `${#PKGS}`, `\#`) is not one. In a workflow only what `run:` executes is judged —
 a `name:` or an `env:` that quotes the command is prose — and `--require-hashes`
-counts only as an argument of the install itself. A command inside `$( )`,
+counts only as an argument of the install itself, quoted or not; so do
+`PIP_REQUIRE_HASHES=1` on the command or in the step's own `env:`, and a
+requirements file whose every line carries a `--hash=`, because pip requires
+hashes in each of those cases on its own; `--no-index`, and a wheel installed
+with `--no-deps`, fetch nothing and are left alone. A command inside `$( )`,
 backticks, a `( )` subshell, an `sh -c` string (`-c` folded into other flags
 too — `bash -lc`), a string `python -c` hands to `os.system`, or after a lone `&`
 executes and is judged; a bare `echo` of the words is prose — unless a shell is
@@ -207,7 +211,7 @@ repo นี้เผยแพร่ ส่วน `gates.yaml` คือสิ่
 composite action ที่ `uses: ./<path>` ชี้ไม่ว่าอยู่ที่ไหนหรือพับบรรทัดอย่างไร และเชลล์สคริปต์ที่ `run:`
 เรียกต่อ ไม่ว่าจะรู้จากชื่อ `.sh` หรือจาก shebang ใส่เครื่องหมายคำพูดหรือไม่ก็ตาม จากที่ที่เชลล์ยืนอยู่ (`cd dir &&` ก่อนหน้า หรือ `working-directory:` ของ step) โดยตัดคอมเมนต์ก่อน — `#` ที่อยู่ในคำ (`$#`, `${#PKGS}`, `\#`) ไม่ใช่คอมเมนต์ · ใน workflow ตัดสินเฉพาะสิ่งที่
 `run:` รันจริง (`name:` หรือ `env:` ที่ยกคำสั่งมาพูดถึงเป็นแค่ข้อความ) และ `--require-hashes` นับเมื่อเป็น
-อาร์กิวเมนต์ของคำสั่งติดตั้งเองเท่านั้น · คำสั่งใน `$( )` backtick subshell สตริงของ `sh -c` (รวม `-c` ที่พับกับ flag อื่นเช่น `bash -lc`) สตริงที่ `python -c` ส่งให้ `os.system` หรือหลัง `&` เดี่ยว รันจริงจึงถูกตัดสิน
+อาร์กิวเมนต์ของคำสั่งติดตั้งเองเท่านั้น (จะอยู่ในเครื่องหมายคำพูดหรือไม่ก็ตาม) · `PIP_REQUIRE_HASHES=1` บนคำสั่งหรือใน `env:` ของ step และไฟล์ requirements ที่ทุกบรรทัดมี `--hash=` ก็นับ เพราะ pip บังคับ hash เองในกรณีเหล่านั้น · `--no-index` และ wheel ที่ติดตั้งด้วย `--no-deps` ไม่ดึงอะไรจาก index จึงไม่ถูกตัดสิน · คำสั่งใน `$( )` backtick subshell สตริงของ `sh -c` (รวม `-c` ที่พับกับ flag อื่นเช่น `bash -lc`) สตริงที่ `python -c` ส่งให้ `os.system` หรือหลัง `&` เดี่ยว รันจริงจึงถูกตัดสิน
 ส่วน `echo` ที่แค่พูดคำนั้นเป็นข้อความ — เว้นแต่คำนั้นถูกส่งให้เชลล์ผ่าน pipe (`echo … | bash`) here-string หรือ `eval` และค่าเริ่มต้นของ `${PIP:-pip}` ถูกอ่านเป็นคำนั้น · รูป YAML `uses :` และ `- {uses: …}` ถูกอ่านแบบเดียวกับที่แพลตฟอร์มอ่าน — เช่นเดียวกับคีย์ในเครื่องหมายคำพูด (`"run":`) alias ของ anchor ที่ตั้งไว้ที่ใดก็ได้ในไฟล์ (`run: *cmd`, `uses: *co` พร้อม comment เวอร์ชันของ anchor) ค่าที่มี tag (`!!str`) และ scalar แบบ plain quoted หรือ folded (`>`) ที่ต่อลงบรรทัดถัดไป ซึ่ง YAML เชื่อมด้วยช่องว่างก่อนถึงเชลล์ · มีแต่ literal block (`|`) ที่คงบรรทัดแยกกัน และ `uses` ใต้ `with:` เป็น input ไม่ใช่ step · `actions-sha-pinned` ตัดสินทั้งสองครึ่งของชื่อกฎ: tag ลอยเป็น finding และ
 commit SHA ที่ไม่มี comment บอกเวอร์ชันข้าง ๆ ก็เป็น finding (digest ของ `docker://` ไม่ต้องมี) ·
 `adr-index-complete` รายงานบันทึกสองฉบับที่ใช้เลขเดียวกันเช่นเดียวกับเลขที่ขาด · `csp-no-inline` อ่าน
