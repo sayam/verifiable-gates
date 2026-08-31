@@ -30,47 +30,47 @@
 version: 1
 gates:
   - id: actions-sha-pinned
-    title: Every action in a workflow is pinned to a commit SHA
+    title: Every action is pinned to a commit SHA with the version in a comment
     kind: job
     severity: blocking
     enforced_by: {job: scans}
   - id: adr-index-complete
-    title: The ADR index covers every record, numbered without gaps
+    title: The ADR index covers every record, numbered without repeats or gaps · and supersessions are recorded in both directions
     kind: job
     severity: blocking
     enforced_by: {job: scans}
   - id: ci-tools-hash-pinned
-    title: Tools CI installs for itself are pinned by hash
+    title: Tools CI installs for itself are pinned by hash, on both the Python and the Node side
     kind: job
     severity: blocking
     enforced_by: {job: scans}
   - id: csp-no-inline
-    title: Templates carry no inline handler, style, or script
+    title: CSP is pure self — no inline script, style, or handler anywhere
     kind: job
     severity: blocking
     enforced_by: {job: scans}
   - id: delete-means-soft-delete
-    title: A real delete lives only in the declared purge modules
+    title: Delete means hide (soft delete) — only purge removes rows for real
     kind: job
     severity: blocking
     enforced_by: {job: scans}
   - id: gates-registry-total
-    title: The gate index matches reality in both directions
+    title: The gate index matches reality in both directions, and every test file is accounted for
     kind: job
     severity: blocking
     enforced_by: {job: scans}
   - id: image-digest-pinned
-    title: A base image is pinned by digest, not only by tag
+    title: The base image is pinned to a manifest-index digest and Dependabot moves it
     kind: job
     severity: blocking
     enforced_by: {job: scans}
   - id: logic-knows-no-http
-    title: The service layer imports nothing from the request side
+    title: All logic lives in the service layer and knows nothing about HTTP
     kind: job
     severity: blocking
     enforced_by: {job: scans}
   - id: no-debug-entrypoint
-    title: An entrypoint cannot open a debug console, even run wrongly
+    title: No entrypoint file can open a debug console, even when the wrong one is run
     kind: job
     severity: blocking
     enforced_by: {job: scans}

@@ -8,6 +8,15 @@ Notable changes to this project. The format follows
 
 ### Fixed
 
+- **The default registry says of each rule exactly what the catalogue says.**
+  `gates.yaml.default` — the index every installed project receives as its own
+  — described the nine scan gates in words of its own ("pinned by hash" with
+  no Node side, "without gaps" with no repeats or supersessions), a third
+  register held by nothing while the overlay was held to `rules.yaml`
+  (self-audit, 2026-08-31). Its titles are now the catalogue's, held two-way
+  by a test like the overlay's. Proved by mutation: one title edited by hand is
+  red (#166).
+
 - **`image-digest-pinned` judges both halves of its title.** The title says
   "pinned to a manifest-index digest and Dependabot moves it"; the scanner
   checked the digest and delegated the mover to a gate that does not check it,
