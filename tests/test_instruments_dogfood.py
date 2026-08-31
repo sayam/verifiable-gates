@@ -614,3 +614,68 @@ def test_the_cla_version_is_one_version_everywhere() -> None:
     block = next(s for s in preflight.jobs_on_disk(ROOT)["cla"]["steps"] if "CLA=" in s["run"])
     definition = next(row for row in block["run"].splitlines() if row.startswith("CLA="))
     assert f"CLA\\.md {version}\\." in definition, definition
+
+
+# The checks switched off for the whole tree, and per directory, in pyproject —
+# a register of exceptions the suppression census never counted: a code added to
+# either list relaxed a whole class with nothing in a pull request seeing it
+# (self-audit, 2026-08-31). Held by copy, two-way, like SUPPRESSED_LINES.
+RUFF_OFF_EVERYWHERE = (
+    "COM812",
+    "CPY001",
+    "D",
+    "EM101",
+    "EM102",
+    "ISC001",
+    "RUF001",
+    "RUF002",
+    "RUF003",
+    "TRY003",
+)
+RUFF_OFF_PER_FILE = {
+    "src/verifiable_gates/checks/*.py": ("PLR2004", "T201"),
+    "src/verifiable_gates/gates_doctor.py": ("T201",),
+    "src/verifiable_gates/preflight.py": ("T201",),
+    "src/verifiable_gates/skill.py": ("T201",),
+    "src/verifiable_gates/harness.py": ("T201",),
+    "src/verifiable_gates/install.py": ("T201",),
+    "src/verifiable_gates/lint_commits.py": ("T201",),
+    "src/verifiable_gates/check_issue_handoff.py": ("T201",),
+    "src/verifiable_gates/skeleton.py": ("T201",),
+    "src/verifiable_gates/schedule_census.py": ("T201",),
+    "src/verifiable_gates/red_streak_census.py": ("T201",),
+    "src/verifiable_gates/removals.py": ("T201",),
+    "src/verifiable_gates/rerun_census.py": ("T201",),
+    "src/verifiable_gates/measure_apps.py": ("T201",),
+    "src/verifiable_gates/own_numbers.py": ("T201",),
+    "src/verifiable_gates/advisories.py": ("T201",),
+    "src/verifiable_gates/posture.py": ("T201",),
+    "src/verifiable_gates/zenodo.py": ("T201",),
+    "tests/**": ("INP001", "PLR2004", "S101"),
+}
+
+
+def test_the_checks_switched_off_in_pyproject_are_the_ones_written_here() -> None:
+    """A ruff code added to `ignore` or `per-file-ignores` changes this copy in the same
+    pull request — a reviewer sees a class of check being switched off."""
+    lint = tomllib.loads((ROOT / "pyproject.toml").read_text(encoding="utf-8"))["tool"]["ruff"][
+        "lint"
+    ]
+    everywhere = tuple(sorted(lint["ignore"]))
+    per_file = {k: tuple(sorted(v)) for k, v in lint.get("per-file-ignores", {}).items()}
+    assert everywhere == RUFF_OFF_EVERYWHERE, (everywhere, RUFF_OFF_EVERYWHERE)
+    assert per_file == RUFF_OFF_PER_FILE, (per_file, RUFF_OFF_PER_FILE)
+
+
+def test_every_check_switched_off_in_pyproject_carries_a_reason() -> None:
+    """Each entry in `ignore` and each per-file list sits under a comment saying why —
+    the same rule every noqa line here is held to."""
+    text = (ROOT / "pyproject.toml").read_text(encoding="utf-8")
+    block = text.split("[tool.ruff.lint]", 1)[1].split("[tool.ruff.lint.per-file-ignores]", 1)
+    lines = [line.strip() for line in block[0].splitlines()]
+    previous = ""
+    for line in lines:
+        if line.startswith('"') and not previous.startswith("#") and not previous.startswith('"'):
+            raise AssertionError(f"switched off with no reason above it: {line}")
+        if line:
+            previous = line

@@ -307,6 +307,14 @@ gates:
           step gate added, and the step it names renamed in `ci.yml`; before
           the hold, deleting either step gate left all 1275 tests green
           (outside audit, 2026-08-30, reproduced).
+      - kind: mutation
+        ref: pr/170
+        date: 2026-08-31
+        caught: >-
+          `S101` added to pyproject's ruff `ignore` with no reason above it —
+          a whole class of check relaxed, green while the suppression census
+          counted lines only (self-audit, 2026-08-31); red now against the
+          copy, and a group of codes needs a reason above it.
 
   - id: the-security-policy-quotes-one-set-of-numbers
     title: SECURITY.md exists, quotes one set of timeframes, names no address, and points at a live channel
