@@ -8,6 +8,14 @@ Notable changes to this project. The format follows
 
 ### Fixed
 
+- **The steps two gates promise are held.** `the-archive-is-read-back` says
+  "posture's cron runs it live", and `our-own-floors-sit-against-reality`
+  holds the docstring floor — yet the `python -m verifiable_gates.zenodo
+  --root .` step could leave `posture.yml`, and `interrogate src` could leave
+  the lint job, with every test green (self-audit, 2026-08-31, both reproduced
+  on v0.1.10). Two dogfood tests now read the workflows for those steps.
+  Proved by mutation: each step removed is red (#167).
+
 - **The default registry says of each rule exactly what the catalogue says.**
   `gates.yaml.default` — the index every installed project receives as its own
   — described the nine scan gates in words of its own ("pinned by hash" with
