@@ -88,11 +88,20 @@ def test_the_reader_understands_the_subset(text: str, expected: object) -> None:
     assert scanner.load(text) == expected
 
 
+@pytest.mark.parametrize("opener", ["---\n", "--- # the index\n", "\n---\n\n"])
+def test_a_document_may_open_with_its_marker(opener: str) -> None:
+    """`---` in front of the one document is YAML, not a second document (self-audit,
+    2026-08-31: a workflow's first line made the whole index unreadable)."""
+    assert scanner.load(opener + "a: 1\n") == {"a": "1"}
+
+
 @pytest.mark.parametrize(
     ("text", "needle"),
     [
         ("a:\tb\n", "tab"),
         ("a: 1\n---\nb: 2\n", "more than one document"),
+        ("---\na: 1\n---\nb: 2\n", "more than one document"),
+        ("---\na: 1\n...\n", "more than one document"),
         ("a: &anchor 1\n", "anchor"),
         ('a: "unclosed\n', "unclosed quote"),
         ("a: [x, y\n", "flow closed wrongly"),
@@ -103,6 +112,8 @@ def test_the_reader_understands_the_subset(text: str, expected: object) -> None:
     ids=[
         "tab",
         "multi-document",
+        "opened-then-a-second-document",
+        "end-marker",
         "anchor",
         "unclosed-quote",
         "unclosed-flow",
@@ -293,6 +304,35 @@ def test_a_test_file_that_no_gate_claims(
     )
     assert scanner.main(project) == 1
     assert "no gate claims this test file: tests/test_unclaimed.py" in capsys.readouterr().out
+
+
+@pytest.mark.parametrize("name", ["tests/unit/test_hidden.py", "tests/hidden_test.py"])
+def test_a_test_file_pytest_collects_is_in_the_partition(
+    tmp_path: pathlib.Path, capsys: pytest.CaptureFixture[str], name: str
+) -> None:
+    """pytest collects `test_*.py` and `*_test.py` in every directory under the tests
+    root; the partition reads the same (self-audit, 2026-08-31: both were outside it)."""
+    registry = (
+        "version: 1\ngates:\n  - id: a-rule\n    title: t\n    kind: test\n"
+        "    enforced_by: {job: test, tests: [tests/test_known.py]}\n"
+    )
+    project = a_project(tmp_path, registry, **{"tests/test_known.py": "", name: ""})
+    assert scanner.main(project) == 1
+    assert f"no gate claims this test file: {name}" in capsys.readouterr().out
+
+
+def test_a_claimed_nested_test_file_and_a_helper_module_are_not_findings(
+    tmp_path: pathlib.Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    registry = (
+        "version: 1\ngates:\n  - id: a-rule\n    title: t\n    kind: test\n"
+        "    enforced_by: {job: test, tests: [tests/unit/test_known.py]}\n"
+    )
+    project = a_project(
+        tmp_path, registry, **{"tests/unit/test_known.py": "", "tests/unit/helpers.py": ""}
+    )
+    assert scanner.main(project) == 0
+    assert capsys.readouterr().out == ""
 
 
 def test_two_gates_claiming_the_same_test_file(

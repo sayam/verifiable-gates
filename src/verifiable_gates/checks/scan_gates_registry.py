@@ -60,13 +60,25 @@ def _uncomment(line: str) -> str:
     return line
 
 
+def _without_opening_marker(raw: list[str]) -> list[str]:
+    """The lines with the document's own `---` blanked — a bare marker in front of
+    the first meaningful line is YAML, and the first line of many real workflows;
+    any later marker is another document (self-audit, 2026-08-31: the opener was
+    "more than one document", and a project's whole index went red for it)."""
+    for index, line in enumerate(raw):
+        content = _uncomment(line).strip()
+        if content:
+            return [*raw[:index], "", *raw[index + 1 :]] if content == "---" else raw
+    return raw
+
+
 def _significant(text: str) -> list[tuple[int, str]]:
     """(column, content) for lines that carry meaning; `- x` becomes two entries.
 
     The body of a block scalar is discarded — we never use those values — but it
     has to be **skipped correctly**, or the prose inside gets read as structure.
     """
-    raw = text.splitlines()
+    raw = _without_opening_marker(text.splitlines())
     out: list[tuple[int, str]] = []
     index = 0
     while index < len(raw):
@@ -367,8 +379,14 @@ def _partition(
         for name in gate["enforced_by"].get("tests") or []:
             claims.setdefault(str(name), []).append(gate["id"])
 
-    prefix = tests_dir.relative_to(root).as_posix()
-    on_disk = {f"{prefix}/{path.name}" for path in tests_dir.glob("test_*.py")}
+    # What pytest collects by default: `test_*.py` and `*_test.py`, in every
+    # directory under the tests root — a file in `tests/unit/` ran on every push
+    # and was in no gate's partition (self-audit, 2026-08-31).
+    on_disk = {
+        path.relative_to(root).as_posix()
+        for path in tests_dir.rglob("*.py")
+        if path.name.startswith("test_") or path.name.endswith("_test.py")
+    }
     findings = [
         f"no gate claims this test file: {name}" for name in sorted(on_disk - claims.keys())
     ]
