@@ -8,6 +8,22 @@ Notable changes to this project. The format follows
 
 ### Fixed
 
+- **A YAML shape the platform reads is read by both pinning scanners — alias,
+  quoted key, tag, and a scalar continued over lines.** `run: *cmd` with the
+  anchor set anywhere else in the file, `"run":`, `!!str pip install ruff`, and
+  `pip` on one line with `install ruff` on the next under `>`, in quotes or as
+  a plain scalar — which YAML joins with a space before the shell sees it — all
+  carry an unpinned install and all exited 0; `uses: *loc` was not followed
+  into the local action it names; `uses: *co` pointing at a pinned action was
+  the finding `*co`, and an input named `uses` under `with:` was a finding too
+  (self-audit, 2026-08-31, every case reproduced on v0.1.10). Both readers now
+  resolve an alias from its anchor (the version comment travelling with it),
+  accept a quoted key, drop a tag or an anchor of the value's own, fold a
+  continued scalar the way YAML does — only a literal block (`|`) keeps its
+  lines apart — and read nothing under `with:` as a step. Proved by mutation:
+  eighteen cases red on the old scanners; the literal-block case holds the
+  clean direction either way (#147).
+
 - **Every spelling that opens the debugger is a finding, not only `debug=True`.**
   Flask's `run()` does `self.debug = bool(debug)` and hands werkzeug
   `use_debugger=self.debug`, so `app.run(debug=1)`, `app.debug = True` before
