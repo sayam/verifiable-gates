@@ -91,6 +91,25 @@ MISCONFIGURED = (
 )
 
 
+def _records(adr_dir: pathlib.Path, root: pathlib.Path) -> dict[str, list[str]] | None:
+    """The ADR records by number, or `None` when there is nothing of the kind to read.
+
+    A directory that is there and holds no record is not a clean index — it is one this
+    scanner cannot see, which the manifest's own words forbid reporting as checked:
+    "A rule the tool cannot check must not look like a rule it checked." A Go project
+    came back `[ pass]` from the doctor (self-audit round 8, 2026-09-01).
+    """
+    records = sorted(adr_dir.glob("*.md"))
+    if not records:
+        print(f"NA: no record under {adr_dir.relative_to(root)} — nothing to check yet")
+        return None
+    by_number: dict[str, list[str]] = {}
+    for record in records:
+        if match := FILENAME.match(record.name):
+            by_number.setdefault(match.group(1), []).append(record.name)
+    return by_number
+
+
 def _judge(root: pathlib.Path) -> int:
     if not root.is_dir():
         # NA means "this project has nothing of that kind"; a root that is not
@@ -117,10 +136,10 @@ def _judge(root: pathlib.Path) -> int:
         print(f"NA: no {adr_dir.relative_to(root)} — nothing to check yet")
         return 0
 
-    by_number: dict[str, list[str]] = {}
-    for record in sorted(adr_dir.glob("*.md")):
-        if match := FILENAME.match(record.name):
-            by_number.setdefault(match.group(1), []).append(record.name)
+    by_number = _records(adr_dir, root)
+    if by_number is None:
+        return 0
+
     on_disk = {number: names[0] for number, names in by_number.items()}
     index = adr_dir / "README.md"
     listed: dict[str, str] = {}

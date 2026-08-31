@@ -142,8 +142,17 @@ def main(root: pathlib.Path) -> int:
     if services is None:
         return code
 
+    readable = sorted(services.rglob("*.py"))
+    # A directory that is there and holds nothing this scanner reads is not a clean
+    # project — it is one this scanner cannot see, which the manifest's own words
+    # forbid reporting as checked: "A rule the tool cannot check must not look like
+    # a rule it checked." A Go project came back `[ pass]` (round 8, 2026-09-01).
+    if not readable:
+        print(f"NA: no Python under {services.relative_to(root)} — nothing to check yet")
+        return 0
+
     findings: list[str] = []
-    for path in sorted(services.rglob("*.py")):
+    for path in readable:
         try:
             tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
         except (SyntaxError, ValueError) as error:

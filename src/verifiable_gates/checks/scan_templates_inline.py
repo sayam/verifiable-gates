@@ -141,8 +141,17 @@ def _judge(root: pathlib.Path) -> int:
         print(f"NA: no {templates.relative_to(root)} — nothing to check yet")
         return 0
 
-    findings: list[str] = []
     paths = sorted(p for p in templates.rglob("*") if p.suffix in TEMPLATE_SUFFIXES)
+    # A directory that is there and holds nothing this scanner reads is not a
+    # clean project — it is a project this scanner cannot see, which the manifest's
+    # own words forbid reporting as checked: "A rule the tool cannot check must not
+    # look like a rule it checked." A Go project's `app/` came back `[ pass]`
+    # (self-audit round 8, 2026-09-01).
+    if not paths:
+        print(f"NA: no template under {templates.relative_to(root)} — nothing to check yet")
+        return 0
+
+    findings: list[str] = []
     for path in paths:
         text = _values_decoded(_without_comments(_text(path)))
         hits = {

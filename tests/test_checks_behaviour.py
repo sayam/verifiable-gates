@@ -2355,3 +2355,64 @@ def test_a_heredoc_is_read_by_who_receives_it(
 
     assert scan_install_pinning.main(tmp_path) == exit_code, why
     capsys.readouterr()
+
+
+@pytest.mark.parametrize(
+    "case",
+    [
+        (scan_write_discipline, "app", "main.go", "no Python under app"),
+        (scan_service_layer, "app/services", "main.go", "no Python under app/services"),
+        (scan_templates_inline, "app/templates", "home.ejs", "no template under app/templates"),
+        (scan_adr_index, "docs/adr", "notes.txt", "no record under docs/adr"),
+    ],
+    ids=["write-discipline", "service-layer", "templates", "adr-index"],
+)
+def test_a_directory_with_nothing_it_reads_is_na_not_a_pass(
+    tmp_path: pathlib.Path,
+    capsys: pytest.CaptureFixture[str],
+    case: tuple[ModuleType, str, str, str],
+) -> None:
+    """A Go project's `app/` came back `[ pass]` from the doctor: the directory is there,
+    it holds no Python, and the scanner read nothing and said nothing (self-audit round 8,
+    2026-09-01). The manifest's own words forbid exactly that — "A rule the tool cannot
+    check must not look like a rule it checked" — and this bundle installs into projects
+    that are not this one."""
+    module, directory, unreadable, said = case
+    somewhere = tmp_path / directory
+    somewhere.mkdir(parents=True)
+    (somewhere / unreadable).write_text("not for this scanner\n", encoding="utf-8")
+
+    assert module.main(tmp_path) == 0
+    printed = capsys.readouterr().out
+    assert printed.startswith("NA: "), printed
+    assert said in printed
+
+
+@pytest.mark.parametrize(
+    ("module", "files", "expected"),
+    [
+        (scan_write_discipline, {"app/models.py": "session.delete(row)\n"}, 1),
+        (scan_write_discipline, {"app/models.py": "x = 1\n"}, 0),
+        (scan_service_layer, {"app/services/a.py": "from flask import request\n"}, 1),
+        (scan_service_layer, {"app/services/a.py": "x = 1\n"}, 0),
+        (scan_templates_inline, {"app/templates/p.html": '<p onclick="x">y</p>\n'}, 1),
+        (scan_templates_inline, {"app/templates/p.html": "<p>y</p>\n"}, 0),
+    ],
+    ids=["wd-dirty", "wd-clean", "sl-dirty", "sl-clean", "ti-dirty", "ti-clean"],
+)
+def test_a_directory_it_can_read_is_still_judged(
+    tmp_path: pathlib.Path,
+    capsys: pytest.CaptureFixture[str],
+    module: ModuleType,
+    files: dict[str, str],
+    expected: int,
+) -> None:
+    """The direction that must not change: a file this scanner reads is judged, and a
+    clean one is a pass rather than an NA."""
+    for name, body in files.items():
+        path = tmp_path / name
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(body, encoding="utf-8")
+
+    assert module.main(tmp_path) == expected
+    assert not capsys.readouterr().out.startswith("NA: ")
