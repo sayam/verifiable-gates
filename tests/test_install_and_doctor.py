@@ -21,10 +21,11 @@ Three properties, and the second is the one that decays quietly:
 from __future__ import annotations
 
 import json
+import pathlib
+import re
 import shutil
 import subprocess
 import sys
-from typing import TYPE_CHECKING
 
 import pytest
 from bundle import DOCTOR, do_install, run_doctor
@@ -32,9 +33,6 @@ from bundle import DOCTOR, do_install, run_doctor
 from verifiable_gates import gates_doctor
 from verifiable_gates import install as install_module
 from verifiable_gates import manifest as manifest_module
-
-if TYPE_CHECKING:
-    import pathlib
 
 
 def test_a_fresh_install_gives_a_project_something_that_runs(
@@ -758,3 +756,18 @@ def test_a_scans_stderr_lands_beside_its_own_gate_line_under_a_pipe(
     traceback = out.index("Traceback")
     its_gate = out.index("[error] adr-index-complete")
     assert first_gate < traceback < its_gate, out
+
+
+def test_the_templates_checkout_is_the_pin_our_own_workflows_carry() -> None:
+    """Dependabot moves `uses:` pins under `.github/workflows/` and never sees
+    `ci-template.yml`, so the checkout the installer writes for every project would
+    stay where it was the day it was written — a pin nobody moves (self-audit,
+    2026-08-31). Held to ours: when Dependabot bumps ci.yml, this goes red until the
+    template follows in the same pull request."""
+    root = pathlib.Path(__file__).resolve().parent.parent
+    ours = (root / ".github" / "workflows" / "ci.yml").read_text(encoding="utf-8")
+    template = (root / "src" / "verifiable_gates" / "ci-template.yml").read_text(encoding="utf-8")
+    pin = re.compile(r"uses: actions/checkout@[0-9a-f]{40} # v[\d.]+")
+    our_pins = set(pin.findall(ours))
+    assert len(our_pins) == 1, our_pins
+    assert set(pin.findall(template)) == our_pins, (pin.findall(template), our_pins)

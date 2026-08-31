@@ -8,6 +8,15 @@ Notable changes to this project. The format follows
 
 ### Fixed
 
+- **The template's checkout pin moves with ours.** `ci-template.yml` — the
+  workflow the installer writes into every project — pins `actions/checkout`
+  by SHA, and Dependabot, which moves the pins under `.github/workflows/`,
+  never reads it: a pin nobody moves, the thing `dependabot.yml` here calls a
+  vulnerability kept on ice (self-audit, 2026-08-31). A test now holds the
+  template's pin to the one our own workflows carry, so a Dependabot bump of
+  `ci.yml` is red until the template follows in the same pull request. Proved
+  by mutation: the template's pin moved alone is red (#161).
+
 - **The archive's time budget is held by a test.** `zenodo._page` asks
   `urlopen` with `timeout=`, and every other network call here is held to its
   budget by a test — this one was not: the argument dropped left the suite

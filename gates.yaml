@@ -2036,6 +2036,13 @@ gates:
           surfaced above the first gate's line on the doctor as it was — stdout
           block-buffered, stderr not — and could not be matched to its gate;
           red on the old doctor, in order on this one (self-audit, 2026-08-31).
+      - kind: mutation
+        ref: pr/161
+        date: 2026-08-31
+        caught: >-
+          The checkout pin in `ci-template.yml` moved alone — the pin every
+          installed project inherits, which Dependabot never sees — red against
+          the pin our own workflows carry (self-audit, 2026-08-31).
 
   - id: the-manifest-is-an-input
     title: The manifest is validated as data, and a rule the bundle cannot decide cannot carry a script
