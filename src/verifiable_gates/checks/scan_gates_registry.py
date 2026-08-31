@@ -365,6 +365,16 @@ def _forward(
                     for name in files
                     if not (root / str(name)).is_file()
                 ]
+        if enforced.get("tests") and gate["kind"] != "test":
+            # `kind` decides who runs the gate: only `test` is run by the harness,
+            # and only `test` has its files looked for above. A row listing tests
+            # under any other kind is a gate nothing runs, still counted by the
+            # index — one word changed took the reference harness from 43 pass to
+            # 42 with every reader green (self-audit round 2, 2026-08-31).
+            findings.append(
+                f"{gid}: kind {gate['kind']!r} lists tests — nothing runs them, "
+                "and nothing checks that they are there"
+            )
     return findings
 
 
