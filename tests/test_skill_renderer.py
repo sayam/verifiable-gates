@@ -347,3 +347,20 @@ def test_a_catalogue_that_is_not_utf_8_is_a_misuse(
 
     assert refused.value.code == 2
     assert "cannot read the catalogue" in capsys.readouterr().err
+
+
+def test_a_sheet_that_cannot_be_written_is_a_misuse(
+    tmp_path: pathlib.Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """A sheet that could not be written is a call that could not be answered, not a sheet
+    that is out of date — it was a traceback and exit 1, the code this tool uses for "the
+    file on disk differs" (self-audit round 5, 2026-09-01)."""
+    catalogue, preamble = a_project(tmp_path, CATALOGUE)
+    out = tmp_path / "a-directory"
+    out.mkdir()
+
+    with pytest.raises(SystemExit) as refused:
+        skill.main(["--catalogue", str(catalogue), "--preamble", str(preamble), "--out", str(out)])
+
+    assert refused.value.code == 2
+    assert "cannot write the sheet" in capsys.readouterr().err

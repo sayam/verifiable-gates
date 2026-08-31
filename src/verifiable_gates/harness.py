@@ -120,6 +120,47 @@ def run_all(
     return results
 
 
+def _note_the_round(
+    root: pathlib.Path, counts: dict[str, int], failed: list[dict[str, Any]]
+) -> dict[str, Any]:
+    """Add this round to the per-machine notes, and never let the notes decide the verdict.
+
+    The notes were written without a guard, so a checkout mounted read-only — or a
+    `.gate-rounds.jsonl` that is a directory — ended the run with a raw `PermissionError`
+    and exit 1 *after every gate had passed*: a red that reads as a broken gate and sends
+    the next person hunting for one (self-audit round 5, 2026-09-01). The gates' answer
+    is the gates' answer; a failure to keep notes about it is said out loud and changes
+    nothing.
+    """
+    log_path = root / ROUND_LOG
+    try:
+        previous = log_path.read_text(encoding="utf-8").splitlines() if log_path.exists() else []
+    except OSError:
+        previous = []
+    record = {"round": len(previous) + 1, "counts": counts, "failed": [r["gate"] for r in failed]}
+    try:
+        log_path.write_text("\n".join([*previous, json.dumps(record, ensure_ascii=False)]) + "\n")
+    except OSError as problem:
+        print(f"could not write the round notes: {problem}", file=sys.stderr)
+    return record
+
+
+def _write_report(output: pathlib.Path, round_number: int, results: list[dict[str, Any]]) -> bool:
+    """The report the caller asked for, or a misuse said plainly.
+
+    Unlike the notes, this file was asked for by name: not producing it is a call that
+    could not be answered, which is exit 2 — not exit 1, which would say the gates failed.
+    """
+    try:
+        output.write_text(
+            json.dumps({"round": round_number, "results": results}, ensure_ascii=False, indent=1)
+        )
+    except OSError as problem:
+        print(f"cannot write the report: {output}: {problem}", file=sys.stderr)
+        return False
+    return True
+
+
 def main(argv: list[str] | None = None) -> int:
     """One round: run, print, record, and exit according to the result."""
     parser = argparse.ArgumentParser(description="Run the gates and report machine-readably.")
@@ -158,15 +199,10 @@ def main(argv: list[str] | None = None) -> int:
         if entry.get("hint"):
             print(f"   hint: {entry['hint']}")
 
-    log_path = root / ROUND_LOG
-    previous = log_path.read_text(encoding="utf-8").splitlines() if log_path.exists() else []
-    record = {"round": len(previous) + 1, "counts": counts, "failed": [r["gate"] for r in failed]}
-    log_path.write_text("\n".join([*previous, json.dumps(record, ensure_ascii=False)]) + "\n")
+    record = _note_the_round(root, counts, failed)
 
-    if args.output:
-        args.output.write_text(
-            json.dumps({"round": record["round"], "results": results}, ensure_ascii=False, indent=1)
-        )
+    if args.output and not _write_report(args.output, record["round"], results):
+        return 2
 
     summary = f"{counts['pass']} pass · {counts['fail']} fail · {counts['skip']} skip"
     print(f"round {record['round']}: {summary}")

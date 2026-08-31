@@ -94,6 +94,20 @@ def _catalogue(path: str) -> list[Any]:
         raise SystemExit(2) from unreadable
 
 
+def _write_sheet(out: pathlib.Path, text: str) -> None:
+    """The sheet, or the third answer.
+
+    A sheet that could not be written is a call that could not be answered, not a sheet
+    that is out of date — it died as a traceback and exit 1, the code this tool uses for
+    "the file on disk differs" (self-audit round 5, 2026-09-01).
+    """
+    try:
+        out.write_text(text, encoding="utf-8")
+    except OSError as unwritable:
+        print(f"cannot write the sheet: {out}: {unwritable}", file=sys.stderr)
+        raise SystemExit(2) from unwritable
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="Render a rule sheet from a rule catalogue.")
     parser.add_argument("--catalogue", default="rules.yaml", help="the catalogue to read")
@@ -152,7 +166,7 @@ def main(argv: list[str] | None = None) -> int:
         return 1
 
     changed = not out.is_file() or out.read_text(encoding="utf-8") != fresh
-    out.write_text(fresh, encoding="utf-8")
+    _write_sheet(out, fresh)
     print(f"{'rewrote' if changed else 'unchanged'}: {out}")
     return 0
 

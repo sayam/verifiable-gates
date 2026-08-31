@@ -234,3 +234,31 @@ def test_a_checkout_that_is_not_utf_8_is_a_misuse(
 
     assert own_numbers.main(["--root", str(tmp_path)]) == 2
     assert "cannot read the checkout" in capsys.readouterr().err
+
+
+def test_a_fix_that_cannot_be_written_is_a_misuse(
+    tmp_path: pathlib.Path, capsys: pytest.CaptureFixture[str], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """`--write` that cannot write is a call that could not be answered; it died as a
+    traceback and exit 1 — the code that means the numbers disagree, which they still did
+    (self-audit round 5, 2026-09-01)."""
+
+    def refuse(*_args: object, **_kwargs: object) -> None:
+        message = "read-only file system"
+        raise OSError(message)
+
+    monkeypatch.setattr(own_numbers.advertised, "write", refuse)
+    monkeypatch.setattr(own_numbers, "facts", lambda _root: {})
+    monkeypatch.setattr(
+        own_numbers.advertised,
+        "drift",
+        lambda *_args: [
+            advertised.Drift(advertised.Place("README.md", r"(\d+) rules"), "93", "92")
+        ],
+    )
+
+    with pytest.raises(SystemExit) as refused:
+        own_numbers.main(["--root", str(tmp_path), "--write"])
+
+    assert refused.value.code == 2
+    assert "cannot write the fix" in capsys.readouterr().err
