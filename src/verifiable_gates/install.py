@@ -108,6 +108,27 @@ def digest(path: pathlib.Path) -> str:
     return hashlib.sha256(path.read_bytes()).hexdigest()
 
 
+def _left_behind(dest: pathlib.Path, written: list[pathlib.Path]) -> list[str]:
+    """What a previous install wrote and this one no longer ships.
+
+    A bundle that renames or drops a scanner leaves the old file in the project's
+    repository forever: nothing names it, the doctor never runs it, and `--installed`
+    reports "every scan runs" because it checks only what the current record names. The
+    project cannot tell dead code from live code in a directory this bundle owns
+    (self-audit round 9, 2026-09-01). Said out loud, and not deleted: files in somebody
+    else's repository are theirs to remove.
+    """
+    record = dest / RECORD
+    if not record.is_file():
+        return []
+    try:
+        before = set(json.loads(record.read_text(encoding="utf-8"))["files"])
+    except (OSError, ValueError, KeyError, TypeError):
+        return []
+    now = {str(path.relative_to(dest)) for path in written}
+    return sorted(before - now)
+
+
 def _record(dest: pathlib.Path, written: list[pathlib.Path]) -> None:
     """Write down what this install put here, so the doctor can say whether it is still
     what arrived.
@@ -177,6 +198,10 @@ def install(
         print(f"** could not write to {dest}: {error} — the install is incomplete", file=sys.stderr)
         return 1
 
+    for name in _left_behind(dest, written):
+        print(
+            f"left behind: {name} — this bundle no longer ships it; delete it or keep it on purpose"
+        )
     _record(dest, written)
 
     if kept_registry and not _registry_names_the_job(dest):

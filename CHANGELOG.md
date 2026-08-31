@@ -6,6 +6,22 @@ Notable changes to this project. The format follows
 
 ## [Unreleased]
 
+### Added
+
+- **The installer says what it stopped shipping.** A bundle that renames or drops a
+  scanner left the old file in the project's repository for good: nothing in the
+  manifest names it, the doctor never runs it, and `--installed` reported
+  `every scan runs` because it checks only what the *current* record names. Across
+  upgrades the project accumulates files from a directory this bundle owns and
+  cannot tell dead code from live code (self-audit round 9, 2026-09-01, replayed
+  as a real upgrade: a renamed scanner and a dropped gate left two). The installer
+  now compares the record it is about to overwrite with what it just wrote and
+  prints `left behind: tools/checks/scan_adr_index.py — this bundle no longer
+  ships it; delete it or keep it on purpose`. It does **not** delete: a file in
+  somebody else's repository is theirs to remove, and there is a case holding that
+  the file is still there afterwards. A first install and a plain re-install say
+  nothing. Proved by mutation: one case red, one holding the silence.
+
 ### Changed
 
 - **Two sentences that said more than had been checked.** The pinning scanner's
