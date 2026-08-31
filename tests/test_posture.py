@@ -688,6 +688,55 @@ HELD: dict[str, object] = {
 }
 
 
+# The switches a least-privilege token cannot read — printed with their declared
+# value for a person, never counted as verified (DECISIONS
+# `merge-switches-unreadable-by-the-token`). A `readable: false` added to a
+# switch turned a red "blind" into a green "by hand" with nothing in a pull
+# request seeing it (self-audit, 2026-08-31).
+BY_HAND = {
+    "allow_merge_commit",
+    "allow_rebase_merge",
+    "allow_squash_merge",
+    "delete_branch_on_merge",
+}
+
+
+def test_the_register_holds_which_switches_are_read_by_hand() -> None:
+    declared = json.loads(REGISTER.read_text(encoding="utf-8"))["settings"]
+    by_hand = {name for name, row in declared.items() if row.get("readable") is False}
+    assert by_hand == BY_HAND, (
+        "the register and this set name different unreadable switches — "
+        f"declared but not here {sorted(by_hand - BY_HAND)}, here but readable there "
+        f"{sorted(BY_HAND - by_hand)}; change both in one pull request"
+    )
+
+
+def test_the_summary_counts_what_the_machine_read_and_names_the_rest(
+    tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """Four "by hand" lines under "17 switches hold" read as seventeen verified
+    (self-audit, 2026-08-31); the summary counts the machine's reads and names the rest."""
+    register = {
+        "branch": "main",
+        "settings": {
+            "enforce_admins": {"want": True, "why": "an exemption for admins is for anyone"},
+            "delete_branch_on_merge": {
+                "want": True,
+                "why": "merged branches pile up unseen",
+                "readable": False,
+            },
+        },
+        "not_required": {},
+    }
+    a_platform(monkeypatch, PROTECTION, {**REPO, "delete_branch_on_merge": None})
+    path, root = a_tree(tmp_path, register)
+    assert posture.main(["--settings", path, "--root", root]) == 0
+    out = capsys.readouterr().out
+    assert "by hand: delete_branch_on_merge" in out
+    assert "1 switches hold their declared values on main and 1 are printed above" in out
+    assert "2 switches hold" not in out
+
+
 def test_the_register_holds_every_switch_it_held() -> None:
     """A switch leaves the register only by leaving this list too — and arrives the same way."""
     declared = json.loads(REGISTER.read_text(encoding="utf-8"))["settings"]

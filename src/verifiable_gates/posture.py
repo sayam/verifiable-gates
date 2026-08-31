@@ -376,7 +376,8 @@ def _settings(register: pathlib.Path, root: pathlib.Path) -> int:
     found = workflows.all_workflows(workflows.workflow_dir(root))
     # The third outcome is printed, not counted: a switch declared unreadable is
     # shown with the value it should hold so a person can check it by hand.
-    for line in unreadable(state, wanted):
+    by_hand = unreadable(state, wanted)
+    for line in by_hand:
         print(f"  by hand: {line}")
     lines = setting_problems(state, wanted)
     lines += blind(state, wanted)
@@ -387,8 +388,13 @@ def _settings(register: pathlib.Path, root: pathlib.Path) -> int:
         print(line, file=sys.stderr)
     if lines:
         return 1
+    # The summary counts what the machine read; the switches printed above for
+    # a person are named as such — "17 switches hold" above four "by hand" lines
+    # read as seventeen verified (self-audit, 2026-08-31).
+    machine = len(wanted) - len(by_hand)
+    beside = f" and {len(by_hand)} are printed above for a person to check" if by_hand else ""
     print(
-        f"{len(wanted)} switches hold their declared values on {branch}; "
+        f"{machine} switches hold their declared values on {branch}{beside}; "
         f"{len(required)} required checks, {len(excused)} excused with a reason"
     )
     return 0

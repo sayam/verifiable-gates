@@ -8,6 +8,19 @@ Notable changes to this project. The format follows
 
 ### Fixed
 
+- **The posture summary counts what the machine read, and which switches are
+  read by hand is held two-way.** The weekly run printed four switches "by
+  hand: … cannot be read" and then "17 switches hold their declared values" —
+  a person's reads counted as the machine's (self-audit, 2026-08-31, read in
+  run 33352939914). The summary now counts the machine's reads and says how
+  many are printed above for a person. And `readable: false` could be added to
+  any switch, turning a red "blind" into a green "by hand" with nothing in a
+  pull request seeing it; the set of by-hand switches is now a copy in
+  `tests/test_posture.py`, held to the register both ways like every other
+  register here. Proved by mutation: the summary test is red on the old module;
+  a `readable: false` planted on `enforce_admins` is red against the held set
+  (#157).
+
 - **The doctor's pass-through stderr lands beside its own gate line under a
   pipe.** In a CI log — one pipe for both streams — stdout is block-buffered
   and stderr is not, so every scan's stderr surfaced above the first gate line
