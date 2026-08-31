@@ -35,6 +35,7 @@ evidence is that what arrives equals the manifest and the doctor reads it back.
 from __future__ import annotations
 
 import argparse
+import os
 import pathlib
 import re
 import shutil
@@ -58,10 +59,16 @@ TEMPLATE_JOB = "scans"
 JOB_NAMED = re.compile(r"\bjob:\s*" + TEMPLATE_JOB + r"\b")
 
 
+def _without_comments(text: str) -> str:
+    """The registry's lines with every `#` comment cut — a comment that says `job: scans`
+    is not a row (self-audit, 2026-08-31: it silenced the warning)."""
+    return "\n".join(re.sub(r"(^|\s)#.*$", r"\1", line) for line in text.splitlines())
+
+
 def _registry_names_the_job(dest: pathlib.Path) -> bool:
     """Does the kept `gates.yaml` give the template's job a gate? The workflow is always there."""
     registry = dest / KEEP_IF_PRESENT["gates.yaml.default"]
-    return JOB_NAMED.search(registry.read_text(encoding="utf-8")) is not None
+    return JOB_NAMED.search(_without_comments(registry.read_text(encoding="utf-8"))) is not None
 
 
 def _target(dest: pathlib.Path, name: str) -> pathlib.Path:
@@ -69,29 +76,67 @@ def _target(dest: pathlib.Path, name: str) -> pathlib.Path:
     return dest / relative if relative else dest / "tools" / name
 
 
-def install(dest: pathlib.Path, manifest: dict[str, Any], bundle: pathlib.Path) -> int:
+def _destination_problems(dest: pathlib.Path, names: list[str]) -> list[str]:
+    """What is wrong with the destination itself: a file where a directory should be,
+    a directory nobody can write, or a directory on the way to a target that is a
+    symlink leading outside — fourteen files landed outside `dest` through a
+    `tools` symlink, exit 0 (self-audit, 2026-08-31)."""
+    if dest.exists() and not dest.is_dir():
+        return [f"{dest} exists and is not a directory"]
+    if dest.is_dir() and not os.access(dest, os.W_OK):
+        return [f"{dest} is not writable"]
+    inside = dest.resolve()
+    found: list[str] = []
+    for name in names:
+        parent = _target(dest, name).parent
+        while parent != dest and parent.exists():
+            if not parent.resolve().is_relative_to(inside):
+                found.append(f"{parent.relative_to(dest)} leads outside the destination")
+                break
+            parent = parent.parent
+    return sorted(set(found))
+
+
+def install(
+    dest: pathlib.Path,
+    manifest: dict[str, Any],
+    bundle: pathlib.Path,
+    manifest_path: pathlib.Path | None = None,
+) -> int:
     kept_registry = False
+    names = manifest_module.shipped(manifest)
 
     # Refuse before touching the destination: the directories used to be made
     # first, so a refused install still left an empty `tools/checks/` behind
-    # (outside audit, 2026-08-31).
+    # (outside audit, 2026-08-31) — and the destination is judged the same way,
+    # before the first copy, so a refusal never lands half a bundle.
     wrong = manifest_module.problems(manifest, bundle)
+    for problem in wrong:
+        print(f"** the bundle is incomplete: {problem}", file=sys.stderr)
+    for problem in _destination_problems(dest, names):
+        print(f"** the destination is unusable: {problem}", file=sys.stderr)
+        wrong.append(problem)
     if wrong:
-        for problem in wrong:
-            print(f"** the bundle is incomplete: {problem}", file=sys.stderr)
         print("** refusing to install", file=sys.stderr)
         return 1
-    dest.mkdir(parents=True, exist_ok=True)
-    (dest / "tools" / "checks").mkdir(parents=True, exist_ok=True)
-    for name in manifest_module.shipped(manifest):
-        source = bundle / name
-        target = _target(dest, name)
-        if name in KEEP_IF_PRESENT and target.exists():
-            print(f"kept: {target.relative_to(dest)} (already there)")
-            kept_registry = kept_registry or name == "gates.yaml.default"
-            continue
-        target.parent.mkdir(parents=True, exist_ok=True)
-        shutil.copy2(source, target)
+    try:
+        dest.mkdir(parents=True, exist_ok=True)
+        (dest / "tools" / "checks").mkdir(parents=True, exist_ok=True)
+        for name in names:
+            # The manifest travels under its shipped name whatever it was called
+            # where it came from — `--manifest bundle.json` used to land sixteen
+            # files and then die looking for `overlay.json` (self-audit, 2026-08-31).
+            source = manifest_path if name == "overlay.json" and manifest_path else bundle / name
+            target = _target(dest, name)
+            if name in KEEP_IF_PRESENT and target.exists():
+                print(f"kept: {target.relative_to(dest)} (already there)")
+                kept_registry = kept_registry or name == "gates.yaml.default"
+                continue
+            target.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copy2(source, target)
+    except OSError as error:
+        print(f"** could not write to {dest}: {error} — the install is incomplete", file=sys.stderr)
+        return 1
 
     if kept_registry and not _registry_names_the_job(dest):
         print(
@@ -118,8 +163,17 @@ def main(argv: list[str] | None = None) -> int:
     manifest_path = (
         pathlib.Path(args.manifest).resolve() if args.manifest else here / "overlay.json"
     )
-    manifest = manifest_module.load(manifest_path)
-    return install(pathlib.Path(args.destination).resolve(), manifest, manifest_path.parent)
+    try:
+        manifest = manifest_module.load(manifest_path)
+    except (OSError, ValueError, TypeError, KeyError) as error:
+        # Unreadable is said plainly and is exit 2, like every other input this
+        # package cannot read — eight malformed shapes were each a traceback
+        # (self-audit, 2026-08-31).
+        print(f"** cannot read the manifest: {error}", file=sys.stderr)
+        return 2
+    return install(
+        pathlib.Path(args.destination).resolve(), manifest, manifest_path.parent, manifest_path
+    )
 
 
 if __name__ == "__main__":

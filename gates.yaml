@@ -1946,6 +1946,18 @@ gates:
           A refused install pointed at a fresh destination left the destination
           absent — the same refusal had made empty directories there before
           (outside audit, 2026-08-31, reproduced).
+      - kind: mutation
+        ref: pr/154
+        date: 2026-08-31
+        caught: >-
+          Twelve cases red on the installer as it was — fourteen files written
+          through a `tools` or `.github/workflows` symlink to outside the
+          destination (exit 0), a manifest under another name landing half a
+          bundle then dying, six malformed manifests and a missing one each a
+          raw traceback, a destination that is a file or unwritable a
+          traceback, and `job: scans` in a comment silencing the kept-registry
+          warning; a symlink that stays inside holds either way (self-audit,
+          2026-08-31).
 
   - id: the-manifest-is-an-input
     title: The manifest is validated as data, and a rule the bundle cannot decide cannot carry a script

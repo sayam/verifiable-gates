@@ -604,3 +604,137 @@ def test_naming_the_root_twice_is_a_misuse(
         gates_doctor.main([str(installed), "--root", str(installed), "--manifest", manifest])
     assert raised.value.code == 2
     assert "not both" in capsys.readouterr().err
+
+
+def test_a_manifest_under_another_name_installs_whole(
+    tmp_path: pathlib.Path, bundle_copy: pathlib.Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """`--manifest bundle.json` used to land sixteen files and then die looking for
+    `overlay.json` — half a bundle at the destination (self-audit, 2026-08-31)."""
+    (bundle_copy / "overlay.json").rename(bundle_copy / "bundle.json")
+    dest = tmp_path / "project"
+    assert install_module.main([str(dest), "--manifest", str(bundle_copy / "bundle.json")]) == 0
+    assert (dest / "tools" / "overlay.json").read_text(encoding="utf-8") == (
+        bundle_copy / "bundle.json"
+    ).read_text(encoding="utf-8")
+    assert "installed into" in capsys.readouterr().out
+
+
+@pytest.mark.parametrize("link", ["tools", ".github/workflows"])
+def test_a_symlink_on_the_way_out_of_the_destination_is_refused_before_any_copy(
+    tmp_path: pathlib.Path, bundle_copy: pathlib.Path, capsys: pytest.CaptureFixture[str], link: str
+) -> None:
+    """Fourteen files landed outside `dest` through a `tools` symlink, exit 0 (self-audit,
+    2026-08-31). A directory on the way to a target that leads outside is a refusal."""
+    outside = tmp_path / "elsewhere"
+    outside.mkdir()
+    dest = tmp_path / "project"
+    (dest / link).parent.mkdir(parents=True, exist_ok=True)
+    (dest / link).symlink_to(outside)
+    code = install_module.main([str(dest), "--manifest", str(bundle_copy / "overlay.json")])
+    err = capsys.readouterr().err
+    assert code == 1
+    assert "leads outside the destination" in err
+    assert "refusing to install" in err
+    assert list(outside.iterdir()) == []
+    assert not (dest / "tools" / "checks").exists() or link == ".github/workflows"
+
+
+def test_a_symlink_that_stays_inside_the_destination_is_fine(
+    tmp_path: pathlib.Path, bundle_copy: pathlib.Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    dest = tmp_path / "project"
+    (dest / "real-tools").mkdir(parents=True)
+    (dest / "tools").symlink_to(dest / "real-tools")
+    assert install_module.main([str(dest), "--manifest", str(bundle_copy / "overlay.json")]) == 0
+    assert (dest / "real-tools" / "gates_doctor.py").is_file()
+    capsys.readouterr()
+
+
+@pytest.mark.parametrize(
+    "text",
+    ["{nope", "[]", '{"ship": []}', '{"ship": "x", "gates": {}}', '{"ship": [1], "gates": {}}'],
+    ids=["not-json", "a-list", "no-gates", "ship-not-a-list", "ship-not-names"],
+)
+def test_a_manifest_that_cannot_be_read_is_said_plainly_and_is_exit_2(
+    tmp_path: pathlib.Path, capsys: pytest.CaptureFixture[str], text: str
+) -> None:
+    """Eight malformed shapes were each a raw traceback with exit 1 — the code that means
+    "refused" — not the "cannot read" and exit 2 every other input gets (self-audit,
+    2026-08-31)."""
+    path = tmp_path / "overlay.json"
+    path.write_text(text, encoding="utf-8")
+    dest = tmp_path / "project"
+    code = install_module.main([str(dest), "--manifest", str(path)])
+    err = capsys.readouterr().err
+    assert code in {1, 2}
+    assert "Traceback" not in err
+    assert "cannot read the manifest" in err or "refusing to install" in err
+    assert not dest.exists()
+
+
+def test_a_manifest_that_is_not_there_is_exit_2(
+    tmp_path: pathlib.Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    code = install_module.main([str(tmp_path / "p"), "--manifest", str(tmp_path / "gone.json")])
+    assert code == 2
+    assert "cannot read the manifest" in capsys.readouterr().err
+
+
+def test_a_destination_that_is_a_file_is_refused(
+    tmp_path: pathlib.Path, bundle_copy: pathlib.Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    dest = tmp_path / "a-file"
+    dest.write_text("x", encoding="utf-8")
+    code = install_module.main([str(dest), "--manifest", str(bundle_copy / "overlay.json")])
+    err = capsys.readouterr().err
+    assert code == 1
+    assert "exists and is not a directory" in err
+    assert "Traceback" not in err
+
+
+def test_a_destination_nobody_can_write_is_refused(
+    tmp_path: pathlib.Path, bundle_copy: pathlib.Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    dest = tmp_path / "locked"
+    dest.mkdir()
+    dest.chmod(0o500)
+    try:
+        code = install_module.main([str(dest), "--manifest", str(bundle_copy / "overlay.json")])
+    finally:
+        dest.chmod(0o700)
+    err = capsys.readouterr().err
+    assert code == 1
+    assert "is not writable" in err
+
+
+def test_a_comment_naming_the_job_does_not_silence_the_warning(
+    tmp_path: pathlib.Path, bundle_copy: pathlib.Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """`# enforced_by: {job: scans} would be the row to add` is a comment, not a row
+    (self-audit, 2026-08-31: it silenced the warning)."""
+    dest = tmp_path / "project"
+    dest.mkdir()
+    (dest / "gates.yaml").write_text(
+        "# note: enforced_by: {job: scans} would be the row to add\n"
+        "version: 1\ngates:\n  - id: x\n    title: t\n    kind: job\n"
+        "    enforced_by: {job: test}\n",
+        encoding="utf-8",
+    )
+    assert install_module.main([str(dest), "--manifest", str(bundle_copy / "overlay.json")]) == 0
+    assert "names no gate for job `scans`" in capsys.readouterr().err
+
+
+def test_a_write_that_fails_midway_is_said_plainly(
+    tmp_path: pathlib.Path, bundle_copy: pathlib.Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """A file where `tools/checks/` must be a directory passes the look-ahead (it is inside
+    the destination) and fails at the first write — said plainly, exit 1, no traceback."""
+    dest = tmp_path / "project"
+    (dest / "tools").mkdir(parents=True)
+    (dest / "tools" / "checks").write_text("not a directory", encoding="utf-8")
+    code = install_module.main([str(dest), "--manifest", str(bundle_copy / "overlay.json")])
+    err = capsys.readouterr().err
+    assert code == 1
+    assert "could not write to" in err
+    assert "Traceback" not in err
