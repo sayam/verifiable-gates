@@ -25,6 +25,22 @@ Notable changes to this project. The format follows
 
 ### Fixed
 
+- **The third answer reaches the readers the first fix of this round did not.**
+  Pointing the doctor at a tree whose every file was Latin-1 — after the seven
+  scanners had been fixed — showed the same `UnicodeDecodeError` still coming out
+  of `scan_gates_registry`, `scan_service_layer` and `scan_entrypoint_debug`,
+  which route the files they *judge* around undecodable bytes and went on reading
+  the `scaffold.json` beside them bare; and out of four package readers whose
+  round-2 guards had been written for a file that is *not there* rather than one
+  that is there and undecodable: `own_numbers --root`, `schedule_census --root`
+  (its run history was answered in round 1, the workflows it reads the promises
+  *from* were not), `red_streak_census --root` and `skill --catalogue` (its
+  `--preamble` was answered in round 2). All seven now name what they could not
+  read and exit 2. Proved by mutation: seven cases red with each old reader put
+  back. This is the third pass over one claim in one round, which is the point:
+  a fix written as a universal is not one until every entry point has been fired
+  at, and the sweep after the first fix is what found these.
+
 - **A gate whose job cannot turn the build red is a row in the index and nothing
   else.** A gate names a job so that the job fails when the rule is broken, and
   three shapes take that away without touching the index: a workflow with no

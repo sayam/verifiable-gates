@@ -294,6 +294,21 @@ def problems(
     return found
 
 
+def _schedules(root: pathlib.Path, directory: pathlib.Path) -> dict[str, int]:
+    """Every promise this project declares, or the third answer.
+
+    The history has been answered "cannot read" since round 1; the workflows the
+    promises are read *from* were still read bare, and one that is not UTF-8 was a
+    traceback and exit 1 — the code that means a schedule is late (self-audit round 3,
+    2026-09-01).
+    """
+    try:
+        return declared_schedules(directory) | dependabot_schedule(root)
+    except UnicodeDecodeError as problem:
+        print(f"cannot read the workflows: {problem}", file=sys.stderr)
+        raise SystemExit(2) from problem
+
+
 def main(argv: list[str] | None = None) -> int:
     """Read what is declared, ask when it last fired, return 1 if it has gone quiet."""
     parser = argparse.ArgumentParser(description="Census of declared schedules against reality.")
@@ -305,7 +320,7 @@ def main(argv: list[str] | None = None) -> int:
 
     root = pathlib.Path(args.root)
     directory = workflows.workflow_dir(root)
-    schedules = declared_schedules(directory) | dependabot_schedule(root)
+    schedules = _schedules(root, directory)
     if not schedules:
         print("no workflow declares a cron — there is nothing to watch")
         return 0
@@ -330,7 +345,7 @@ def main(argv: list[str] | None = None) -> int:
                 raise history.UnreadableError(f"{name}: last run is {stamp!r}, not a stamp")
             if stamp is not None:
                 datetime.datetime.fromisoformat(stamp)
-    except (PermissionError, RuntimeError, ValueError) as problem:
+    except (PermissionError, RuntimeError, ValueError, UnicodeDecodeError) as problem:
         print(
             f"cannot read the run history: {problem}\n"
             "**This must never become a silent skip** — a watcher that goes quiet when "

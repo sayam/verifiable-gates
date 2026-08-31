@@ -492,3 +492,17 @@ def test_a_root_that_is_not_there_is_a_misuse(
     not exist was a traceback and exit 1 (round 2, 2026-08-31)."""
     assert census.main(["--root", str(tmp_path / "not-there")]) == 2
     assert "cannot read the registry or the workflows" in capsys.readouterr().err
+
+
+def test_a_registry_that_is_not_utf_8_is_a_misuse(
+    tmp_path: pathlib.Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """Round 2 gave `--root` the third answer for a tree that is not there; a registry
+    that is there and is not UTF-8 was still a traceback (round 3, 2026-09-01)."""
+    (tmp_path / "gates.yaml").write_bytes("gates: caf\xe9\n".encode("latin-1"))
+    flows = tmp_path / ".github" / "workflows"
+    flows.mkdir(parents=True)
+    (flows / "ci.yml").write_text("on: push\n", encoding="utf-8")
+
+    assert census.main(["--root", str(tmp_path)]) == 2
+    assert "cannot read the registry or the workflows" in capsys.readouterr().err

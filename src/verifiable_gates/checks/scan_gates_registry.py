@@ -474,6 +474,17 @@ MISCONFIGURED = (
 )
 
 
+def _config_text(path: pathlib.Path) -> str:
+    """`scaffold.json`'s text, or the third answer. Every scanner routes the files it
+    judges around undecodable bytes; the configuration beside them was still read bare
+    and died of a traceback (self-audit round 3, 2026-09-01)."""
+    try:
+        return path.read_text(encoding="utf-8")
+    except UnicodeDecodeError as problem:
+        print(f"cannot read the tree: {path}: {problem}", file=sys.stderr)
+        raise SystemExit(2) from problem
+
+
 def main(root: pathlib.Path) -> int:
     if not root.is_dir():
         # NA means "this project has nothing of that kind"; a root that is not
@@ -482,7 +493,7 @@ def main(root: pathlib.Path) -> int:
         print(f"cannot read the tree: {root} is not a directory", file=sys.stderr)
         return 2
     config_path = root / "scaffold.json"
-    config = json.loads(config_path.read_text(encoding="utf-8")) if config_path.is_file() else {}
+    config = json.loads(_config_text(config_path)) if config_path.is_file() else {}
     declared = config.get("gates_path", "gates.yaml")
     registry = root / declared
     if not registry.is_file():

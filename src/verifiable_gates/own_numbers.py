@@ -182,14 +182,16 @@ def main(argv: list[str] | None = None) -> int:
     root = pathlib.Path(args.root)
     try:
         values = facts(root)
-    except OSError as problem:
+        inside = advertised.drift(root, PLACES, values)
+    except (OSError, UnicodeDecodeError) as problem:
         # A root that is not a checkout is a call this reader cannot answer; it
-        # died of a traceback and exit 1 (round 2, 2026-08-31).
+        # died of a traceback and exit 1 (round 2, 2026-08-31). Bytes that are not
+        # UTF-8 in any place it reads did the same until round 3 (2026-09-01) — the
+        # guard was written for the missing file and not for the undecodable one.
         print(f"cannot read the checkout: {root}: {problem}", file=sys.stderr)
         return 2
 
     status = 0
-    inside = advertised.drift(root, PLACES, values)
     if inside:
         print("inside the repository:")
         _report(inside)

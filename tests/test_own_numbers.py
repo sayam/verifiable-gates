@@ -223,3 +223,14 @@ def test_a_root_that_is_not_a_checkout_is_a_misuse(
     exit 1 — the code that means the numbers disagree (round 2, 2026-08-31)."""
     assert own_numbers.main(["--root", str(tmp_path / "not-a-checkout")]) == 2
     assert "cannot read the checkout" in capsys.readouterr().err
+
+
+def test_a_checkout_that_is_not_utf_8_is_a_misuse(
+    tmp_path: pathlib.Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """The guard written in round 2 was for the file that is not there; a file that is
+    there and is not UTF-8 went on being a traceback (self-audit round 3, 2026-09-01)."""
+    (tmp_path / "CHANGELOG.md").write_bytes("# caf\xe9\n".encode("latin-1"))
+
+    assert own_numbers.main(["--root", str(tmp_path)]) == 2
+    assert "cannot read the checkout" in capsys.readouterr().err

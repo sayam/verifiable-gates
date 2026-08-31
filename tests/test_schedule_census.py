@@ -563,3 +563,19 @@ def test_a_history_of_the_wrong_shape_is_unreadable_not_never(
     code = census.main(["--root", str(tmp_path), "--input", str(state), "--now", NOW])
     assert code == 2
     assert "cannot read the run history" in capsys.readouterr().err
+
+
+def test_a_workflow_that_is_not_utf_8_is_a_misuse(
+    tmp_path: pathlib.Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """The run history has been the third answer since round 1; the workflows the
+    promises are read from were still read bare (self-audit round 3, 2026-09-01)."""
+    flows = tmp_path / ".github" / "workflows"
+    flows.mkdir(parents=True)
+    (flows / "ci.yml").write_bytes("on: caf\xe9\n".encode("latin-1"))
+
+    with pytest.raises(SystemExit) as refused:
+        census.main(["--root", str(tmp_path)])
+
+    assert refused.value.code == 2
+    assert "cannot read the workflows" in capsys.readouterr().err
