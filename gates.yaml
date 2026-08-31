@@ -2325,6 +2325,16 @@ gates:
           the tests list left in place took the harness from 43 pass to 42
           and stopped the scanner looking for that gate's files, every
           reader green; two cases red now (self-audit round 2, 2026-08-31).
+      - kind: mutation
+        ref: pr/178
+        date: 2026-09-01
+        caught: >-
+          The scanner put back — a gate naming a job with no trigger, `if:
+          false` or `continue-on-error: true`, and a step gate whose step
+          cannot fail, were all green; adding `continue-on-error` to this
+          repository's own test job, which 45 of 54 gates name, left the
+          whole suite and every reader green too. Four cases red now (self-
+          audit round 3, 2026-09-01).
 
   - id: the-box-opens-already-true
     title: A fresh install's registry passes its own check, and is not skipped as not-applicable
