@@ -8,6 +8,21 @@ Notable changes to this project. The format follows
 
 ### Fixed
 
+- **A tree that is not there is no verdict, not a clean one.** Every one of the
+  nine shipped scanners answered a root that does not exist — and a root that is
+  a regular file — with `NA: no docs/adr — nothing to check yet` and exit 0: the
+  answer for a project that has nothing of that kind, given about a project that
+  is not there (self-audit round 2, 2026-08-31, all nine reproduced). One
+  mistyped `--root` reported every gate as clean. Each now says `cannot read the
+  tree: <path> is not a directory` on stderr and exits 2, which the doctor
+  reports as `[error]` — pointed at a root that is not there it now says nine
+  scans did not answer instead of "0 gates" and exit 0. The register already
+  said this in words: *"Cannot read is not the same as switched off"*, and
+  *"A misuse must exit 2, never 0, so a wrong call cannot look like a pass"* —
+  the argument *count* had been held that way since the beginning, the argument's
+  *meaning* had not. Proved by mutation: eighteen cases red with the old
+  scanners put back.
+
 - **An input the instruments cannot read is exit 2 — in the seven places that
   were still a traceback.** Round 1 wrote the rule as a universal ("exit 2
   everywhere — not a traceback"), and fixed the censuses, the installer, the

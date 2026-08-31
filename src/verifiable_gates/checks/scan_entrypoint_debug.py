@@ -92,6 +92,12 @@ MISCONFIGURED = (
 
 
 def main(root: pathlib.Path) -> int:
+    if not root.is_dir():
+        # NA means "this project has nothing of that kind"; a root that is not
+        # there has no project to say it about, and answering the second with
+        # the first is a green over nothing (self-audit round 2, 2026-08-31).
+        print(f"cannot read the tree: {root} is not a directory", file=sys.stderr)
+        return 2
     config_path = root / "scaffold.json"
     # A project that has not configured the bundle is not a misuse — the paths
     # below fall back to their defaults, and a default that is not there reports

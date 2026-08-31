@@ -26,6 +26,7 @@ from verifiable_gates.checks import (
     scan_adr_index,
     scan_dockerfile_digest,
     scan_entrypoint_debug,
+    scan_gates_registry,
     scan_install_pinning,
     scan_service_layer,
     scan_templates_inline,
@@ -2120,3 +2121,41 @@ def test_a_mover_declared_in_quotes_counts(
     root = build(tmp_path, {"Dockerfile": PINNED_IMAGE, **mover}, {"dockerfiles": ["Dockerfile"]})
     assert scan_dockerfile_digest.main(root) == 0
     assert capsys.readouterr().out == ""
+
+
+# The nine as they are imported above — `CASES` holds only the seven that have a
+# tree pair, and the two answers being told apart here are "no verdict" and "clean".
+EVERY_SCANNER = [
+    scan_adr_index,
+    scan_dockerfile_digest,
+    scan_entrypoint_debug,
+    scan_gates_registry,
+    scan_install_pinning,
+    scan_service_layer,
+    scan_templates_inline,
+    scan_workflow_pinning,
+    scan_write_discipline,
+]
+
+
+@pytest.mark.parametrize("module", EVERY_SCANNER, ids=lambda m: m.__name__.rsplit(".", 1)[-1])
+def test_a_tree_that_is_not_there_is_a_misuse(
+    tmp_path: pathlib.Path, capsys: pytest.CaptureFixture[str], module: ModuleType
+) -> None:
+    """Every scanner answered a root that does not exist with "NA … nothing to check
+    yet" and exit 0 — the answer for a project that has nothing of that kind, given
+    about a project that is not there (self-audit round 2, 2026-08-31)."""
+    assert module.main(tmp_path / "not-there") == 2
+    assert "cannot read the tree" in capsys.readouterr().err
+
+
+@pytest.mark.parametrize("module", EVERY_SCANNER, ids=lambda m: m.__name__.rsplit(".", 1)[-1])
+def test_a_root_that_is_a_file_is_a_misuse(
+    tmp_path: pathlib.Path, capsys: pytest.CaptureFixture[str], module: ModuleType
+) -> None:
+    """The other way of not being a tree: a path that exists and is a file."""
+    root = tmp_path / "a-file"
+    root.write_text("not a tree\n", encoding="utf-8")
+
+    assert module.main(root) == 2
+    assert "cannot read the tree" in capsys.readouterr().err
