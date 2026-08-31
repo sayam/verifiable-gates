@@ -8,6 +8,14 @@ Notable changes to this project. The format follows
 
 ### Fixed
 
+- **`own_numbers` reads every place README states the split.** "The other 83
+  are the rule sheets" and "The nine checks", and the Thai half's two
+  counterparts, were outside its list, so a rule added left all four behind
+  and the suite stayed green while CONTRIBUTING said `--write` fixes every
+  other place (self-audit, 2026-08-31, reproduced on v0.1.10). The four are
+  places now (23 in all), the Thai half with its own numerals, and the tree
+  test names any of them that drifts (#158).
+
 - **The posture summary counts what the machine read, and which switches are
   read by hand is held two-way.** The weekly run printed four switches "by
   hand: … cannot be read" and then "17 switches hold their declared values" —

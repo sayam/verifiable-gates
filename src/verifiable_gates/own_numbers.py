@@ -43,6 +43,25 @@ __all__ = ["ABOUT", "PLACES", "as_word", "expectations", "facts", "main"]
 
 # A number that appears in prose appears as a word; the counts here are small.
 WORDS = ("zero", "one", "two", "three", "four", "five", "six", "seven", "eight", "nine", "ten")
+# The Thai half of README writes the same small counts out in words too — zero to
+# ten, as escapes, because this file is held to the language policy like every other.
+WORDS_TH = (
+    "\u0e28\u0e39\u0e19\u0e22\u0e4c",  # 0
+    "\u0e2b\u0e19\u0e36\u0e48\u0e07",  # 1
+    "\u0e2a\u0e2d\u0e07",  # 2
+    "\u0e2a\u0e32\u0e21",  # 3
+    "\u0e2a\u0e35\u0e48",  # 4
+    "\u0e2b\u0e49\u0e32",  # 5
+    "\u0e2b\u0e01",  # 6
+    "\u0e40\u0e08\u0e47\u0e14",  # 7
+    "\u0e41\u0e1b\u0e14",  # 8
+    "\u0e40\u0e01\u0e49\u0e32",  # 9
+    "\u0e2a\u0e34\u0e1a",  # 10
+)
+# The Thai words around a count of checkers in README — "purely" before, the
+# classifier after — as escapes for the same reason.
+PURELY_TH = "\u0e25\u0e49\u0e27\u0e19"
+CLASSIFIER_TH = "\u0e15\u0e31\u0e27"
 
 # The DECISIONS row that states the rules/bundle split, up to its decision column.
 SPLIT_ROW = r"\| rules-vs-bundle \| [^|]+ \| "
@@ -90,12 +109,21 @@ PLACES: dict[str, list[advertised.Place]] = {
             "DECISIONS.md",
             SPLIT_ROW + DECIDES + r"\d+ of them\. The other (\d+)",
         ),
+        # README says the split too, in both halves — three places `--write` never
+        # reached, so a rule added left "The other 83" behind (self-audit, 2026-08-31).
+        advertised.Place("README.md", r"The other (\d+) are the rule sheets"),
+        # The Thai half by its shape — a word, the count, a word, then `agent`.
+        advertised.Place("README.md", r"\S+ (\d+) \S+ agent "),
     ],
     "checkers_word": [
         advertised.Place("README.md", r"the (\w+) stdlib-only checkers"),
         advertised.Place("README.md", r"Of the \d+ rules, \*\*(\w+)\*\* have"),
+        advertised.Place("README.md", r"\| The (\w+) checks · the doctor"),
         advertised.Place("CITATION.cff", r"ships (\w+) standalone checkers"),
         advertised.Place(".zenodo.json", r"ships (\w+) standalone checkers"),
+    ],
+    "checkers_word_th": [
+        advertised.Place("README.md", r"stdlib " + PURELY_TH + r"(\S+?)" + CLASSIFIER_TH + r" "),
     ],
 }
 
@@ -107,9 +135,9 @@ ABOUT = {
 }
 
 
-def as_word(number: int) -> str:
+def as_word(number: int, words: tuple[str, ...] = WORDS) -> str:
     """`9` → `nine`, for the counts small enough to be written out in prose."""
-    return WORDS[number] if number < len(WORDS) else str(number)
+    return words[number] if number < len(words) else str(number)
 
 
 def facts(root: pathlib.Path) -> dict[str, str]:
@@ -131,6 +159,7 @@ def facts(root: pathlib.Path) -> dict[str, str]:
         "gates": str(len(gates)),
         "checkers": str(len(checkers)),
         "checkers_word": as_word(len(checkers)),
+        "checkers_word_th": as_word(len(checkers), WORDS_TH),
     }
 
 
