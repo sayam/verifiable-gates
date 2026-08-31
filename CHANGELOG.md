@@ -8,6 +8,21 @@ Notable changes to this project. The format follows
 
 ### Fixed
 
+- **An input the instruments cannot read is exit 2 everywhere — not a traceback,
+  and never "never".** A run history whose records carried every key with the
+  wrong kinds behind them (`failures` a string, `attempt` a string, `created_at`
+  a number or a word) raised `TypeError`, `AttributeError` or `ValueError` from
+  inside the count, exit 1 — the code for a broken promise — in all three
+  censuses; `schedule_census` read `{}` and `{"foo": 1}` as "declared but never
+  fired", exit 0; and a registry PyYAML rejects, or one that is not there,
+  killed the harness with a traceback and exit 1 (self-audit, 2026-08-31, every
+  case reproduced on v0.1.10). `history.read` now holds the kind of every field
+  it is told about and parses every stamp, a mapping history is held to its
+  fields like a list, the schedule census requires `last_scheduled_run` with
+  stamps or `null` behind it, and the harness catches what the YAML reader
+  raises. Proved by mutation: twenty-four cases red on the modules as they were
+  (#155).
+
 - **The installer judges the destination before the first copy, and refuses
   plainly.** A `tools/` or `.github/workflows/` that was a symlink leading
   outside the destination took all fourteen files with it, exit 0;

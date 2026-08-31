@@ -825,6 +825,14 @@ gates:
           whatever had fired — red in the young-cron case and in the two-shape
           table. An outside audit read that line above a cron that had never
           fired on 2026-08-30.
+      - kind: mutation
+        ref: pr/155
+        date: 2026-08-31
+        caught: >-
+          `{}` and `{"foo": 1}` read as "never fired", exit 0; a last run that
+          was a number or a word raised from inside the measure, exit 1 — five
+          cases red on the census as it was, each now "cannot read the run
+          history", exit 2 (self-audit, 2026-08-31).
 
   - id: a-census-over-nothing-counts-nothing
     title: A run history the censuses cannot see is the third answer, never a pass
@@ -867,6 +875,15 @@ gates:
           censuses; the `gh run list` hint dropped, red twice. An outside audit
           fed a hundred `gh run list --json` rows to `--input` on 2026-08-30:
           one census counted zero failures over thirteen, the other raised.
+      - kind: mutation
+        ref: pr/155
+        date: 2026-08-31
+        caught: >-
+          A record with every key and the wrong kinds behind them — `failures`
+          a string, a number or null, `attempt` a string, `created_at` a
+          number or a word — read as a history and raised from inside the
+          count; a mapping history was never held to its fields. Ten cases
+          red on the reader as it was (self-audit, 2026-08-31).
 
   - id: watcher-promises-are-measured-against-reality
     title: A declared `within_days` is measured, not merely checked for shape
@@ -925,6 +942,13 @@ gates:
         caught: >-
           The census naming no record fields — `createdAt` where `created_at`
           was expected raised `KeyError` again instead of the third answer, red.
+      - kind: mutation
+        ref: pr/155
+        date: 2026-08-31
+        caught: >-
+          A `created_at` of `1700000000` or `yesterday` raised `ValueError`
+          from inside the measure, exit 1 — two cases red on the census as it
+          was, each now exit 2 (self-audit, 2026-08-31).
 
   - id: a-rerun-cannot-erase-a-failure-from-the-count
     title: Failures a rerun turned green are still counted, and classified by who broke
@@ -979,6 +1003,13 @@ gates:
         caught: >-
           The census naming no record fields — `gh run list --json` rows read
           as a clean window again, "failed … : 0", red.
+      - kind: mutation
+        ref: pr/155
+        date: 2026-08-31
+        caught: >-
+          `failures` as a string, a number or null and `attempt` as a string
+          each raised from inside the count, exit 1 — four cases red on the
+          census as it was, each now exit 2 (self-audit, 2026-08-31).
 
   - id: a-threshold-sits-against-reality-both-ways
     title: A ratchet's threshold is held to what is true today, in both directions
@@ -2222,6 +2253,13 @@ gates:
           A gate sleeping past GATE_TIMEOUT_SECONDS returned a red result whose
           cause names the timeout — the same plant killed the harness with a raw
           TimeoutExpired before (outside audit, 2026-08-31, reproduced).
+      - kind: mutation
+        ref: pr/155
+        date: 2026-08-31
+        caught: >-
+          A registry PyYAML cannot parse, and one that is not there, each a
+          traceback with exit 1 on the harness as it was — three cases red,
+          each now "cannot read the registry", exit 2 (self-audit, 2026-08-31).
 
   - id: a-published-rule-carries-its-origin
     title: A published rule names the incident behind it, belongs to a published layer, and names no framework

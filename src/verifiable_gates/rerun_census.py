@@ -554,7 +554,7 @@ def main(argv: list[str] | None = None, *, messages: Mapping[str, str] | None = 
             lambda: collect(args.limit, messages=messages),
             shape=list,
             must_hold_something=True,
-            fields=("id", "failures"),
+            fields={"id": (int, str), "failures": (list,), "?attempt": (int,)},
         )
     except (PermissionError, RuntimeError) as problem:
         print(text["cannot_read"].format(problem=problem), file=sys.stderr)

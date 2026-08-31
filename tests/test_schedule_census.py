@@ -470,3 +470,27 @@ def test_any_other_refusal_stays_the_third_answer(monkeypatch: pytest.MonkeyPatc
 
     with pytest.raises(PermissionError, match="403"):
         census.fetch(["posture.yml"])
+
+
+@pytest.mark.parametrize(
+    "text",
+    [
+        "{}",
+        '{"foo": 1}',
+        '{"last_scheduled_run": "nope"}',
+        '{"last_scheduled_run": {"weekly.yml": 1700000000}}',
+        '{"last_scheduled_run": {"weekly.yml": "yesterday"}}',
+    ],
+    ids=["empty-object", "other-keys", "not-a-mapping", "stamp-number", "stamp-word"],
+)
+def test_a_history_of_the_wrong_shape_is_unreadable_not_never(
+    tmp_path: pathlib.Path, capsys: pytest.CaptureFixture[str], text: str
+) -> None:
+    """`{}` and `{"foo": 1}` read as "never fired" and exit 0; a stamp of the wrong kind
+    raised from inside the measure, exit 1 (self-audit, 2026-08-31). Unreadable is exit 2."""
+    a_workflow(tmp_path / ".github" / "workflows", "weekly.yml", "0 3 * * 1")
+    state = tmp_path / "state.json"
+    state.write_text(text, encoding="utf-8")
+    code = census.main(["--root", str(tmp_path), "--input", str(state), "--now", NOW])
+    assert code == 2
+    assert "cannot read the run history" in capsys.readouterr().err

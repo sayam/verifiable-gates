@@ -27,6 +27,7 @@ of not seeing comes out the same, proved in its own tests and the censuses'.
 
 from __future__ import annotations
 
+import datetime
 import json
 import pathlib
 from typing import TYPE_CHECKING, Any
@@ -47,15 +48,20 @@ def read(
     *,
     shape: type,
     must_hold_something: bool = True,
-    fields: tuple[str, ...] = (),
+    fields: tuple[str, ...] | dict[str, tuple[type, ...]] = (),
 ) -> Any:  # noqa: ANN401 — the shape is whichever the caller asked for
     """The history: the file at `path` if given, otherwise what `fetch()` returns.
 
     Raises `UnreadableError` when the file cannot be read or parsed, when what came
-    back is not of `shape`, when a record of a list lacks one of `fields`, or —
-    while `must_hold_something` — when it is empty. `fetch` is expected to raise
-    on its own when the platform refuses; that is let through unchanged so the
-    caller's message can say what the platform said.
+    back is not of `shape`, when a record of a list (or the mapping itself) lacks
+    one of `fields`, or — while `must_hold_something` — when it is empty. `fields`
+    may be a mapping from name to the kinds the census reads it as: a name starting
+    with `?` may be absent, and `datetime.datetime` among the kinds means an ISO
+    timestamp in a string. A record with every key and the wrong kinds behind them
+    raised `TypeError`, `AttributeError` or `ValueError` from inside the count, exit
+    1 — the code for a broken promise (self-audit, 2026-08-31). `fetch` is expected
+    to raise on its own when the platform refuses; that is let through unchanged so
+    the caller's message can say what the platform said.
     """
     if path is None:
         found = fetch()
@@ -77,17 +83,41 @@ def read(
             "the history is empty — a census over nothing counts nothing, and must not "
             "report it as a pass"
         )
-    if fields and isinstance(found, list):
-        _hold_fields(found, fields)
+    records = found if isinstance(found, list) else [found]
+    if fields:
+        _hold_fields(records, fields)
     return found
 
 
-def _hold_fields(records: list[Any], fields: tuple[str, ...]) -> None:
+def _hold_kind(index: int, field: str, value: object, kinds: tuple[type, ...]) -> None:
+    """One field that is there is of a kind the census reads — a stamp among them parses."""
+    plain = tuple(k for k in kinds if k is not datetime.datetime)
+    if isinstance(value, plain):
+        return
+    if datetime.datetime in kinds and isinstance(value, str):
+        try:
+            datetime.datetime.fromisoformat(value)
+        except ValueError as problem:
+            raise UnreadableError(
+                f"record {index}: {field} is {value!r}, not an ISO timestamp"
+            ) from problem
+        return
+    wanted = " or ".join("ISO timestamp" if k is datetime.datetime else k.__name__ for k in kinds)
+    raise UnreadableError(f"record {index}: {field} is a {type(value).__name__}, not {wanted}")
+
+
+def _hold_fields(records: list[Any], fields: tuple[str, ...] | dict[str, tuple[type, ...]]) -> None:
     """Every record is a mapping carrying `fields`, or the list is not this history."""
+    kinds = fields if isinstance(fields, dict) else {}
+    required = [f.removeprefix("?") for f in fields if not f.startswith("?")]
     for index, record in enumerate(records):
         if not isinstance(record, dict):
             raise UnreadableError(f"record {index} is a {type(record).__name__}, not a mapping")
-        missing = [field for field in fields if field not in record]
+        for named, wanted in kinds.items():
+            field = named.removeprefix("?")
+            if field in record:
+                _hold_kind(index, field, record[field], wanted)
+        missing = [field for field in required if field not in record]
         if missing:
             hint = (
                 " — this looks like `gh run list --json`, which is not the shape the census "

@@ -239,3 +239,26 @@ def test_the_round_log_is_ignored_by_this_repository() -> None:
     ignored = (root / ".gitignore").read_text(encoding="utf-8").splitlines()
 
     assert harness.ROUND_LOG in ignored
+
+
+@pytest.mark.parametrize(
+    "registry", ["a: [\n", "a: 1\n---\n- b\n"], ids=["unclosed-flow", "two-documents"]
+)
+def test_yaml_the_reader_rejects_is_a_misuse_not_a_traceback(
+    tmp_path: pathlib.Path, capsys: pytest.CaptureFixture[str], registry: str
+) -> None:
+    """A registry PyYAML cannot parse died with a ScannerError and exit 1 (self-audit,
+    2026-08-31); the harness says it cannot read it, exit 2."""
+    root = a_project(tmp_path, PASSING)
+    (root / "gates.yaml").write_text(registry, encoding="utf-8")
+    assert run(root) == 2
+    assert "cannot read the registry" in capsys.readouterr().err
+
+
+def test_a_registry_that_is_not_there_is_a_misuse(
+    tmp_path: pathlib.Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    root = a_project(tmp_path, PASSING)
+    (root / "gates.yaml").unlink()
+    assert run(root) == 2
+    assert "cannot read the registry" in capsys.readouterr().err

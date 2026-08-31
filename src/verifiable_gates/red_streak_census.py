@@ -193,7 +193,11 @@ def main(argv: list[str] | None = None) -> int:
             lambda: _fetch(args.limit),
             shape=list,
             must_hold_something=True,
-            fields=("path", "created_at"),
+            fields={
+                "path": (str,),
+                "created_at": (datetime.datetime,),
+                "?conclusion": (str, type(None)),
+            },
         )
     except (PermissionError, RuntimeError) as problem:
         print(

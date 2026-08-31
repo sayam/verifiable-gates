@@ -16,6 +16,7 @@ measurement wrong by a factor of seven, and neither shows up as an error:
 
 from __future__ import annotations
 
+import json
 from typing import TYPE_CHECKING, Any
 
 import pytest
@@ -464,4 +465,21 @@ def test_a_missing_input_file_is_unreadable_not_a_traceback(
     a_registry(tmp_path, WATCHED)
 
     assert census.main(["--root", str(tmp_path), "--input", str(tmp_path / "no.json")]) == 2
+    assert "cannot read the run history" in capsys.readouterr().err
+
+
+@pytest.mark.parametrize("created_at", [1700000000, "yesterday"], ids=["epoch-number", "a-word"])
+def test_a_stamp_that_is_not_a_timestamp_is_unreadable(
+    tmp_path: pathlib.Path, capsys: pytest.CaptureFixture[str], created_at: object
+) -> None:
+    """A `created_at` the census cannot parse raised `ValueError` from inside the measure,
+    exit 1 — the code for a broken promise (self-audit, 2026-08-31)."""
+    a_workflow(tmp_path / ".github" / "workflows", "nightly.yml", CRON_ONLY)
+    a_registry(tmp_path, WATCHED)
+    runs = tmp_path / "runs.json"
+    runs.write_text(
+        json.dumps([{"path": ".github/workflows/nightly.yml", "created_at": created_at}]),
+        encoding="utf-8",
+    )
+    assert census.main(["--root", str(tmp_path), "--input", str(runs)]) == 2
     assert "cannot read the run history" in capsys.readouterr().err
