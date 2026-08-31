@@ -1928,3 +1928,66 @@ def test_a_script_whose_last_line_continues_into_nothing_is_still_read(
     }
     assert scan_install_pinning.main(build(tmp_path, files)) == 1
     assert "scripts/setup.sh: pip install ruff" in capsys.readouterr().out
+
+
+@pytest.mark.parametrize(
+    "line",
+    [
+        "uv tool run ruff check .",
+        "uv run --with ruff ruff check .",
+        "uv run --python 3.13 --with ruff ruff check .",
+        "pip wheel . -w dist",
+        "npx prettier --check .",
+        "npm exec -- prettier --check .",
+        "yarn add prettier",
+        "pnpm add prettier",
+        "pnpm dlx prettier --check .",
+    ],
+    ids=[
+        "uv-tool-run",
+        "uv-run-with",
+        "uv-run-with-after-another-flag",
+        "pip-wheel-isolated",
+        "npx",
+        "npm-exec",
+        "yarn-add",
+        "pnpm-add",
+        "pnpm-dlx",
+    ],
+)
+def test_every_installer_that_reaches_an_index_is_read(
+    tmp_path: pathlib.Path, capsys: pytest.CaptureFixture[str], line: str
+) -> None:
+    """`uv tool run` is `uvx` spelled out, `uv run --with` resolves before it runs,
+    `pip wheel` builds isolated like `python -m build`, and the Node side is more than
+    `npm install` — the title promises both sides (self-audit, 2026-08-31, all exited 0)."""
+    files = {".github/workflows/ci.yml": STEP.format(line=line)}
+    assert scan_install_pinning.main(build(tmp_path, files)) == 1
+    assert "ci-tools-hash-pinned" in capsys.readouterr().out
+
+
+@pytest.mark.parametrize(
+    "line",
+    [
+        "uv run --locked ruff check .",
+        "uv run ruff check .",
+        "pip wheel . -w dist --no-build-isolation",
+        "yarn install --immutable",
+        "pnpm install --frozen-lockfile",
+        "npm ci",
+    ],
+    ids=[
+        "uv-run-locked",
+        "uv-run-plain",
+        "pip-wheel-no-isolation",
+        "yarn-immutable",
+        "pnpm-frozen",
+        "npm-ci",
+    ],
+)
+def test_an_install_from_a_lock_or_with_nothing_to_fetch_stays_clean(
+    tmp_path: pathlib.Path, capsys: pytest.CaptureFixture[str], line: str
+) -> None:
+    files = {".github/workflows/ci.yml": STEP.format(line=line)}
+    assert scan_install_pinning.main(build(tmp_path, files)) == 0
+    assert capsys.readouterr().out == ""

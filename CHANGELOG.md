@@ -8,6 +8,18 @@ Notable changes to this project. The format follows
 
 ### Fixed
 
+- **Every installer that reaches an index is read — the Node side too.**
+  `uv tool run` (`uvx` spelled out), `uv run --with <pkg>` (resolved before it
+  runs), `pip wheel` (an isolated build fetching its backend like `python -m
+  build`), and on the Node side `npx`, `npm exec`, `yarn add`, `pnpm add` and
+  `pnpm dlx` each fetch from a registry unpinned and each exited 0 — the
+  title promises "both the Python and the Node side" and the scanner read
+  `npm install` alone (self-audit, 2026-08-31, proved against uv 0.12.7 and
+  npm 11.14.1). `pip wheel` is held to `--no-build-isolation` as `build` is;
+  `yarn install --immutable` and `pnpm install --frozen-lockfile` install from
+  a lock and are left alone with `npm ci`. Proved by mutation: nine cases red
+  on the old scanner (#163).
+
 - **An install pip itself holds to hashes, or fetches nothing for, is not a
   finding.** `pip install "--require-hashes" -r …` (the flag in quotes),
   `PIP_REQUIRE_HASHES=1 pip install -r …` and the same variable in the step's

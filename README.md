@@ -117,9 +117,13 @@ anchor's version comment), a tagged value (`!!str`), and a plain, quoted or
 folded (`>`) scalar that continues onto the next line, which YAML joins with a
 space before the shell sees it; only a literal block (`|`) keeps its lines
 apart, and a `uses` under `with:` is an input, not a step. An install is judged
-whether it says `pip`, `pipx`, `uv tool install`, `uv add`, `uvx`, `poetry add`,
-`pdm add` or `pipenv install`; `uv run --locked`, `uv sync --locked` and `uv build`
-install from a lock and are left alone. A `uses:` folded onto the next line is
+whether it says `pip`, `pipx`, `uv tool install`, `uv tool run`, `uv add`, `uvx`,
+`uv run --with`, `poetry add`, `pdm add` or `pipenv install`, and on the Node side
+`npm install`, `npm exec`, `npx`, `yarn add`, `pnpm add` or `pnpm dlx`; `pip wheel`
+builds in an isolated environment like `python -m build` and is held to
+`--no-build-isolation`; `uv run --locked`, `uv sync --locked`, `uv build`, `npm ci`,
+`yarn install --immutable` and `pnpm install --frozen-lockfile` install from a lock
+and are left alone. A `uses:` folded onto the next line is
 read from that line. `actions-sha-pinned` judges both halves of its title: a
 floating tag is a finding, and so is a commit SHA with no version comment beside
 it — a pin nobody can read or move (a `docker://` digest needs none). Of the
