@@ -2004,6 +2004,16 @@ gates:
           A job name planted in two workflow files was counted once and covered
           by one gate in silence — now a finding naming both files (outside
           audit, 2026-08-31, reproduced).
+      - kind: mutation
+        ref: pr/150
+        date: 2026-08-31
+        caught: >-
+          A workflow or an index opening with `---` was "more than one
+          document" and the whole gate went red on a file's first line; a test
+          file under `tests/unit/` or named `*_test.py` — both collected by
+          pytest — sat outside the partition unclaimed. Six cases red on the
+          reader as it was; a second marker still refuses (self-audit,
+          2026-08-31).
 
   - id: the-box-opens-already-true
     title: A fresh install's registry passes its own check, and is not skipped as not-applicable

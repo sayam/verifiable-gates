@@ -8,6 +8,18 @@ Notable changes to this project. The format follows
 
 ### Fixed
 
+- **`gates-registry-total` reads a document that opens with `---`, and every
+  test file pytest collects.** A workflow whose first line was `---` — the
+  most common first line there is — made the shipped reader say "more than
+  one document", and a project's whole index went red for it; a test file
+  under `tests/unit/` or named `*_test.py`, both of which pytest runs on every
+  push, was outside the partition the title promises ("every test file is
+  accounted for") and never asked for a gate (self-audit, 2026-08-31, both
+  reproduced on v0.1.10). One opening marker is the document's own; a second
+  is still refused. The partition now reads what pytest collects, in every
+  directory under the tests root. Proved by mutation: six cases red on the old
+  reader (#150).
+
 - **`csp-no-inline` reads markup the way a browser does — the `=` on the next
   line, entities inside a value, a comment that never closes, and every
   template suffix.** `<button onclick` ⏎ `="go()">` is a handler to the
