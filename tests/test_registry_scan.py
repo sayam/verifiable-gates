@@ -666,3 +666,29 @@ def test_a_job_that_can_fail_is_left_alone(
 
     assert scanner.main(root) == 0
     assert capsys.readouterr().out == ""
+
+
+@pytest.mark.parametrize(
+    "trigger",
+    [
+        '"on": push',
+        "'on': push",
+        "on:\n  push:\n    branches: [main]",
+        "on: [push, pull_request]",
+        "on: push  # every push",
+    ],
+    ids=["quoted", "single-quoted", "mapping", "flow-list", "trailing-comment"],
+)
+def test_every_spelling_of_a_trigger_is_a_trigger(
+    tmp_path: pathlib.Path, capsys: pytest.CaptureFixture[str], trigger: str
+) -> None:
+    """The check for a workflow with no trigger must not invent one: a quoted key or a
+    mapping is a trigger, and reporting it as missing would be a false red on a project
+    that did nothing wrong — the failure mode this round found in other scanners."""
+    root = a_project(tmp_path, TOOTHLESS_JOB)
+    (root / ".github" / "workflows" / "ci.yml").write_text(
+        f"name: t\n{trigger}\njobs:\n  x:\n" + STEPS, encoding="utf-8"
+    )
+
+    assert scanner.main(root) == 0
+    assert capsys.readouterr().out == ""
