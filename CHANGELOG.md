@@ -8,6 +8,16 @@ Notable changes to this project. The format follows
 
 ### Fixed
 
+- **`image-digest-pinned` judges both halves of its title.** The title says
+  "pinned to a manifest-index digest and Dependabot moves it"; the scanner
+  checked the digest and delegated the mover to a gate that does not check it,
+  so a pinned image with no `docker` ecosystem in `.github/dependabot.yml` —
+  a digest nobody moves — was clean; and `FROM scratch`, the empty image with
+  nothing to pin, was a finding (self-audit, 2026-08-31, both reproduced on
+  v0.1.10). A judged Dockerfile now needs a `docker` entry in
+  `.github/dependabot.yml`, and `scratch` is not an image. Proved by mutation:
+  three cases red on the old scanner (#165).
+
 - **`adr-index-complete` reads supersessions, and every common index shape.**
   The title's last clause — "supersessions are recorded in both directions" —
   had no code behind it: a record saying `Supersedes: 0001` while 0001 said
