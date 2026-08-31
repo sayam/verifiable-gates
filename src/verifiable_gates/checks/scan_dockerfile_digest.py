@@ -51,9 +51,27 @@ NO_MOVER = (
 )
 
 
+class _UnreadableError(Exception):
+    """Bytes this scanner cannot decode. No verdict — never a clean one."""
+
+
+def _text(path: pathlib.Path) -> str:
+    """The file's text, or `_UnreadableError` naming it.
+
+    A file that is not UTF-8 made every scanner but the two AST readers die of a raw
+    `UnicodeDecodeError` and exit 1 — the code that means findings (self-audit round 3,
+    2026-09-01). A byte sequence nobody can decode is the third answer, not a verdict.
+    """
+    try:
+        return path.read_text(encoding="utf-8")
+    except UnicodeDecodeError as problem:
+        message = f"{path}: {problem}"
+        raise _UnreadableError(message) from problem
+
+
 def _nothing_moves_the_pins(root: pathlib.Path) -> bool:
     config = root / ".github" / "dependabot.yml"
-    return not (config.is_file() and DOCKER_ECOSYSTEM.search(config.read_text(encoding="utf-8")))
+    return not (config.is_file() and DOCKER_ECOSYSTEM.search(_text(config)))
 
 
 UNNAMED = (
@@ -80,7 +98,7 @@ def _unnamed(root: pathlib.Path) -> list[str]:
 
 def _unpinned(root: pathlib.Path, path: pathlib.Path) -> list[str]:
     """Every image one Dockerfile pulls in without a digest."""
-    text = path.read_text(encoding="utf-8")
+    text = _text(path)
     stages = {stage.lower() for stage in STAGE.findall(text)}
     refs = [("FROM", ref) for ref in FROM_LINE.findall(text)]
     refs += [("COPY --from", ref) for ref in COPY_FROM.findall(text)]
@@ -93,7 +111,7 @@ def _unpinned(root: pathlib.Path, path: pathlib.Path) -> list[str]:
     ]
 
 
-def main(root: pathlib.Path) -> int:
+def _judge(root: pathlib.Path) -> int:
     if not root.is_dir():
         # NA means "this project has nothing of that kind"; a root that is not
         # there has no project to say it about, and answering the second with
@@ -107,7 +125,7 @@ def main(root: pathlib.Path) -> int:
     # broken configuration, reported as a finding — an outside audit on
     # 2026-08-29 planted a `scaffold.json` pointing at a Dockerfile that did not
     # exist beside a dirty one that did, and the answer was "nothing to check".
-    config = json.loads(config_path.read_text(encoding="utf-8")) if config_path.is_file() else {}
+    config = json.loads(_text(config_path)) if config_path.is_file() else {}
     names = config.get("dockerfiles", ["Dockerfile"])
     dockerfiles = [root / n for n in names if (root / n).is_file()]
     # A name the project wrote down and does not have is judged, not skipped.
@@ -130,6 +148,15 @@ def main(root: pathlib.Path) -> int:
     for finding in findings:
         print(f"image-digest-pinned: {finding}")
     return 1 if findings else 0
+
+
+def main(root: pathlib.Path) -> int:
+    """The verdict, or the third answer when a file cannot be decoded."""
+    try:
+        return _judge(root)
+    except _UnreadableError as problem:
+        print(f"cannot read the tree: {problem}", file=sys.stderr)
+        return 2
 
 
 if __name__ == "__main__":

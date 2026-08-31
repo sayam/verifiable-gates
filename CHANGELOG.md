@@ -25,6 +25,28 @@ Notable changes to this project. The format follows
 
 ### Fixed
 
+- **Bytes that are not UTF-8 are the third answer, not a traceback.** Seven of
+  the nine shipped scanners read every file as UTF-8 and died of a raw
+  `UnicodeDecodeError` with exit 1 — the code that means *findings* — on a file
+  in any other encoding: a template with a Latin-1 accent, a Dockerfile from a
+  Windows editor, a `scaffold.json` somebody saved as cp1252 (self-audit round 3,
+  2026-09-01, all seven reproduced). Only the two AST readers had been given the
+  third answer, in #153. Six now say `cannot read the tree: <file>: …` on stderr
+  and exit 2; the registry scanner names the file on its own existing
+  "could not be read" route, because a workflow or an index it cannot parse was
+  already a finding there rather than a misuse. This is the same claim —
+  *"an input the instruments cannot read is exit 2 everywhere"* — for the third
+  time, in the readers a battery had not been pointed at. Proved by mutation:
+  ten cases red with the old scanners put back.
+
+### Changed
+
+- **The module complexity ceiling tightened from C to B.** Splitting each
+  scanner's `main` into a thin answer-or-third-answer wrapper moved every module
+  under rank B, and a ceiling reality has dropped below is a ceiling left behind:
+  `ci.yml` and the DECISIONS row `xenon-floor-at-reality` move together, which is
+  what `test_the_xenon_line_says_what_the_decisions_row_decided` is for.
+
 - **`kind` decides whether a gate is ever run, so it is held to what enforces
   it.** Changing one word on one row — `kind: test` to `kind: job`, with the
   `tests:` list left in place — took the harness from `43 pass · 11 skip` to

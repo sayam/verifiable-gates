@@ -292,6 +292,12 @@ def workflow_jobs(root: pathlib.Path) -> tuple[dict[str, list[str]], list[str], 
     for path in sorted((root / ".github" / "workflows").glob("*.y*ml")):
         try:
             workflow = load(path.read_text(encoding="utf-8"))
+        except UnicodeDecodeError as error:
+            # Bytes that are not UTF-8 died as a raw traceback and exit 1; they join the
+            # route this reader already has for a workflow it cannot read (self-audit
+            # round 3, 2026-09-01).
+            unreadable.append(f"{path.relative_to(root)}: not UTF-8 ({error.reason})")
+            continue
         except SubsetError as error:
             unreadable.append(f"{path.relative_to(root)}: {error}")
             continue
@@ -415,6 +421,8 @@ def _read_registry(registry: pathlib.Path) -> tuple[list[str], list[object]]:
     """Read the index. Unreadable or malformed is a finding, not an excuse to skip."""
     try:
         document = load(registry.read_text(encoding="utf-8"))
+    except UnicodeDecodeError as error:
+        return [f"{registry.name} could not be read — not UTF-8 ({error.reason})"], []
     except SubsetError as error:
         return [f"{registry.name} could not be read — {error}"], []
     if not isinstance(document, dict) or not isinstance(document.get("gates"), list):

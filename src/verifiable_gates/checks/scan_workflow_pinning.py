@@ -55,6 +55,24 @@ VERSION_COMMENT = re.compile(r"#\s*v?\d")
 BLOCK = re.compile(r"^[|>][-+]?$")
 
 
+class _UnreadableError(Exception):
+    """Bytes this scanner cannot decode. No verdict — never a clean one."""
+
+
+def _text(path: pathlib.Path) -> str:
+    """The file's text, or `_UnreadableError` naming it.
+
+    A file that is not UTF-8 made every scanner but the two AST readers die of a raw
+    `UnicodeDecodeError` and exit 1 — the code that means findings (self-audit round 3,
+    2026-09-01). A byte sequence nobody can decode is the third answer, not a verdict.
+    """
+    try:
+        return path.read_text(encoding="utf-8")
+    except UnicodeDecodeError as problem:
+        message = f"{path}: {problem}"
+        raise _UnreadableError(message) from problem
+
+
 def _anchors(text: str) -> dict[str, tuple[str, str]]:
     """Every scalar anchor in the file — `&name value  # comment` — by name: the value
     with quotes and tag stripped, and the rest of its line (the version comment)."""
@@ -185,7 +203,7 @@ def _followed(root: pathlib.Path, targets: list[pathlib.Path]) -> list[pathlib.P
     seen = list(targets)
     queue = list(targets)
     while queue:
-        for relative in _local_uses(queue.pop().read_text(encoding="utf-8")):
+        for relative in _local_uses(_text(queue.pop())):
             for name in ("action.yml", "action.yaml"):
                 candidate = root / relative / name
                 if candidate.is_file() and candidate not in seen:
@@ -200,7 +218,7 @@ def _pinned(ref: str) -> bool:
     return PINNED.search(ref) is not None
 
 
-def main(root: pathlib.Path) -> int:
+def _judge(root: pathlib.Path) -> int:
     if not root.is_dir():
         # NA means "this project has nothing of that kind"; a root that is not
         # there has no project to say it about, and answering the second with
@@ -212,7 +230,7 @@ def main(root: pathlib.Path) -> int:
     if not workflows:
         print("NA: no workflows or composite actions — nothing to check yet")
         return 0
-    if all(_bundles_own(path.read_text(encoding="utf-8")) for path in workflows):
+    if all(_bundles_own(_text(path)) for path in workflows):
         print(
             "NA: only the bundle's own starting workflow, untouched — nothing of yours to check yet"
         )
@@ -220,7 +238,7 @@ def main(root: pathlib.Path) -> int:
 
     findings: list[str] = []
     for path in _followed(root, workflows):
-        for ref, after in _uses_lines(path.read_text(encoding="utf-8")):
+        for ref, after in _uses_lines(_text(path)):
             if ref.startswith(LOCAL):
                 continue
             if not _pinned(ref):
@@ -231,6 +249,15 @@ def main(root: pathlib.Path) -> int:
     for finding in findings:
         print(f"actions-sha-pinned: {finding}")
     return 1 if findings else 0
+
+
+def main(root: pathlib.Path) -> int:
+    """The verdict, or the third answer when a file cannot be decoded."""
+    try:
+        return _judge(root)
+    except _UnreadableError as problem:
+        print(f"cannot read the tree: {problem}", file=sys.stderr)
+        return 2
 
 
 if __name__ == "__main__":

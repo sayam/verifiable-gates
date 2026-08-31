@@ -160,6 +160,24 @@ EVAL = re.compile(r"""(?:^|(?<=[\s;&|(]))eval\s+(?P<q>['"])(?P<text>.*?)(?P=q)""
 DEFAULT_WORD = re.compile(r"\$\{\w+:?-([^}]*)\}")
 
 
+class _UnreadableError(Exception):
+    """Bytes this scanner cannot decode. No verdict — never a clean one."""
+
+
+def _text(path: pathlib.Path) -> str:
+    """The file's text, or `_UnreadableError` naming it.
+
+    A file that is not UTF-8 made every scanner but the two AST readers die of a raw
+    `UnicodeDecodeError` and exit 1 — the code that means findings (self-audit round 3,
+    2026-09-01). A byte sequence nobody can decode is the third answer, not a verdict.
+    """
+    try:
+        return path.read_text(encoding="utf-8")
+    except UnicodeDecodeError as problem:
+        message = f"{path}: {problem}"
+        raise _UnreadableError(message) from problem
+
+
 def _as_the_shell_runs_it(line: str) -> str:
     """Text a shell will execute, written where the shell will read it."""
     line = DEFAULT_WORD.sub(r"\1", line)
@@ -275,7 +293,7 @@ def _followed(root: pathlib.Path, targets: list[pathlib.Path]) -> list[pathlib.P
     seen = list(targets)
     queue = list(targets)
     while queue:
-        for relative in _local_uses(queue.pop().read_text(encoding="utf-8")):
+        for relative in _local_uses(_text(queue.pop())):
             for name in ("action.yml", "action.yaml"):
                 candidate = root / relative / name
                 if candidate.is_file() and candidate not in seen:
@@ -538,7 +556,7 @@ def _run_lines(text: str) -> list[str]:
 
 
 def _commands(path: pathlib.Path) -> list[str]:
-    text = path.read_text(encoding="utf-8")
+    text = _text(path)
     joined, buffer = [], ""
     for raw in _run_lines(text) if path.suffix in YAML else text.splitlines():
         if raw.lstrip().startswith("#"):
@@ -556,7 +574,7 @@ def _commands(path: pathlib.Path) -> list[str]:
 
 def _nothing_of_yours(targets: list[pathlib.Path]) -> bool:
     """Every file read is the bundle's untouched starting workflow — said as NA."""
-    if not all(_bundles_own(path.read_text(encoding="utf-8")) for path in targets):
+    if not all(_bundles_own(_text(path)) for path in targets):
         return False
     print("NA: only the bundle's own starting workflow, untouched — nothing of yours to check yet")
     return True
@@ -649,7 +667,7 @@ def _line_findings(where: pathlib.Path, line: str, stands_in: pathlib.Path) -> l
     return found
 
 
-def main(root: pathlib.Path) -> int:
+def _judge(root: pathlib.Path) -> int:
     if not root.is_dir():
         # NA means "this project has nothing of that kind"; a root that is not
         # there has no project to say it about, and answering the second with
@@ -678,6 +696,15 @@ def main(root: pathlib.Path) -> int:
     for finding in findings:
         print(f"ci-tools-hash-pinned: {finding}")
     return 1 if findings else 0
+
+
+def main(root: pathlib.Path) -> int:
+    """The verdict, or the third answer when a file cannot be decoded."""
+    try:
+        return _judge(root)
+    except _UnreadableError as problem:
+        print(f"cannot read the tree: {problem}", file=sys.stderr)
+        return 2
 
 
 if __name__ == "__main__":
