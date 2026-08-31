@@ -110,10 +110,40 @@ TAKES_A_VALUE = frozenset(
 # those executes for real, and a scanner that read only the outer command let
 # `$(pip install ruff)` and `sh -c "pip install ruff"` through (outside audit,
 # 2026-08-31). Each boundary starts a new command to judge.
-CHAIN = re.compile(r"\s*(?:&&|\|\||;|\|)\s*|\$\(|`|(?<!\S)\(|\s-c\s+[\"']")
+# `-c` may be folded into other flags (`bash -lc`, `sh -ec`), a lone `&` ends a
+# command as surely as `&&`, and `os.system('pip install ruff')` is a string handed
+# to a shell from inside `python -c` — each was a hiding place (self-audit,
+# 2026-08-31, all exited 0).
+CHAIN = re.compile(
+    r"\s*(?:&&|\|\||;|\||&)\s*|\$\(|`|(?<!\S)\("
+    r"|(?:(?:ba|z|da|k)?sh|python(?:3(?:\.\d+)?)?)\s+-[A-Za-z]*c\s+[\"']|(?<=\w)\(\s*[\"']"
+)
+# `then pip install …` is `pip install …` to the shell: a keyword opens the command.
+KEYWORD = re.compile(r"^\s*(?:then|do|else|elif|if|while|until|!|\{)\s+")
 # A command that only *says* the words — `echo pip install ruff` — installs
 # nothing: the shell runs `echo`. It was a finding (outside audit, 2026-08-31).
 PROSE = frozenset({"echo", "printf"})
+# …unless the words are handed to a shell: `echo "pip install ruff" | bash`,
+# `bash <<< "pip install ruff"` and `eval "pip install ruff"` all run them, and
+# all three were green (self-audit, 2026-08-31). The text is read as the command
+# it becomes. `${PIP:-pip} install ruff` runs `pip` when `PIP` is unset — the
+# default is read as the word.
+SHELL = r"(?:ba|z|da|k)?sh"
+PIPED_TO_SHELL = re.compile(
+    rf"""(?:^|(?<=[;&|(]))\s*(?:echo|printf)\s+(?P<q>['"]?)(?P<text>.*?)(?P=q)\s*\|\s*{SHELL}\b[^|;&]*"""
+)
+HERE_STRING = re.compile(rf"""{SHELL}\s*<<<\s*(?P<q>['"])(?P<text>.*?)(?P=q)""")
+EVAL = re.compile(r"""(?:^|(?<=[\s;&|(]))eval\s+(?P<q>['"])(?P<text>.*?)(?P=q)""")
+DEFAULT_WORD = re.compile(r"\$\{\w+:?-([^}]*)\}")
+
+
+def _as_the_shell_runs_it(line: str) -> str:
+    """Text a shell will execute, written where the shell will read it."""
+    line = DEFAULT_WORD.sub(r"\1", line)
+    line = PIPED_TO_SHELL.sub(lambda m: m.group("text"), line)
+    line = HERE_STRING.sub(lambda m: m.group("text"), line)
+    return EVAL.sub(lambda m: m.group("text"), line)
+
 
 # The bundle's own starting workflow, as `install.py` writes `ci-template.yml`:
 # one pinned checkout and one run of the doctor. A tree where every workflow is
@@ -265,14 +295,17 @@ def _installs_from_an_index(command: str) -> bool:
 
 
 def _without_comment(line: str) -> str:
-    """The line up to its first `#` outside quotes — a `#` inside quotes is text."""
+    """The line up to its first `#` outside quotes — a `#` inside quotes is text, and so
+    is one inside a word: `$#`, `${#PKGS}` and `\\#` are what the shell reads them as,
+    not comments (self-audit, 2026-08-31: `if [ $# -gt 0 ]; then pip install …` was
+    cut to `if [` and passed)."""
     quote = ""
     for index, char in enumerate(line):
         if quote:
             quote = "" if char == quote else quote
         elif char in "\"'":
             quote = char
-        elif char == "#":
+        elif char == "#" and (index == 0 or line[index - 1].isspace()):
             return line[:index]
     return line
 
@@ -286,10 +319,15 @@ def _without_comment(line: str) -> str:
 # A script is one by its `.sh`/`.bash` name, or — `./scripts/setup`, `bash
 # scripts/setup` — by a shell shebang on its first line: the name was the only
 # test until an outside audit on 2026-08-30 planted an extensionless one.
+# The path may be quoted, and it is relative to wherever the shell stands: a `cd dir`
+# earlier on the line, or the step's `working-directory:` — `cd scripts && ./setup.sh`
+# and the same script under `working-directory: scripts` were both unread
+# (self-audit, 2026-08-31).
 SCRIPT = re.compile(
-    r"(?:^|[\s;&|(])(?:(?:bash|sh|source|\.)\s+(?P<run>[\w./-]+)"
-    r"|(?P<own>\./[\w./-]+)|(?P<named>[\w./-]+\.(?:sh|bash)))(?=[\s;&|)]|$)"
+    r"(?:^|[\s;&|(])(?:(?:bash|sh|source|\.)\s+[\"']?(?P<run>[\w./-]+)[\"']?"
+    r"|[\"']?(?P<own>\./[\w./-]+)[\"']?|[\"']?(?P<named>[\w./-]+\.(?:sh|bash))[\"']?)(?=[\s;&|)]|$)"
 )
+CD = re.compile(r"^\s*cd\s+[\"']?(?P<dir>[\w./-]+)[\"']?\s*$")
 SHEBANG = re.compile(r"^#!.*\b(?:ba|z|da|k)?sh\b")
 
 
@@ -302,12 +340,19 @@ def _is_shell_script(path: pathlib.Path) -> bool:
 
 
 def _scripts_named(root: pathlib.Path, path: pathlib.Path) -> list[pathlib.Path]:
-    """The shell scripts in the checkout that one read file hands off to."""
-    named = [
-        pathlib.PurePosixPath(match.group("run") or match.group("own") or match.group("named"))
-        for line in _commands(path)
-        for match in SCRIPT.finditer(line)
-    ]
+    """The shell scripts in the checkout that one read file hands off to, each resolved
+    from where the shell stands when it names it."""
+    named: list[pathlib.PurePosixPath] = []
+    for line in _commands(path):
+        cwd = pathlib.PurePosixPath()
+        for part in CHAIN.split(line):
+            if moved := CD.match(part):
+                cwd = cwd / moved.group("dir")
+                continue
+            named += [
+                cwd / (match.group("run") or match.group("own") or match.group("named"))
+                for match in SCRIPT.finditer(part)
+            ]
     return [
         root / name
         for name in named
@@ -345,6 +390,7 @@ def _with_scripts(root: pathlib.Path, targets: list[pathlib.Path]) -> list[pathl
 # newlines. Every one of these shapes was unread or misread here (self-audit,
 # 2026-08-31: `run: *cmd`, `"run":` and a folded `pip`⏎`install ruff` all exited 0).
 RUN = re.compile(r"""^(\s*-?\s*)["']?run["']?\s*:\s*(.*?)\s*$""")
+WORKING_DIRECTORY = re.compile(r"""^(\s*-?\s*)["']?working-directory["']?\s*:\s*(.+?)\s*$""")
 FLOW_RUN = re.compile(r"""\{[^{}]*?\b["']?run["']?\s*:\s*([^,}]*)""")
 YAML = {".yml", ".yaml"}
 
@@ -370,8 +416,31 @@ def _folded(lines: list[str]) -> list[str]:
     return joined
 
 
+def _working_directory(lines: list[str], at: int, column: int) -> str:
+    """The `working-directory:` of the step whose `run:` key sits at `column` on line
+    `at` — a sibling key at the same column, inside the same list item."""
+    marker = column - 2
+    first = at
+    while first > 0 and not (
+        lines[first].lstrip().startswith("- ")
+        and len(lines[first]) - len(lines[first].lstrip()) == marker
+    ):
+        first -= 1
+    last = at + 1
+    while last < len(lines) and (
+        not lines[last].strip() or len(lines[last]) - len(lines[last].lstrip()) > marker
+    ):
+        last += 1
+    for line in lines[first:last]:
+        sibling = WORKING_DIRECTORY.match(line)
+        if sibling and len(sibling.group(1)) == column:
+            return _unquoted(sibling.group(2))
+    return ""
+
+
 def _run_lines(text: str) -> list[str]:
-    """The lines a workflow or action hands to the shell: each `run:` value or block."""
+    """The lines a workflow or action hands to the shell: each `run:` value or block,
+    standing in the step's `working-directory:` when it names one."""
     lines = text.splitlines()
     anchors = _anchors(text)
     found: list[str] = []
@@ -386,6 +455,8 @@ def _run_lines(text: str) -> list[str]:
         if not match:
             continue
         indent, value = len(match.group(1)), match.group(2)
+        stands_in = _working_directory(lines, index - 1, indent)
+        prefix = f"cd {stands_in} && " if stands_in else ""
         # A block's lines, or a plain value's continuation lines: past the key's own column
         # — a sibling `env:` or `name:` of a `- run:` item sits at that column, not past it.
         rest: list[str] = []
@@ -395,11 +466,12 @@ def _run_lines(text: str) -> list[str]:
             rest.append(lines[index])
             index += 1
         if value.startswith("|"):
-            found += rest
+            found += [prefix + line.lstrip() if prefix else line for line in rest]
         elif BLOCK.match(value):
-            found += _folded(rest)
+            found += [prefix + line for line in _folded(rest)]
         else:
-            found.append(_resolved(_unquoted(" ".join(_folded([value, *rest]))), anchors))
+            joined = _resolved(_unquoted(" ".join(_folded([value, *rest]))), anchors)
+            found.append(prefix + joined)
     return found
 
 
@@ -447,6 +519,8 @@ def _pip_requires_hashes(command: str) -> bool:
 def _line_findings(where: pathlib.Path, line: str) -> list[str]:
     """Everything one command does that reaches an index unpinned."""
     found: list[str] = []
+    while KEYWORD.match(line):
+        line = KEYWORD.sub("", line, count=1)
     words = line.split()
     if words and words[0] in PROSE:
         return found
@@ -482,8 +556,9 @@ def main(root: pathlib.Path) -> int:
     for path in _with_scripts(root, _followed(root, targets)):
         # One `run:` line can chain several commands; each is judged on its own,
         # or the second hides behind the first's exemption.
-        for line in (part for joined in _commands(path) for part in CHAIN.split(joined)):
-            findings += _line_findings(path.relative_to(root), line)
+        for joined in _commands(path):
+            for line in CHAIN.split(_as_the_shell_runs_it(joined)):
+                findings += _line_findings(path.relative_to(root), line)
 
     for finding in findings:
         print(f"ci-tools-hash-pinned: {finding}")

@@ -8,6 +8,23 @@ Notable changes to this project. The format follows
 
 ### Fixed
 
+- **Text a shell will run is read as the command it becomes, and a script is
+  followed from where the shell stands.** `bash -lc "pip install ruff"` (the
+  `-c` folded into other flags), `echo "pip install ruff" | bash`, a here-string,
+  `eval "…"`, `echo preparing & pip install ruff` (a lone `&`), `echo \#1 && pip
+  install ruff` (an escaped `#` read as a comment), `${PIP:-pip} install ruff`, a
+  string inside `python -c "… os.system('pip install ruff')"`, and `if [ $# -gt 0
+  ]; then pip install …` in a script (cut at the `#`) all execute the install
+  and all exited 0; `bash "scripts/setup.sh"`, `cd scripts && ./setup.sh` and
+  `./setup.sh` under `working-directory: scripts` were not followed into the
+  script (self-audit, 2026-08-31, every case reproduced on v0.1.10). A `#` is a
+  comment only at the start of a word; `-c` counts after a shell or `python`
+  only, so `grep -c "pip install ruff"` — a finding before — is prose; a script
+  path resolves from the `cd` before it or the step's `working-directory:`, and
+  another step's directory does not move this one. Proved by mutation: eighteen
+  cases red on the old scanner — sixteen installs unread and two look-alikes
+  that were findings (#148).
+
 - **A YAML shape the platform reads is read by both pinning scanners — alias,
   quoted key, tag, and a scalar continued over lines.** `run: *cmd` with the
   anchor set anywhere else in the file, `"run":`, `!!str pip install ruff`, and

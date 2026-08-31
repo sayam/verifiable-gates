@@ -1771,6 +1771,18 @@ gates:
           split over two lines holds the clean direction either way
           (self-audit, 2026-08-31).
       - kind: mutation
+        ref: pr/148
+        date: 2026-08-31
+        caught: >-
+          Eighteen cases red on the scanner as it was — an install behind
+          `bash -lc`, piped or here-stringed into a shell, under `eval`, after a
+          lone `&` or an escaped `#`, behind a `${PIP:-pip}` default or inside a
+          string handed to `os.system`, after `$#` in a script, and a script
+          named in quotes, after `cd dir &&` or under `working-directory:` (all
+          green before); `grep -c "pip install ruff"` and a clean script
+          resolved from the wrong directory were findings before and are clean
+          now (self-audit, 2026-08-31).
+      - kind: mutation
         ref: pr/138
         date: 2026-08-31
         caught: >-

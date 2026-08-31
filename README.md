@@ -97,11 +97,16 @@ file says nothing about the project.
 `actions-sha-pinned` read every workflow, every composite action a workflow names
 with `uses: ./<path>` wherever it lives, folded or not, and — for installs — every
 shell script a `run:` line hands off to, known by its `.sh` name or by its shebang,
-with comments stripped first. In a workflow only what `run:` executes is judged —
+quoted or not, from wherever the shell stands (a `cd dir &&` before it, or the
+step's `working-directory:`), with comments stripped first — a `#` inside a word
+(`$#`, `${#PKGS}`, `\#`) is not one. In a workflow only what `run:` executes is judged —
 a `name:` or an `env:` that quotes the command is prose — and `--require-hashes`
 counts only as an argument of the install itself. A command inside `$( )`,
-backticks, a `( )` subshell or an `sh -c` string executes and is judged; a bare
-`echo` of the words is prose. The YAML shapes `uses :` and `- {uses: …}` are
+backticks, a `( )` subshell, an `sh -c` string (`-c` folded into other flags
+too — `bash -lc`), a string `python -c` hands to `os.system`, or after a lone `&`
+executes and is judged; a bare `echo` of the words is prose — unless a shell is
+handed the words, by a pipe (`echo … | bash`), a here-string or `eval`, and a
+`${PIP:-pip}` default is read as the word. The YAML shapes `uses :` and `- {uses: …}` are
 read the way the platform reads them — and so are a quoted key (`"run":`), an
 alias of an anchor set anywhere in the file (`run: *cmd`, `uses: *co`, with the
 anchor's version comment), a tagged value (`!!str`), and a plain, quoted or
@@ -197,10 +202,10 @@ repo นี้เผยแพร่ ส่วน `gates.yaml` คือสิ่
 ตั้งต้นที่ตัวติดตั้งเขียนให้เป็น `NA` สำหรับตัวตรวจ pin ทั้งสองจนกว่าจะมีบรรทัดถูกแก้ —
 เขียวบนไฟล์ของบันเดิลเองไม่ได้บอกอะไรเกี่ยวกับโปรเจกต์ · ตัวตรวจ pin อ่าน workflow ทุกไฟล์
 composite action ที่ `uses: ./<path>` ชี้ไม่ว่าอยู่ที่ไหนหรือพับบรรทัดอย่างไร และเชลล์สคริปต์ที่ `run:`
-เรียกต่อ ไม่ว่าจะรู้จากชื่อ `.sh` หรือจาก shebang โดยตัดคอมเมนต์ก่อน · ใน workflow ตัดสินเฉพาะสิ่งที่
+เรียกต่อ ไม่ว่าจะรู้จากชื่อ `.sh` หรือจาก shebang ใส่เครื่องหมายคำพูดหรือไม่ก็ตาม จากที่ที่เชลล์ยืนอยู่ (`cd dir &&` ก่อนหน้า หรือ `working-directory:` ของ step) โดยตัดคอมเมนต์ก่อน — `#` ที่อยู่ในคำ (`$#`, `${#PKGS}`, `\#`) ไม่ใช่คอมเมนต์ · ใน workflow ตัดสินเฉพาะสิ่งที่
 `run:` รันจริง (`name:` หรือ `env:` ที่ยกคำสั่งมาพูดถึงเป็นแค่ข้อความ) และ `--require-hashes` นับเมื่อเป็น
-อาร์กิวเมนต์ของคำสั่งติดตั้งเองเท่านั้น · คำสั่งใน `$( )` backtick subshell หรือสตริงของ `sh -c` รันจริงจึงถูกตัดสิน
-ส่วน `echo` ที่แค่พูดคำนั้นเป็นข้อความ · รูป YAML `uses :` และ `- {uses: …}` ถูกอ่านแบบเดียวกับที่แพลตฟอร์มอ่าน — เช่นเดียวกับคีย์ในเครื่องหมายคำพูด (`"run":`) alias ของ anchor ที่ตั้งไว้ที่ใดก็ได้ในไฟล์ (`run: *cmd`, `uses: *co` พร้อม comment เวอร์ชันของ anchor) ค่าที่มี tag (`!!str`) และ scalar แบบ plain quoted หรือ folded (`>`) ที่ต่อลงบรรทัดถัดไป ซึ่ง YAML เชื่อมด้วยช่องว่างก่อนถึงเชลล์ · มีแต่ literal block (`|`) ที่คงบรรทัดแยกกัน และ `uses` ใต้ `with:` เป็น input ไม่ใช่ step · `actions-sha-pinned` ตัดสินทั้งสองครึ่งของชื่อกฎ: tag ลอยเป็น finding และ
+อาร์กิวเมนต์ของคำสั่งติดตั้งเองเท่านั้น · คำสั่งใน `$( )` backtick subshell สตริงของ `sh -c` (รวม `-c` ที่พับกับ flag อื่นเช่น `bash -lc`) สตริงที่ `python -c` ส่งให้ `os.system` หรือหลัง `&` เดี่ยว รันจริงจึงถูกตัดสิน
+ส่วน `echo` ที่แค่พูดคำนั้นเป็นข้อความ — เว้นแต่คำนั้นถูกส่งให้เชลล์ผ่าน pipe (`echo … | bash`) here-string หรือ `eval` และค่าเริ่มต้นของ `${PIP:-pip}` ถูกอ่านเป็นคำนั้น · รูป YAML `uses :` และ `- {uses: …}` ถูกอ่านแบบเดียวกับที่แพลตฟอร์มอ่าน — เช่นเดียวกับคีย์ในเครื่องหมายคำพูด (`"run":`) alias ของ anchor ที่ตั้งไว้ที่ใดก็ได้ในไฟล์ (`run: *cmd`, `uses: *co` พร้อม comment เวอร์ชันของ anchor) ค่าที่มี tag (`!!str`) และ scalar แบบ plain quoted หรือ folded (`>`) ที่ต่อลงบรรทัดถัดไป ซึ่ง YAML เชื่อมด้วยช่องว่างก่อนถึงเชลล์ · มีแต่ literal block (`|`) ที่คงบรรทัดแยกกัน และ `uses` ใต้ `with:` เป็น input ไม่ใช่ step · `actions-sha-pinned` ตัดสินทั้งสองครึ่งของชื่อกฎ: tag ลอยเป็น finding และ
 commit SHA ที่ไม่มี comment บอกเวอร์ชันข้าง ๆ ก็เป็น finding (digest ของ `docker://` ไม่ต้องมี) ·
 `adr-index-complete` รายงานบันทึกสองฉบับที่ใช้เลขเดียวกันเช่นเดียวกับเลขที่ขาด · `csp-no-inline` อ่าน
 `ONCLICK=` `STYLE=` และ `<style>` แบบไม่สนตัวพิมพ์และไม่สนการตัดบรรทัด เหมือนที่เบราว์เซอร์อ่าน
