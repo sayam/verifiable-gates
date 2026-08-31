@@ -8,6 +8,16 @@ Notable changes to this project. The format follows
 
 ### Fixed
 
+- **`delete-means-soft-delete` reads code, not prose.** A docstring saying
+  "never call `session.delete(` here" was a finding, and `db_session.delete(user)`
+  — SQLAlchemy's own `scoped_session` name — was not, because a word boundary
+  stood between `db_` and `session` (self-audit, 2026-08-31, both reproduced
+  on v0.1.10). Comments and string literals are blanked with `tokenize` before
+  the match, a file Python cannot tokenize is read as written, and the session
+  may carry a prefix. The match stays textual, as DECISIONS
+  `write-scanner-reads-session-delete` scopes it. Proved by mutation: five
+  cases red on the old scanner (#151).
+
 - **`gates-registry-total` reads a document that opens with `---`, and every
   test file pytest collects.** A workflow whose first line was `---` — the
   most common first line there is — made the shipped reader say "more than

@@ -1704,3 +1704,49 @@ def test_what_the_browser_never_runs_is_clean(
     the unclosed comment was a finding)."""
     assert scan_templates_inline.main(build(tmp_path, {"app/templates/p.html": text})) == 0
     assert capsys.readouterr().out == ""
+
+
+@pytest.mark.parametrize(
+    "source",
+    [
+        "db_session.delete(user)\n",
+        "self.session.delete(user)\n",
+        "session.delete(user)  # soft delete lives elsewhere\n",
+    ],
+    ids=["db_session", "self.session", "with-a-trailing-comment"],
+)
+def test_a_session_by_any_prefix_deleting_is_a_finding(
+    tmp_path: pathlib.Path, capsys: pytest.CaptureFixture[str], source: str
+) -> None:
+    """`db_session` is SQLAlchemy's own `scoped_session` name and was unseen behind a
+    word boundary (self-audit, 2026-08-31)."""
+    assert scan_write_discipline.main(build(tmp_path, {"app/models.py": source})) == 1
+    assert "app/models.py:1" in capsys.readouterr().out
+
+
+@pytest.mark.parametrize(
+    "source",
+    [
+        '"""Never call session.delete( here — use soft delete."""\n',
+        "# session.delete(user) would remove the row for real\n",
+        'note = "session.delete( is forbidden"\n',
+        "x = 1  # synchronize_session is a bulk-delete flag\n",
+        'sql = f"""\nDELETE via session.delete( is not allowed\n"""\n',
+    ],
+    ids=["docstring", "comment", "string", "comment-naming-the-flag", "multi-line-string"],
+)
+def test_the_words_in_prose_are_not_a_delete(
+    tmp_path: pathlib.Path, capsys: pytest.CaptureFixture[str], source: str
+) -> None:
+    """A docstring, a comment or a string literal explains; it does not delete (self-audit,
+    2026-08-31: the docstring was a finding)."""
+    assert scan_write_discipline.main(build(tmp_path, {"app/models.py": source})) == 0
+    assert capsys.readouterr().out == ""
+
+
+def test_a_file_python_cannot_tokenize_is_read_as_written(
+    tmp_path: pathlib.Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    source = 'x = "unclosed\nsession.delete(user)\n'
+    assert scan_write_discipline.main(build(tmp_path, {"app/models.py": source})) == 1
+    assert "app/models.py:2" in capsys.readouterr().out
