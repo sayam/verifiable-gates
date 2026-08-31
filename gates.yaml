@@ -2223,6 +2223,15 @@ gates:
           beside it had answered an unreadable manifest with exit 2 since
           #154 while the doctor died of a traceback on the same three shapes
           (self-audit round 2, 2026-08-31).
+      - kind: mutation
+        ref: pr/181
+        date: 2026-09-01
+        caught: >-
+          The record put back — a scanner whose body was replaced with
+          `return 0` passed "arrived intact" and its gate then read [ pass]
+          on a violating tree; a file installed and gone, a missing record
+          and an unreadable one were all green. Five cases red now (self-
+          audit round 4, 2026-09-01).
 
   - id: the-manifest-is-an-input
     title: The manifest is validated as data, and a rule the bundle cannot decide cannot carry a script
