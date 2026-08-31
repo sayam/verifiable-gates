@@ -165,7 +165,11 @@ def main(argv: list[str] | None = None) -> int:
 
     failures: list[tuple[str | None, str, str]] = []
     if args.msg_file:
-        message = pathlib.Path(args.msg_file).read_text(encoding="utf-8")
+        try:
+            message = pathlib.Path(args.msg_file).read_text(encoding="utf-8")
+        except OSError as unreadable:
+            print(f"cannot read the message file: {args.msg_file}: {unreadable}", file=sys.stderr)
+            return 2
         title = message.splitlines()[0]
         failures.extend((None, title, problem) for problem in check_title(title))
         failures.extend((None, title, problem) for problem in check_sign_off(message))

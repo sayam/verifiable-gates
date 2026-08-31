@@ -125,7 +125,11 @@ def main(argv: list[str] | None = None) -> int:
             return 2
         labels = (parts[0], parts[1], parts[2])
 
-    preamble = pathlib.Path(args.preamble).read_text(encoding="utf-8")
+    try:
+        preamble = pathlib.Path(args.preamble).read_text(encoding="utf-8")
+    except OSError as problem:
+        print(f"cannot read the preamble: {args.preamble}: {problem}", file=sys.stderr)
+        return 2
     fresh = render(rules, preamble, args.layer, args.language, labels)
 
     out = pathlib.Path(args.out)

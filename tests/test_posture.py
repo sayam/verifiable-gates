@@ -765,3 +765,22 @@ def test_contributing_counts_the_required_checks_the_register_requires() -> None
     said = re.search(r"the (\w+) required checks", text)
     assert said, "CONTRIBUTING no longer counts the required checks"
     assert said.group(1) == own_numbers.as_word(len(required)), (said.group(0), len(required))
+
+
+@pytest.mark.parametrize(
+    ("body", "why"),
+    [("not json", "unparsable"), ("[]", "a list, not a register"), (None, "not there")],
+    ids=["unparsable", "wrong-shape", "missing"],
+)
+def test_a_declared_register_this_reader_cannot_read_is_a_misuse(
+    tmp_path: pathlib.Path, capsys: pytest.CaptureFixture[str], body: str | None, why: str
+) -> None:
+    """The register is a committed file the weekly job reads, and a bad merge makes it
+    unreadable. It died of a traceback and exit 1 — the code that means findings —
+    while every other unreadable input here is exit 2 (round 2, 2026-08-31)."""
+    register = tmp_path / "declared.json"
+    if body is not None:
+        register.write_text(body, encoding="utf-8")
+
+    assert posture.main(["--settings", str(register), "--root", str(tmp_path)]) == 2, why
+    assert "cannot read the declared settings" in capsys.readouterr().err

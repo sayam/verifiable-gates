@@ -367,7 +367,15 @@ def blind(
 
 def _settings(register: pathlib.Path, root: pathlib.Path) -> int:
     """The settings mode: read the platform, hold it to the register, print, return the code."""
-    branch, wanted, excused = declared(register)
+    try:
+        branch, wanted, excused = declared(register)
+    except (OSError, ValueError, TypeError, KeyError, AttributeError) as problem:
+        # The register is a committed file this job reads every week; a bad merge
+        # made it a traceback and exit 1 — the code that means findings — while
+        # every other unreadable input in this package is "cannot read" and exit 2
+        # (round 2 of the self-audit, 2026-08-31).
+        print(f"cannot read the declared settings: {register}: {problem}", file=sys.stderr)
+        return 2
     try:
         state, required = platform_state(branch)
     except (PermissionError, RuntimeError) as problem:

@@ -440,3 +440,12 @@ def test_every_dependabot_prefix_is_a_type_the_gate_accepts() -> None:
             f"{update['package-ecosystem']}: prefix {prefix!r} is not a type commit-lint accepts"
         )
         assert lint_commits.check_title(f"{prefix}(deps): bump x from 1.0 to 1.1") == []
+
+
+def test_a_message_file_that_is_not_there_is_a_misuse(
+    tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """The hook is handed a path by git; pointed at one that is not there it died of a
+    traceback and exit 1 — the code that means the message is bad (round 2, 2026-08-31)."""
+    assert run(monkeypatch, ["--msg-file", str(tmp_path / "COMMIT_EDITMSG")]) == 2
+    assert "cannot read the message file" in capsys.readouterr().err

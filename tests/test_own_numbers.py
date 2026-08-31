@@ -214,3 +214,12 @@ def test_write_patches_the_about_field_in_place(monkeypatch: pytest.MonkeyPatch)
         "description=A catalogue of 93 production-discipline rules — latest v0.1.1, "
         "archived under a DOI."
     )
+
+
+def test_a_root_that_is_not_a_checkout_is_a_misuse(
+    tmp_path: pathlib.Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """Pointed at a directory that is not there, this reader died of a traceback and
+    exit 1 — the code that means the numbers disagree (round 2, 2026-08-31)."""
+    assert own_numbers.main(["--root", str(tmp_path / "not-a-checkout")]) == 2
+    assert "cannot read the checkout" in capsys.readouterr().err

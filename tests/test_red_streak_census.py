@@ -483,3 +483,12 @@ def test_a_stamp_that_is_not_a_timestamp_is_unreadable(
     )
     assert census.main(["--root", str(tmp_path), "--input", str(runs)]) == 2
     assert "cannot read the run history" in capsys.readouterr().err
+
+
+def test_a_root_that_is_not_there_is_a_misuse(
+    tmp_path: pathlib.Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """`--input` was given this answer in round 1 and `--root` was not: a root that does
+    not exist was a traceback and exit 1 (round 2, 2026-08-31)."""
+    assert census.main(["--root", str(tmp_path / "not-there")]) == 2
+    assert "cannot read the registry or the workflows" in capsys.readouterr().err

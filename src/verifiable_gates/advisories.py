@@ -191,9 +191,16 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--register", required=True, help="accepted advisories, one id per line")
     args = parser.parse_args(argv)
 
-    report = json.loads(pathlib.Path(args.report).read_text(encoding="utf-8"))
-    found = READERS[args.kind](report)
-    register = accepted(pathlib.Path(args.register))
+    try:
+        report = json.loads(pathlib.Path(args.report).read_text(encoding="utf-8"))
+        found = READERS[args.kind](report)
+        register = accepted(pathlib.Path(args.register))
+    except (OSError, ValueError, TypeError, KeyError, AttributeError) as problem:
+        # A scanner that dies mid-run leaves half a report behind, and the register
+        # is a file somebody edits by hand; both were a traceback and exit 1
+        # (round 2 of the self-audit, 2026-08-31).
+        print(f"cannot read the report or the register: {problem}", file=sys.stderr)
+        return 2
     lines = problems(found, register)
     for line in lines:
         print(line, file=sys.stderr)

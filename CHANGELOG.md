@@ -8,6 +8,22 @@ Notable changes to this project. The format follows
 
 ### Fixed
 
+- **An input the instruments cannot read is exit 2 — in the seven places that
+  were still a traceback.** Round 1 wrote the rule as a universal ("exit 2
+  everywhere — not a traceback"), and fixed the censuses, the installer, the
+  AST scanners and `zenodo`; seven other entry points still died with a raw
+  traceback and exit 1, the code that means *findings* (self-audit round 2,
+  2026-08-31, each reproduced on `685be4f`). `posture --settings` reads a
+  committed register every week, `advisories --report` reads a file `pip-audit`
+  leaves half-written when it dies, `gates_doctor --manifest` ships with the
+  bundle beside an installer that already answered this way, `own_numbers
+  --root` and `red_streak_census --root` were handed a tree that is not there —
+  the census's own `--input` had been guarded and its `--root` had not — and
+  `lint_commits --msg-file` and `skill --preamble` were handed a path that does
+  not exist. Each now names what it could not read, on stderr, and exits 2,
+  which the doctor reports as `[error]`. Proved by mutation: fourteen cases red
+  with the old readers put back one at a time.
+
 - **A wheel is a local file by any path.** `pip install --no-deps dist/*.whl`
   — the wheel a job just built, named without `./` — was "from an index"
   because a local target had to start with `.` or `/` (self-audit round 2,
