@@ -692,3 +692,35 @@ def test_every_spelling_of_a_trigger_is_a_trigger(
 
     assert scanner.main(root) == 0
     assert capsys.readouterr().out == ""
+
+
+def test_a_workflow_it_may_not_read_is_named(
+    tmp_path: pathlib.Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """The route this reader already had for a workflow it cannot parse now takes one it
+    is not allowed to open, instead of a raw `PermissionError` (round 5, 2026-09-01)."""
+    root = a_project(tmp_path, TOOTHLESS_JOB)
+    workflow = root / ".github" / "workflows" / "ci.yml"
+    workflow.chmod(0o000)
+
+    try:
+        assert scanner.main(root) == 1
+    finally:
+        workflow.chmod(0o644)
+
+    assert "could not be read" in capsys.readouterr().out
+
+
+def test_a_registry_it_may_not_read_is_named(
+    tmp_path: pathlib.Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """And the index itself, on the same route."""
+    root = a_project(tmp_path, TOOTHLESS_JOB)
+    (root / "gates.yaml").chmod(0o000)
+
+    try:
+        assert scanner.main(root) == 1
+    finally:
+        (root / "gates.yaml").chmod(0o644)
+
+    assert "could not be read" in capsys.readouterr().out

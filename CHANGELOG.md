@@ -25,6 +25,19 @@ Notable changes to this project. The format follows
 
 ### Fixed
 
+- **A file we are not allowed to read is the third answer too.** The decode guard
+  that round 3 gave the scanners was written for the exception that was in hand —
+  `UnicodeDecodeError` — and a file the scanner may not *open* went on being a raw
+  `PermissionError` and exit 1 in all nine (self-audit round 5, 2026-09-01: a
+  mode nobody intended, a checkout restored by a backup tool, a path that turned
+  into a directory between the glob and the read). The guards now catch `OSError`
+  beside the decode error: six scanners say `cannot read the tree: …` and exit 2,
+  and `scan_gates_registry` names the file on the route it already had for an
+  index or a workflow it cannot read. This is the third time one round has had to
+  widen its own fix, and the reason is the same each time: the guard was written
+  against an exception rather than against the question. Proved by mutation: nine
+  cases red with the old guards put back.
+
 - **What the instruments say when they cannot *write*.** Four rounds asked what
   they say when they cannot *read*; nobody had asked the other direction, and the
   answer was a raw traceback and exit 1 in every case (self-audit round 5,

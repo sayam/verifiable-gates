@@ -308,6 +308,44 @@ def _toothless(workflow: dict[str, Any], job: dict[str, Any]) -> str:
     return ""
 
 
+def _read_workflow(
+    path: pathlib.Path, root: pathlib.Path
+) -> tuple[dict[str, Any] | None, str]:
+    """One workflow, or the sentence saying why it could not be read.
+
+    Three ways of not being readable, and each was a raw traceback once: bytes that are
+    not UTF-8 (round 3), a file this scanner may not open (round 5), and a document the
+    subset reader refuses. They all take the route this reader already had.
+    """
+    try:
+        workflow = load(path.read_text(encoding="utf-8"))
+    except UnicodeDecodeError as error:
+        return None, f"{path.relative_to(root)}: not UTF-8 ({error.reason})"
+    except OSError as error:
+        return None, f"{path.relative_to(root)}: {error.strerror or error}"
+    except SubsetError as error:
+        return None, f"{path.relative_to(root)}: {error}"
+    if not isinstance(workflow, dict):
+        return None, f"{path.relative_to(root)}: not a mapping"
+    return workflow, ""
+
+
+def _teeth(
+    workflow: dict[str, Any], name: str, job: object, steps: list[object]
+) -> dict[str, str]:
+    """What cannot fail here: the job itself, and any step a step gate could name."""
+    found: dict[str, str] = {}
+    why = _toothless(workflow, job) if isinstance(job, dict) else ""
+    if why:
+        found[name] = why
+    for step in steps:
+        if isinstance(step, dict) and step.get("continue-on-error") is True:
+            found[f"{name}:{step.get('name')}"] = (
+                "the step it names is `continue-on-error: true`, so it cannot fail"
+            )
+    return found
+
+
 def workflow_jobs(
     root: pathlib.Path,
 ) -> tuple[dict[str, list[str]], list[str], list[str], dict[str, str]]:
@@ -320,19 +358,9 @@ def workflow_jobs(
     homes: dict[str, list[str]] = {}
     toothless: dict[str, str] = {}
     for path in sorted((root / ".github" / "workflows").glob("*.y*ml")):
-        try:
-            workflow = load(path.read_text(encoding="utf-8"))
-        except UnicodeDecodeError as error:
-            # Bytes that are not UTF-8 died as a raw traceback and exit 1; they join the
-            # route this reader already has for a workflow it cannot read (self-audit
-            # round 3, 2026-09-01).
-            unreadable.append(f"{path.relative_to(root)}: not UTF-8 ({error.reason})")
-            continue
-        except SubsetError as error:
-            unreadable.append(f"{path.relative_to(root)}: {error}")
-            continue
-        if not isinstance(workflow, dict):
-            unreadable.append(f"{path.relative_to(root)}: not a mapping")
+        workflow, why_not = _read_workflow(path, root)
+        if workflow is None:
+            unreadable.append(why_not)
             continue
         for name, job in (workflow.get("jobs") or {}).items():
             steps = (job or {}).get("steps") or [] if isinstance(job, dict) else []
@@ -340,14 +368,7 @@ def workflow_jobs(
                 str(s["name"]) for s in steps if isinstance(s, dict) and s.get("name")
             ]
             homes.setdefault(str(name), []).append(str(path.relative_to(root)))
-            why = _toothless(workflow, job) if isinstance(job, dict) else ""
-            if why:
-                toothless[str(name)] = why
-            for step in steps:
-                if isinstance(step, dict) and step.get("continue-on-error") is True:
-                    toothless[f"{name}:{step.get('name')}"] = (
-                        "the step it names is `continue-on-error: true`, so it cannot fail"
-                    )
+            toothless |= _teeth(workflow, str(name), job, steps)
     clashes = [
         f"job {name} is defined in {' and '.join(files)} — one gate cannot hold two jobs"
         f" of one name; rename one"
@@ -461,6 +482,8 @@ def _read_registry(registry: pathlib.Path) -> tuple[list[str], list[object]]:
         document = load(registry.read_text(encoding="utf-8"))
     except UnicodeDecodeError as error:
         return [f"{registry.name} could not be read — not UTF-8 ({error.reason})"], []
+    except OSError as error:
+        return [f"{registry.name} could not be read — {error.strerror or error}"], []
     except SubsetError as error:
         return [f"{registry.name} could not be read — {error}"], []
     if not isinstance(document, dict) or not isinstance(document.get("gates"), list):
@@ -480,7 +503,7 @@ def _config_text(path: pathlib.Path) -> str:
     and died of a traceback (self-audit round 3, 2026-09-01)."""
     try:
         return path.read_text(encoding="utf-8")
-    except UnicodeDecodeError as problem:
+    except (UnicodeDecodeError, OSError) as problem:
         print(f"cannot read the tree: {path}: {problem}", file=sys.stderr)
         raise SystemExit(2) from problem
 
