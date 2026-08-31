@@ -202,6 +202,13 @@ gates:
           Dropping `edited` from ci.yml's pull_request types turned the test red;
           restored, one body edit on the pull request itself started CI run
           33284486764, which re-read the CLA line without a close/reopen.
+      - kind: mutation
+        ref: pr/159
+        date: 2026-08-31
+        caught: >-
+          The CLA line with three spaces, or a tab, where the name goes was an
+          acceptance with nobody's name on it — two cases red on the job's grep
+          as it was, refused now (self-audit, 2026-08-31).
 
   - id: preflight-and-the-harness-walk-this-repository
     title: The developer-side instruments this bundle ships are pointed at this repository
@@ -662,6 +669,13 @@ gates:
           `SIGNOFF` loosened to that old shape: red on `Signed-off-by:  <@>`,
           which the module refuses and the old grep accepted, and on trailing
           spaces after the address. Restored byte for byte, 62 green.
+      - kind: mutation
+        ref: pr/159
+        date: 2026-08-31
+        caught: >-
+          `Signed-off-by:    <a@b.co>` — three spaces where the name goes —
+          accepted by the module's `.+` and by the CI grep alike; red on both as
+          they were, refused now (self-audit, 2026-08-31).
 
   - id: newcomer-issues-are-not-taken-silently
     title: A pull request closing an issue still labelled for newcomers has to say why

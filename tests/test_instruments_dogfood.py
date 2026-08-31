@@ -150,6 +150,10 @@ def test_the_example_line_contributing_shows_is_one_the_job_accepts() -> None:
         ("Some prose.\n\nI have read and agree to CLA.md v1. — A Person <a@b.co>\n", 1),
         ("I have read and agree to CLA.md v1. — A Person <a@b.co>   ", 1),
         ("I have read and agree to CLA.md v1. —  <@>", 0),
+        # Three spaces where the name goes — `.+` took them for one (self-audit, 2026-08-31).
+        ("I have read and agree to CLA.md v1. —    <a@b.co>", 0),
+        ("I have read and agree to CLA.md v1. — \t <a@b.co>", 0),
+        ("I have read and agree to CLA.md v1. — Ada Lovelace <ada@example.org>", 1),
         ("I have read and agree to CLA.md v1. — A Person", 0),
         # The address bare, without the brackets — the 2026-08-30 re-audit's first
         # pull request, red at `cla`; CONTRIBUTING now shows a line with them.

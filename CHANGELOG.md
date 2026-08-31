@@ -8,6 +8,14 @@ Notable changes to this project. The format follows
 
 ### Fixed
 
+- **A name is not whitespace.** `Signed-off-by:    <a@b.co>` and
+  `I have read and agree to CLA.md v1. —    <a@b.co>` — three spaces, or a
+  tab, where the name goes — passed the module's and both CI greps' `.+`, so a
+  DCO line and a CLA acceptance could carry nobody's name (self-audit,
+  2026-08-31, reproduced on v0.1.10). The name now starts with a character
+  that is not a space; the module and the two shell regexes agree case by
+  case as before. Proved by mutation: three cases red on the old shapes (#159).
+
 - **`own_numbers` reads every place README states the split.** "The other 83
   are the rule sheets" and "The nine checks", and the Thai half's two
   counterparts, were outside its list, so a rule added left all four behind
