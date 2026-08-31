@@ -29,7 +29,21 @@ import sys
 # YAML allows a space before the colon (`uses :`) and a flow-style step
 # (`- {uses: actions/checkout@v4}`) — the platform reads both, and both were
 # unread here (outside audit, 2026-08-31).
-USES = re.compile(r"""^\s*-?\s*\{?\s*uses\s*:\s*["']?([^\s"',}]+)["']?(.*)$""", re.MULTILINE)
+# The key may be quoted (`"uses":`), the value may be an alias (`uses: *co`) of an
+# anchor set anywhere in the file — its version comment travelling with it — or
+# carry a tag (`!!str`) or an anchor of its own, and a `uses` under `with:` is an
+# input, not a step. Every one is YAML the platform reads; every one was misread
+# here (self-audit, 2026-08-31: an alias to a pinned action was the finding `*co`,
+# an alias to `@v4` was clean, an input named `uses` was a finding).
+USES = re.compile(
+    r"""^(\s*)-?\s*\{?\s*["']?uses["']?\s*:\s*["']?([^\s"',}]+)["']?(.*)$""", re.MULTILINE
+)
+ANCHOR = re.compile(r"""^\s*(?:-\s*)?(?:["']?[\w.-]+["']?\s*:\s*)?&([\w-]+)\s+(.+?)\s*$""")
+ALIAS = re.compile(r"^\*([\w-]+)$")
+TAG = re.compile(r"^!!?[\w:/.-]*\s+")
+OWN_ANCHOR = re.compile(r"^&[\w-]+\s+")
+BARE = re.compile(r"^(?:!!?[\w:/.-]*|&[\w-]+)$")
+WITH = re.compile(r"^(\s*)with\s*:\s*$")
 # The rule is a SHA *with the version in a comment* — `@<sha> # v7.0.1` — because
 # a bare SHA is a pin nobody can read or move. The comment half went unjudged
 # until an outside audit on 2026-08-30 planted a bare SHA and got exit 0.
@@ -41,16 +55,61 @@ VERSION_COMMENT = re.compile(r"#\s*v?\d")
 BLOCK = re.compile(r"^[|>][-+]?$")
 
 
+def _anchors(text: str) -> dict[str, tuple[str, str]]:
+    """Every scalar anchor in the file — `&name value  # comment` — by name: the value
+    with quotes and tag stripped, and the rest of its line (the version comment)."""
+    found: dict[str, tuple[str, str]] = {}
+    for line in text.splitlines():
+        match = ANCHOR.match(line)
+        if not match or BLOCK.match(match.group(2)):
+            continue
+        value, _, rest = match.group(2).partition(" #")
+        value = TAG.sub("", value).strip().strip("\"'")
+        found[match.group(1)] = (value, f"#{rest}" if rest else "")
+    return found
+
+
+def _resolved(ref: str, after: str, anchors: dict[str, tuple[str, str]]) -> tuple[str, str]:
+    """The value as the platform reads it: tag and own anchor dropped, an alias replaced
+    by its anchor's value with the anchor line's comment beside it."""
+    while BARE.match(ref) and after.strip():
+        ref, _, after = after.strip().partition(" ")
+        ref = ref.strip("\"'")
+    ref = OWN_ANCHOR.sub("", TAG.sub("", ref.strip())).strip()
+    alias = ALIAS.match(ref)
+    if alias and alias.group(1) in anchors:
+        value, comment = anchors[alias.group(1)]
+        return value, f"{after} {comment}".strip()
+    return ref, after
+
+
+def _under_with(lines: list[str]) -> list[bool]:
+    """For each line, whether it sits inside a `with:` block — an input, not a step."""
+    inside: list[bool] = []
+    with_indent = -1
+    for line in lines:
+        indent = len(line) - len(line.lstrip())
+        if line.strip() and with_indent >= 0 and indent <= with_indent:
+            with_indent = -1
+        inside.append(with_indent >= 0 and indent > with_indent)
+        match = WITH.match(line)
+        if match:
+            with_indent = len(match.group(1))
+    return inside
+
+
 def _uses_lines(text: str) -> list[tuple[str, str]]:
-    """Every `uses:` value in the file with what follows it on its line — a folded or
-    literal one read from its next line."""
+    """Every `uses:` step in the file with what follows it on its line — a folded or
+    literal one read from its next line, an alias read from its anchor."""
     lines = text.splitlines()
+    anchors = _anchors(text)
+    nested = _under_with(lines)
     found: list[tuple[str, str]] = []
     for index, line in enumerate(lines):
         match = USES.match(line)
-        if not match:
+        if not match or nested[index]:
             continue
-        ref, after = match.group(1), match.group(2)
+        ref, after = match.group(2), match.group(3)
         if BLOCK.match(ref):
             # The version comment may sit beside the marker (`uses: > # v4`) or
             # beside the value on the next line — both are the same step to the
@@ -61,7 +120,7 @@ def _uses_lines(text: str) -> list[tuple[str, str]]:
             ref, _, after = rest[0].partition(" ") if rest else (ref, "", "")
             ref = ref.strip("\"'")
             after = f"{after} {marker_side}".strip()
-        found.append((ref, after))
+        found.append(_resolved(ref, after, anchors))
     return found
 
 

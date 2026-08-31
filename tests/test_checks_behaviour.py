@@ -1409,3 +1409,129 @@ def test_a_switch_left_off_or_computed_at_runtime_is_not_judged(
     files = {"run.py": "import os\napp = object()\ncache = object()\n" + source}
     assert scan_entrypoint_debug.main(build(tmp_path, files)) == 0
     assert capsys.readouterr().out == ""
+
+
+ANCHORED_INSTALL = "x-cmd: &cmd pip install ruff\njobs:\n  a:\n    steps:\n      - run: *cmd\n"
+LISTED_INSTALL = "anchors:\n  - &cmd pip install ruff\njobs:\n  a:\n    steps:\n      - run: *cmd\n"
+FOLDED_SPLIT = "jobs:\n  a:\n    steps:\n      - run: >\n          pip\n          install ruff\n"
+FOLDED_STRIP_SPLIT = (
+    "jobs:\n  a:\n    steps:\n      - run: >-\n          pip\n          install ruff\n"
+)
+PLAIN_SPLIT = "jobs:\n  a:\n    steps:\n      - run: pip\n          install ruff\n"
+QUOTED_SPLIT = 'jobs:\n  a:\n    steps:\n      - run: "pip\n          install ruff"\n'
+TAGGED_INSTALL = "jobs:\n  a:\n    steps:\n      - run: !!str pip install ruff\n"
+PADDED_SPLIT = (
+    "jobs:\n  a:\n    steps:\n      - run: >\n\n          pip\n          install ruff\n\n"
+)
+
+
+@pytest.mark.parametrize(
+    "body",
+    [
+        ANCHORED_INSTALL,
+        LISTED_INSTALL,
+        FOLDED_SPLIT,
+        FOLDED_STRIP_SPLIT,
+        PLAIN_SPLIT,
+        QUOTED_SPLIT,
+        TAGGED_INSTALL,
+        PADDED_SPLIT,
+        'jobs:\n  a:\n    steps:\n      - "run": pip install ruff\n',
+        "jobs:\n  a:\n    steps:\n      - 'run': pip install ruff\n",
+    ],
+    ids=[
+        "alias-of-a-scalar-anchor",
+        "alias-of-a-listed-anchor",
+        "folded-split-over-lines",
+        "folded-strip-split-over-lines",
+        "plain-scalar-continued",
+        "double-quoted-continued",
+        "tagged-scalar",
+        "folded-with-blank-lines-around",
+        "double-quoted-key",
+        "single-quoted-key",
+    ],
+)
+def test_a_run_the_platform_reads_as_one_install_is_read_as_one_here(
+    tmp_path: pathlib.Path, capsys: pytest.CaptureFixture[str], body: str
+) -> None:
+    """An alias is its anchor's value, a quoted key is the key, a tag is dropped, and a
+    plain, quoted or folded scalar that continues onto the next line is joined with a
+    space before the shell sees it — so `pip` ⏎ `install ruff` is one command (self-audit,
+    2026-08-31: every shape here exited 0)."""
+    assert scan_install_pinning.main(build(tmp_path, {".github/workflows/ci.yml": body})) == 1
+    assert "ci.yml: pip install ruff" in capsys.readouterr().out
+
+
+def test_a_literal_block_keeps_its_lines_apart(
+    tmp_path: pathlib.Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """`|` hands the shell two lines: `pip` alone, then `install ruff` alone — no install."""
+    body = "jobs:\n  a:\n    steps:\n      - run: |\n          pip\n          install ruff\n"
+    assert scan_install_pinning.main(build(tmp_path, {".github/workflows/ci.yml": body})) == 0
+    assert capsys.readouterr().out == ""
+
+
+def test_an_anchor_on_the_run_line_names_the_command_not_the_anchor(
+    tmp_path: pathlib.Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    body = "jobs:\n  a:\n    steps:\n      - run: &cmd pip install ruff\n      - run: *cmd\n"
+    assert scan_install_pinning.main(build(tmp_path, {".github/workflows/ci.yml": body})) == 1
+    out = capsys.readouterr().out
+    assert out.count("ci.yml: pip install ruff") == 2
+    assert "&cmd" not in out
+
+
+def test_a_local_action_named_through_an_alias_is_followed(
+    tmp_path: pathlib.Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    workflow = "x-act: &act ./ci/setup\njobs:\n  a:\n    steps:\n      - uses: *act\n"
+    files = {
+        ".github/workflows/ci.yml": workflow,
+        "ci/setup/action.yml": "runs:\n  steps:\n    - run: pip install ruff\n",
+    }
+    assert scan_install_pinning.main(build(tmp_path, files)) == 1
+    assert "ci/setup/action.yml: pip install ruff" in capsys.readouterr().out
+
+
+SHA = "a" * 40
+
+
+@pytest.mark.parametrize(
+    "body",
+    [
+        f"x-co: &co actions/checkout@{SHA} # v4\njobs:\n  a:\n    steps:\n      - uses: *co\n",
+        f"jobs:\n  a:\n    steps:\n      - uses: !!str actions/checkout@{SHA} # v4\n",
+        (
+            "jobs:\n  a:\n    steps:\n      - uses: ./ci/setup\n        with:\n"
+            "          uses: actions/checkout@v4\n"
+        ),
+    ],
+    ids=["alias-of-a-pinned-anchor", "tagged-pinned", "input-named-uses"],
+)
+def test_a_pinned_uses_the_platform_reads_is_clean_here_too(
+    tmp_path: pathlib.Path, capsys: pytest.CaptureFixture[str], body: str
+) -> None:
+    """The alias carries its anchor's version comment; a tag is dropped; a `uses` under
+    `with:` is an input, not a step (self-audit, 2026-08-31: `*co` was the finding)."""
+    assert scan_workflow_pinning.main(build(tmp_path, {".github/workflows/ci.yml": body})) == 0
+    assert capsys.readouterr().out == ""
+
+
+@pytest.mark.parametrize(
+    "body",
+    [
+        "x-co: &co actions/checkout@v4\njobs:\n  a:\n    steps:\n      - uses: *co\n",
+        'jobs:\n  a:\n    steps:\n      - "uses": actions/checkout@v4\n',
+        "jobs:\n  a:\n    steps:\n      - uses: &co actions/checkout@v4\n",
+    ],
+    ids=["alias-of-a-floating-anchor", "quoted-key", "own-anchor-on-the-line"],
+)
+def test_a_floating_uses_behind_a_yaml_shape_names_the_action(
+    tmp_path: pathlib.Path, capsys: pytest.CaptureFixture[str], body: str
+) -> None:
+    assert scan_workflow_pinning.main(build(tmp_path, {".github/workflows/ci.yml": body})) == 1
+    out = capsys.readouterr().out
+    assert "ci.yml: actions/checkout@v4" in out
+    assert "*co" not in out
+    assert "&co" not in out

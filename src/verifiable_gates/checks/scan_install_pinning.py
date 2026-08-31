@@ -150,22 +150,68 @@ def _bundles_own(text: str) -> bool:
 # YAML lets the value fold onto the next line — `uses: >` then `./ci/action` —
 # and a regex that wanted `./` on the `uses:` line left that action unread
 # (outside audit, 2026-08-30: an unpinned install behind it exited 0).
-USES = re.compile(r"""^\s*-?\s*\{?\s*uses\s*:\s*["']?([^\s"',}]+)""")
+# The key may be quoted (`"uses":`), the value may be an alias (`uses: *co`) of an
+# anchor set anywhere in the file, carry a tag (`!!str`) or an anchor of its own,
+# and a `uses` under `with:` is an input, not a step — every one of these is
+# YAML the platform reads, and every one was misread here (self-audit,
+# 2026-08-31: an alias to an unpinned install exited 0; an alias to a pinned
+# action was reported as `*co`).
+USES = re.compile(r"""^(\s*)-?\s*\{?\s*["']?uses["']?\s*:\s*(.+?)\s*$""")
 BLOCK = re.compile(r"^[|>][-+]?$")
+ANCHOR = re.compile(r"""^\s*(?:-\s*)?(?:["']?[\w.-]+["']?\s*:\s*)?&([\w-]+)\s+(.+?)\s*$""")
+ALIAS = re.compile(r"^\*([\w-]+)$")
+TAG = re.compile(r"^!!?[\w:/.-]*\s+")
+OWN_ANCHOR = re.compile(r"^&[\w-]+\s+")
+WITH = re.compile(r"^(\s*)with\s*:\s*$")
+
+
+def _anchors(text: str) -> dict[str, str]:
+    """Every scalar anchor in the file — `&name value` — by name, quotes and tag stripped."""
+    found: dict[str, str] = {}
+    for line in text.splitlines():
+        match = ANCHOR.match(_without_comment(line))
+        if match and not BLOCK.match(match.group(2)):
+            found[match.group(1)] = _unquoted(TAG.sub("", match.group(2)).strip())
+    return found
+
+
+def _resolved(value: str, anchors: dict[str, str]) -> str:
+    """The value as the platform reads it: tag and own anchor dropped, an alias replaced."""
+    value = OWN_ANCHOR.sub("", TAG.sub("", value.strip())).strip()
+    alias = ALIAS.match(value)
+    return anchors.get(alias.group(1), value) if alias else value
+
+
+def _under_with(lines: list[str]) -> list[bool]:
+    """For each line, whether it sits inside a `with:` block — an input, not a step."""
+    inside: list[bool] = []
+    with_indent = -1
+    for line in lines:
+        indent = len(line) - len(line.lstrip())
+        if line.strip() and with_indent >= 0 and indent <= with_indent:
+            with_indent = -1
+        inside.append(with_indent >= 0 and indent > with_indent)
+        match = WITH.match(line)
+        if match:
+            with_indent = len(match.group(1))
+    return inside
 
 
 def _local_uses(text: str) -> list[str]:
-    """The paths of every local action the file names, folded or not."""
+    """The paths of every local action the file names, folded, aliased or not."""
     lines = text.splitlines()
+    anchors = _anchors(text)
+    nested = _under_with(lines)
     found: list[str] = []
     for index, line in enumerate(lines):
         match = USES.match(line)
-        if not match:
+        if not match or nested[index]:
             continue
-        ref = match.group(1)
+        ref = _without_comment(match.group(2)).strip()
         if BLOCK.match(ref):
             rest = [later.strip() for later in lines[index + 1 :] if later.strip()]
-            ref = rest[0].strip("\"'") if rest else ref
+            ref = _without_comment(rest[0]).strip() if rest else ref
+        ref = _resolved(ref, anchors).split()[0].strip("\"',}") if ref else ref
         if ref.startswith("./"):
             found.append(ref[2:])
     return found
@@ -292,8 +338,14 @@ def _with_scripts(root: pathlib.Path, targets: list[pathlib.Path]) -> list[pathl
 # YAML allows a space before the colon (`run :`) and a flow-style step
 # (`- {run: pip install ruff}`) — PyYAML and the platform both read them, and
 # both shapes were unread here (outside audit, 2026-08-31).
-RUN = re.compile(r"^(\s*-?\s*)run\s*:\s*(.*?)\s*$")
-FLOW_RUN = re.compile(r"\{[^{}]*?\brun\s*:\s*([^,}]*)")
+# The key may be quoted, the value may be an alias, a tagged scalar, or a scalar
+# that continues onto further lines — plain, quoted or folded (`>`) — which YAML
+# joins with spaces before the shell ever sees it, so `pip` on one line and
+# `install ruff` on the next is one command. Only a literal block (`|`) keeps its
+# newlines. Every one of these shapes was unread or misread here (self-audit,
+# 2026-08-31: `run: *cmd`, `"run":` and a folded `pip`⏎`install ruff` all exited 0).
+RUN = re.compile(r"""^(\s*-?\s*)["']?run["']?\s*:\s*(.*?)\s*$""")
+FLOW_RUN = re.compile(r"""\{[^{}]*?\b["']?run["']?\s*:\s*([^,}]*)""")
 YAML = {".yml", ".yaml"}
 
 
@@ -303,9 +355,25 @@ def _unquoted(value: str) -> str:
     return value
 
 
+def _folded(lines: list[str]) -> list[str]:
+    """Lines joined the way YAML folds a scalar: with a space; a blank line is a newline."""
+    joined: list[str] = []
+    piece: list[str] = []
+    for line in lines:
+        if line.strip():
+            piece.append(line.strip())
+        elif piece:
+            joined.append(" ".join(piece))
+            piece = []
+    if piece:
+        joined.append(" ".join(piece))
+    return joined
+
+
 def _run_lines(text: str) -> list[str]:
     """The lines a workflow or action hands to the shell: each `run:` value or block."""
     lines = text.splitlines()
+    anchors = _anchors(text)
     found: list[str] = []
     index = 0
     while index < len(lines):
@@ -313,20 +381,25 @@ def _run_lines(text: str) -> list[str]:
         match = None if flow else RUN.match(lines[index])
         index += 1
         if flow:
-            found.append(_unquoted(flow.group(1).strip()))
+            found.append(_resolved(_unquoted(flow.group(1).strip()), anchors))
             continue
         if not match:
             continue
         indent, value = len(match.group(1)), match.group(2)
-        if not BLOCK.match(value):
-            found.append(_unquoted(value))
         # A block's lines, or a plain value's continuation lines: past the key's own column
         # — a sibling `env:` or `name:` of a `- run:` item sits at that column, not past it.
+        rest: list[str] = []
         while index < len(lines) and (
             not lines[index].strip() or len(lines[index]) - len(lines[index].lstrip()) > indent
         ):
-            found.append(lines[index])
+            rest.append(lines[index])
             index += 1
+        if value.startswith("|"):
+            found += rest
+        elif BLOCK.match(value):
+            found += _folded(rest)
+        else:
+            found.append(_resolved(_unquoted(" ".join(_folded([value, *rest]))), anchors))
     return found
 
 

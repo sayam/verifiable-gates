@@ -1759,6 +1759,18 @@ gates:
           runtime, another config key) stay clean (self-audit, 2026-08-31, each
           proved live on Flask 3.1.3).
       - kind: mutation
+        ref: pr/147
+        date: 2026-08-31
+        caught: >-
+          Eighteen planted cases red on the scanners as they were — an install
+          behind an alias, a quoted key, a tag, a plain, quoted or folded scalar
+          split over two lines, a local action named through an alias, a
+          floating action behind an alias, a quoted key or its own anchor (all
+          green or misnamed before), and a pinned action behind an alias, a
+          tag or an input named `uses` (all findings before); a literal block
+          split over two lines holds the clean direction either way
+          (self-audit, 2026-08-31).
+      - kind: mutation
         ref: pr/138
         date: 2026-08-31
         caught: >-
