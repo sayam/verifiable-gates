@@ -1750,3 +1750,55 @@ def test_a_file_python_cannot_tokenize_is_read_as_written(
     source = 'x = "unclosed\nsession.delete(user)\n'
     assert scan_write_discipline.main(build(tmp_path, {"app/models.py": source})) == 1
     assert "app/models.py:2" in capsys.readouterr().out
+
+
+SERVICES = {"services_path": "app/services"}
+
+
+@pytest.mark.parametrize(
+    ("source", "named"),
+    [
+        ("import flask\nx = flask.request.args\n", "flask.request"),
+        ("import flask as fl\nfl.session['u'] = 1\n", "fl.session"),
+        ("from flask import *\n", "from flask import *"),
+        ("from flask.globals import request\n", "from flask.globals import request"),
+        ("from werkzeug.wrappers import Request\n", "import werkzeug.wrappers"),
+        ("import werkzeug.local\n", "import werkzeug.local"),
+        ("from flask_login.utils import current_user\n", "import flask_login"),
+    ],
+    ids=[
+        "module-then-attribute",
+        "aliased-module-then-attribute",
+        "star-import",
+        "from-a-flask-submodule",
+        "werkzeug-request-side",
+        "werkzeug-local",
+        "flask-login-submodule",
+    ],
+)
+def test_every_road_a_request_symbol_takes_into_the_service_layer(
+    tmp_path: pathlib.Path, capsys: pytest.CaptureFixture[str], source: str, named: str
+) -> None:
+    """`import flask` then `flask.request`, a star import, a flask submodule and werkzeug's
+    request side all bring HTTP into the logic (self-audit, 2026-08-31: all exited 0)."""
+    files = {"app/services/todos.py": source}
+    assert scan_service_layer.main(build(tmp_path, files, SERVICES)) == 1
+    assert named in capsys.readouterr().out
+
+
+@pytest.mark.parametrize(
+    "source",
+    [
+        "import flask\napp = flask.Flask(__name__)\nlog = flask.current_app.logger\n",
+        "from werkzeug.security import generate_password_hash\n",
+        "from flask.helpers import get_debug_flag\n",
+        "request = {}\nx = request.get('a')\n",
+    ],
+    ids=["application-side-attributes", "werkzeug-security", "flask-helper", "own-name-request"],
+)
+def test_the_application_side_and_a_name_of_ones_own_stay_clean(
+    tmp_path: pathlib.Path, capsys: pytest.CaptureFixture[str], source: str
+) -> None:
+    files = {"app/services/todos.py": source}
+    assert scan_service_layer.main(build(tmp_path, files, SERVICES)) == 0
+    assert capsys.readouterr().out == ""

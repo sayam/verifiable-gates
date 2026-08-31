@@ -8,6 +8,16 @@ Notable changes to this project. The format follows
 
 ### Fixed
 
+- **`logic-knows-no-http` sees every road a request symbol takes into the
+  service layer.** `import flask` followed by `flask.request.args`, `from
+  flask import *`, `from flask.globals import request` and werkzeug's own
+  request side (`werkzeug.wrappers`, `.local`, `.exceptions`, `.routing`) all
+  bring HTTP into the logic and all passed a scanner that read only `from
+  flask import <symbol>` (self-audit, 2026-08-31, every case reproduced on
+  v0.1.10). `flask.current_app`, `werkzeug.security` and a `request` name of
+  the file's own stay clean. Proved by mutation: six cases red on the old
+  scanner (#152).
+
 - **`delete-means-soft-delete` reads code, not prose.** A docstring saying
   "never call `session.delete(` here" was a finding, and `db_session.delete(user)`
   — SQLAlchemy's own `scoped_session` name — was not, because a word boundary
