@@ -942,6 +942,6 @@ def test_a_record_it_cannot_read_says_nothing_about_leftovers(
 
     printed = capsys.readouterr().out
     assert "left behind" not in printed
-    assert json.loads(
-        (project / "tools" / "installed.json").read_text(encoding="utf-8")
-    )["files"], "the install rewrites the record it could not read"
+    assert json.loads((project / "tools" / "installed.json").read_text(encoding="utf-8"))[
+        "files"
+    ], "the install rewrites the record it could not read"
