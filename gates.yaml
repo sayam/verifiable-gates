@@ -1229,6 +1229,14 @@ gates:
         caught: >-
           `--about` made to re-raise a refused `gh` — the test expecting exit 2 and
           "could not read the About field" errored out with the raw exception.
+      - kind: mutation
+        ref: pr/158
+        date: 2026-08-31
+        caught: >-
+          README's "The other 83" and "The nine checks", and the Thai half's
+          two counterparts, drifted by hand — four places `--write` never
+          reached, and the suite stayed green (self-audit, 2026-08-31); now 23
+          places, each named by the tree test when it says something else.
 
   - id: the-about-field-is-read-not-remembered
     title: The description on the hosting platform is read live and held to what the tree measures
