@@ -2094,6 +2094,15 @@ gates:
           round 3 was written for UnicodeDecodeError alone; nine cases red
           now, asked with one tree whose every file is unreadable (self-
           audit round 5, 2026-09-01).
+      - kind: mutation
+        ref: pr/184
+        date: 2026-09-01
+        caught: >-
+          The heredoc handling removed — a workflow writing a README that
+          documents `pip install …` was reported as an unpinned install, a
+          red a project can only answer by deleting the gate; three cases
+          red, and three more hold the direction that must stay red,
+          including a heredoc fed to bash (self-audit round 6, 2026-09-01).
 
   - id: rules-we-ship-we-keep
     title: Scanners that apply to this repository are run against this repository
