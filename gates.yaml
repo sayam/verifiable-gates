@@ -1345,6 +1345,13 @@ gates:
           file that is not there rather than one that cannot be decoded;
           each was a raw UnicodeDecodeError and exit 1, seven cases red now
           (self-audit round 3, 2026-09-01).
+      - kind: mutation
+        ref: pr/182
+        date: 2026-09-01
+        caught: >-
+          The guard removed from --write — a place it cannot write was a
+          traceback and exit 1, the code that means the numbers disagree,
+          which they still did (self-audit round 5, 2026-09-01).
 
   - id: the-about-field-is-read-not-remembered
     title: The description on the hosting platform is read live and held to what the tree measures
@@ -2487,6 +2494,14 @@ gates:
           The guard removed from --preamble — a preamble that is not there
           was a traceback and exit 1 while the catalogue's own problems
           already answered 2 (self-audit round 2, 2026-08-31).
+      - kind: mutation
+        ref: pr/182
+        date: 2026-09-01
+        caught: >-
+          The guard removed from --out — a destination that is a directory,
+          or one without permission, was a traceback and exit 1, the code
+          this tool uses for "the file on disk differs" (self-audit round 5,
+          2026-09-01).
 
   - id: the-harness-never-passes-what-it-cannot-decide
     title: The fail-fix harness answers machine-readably, and reports skips rather than hiding them
@@ -2536,6 +2551,16 @@ gates:
           A registry PyYAML cannot parse, and one that is not there, each a
           traceback with exit 1 on the harness as it was — three cases red,
           each now "cannot read the registry", exit 2 (self-audit, 2026-08-31).
+      - kind: mutation
+        ref: pr/182
+        date: 2026-09-01
+        caught: >-
+          The guard removed from the round notes — a checkout mounted read-
+          only, and a notes path that is a directory, each ended a run in
+          which every gate passed with a raw traceback and exit 1, the code
+          that means a gate failed; and --output pointed somewhere
+          unwritable did the same. Two cases red now (self-audit round 5,
+          2026-09-01).
 
   - id: a-published-rule-carries-its-origin
     title: A published rule names the incident behind it, belongs to a published layer, and names no framework
