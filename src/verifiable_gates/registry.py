@@ -45,6 +45,7 @@ __all__ = [
     "PROOF_REF",
     "SCHEMA_VERSION",
     "SEVERITIES",
+    "latest_today",
     "load",
     "problems",
 ]
@@ -118,9 +119,15 @@ def _as_date(value: object) -> datetime.date | None:
         return None
 
 
-def _latest_today(now: datetime.datetime | None = None) -> datetime.date:
+def latest_today(now: datetime.datetime | None = None) -> datetime.date:
     """The date it already is somewhere on Earth (UTC+14) — a proof written today in
     Bangkok at 02:00 is dated tomorrow in UTC, and that is not a proof from the future.
+
+    Published rather than private because two registers ask this question and only one
+    of them used to answer it this way: `DECISIONS.md` compared against plain UTC, so a
+    row written at 05:00 in Bangkok and dated with the machine's own `date` was "in the
+    future" and turned the suite red, while the same date in a `proved_by` row passed
+    (self-audit round 7, 2026-09-01). One question, one answer, one place.
     """
     now = now or datetime.datetime.now(datetime.UTC)
     return (now + datetime.timedelta(hours=14)).date()
@@ -148,7 +155,7 @@ def _proof_problems(where: str, proofs: Any) -> list[str]:  # noqa: ANN401 — s
         date = _as_date(proof.get("date"))
         if date is None:
             found.append(f"{at} date must be a real YYYY-MM-DD date, got {proof.get('date')!r}")
-        elif date > _latest_today():
+        elif date > latest_today():
             # An outside audit on 2026-08-30 wrote `date: 2099-01-01` and the
             # schema took it: evidence that has not happened yet is not evidence.
             found.append(f"{at} date {date.isoformat()} has not happened yet")

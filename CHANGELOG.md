@@ -25,6 +25,19 @@ Notable changes to this project. The format follows
 
 ### Fixed
 
+- **One answer to what day it is.** Two registers asked the same question and gave
+  different answers: `gates.yaml` accepts a `proved_by` date that is already today
+  *somewhere on Earth* — `registry` computes it at UTC+14, on purpose, because a
+  proof written in Bangkok at 02:00 is dated tomorrow in UTC — while `DECISIONS.md`
+  compared against plain UTC. So a decision written at 05:00 in Bangkok and dated
+  with the machine's own `date +%F` was "decided in the future" and turned the suite
+  red, on a row somebody had just correctly written, while the identical date in a
+  `proved_by` row passed (self-audit round 7, 2026-09-01, reproduced on the owner's
+  own clock: local 2026-09-01, UTC 2026-08-31). The rule is now published as
+  `registry.latest_today()` and both registers ask it — one question, one answer,
+  one place — with the boundary held both ways: today-somewhere is accepted, two
+  days ahead is still the future.
+
 - **A heredoc is read by whoever receives it.** `cat > README.md <<'EOF' … EOF`
   writes a file; its body is data. The pinning scanner read every line of a
   `run:` block as a command, so a workflow that writes a README documenting
