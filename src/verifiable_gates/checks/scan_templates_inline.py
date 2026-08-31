@@ -15,6 +15,7 @@ standalone file; its evidence is a planted violation and a clean tree in
 
 from __future__ import annotations
 
+import html
 import json
 import pathlib
 import re
@@ -27,23 +28,52 @@ import sys
 # column 0 — or follow a `/`; a pattern that wanted whitespace before it read
 # neither (outside audit, 2026-08-31). Text merely *mentioning* the words stays
 # a finding on purpose: without parsing, reading it as safe is the wrong guess.
+# The browser also lets the `=` sit on the line after the attribute's name
+# (`onclick` ⏎ `="go()"`), reads `&#106;avascript:` in an `href` as `javascript:`
+# (entities are decoded inside an attribute value — and only there: `&lt;script&gt;`
+# in text is text), and treats a `<!--` that never closes as a comment to the end
+# of the file. Each was misread by a per-line pattern on the raw text (self-audit,
+# 2026-08-31). Patterns run on the whole file; a finding's line is the line its
+# attribute name starts on.
 PATTERNS = (
-    (re.compile(r"(?:^|[\s\"'/])on\w+\s*=", re.IGNORECASE), "inline handler (on*=)"),
-    (re.compile(r"(?:^|[\s\"'/])style\s*=", re.IGNORECASE), "inline style="),
-    (re.compile(r"<style\b", re.IGNORECASE), "inline <style>"),
-    (re.compile(r"javascript:", re.IGNORECASE), "javascript: URI"),
+    (
+        re.compile(r"(?:^|[\s\"'/])(?P<at>on\w+)\s*=", re.IGNORECASE | re.MULTILINE),
+        "inline handler (on*=)",
+    ),
+    (re.compile(r"(?:^|[\s\"'/])(?P<at>style)\s*=", re.IGNORECASE | re.MULTILINE), "inline style="),
+    (re.compile(r"(?P<at><style\b)", re.IGNORECASE), "inline <style>"),
+    (re.compile(r"(?P<at>javascript:)", re.IGNORECASE), "javascript: URI"),
 )
 # A `<script` tag can close on a later line — `<script` then `type="module">` —
 # and a per-line pattern that wanted the `>` on the same line read past it
 # (outside audit, 2026-08-31). The tag is read to its `>` wherever that is.
 SCRIPT_OPEN = re.compile(r"<script\b", re.IGNORECASE)
 SRC_IN_TAG = re.compile(r"\bsrc\s*=", re.IGNORECASE)
-COMMENT = re.compile(r"<!--.*?-->", re.DOTALL)
+COMMENT = re.compile(r"<!--.*?(?:-->|\Z)", re.DOTALL)
+ATTRIBUTE_VALUE = re.compile(r"""=\s*(?:"[^"]*"|'[^']*')""")
+# What a browser serves as a template: the suffixes Jinja and Flask projects use.
+TEMPLATE_SUFFIXES = frozenset({".html", ".htm", ".jinja", ".jinja2", ".j2"})
 
 
 def _without_comments(text: str) -> str:
     """Comments blanked, newlines kept — `<!-- onclick= -->` explains, it does not run."""
     return COMMENT.sub(lambda match: re.sub(r"[^\n]", " ", match.group()), text)
+
+
+def _values_decoded(text: str) -> str:
+    """Every quoted attribute value with its entities decoded, the way the browser reads
+    it before it looks for a scheme — control characters dropped, so a `&#10;` cannot
+    move a line, and the text outside the quotes untouched."""
+
+    def decode(match: re.Match[str]) -> str:
+        value = html.unescape(match.group())
+        return re.sub(r"[\x00-\x1f]", "", value)
+
+    return ATTRIBUTE_VALUE.sub(decode, text)
+
+
+def _line(text: str, position: int) -> int:
+    return text.count("\n", 0, position) + 1
 
 
 def _script_lines(text: str) -> list[int]:
@@ -84,15 +114,15 @@ def main(root: pathlib.Path) -> int:
         return 0
 
     findings: list[str] = []
-    for path in sorted(templates.rglob("*.html")):
-        text = _without_comments(path.read_text(encoding="utf-8"))
-        hits = [
-            (lineno, label)
-            for lineno, line in enumerate(text.splitlines(), 1)
+    paths = sorted(p for p in templates.rglob("*") if p.suffix in TEMPLATE_SUFFIXES)
+    for path in paths:
+        text = _values_decoded(_without_comments(path.read_text(encoding="utf-8")))
+        hits = {
+            (_line(text, match.start("at")), label)
             for pattern, label in PATTERNS
-            if pattern.search(line)
-        ]
-        hits += [(lineno, "inline <script>") for lineno in _script_lines(text)]
+            for match in pattern.finditer(text)
+        }
+        hits |= {(lineno, "inline <script>") for lineno in _script_lines(text)}
         findings += [f"{path.relative_to(root)}:{lineno} {label}" for lineno, label in sorted(hits)]
 
     for finding in findings:

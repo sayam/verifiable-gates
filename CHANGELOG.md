@@ -8,6 +8,20 @@ Notable changes to this project. The format follows
 
 ### Fixed
 
+- **`csp-no-inline` reads markup the way a browser does — the `=` on the next
+  line, entities inside a value, a comment that never closes, and every
+  template suffix.** `<button onclick` ⏎ `="go()">` is a handler to the
+  browser and was clean here (the pattern ran one line at a time);
+  `href="&#106;avascript:…"` is `javascript:` once the browser decodes the
+  value and was clean; a handler in a `.htm`, `.jinja2` or `.j2` template was
+  never read (`*.html` only); and a `<!--` that never closes comments out the
+  rest of the file to the browser but was a finding here (self-audit,
+  2026-08-31, every case reproduced on v0.1.10). The patterns now run over the
+  whole file with a finding on the line its attribute name starts, entities
+  are decoded inside quoted attribute values only — `&lt;script&gt;` in text
+  stays text — an unclosed comment is blanked to the end, and `.htm`,
+  `.jinja`, `.jinja2` and `.j2` are read like `.html`. Proved by mutation: nine
+  cases red on the old scanner (#149).
 - **Text a shell will run is read as the command it becomes, and a script is
   followed from where the shell stands.** `bash -lc "pip install ruff"` (the
   `-c` folded into other flags), `echo "pip install ruff" | bash`, a here-string,

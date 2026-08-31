@@ -1783,6 +1783,16 @@ gates:
           resolved from the wrong directory were findings before and are clean
           now (self-audit, 2026-08-31).
       - kind: mutation
+        ref: pr/149
+        date: 2026-08-31
+        caught: >-
+          Nine cases red on `csp-no-inline` as it was — `onclick` with its `=`
+          on the next line, an entity-encoded `javascript:` in an href (with
+          and without a `&#10;` inside), a handler in a `.htm`, `.jinja2` or
+          `.j2` template (all green before), and an unclosed `<!--` (a finding
+          before); text showing `&lt;script&gt;` stays clean either way
+          (self-audit, 2026-08-31).
+      - kind: mutation
         ref: pr/138
         date: 2026-08-31
         caught: >-
