@@ -43,7 +43,7 @@ jobs:
       # Complexity and docstring coverage — ratchets set where reality was on
       # 2026-08-29 (worst block C, worst module C, average B; docstrings 84%),
       # because a floor above reality is a red nobody reads. Move up only.
-      - run: xenon --max-absolute C --max-modules C --max-average B src
+      - run: xenon --max-absolute C --max-modules B --max-average B src
         if: ${{ !cancelled() }}
       - run: interrogate src
         if: ${{ !cancelled() }}

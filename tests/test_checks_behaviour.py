@@ -2159,3 +2159,64 @@ def test_a_root_that_is_a_file_is_a_misuse(
 
     assert module.main(root) == 2
     assert "cannot read the tree" in capsys.readouterr().err
+
+
+@pytest.mark.parametrize("case", CASES)
+def test_bytes_that_are_not_utf_8_are_the_third_answer(
+    tmp_path: pathlib.Path, capsys: pytest.CaptureFixture[str], case: Case
+) -> None:
+    """A file that is not UTF-8 made seven of the nine scanners die of a raw
+    `UnicodeDecodeError` and exit 1 — the code that means findings — while the two AST
+    readers had already been given the third answer in #153 (self-audit round 3,
+    2026-09-01). Every file a project holds can arrive in some other encoding."""
+    root = build(tmp_path, case.dirty, case.config)
+    poisoned = root / next(iter(case.dirty))
+    poisoned.write_bytes("x caf\xe9\n".encode("latin-1"))
+
+    assert case.module.main(root) == 2
+    # The two AST readers name the file in their own words (#153); the seven others
+    # say "cannot read the tree". Both are the third answer, said out loud.
+    assert "cannot read" in capsys.readouterr().err
+
+
+def test_an_adr_index_that_is_not_utf_8_is_the_third_answer(
+    tmp_path: pathlib.Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """The ADR scanner reads its records with `errors="replace"` on purpose — prose is
+    prose — but the index itself is parsed, and undecodable bytes there were a traceback."""
+    adr = tmp_path / "docs" / "adr"
+    adr.mkdir(parents=True)
+    (adr / "0001-a.md").write_text("# 0001 A\n", encoding="utf-8")
+    (adr / "README.md").write_bytes("- [0001](0001-a.md) caf\xe9\n".encode("latin-1"))
+
+    assert scan_adr_index.main(tmp_path) == 2
+    assert "cannot read the tree" in capsys.readouterr().err
+
+
+def test_a_registry_that_is_not_utf_8_is_named_as_unreadable(
+    tmp_path: pathlib.Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """The registry scanner already answers a registry it cannot read as a finding that
+    names the file; undecodable bytes joined that route rather than growing a second one."""
+    (tmp_path / "gates.yaml").write_bytes("version: 1 caf\xe9\n".encode("latin-1"))
+
+    assert scan_gates_registry.main(tmp_path) == 1
+    assert "not UTF-8" in capsys.readouterr().out
+
+
+def test_a_workflow_that_is_not_utf_8_is_named_as_unreadable(
+    tmp_path: pathlib.Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """The same route for a workflow the registry scanner cannot decode."""
+    (tmp_path / "gates.yaml").write_text(
+        "version: 1\ngates:\n  - id: x\n    title: t\n    kind: job\n"
+        "    severity: blocking\n    enforced_by: {job: x}\n    layer: internal\n"
+        "    pillar: devx\n",
+        encoding="utf-8",
+    )
+    flows = tmp_path / ".github" / "workflows"
+    flows.mkdir(parents=True)
+    (flows / "ci.yml").write_bytes("on: push caf\xe9\n".encode("latin-1"))
+
+    assert scan_gates_registry.main(tmp_path) == 1
+    assert "not UTF-8" in capsys.readouterr().out
