@@ -9,6 +9,12 @@ reference implementation caught that false positive.
 The deeper cases (bulk operations, Core DML, raw SQL) belong to the project's own
 test suite. This scan is the first layer, not the only one.
 
+It reads code, not prose: comments and string literals — a docstring that says
+"never call session.delete( here" — are blanked before the match, and the session
+may carry a prefix (`db_session.delete(`, the plain SQLAlchemy `scoped_session`
+name), which is still `session.delete(` to the eye and was unseen behind a word
+boundary (self-audit, 2026-08-31: the docstring was a finding, `db_session` was not).
+
 exit 0 = clean or N/A · 1 = findings · 2 = called wrongly
 
 Role: decider — it answers pass or fail with an exit code, and it ships as a
@@ -19,12 +25,38 @@ standalone file; its evidence is a planted violation and a clean tree in
 from __future__ import annotations
 
 import fnmatch
+import io
 import json
 import pathlib
 import re
 import sys
+import tokenize
 
-DELETE_CALL = re.compile(r"\bsession\.delete\s*\(|synchronize_session")
+DELETE_CALL = re.compile(r"\w*session\.delete\s*\(|synchronize_session")
+# The middle of an f-string is its own token from Python 3.12 on; older tokenizers
+# have no such name and yield the whole literal as STRING.
+PROSE_TOKENS = {tokenize.COMMENT, tokenize.STRING, getattr(tokenize, "FSTRING_MIDDLE", -1)}
+
+
+def _code_lines(text: str) -> list[str]:
+    """The file's lines with every comment and string literal blanked, newlines kept —
+    the words in a docstring are not a call. A file Python cannot tokenize is read
+    as written."""
+    lines = text.splitlines()
+    try:
+        tokens = list(tokenize.generate_tokens(io.StringIO(text).readline))
+    except (tokenize.TokenError, SyntaxError):
+        return lines
+    for token in tokens:
+        if token.type not in PROSE_TOKENS:
+            continue
+        (first, start), (last, end) = token.start, token.end
+        for lineno in range(first, last + 1):
+            line = lines[lineno - 1]
+            head = start if lineno == first else 0
+            tail = end if lineno == last else len(line)
+            lines[lineno - 1] = line[:head] + " " * (tail - head) + line[tail:]
+    return lines
 
 
 MISCONFIGURED = (
@@ -59,9 +91,13 @@ def main(root: pathlib.Path) -> int:
         relative = path.relative_to(root)
         if any(fnmatch.fnmatch(str(relative), pattern) for pattern in patterns):
             continue
-        for lineno, line in enumerate(path.read_text(encoding="utf-8").splitlines(), 1):
-            if DELETE_CALL.search(line) and not line.lstrip().startswith("#"):
-                findings.append(f"{path.relative_to(root)}:{lineno} {line.strip()[:70]}")
+        text = path.read_text(encoding="utf-8")
+        shown = text.splitlines()
+        for lineno, line in enumerate(_code_lines(text), 1):
+            if DELETE_CALL.search(line):
+                findings.append(
+                    f"{path.relative_to(root)}:{lineno} {shown[lineno - 1].strip()[:70]}"
+                )
 
     for finding in findings:
         print(f"delete-means-soft-delete: {finding}")

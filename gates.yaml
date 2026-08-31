@@ -1793,6 +1793,16 @@ gates:
           before); text showing `&lt;script&gt;` stays clean either way
           (self-audit, 2026-08-31).
       - kind: mutation
+        ref: pr/151
+        date: 2026-08-31
+        caught: >-
+          `db_session.delete(user)` unseen behind a word boundary, and a
+          docstring, a string and two comments that merely name
+          `session.delete(` or `synchronize_session` all findings — five cases
+          red on `delete-means-soft-delete` as it was; `self.session.delete(`
+          and a file Python cannot tokenize hold their direction either way
+          (self-audit, 2026-08-31).
+      - kind: mutation
         ref: pr/138
         date: 2026-08-31
         caught: >-
