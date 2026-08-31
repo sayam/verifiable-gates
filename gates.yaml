@@ -2309,6 +2309,14 @@ gates:
           pytest — sat outside the partition unclaimed. Six cases red on the
           reader as it was; a second marker still refuses (self-audit,
           2026-08-31).
+      - kind: mutation
+        ref: pr/175
+        date: 2026-08-31
+        caught: >-
+          Both halves put back — `kind: test` changed to `kind: job` with
+          the tests list left in place took the harness from 43 pass to 42
+          and stopped the scanner looking for that gate's files, every
+          reader green; two cases red now (self-audit round 2, 2026-08-31).
 
   - id: the-box-opens-already-true
     title: A fresh install's registry passes its own check, and is not skipped as not-applicable
@@ -2642,6 +2650,14 @@ gates:
           The unknown-key check switched off — a stray key on a gate accepted
           again, red; `whatever: hello` planted in this repository's own
           registry, red in the schema test.
+      - kind: mutation
+        ref: pr/175
+        date: 2026-08-31
+        caught: >-
+          Both halves put back — `kind: test` changed to `kind: job` with
+          the tests list left in place took the harness from 43 pass to 42
+          and stopped the scanner looking for that gate's files, every
+          reader green; two cases red now (self-audit round 2, 2026-08-31).
 
   - id: every-commit-is-shaped-and-signed
     title: Every commit added by a branch is a Conventional Commit and carries a sign-off
