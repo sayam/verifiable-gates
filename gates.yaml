@@ -1381,6 +1381,15 @@ gates:
           emptied, red. An outside audit did the first two on 2026-08-30 and
           the suite stayed green — the job that reads the register is not a
           required check, so nothing in a pull request saw either.
+      - kind: mutation
+        ref: pr/157
+        date: 2026-08-31
+        caught: >-
+          The summary "17 switches hold their declared values" above four "by
+          hand" lines counted a person's reads as the machine's — red on the
+          module as it was; and `readable: false` added to a switch turned a red
+          "blind" into a green "by hand" with nothing seeing it — red now
+          against the held set (self-audit, 2026-08-31).
 
   - id: every-advisory-has-been-judged
     title: Every finding has been decided about, and every decision still describes something
