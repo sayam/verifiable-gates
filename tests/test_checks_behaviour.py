@@ -2293,3 +2293,65 @@ def test_a_file_it_may_not_read_is_the_third_answer(
     printed = capsys.readouterr()
     assert got in {1, 2}, got
     assert "cannot read" in printed.err or "could not be read" in printed.out
+
+
+@pytest.mark.parametrize(
+    ("run", "exit_code", "why"),
+    [
+        (
+            "cat > README.md <<'EOF'\nrun pip install ruff yourself\nEOF\n",
+            0,
+            "a heredoc written into a file is data, not a command",
+        ),
+        (
+            "cat <<-EOF > doc.md\npip install ruff\nEOF\n",
+            0,
+            "the delimiter may be followed by a redirection",
+        ),
+        (
+            "cat <<'EOF' | tee doc.md\npip install ruff\nEOF\n",
+            0,
+            "and by a pipe to something that is not a shell",
+        ),
+        (
+            "bash <<'EOF'\npip install ruff\nEOF\n",
+            1,
+            "a heredoc fed to a shell is run, so it is read",
+        ),
+        (
+            "sh -e <<'EOF'\npip install ruff\nEOF\n",
+            1,
+            "the shell may carry flags",
+        ),
+        (
+            "cat > doc.md <<'EOF'\nhello\nEOF\npip install ruff\n",
+            1,
+            "the command after the delimiter is a command again",
+        ),
+    ],
+    ids=[
+        "written-to-a-file",
+        "indented-delimiter",
+        "piped-onward",
+        "fed-to-bash",
+        "shell-with-flags",
+        "after-the-body",
+    ],
+)
+def test_a_heredoc_is_read_by_who_receives_it(
+    tmp_path: pathlib.Path, capsys: pytest.CaptureFixture[str], run: str, exit_code: int, why: str
+) -> None:
+    """A README written from a workflow, documenting `pip install …`, was reported as an
+    install — a red a project cannot fix except by switching the gate off (self-audit
+    round 6, 2026-09-01). The body of a heredoc is data unless a shell receives it, which
+    is the distinction this scanner already makes between `echo …` and `echo … | bash`."""
+    flows = tmp_path / ".github" / "workflows"
+    flows.mkdir(parents=True)
+    body = "".join(f"          {line}\n" for line in run.splitlines())
+    (flows / "ci.yml").write_text(
+        "name: t\non: push\njobs:\n  x:\n    runs-on: u\n    steps:\n      - run: |\n" + body,
+        encoding="utf-8",
+    )
+
+    assert scan_install_pinning.main(tmp_path) == exit_code, why
+    capsys.readouterr()

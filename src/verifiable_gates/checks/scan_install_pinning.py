@@ -559,10 +559,39 @@ def _run_lines(text: str) -> list[str]:
     return found
 
 
+# A heredoc's body is data unless the command receiving it is a shell: `cat > README.md
+# <<'EOF' … EOF` writes a file, and a README that documents `pip install …` was read as
+# an install and reported — a red a project cannot fix except by switching the gate off
+# (self-audit round 6, 2026-09-01). `bash <<'EOF'` runs its body, so that one is kept:
+# the same distinction this scanner already makes between `echo …` and `echo … | bash`.
+# The delimiter word may be followed by a redirection — `cat <<-EOF > doc.md` — so the
+# word is read where it sits, not at the end of the line; `<<<` is a here-string, which
+# this scanner already reads as the command it becomes, and is not a heredoc.
+HEREDOC = re.compile(r"""(?<!<)<<-?\s*(?P<q>['"]?)(?P<word>[A-Za-z_][\w-]*)(?P=q)(?!<)""")
+HEREDOC_TO_SHELL = re.compile(rf"""(?:^|[\s;&|(]){SHELL}\b[^<]*(?<!<)<<-?\s*['"]?[A-Za-z_]""")
+
+
+def _without_heredoc_bodies(lines: list[str]) -> list[str]:
+    """The lines a shell will execute, with the bodies it merely passes along removed."""
+    kept: list[str] = []
+    waiting_for = ""
+    for line in lines:
+        if waiting_for:
+            if line.strip() == waiting_for:
+                waiting_for = ""
+            continue
+        kept.append(line)
+        opener = HEREDOC.search(_without_comment(line))
+        if opener and not HEREDOC_TO_SHELL.search(line):
+            waiting_for = opener.group("word")
+    return kept
+
+
 def _commands(path: pathlib.Path) -> list[str]:
     text = _text(path)
     joined, buffer = [], ""
-    for raw in _run_lines(text) if path.suffix in YAML else text.splitlines():
+    read = _run_lines(text) if path.suffix in YAML else text.splitlines()
+    for raw in _without_heredoc_bodies(read):
         if raw.lstrip().startswith("#"):
             continue
         buffer += _without_comment(raw).rstrip()

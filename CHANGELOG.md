@@ -25,6 +25,19 @@ Notable changes to this project. The format follows
 
 ### Fixed
 
+- **A heredoc is read by whoever receives it.** `cat > README.md <<'EOF' … EOF`
+  writes a file; its body is data. The pinning scanner read every line of a
+  `run:` block as a command, so a workflow that writes a README documenting
+  `pip install …` was reported as an unpinned install — **a red a project cannot
+  fix except by switching the gate off**, which is the worst thing a shipped
+  scanner can do (self-audit round 6, 2026-09-01). The body of a heredoc is now
+  skipped unless a shell receives it: `bash <<'EOF' … EOF` runs its body and is
+  still read, which is the same distinction this scanner already makes between
+  `echo …` and `echo … | bash`. The delimiter is read where it sits, so
+  `cat <<-EOF > doc.md` and `cat <<'EOF' | tee doc.md` are handled, and `<<<` is
+  untouched — a here-string is read as the command it becomes. Proved by
+  mutation: six cases, three of them the direction that must stay red.
+
 - **A file we are not allowed to read is the third answer too.** The decode guard
   that round 3 gave the scanners was written for the exception that was in hand —
   `UnicodeDecodeError` — and a file the scanner may not *open* went on being a raw
