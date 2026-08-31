@@ -877,3 +877,71 @@ def test_a_record_that_cannot_be_read_says_so(
     assert done.returncode == 1
     assert "cannot be read" in done.stdout + done.stderr
     assert "cannot be read" in gates_doctor.check_installed_record(project)[0]
+
+
+def a_bundle_without(bundle: pathlib.Path, gate: str, tmp_path: pathlib.Path) -> pathlib.Path:
+    """A copy of the bundle that no longer ships one gate's scanner — a newer version."""
+    newer = tmp_path / "newer-bundle"
+    shutil.copytree(bundle, newer)
+    manifest = json.loads((newer / "overlay.json").read_text(encoding="utf-8"))
+    script = manifest["gates"].pop(gate)["script"]
+    manifest["ship"] = [name for name in manifest["ship"] if name != script]
+    (newer / script).unlink()
+    (newer / "overlay.json").write_text(json.dumps(manifest, indent=2) + "\n", encoding="utf-8")
+    return newer
+
+
+def test_an_upgrade_says_what_it_stopped_shipping(
+    tmp_path: pathlib.Path, bundle_copy: pathlib.Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """A bundle that drops or renames a scanner left the old file in the project's
+    repository forever: nothing names it, the doctor never runs it, and `--installed`
+    said "every scan runs" because it checks only what the current record names. The
+    project could not tell dead code from live code in a directory this bundle owns
+    (self-audit round 9, 2026-09-01)."""
+    project = tmp_path / "project"
+    assert do_install(project, bundle_copy) == 0
+    newer = a_bundle_without(bundle_copy, "adr-index-complete", tmp_path)
+    capsys.readouterr()
+
+    assert install_module.main([str(project), "--manifest", str(newer / "overlay.json")]) == 0
+
+    printed = capsys.readouterr().out
+    assert "left behind: tools/checks/scan_adr_index.py" in printed
+    assert "delete it or keep it on purpose" in printed
+    assert (project / "tools" / "checks" / "scan_adr_index.py").is_file(), (
+        "a file in somebody else's repository is theirs to remove — say it, do not delete it"
+    )
+
+
+def test_a_first_install_and_a_reinstall_leave_nothing_behind(
+    tmp_path: pathlib.Path, bundle_copy: pathlib.Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """The direction that must stay quiet: nothing was dropped, so nothing is said."""
+    project = tmp_path / "project"
+
+    assert do_install(project, bundle_copy) == 0
+    assert "left behind" not in capsys.readouterr().out
+    assert do_install(project, bundle_copy) == 0
+    assert "left behind" not in capsys.readouterr().out
+
+
+def test_a_record_it_cannot_read_says_nothing_about_leftovers(
+    tmp_path: pathlib.Path, bundle_copy: pathlib.Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """The record is this bundle's own note to itself. One it cannot read is not a reason
+    to accuse a project of leftovers it may not have — the install proceeds and writes a
+    fresh record, and the doctor's `--installed` says separately that it could not be
+    read (round 9, 2026-09-01)."""
+    project = tmp_path / "project"
+    assert do_install(project, bundle_copy) == 0
+    (project / "tools" / "installed.json").write_text("not json", encoding="utf-8")
+    capsys.readouterr()
+
+    assert do_install(project, bundle_copy) == 0
+
+    printed = capsys.readouterr().out
+    assert "left behind" not in printed
+    assert json.loads(
+        (project / "tools" / "installed.json").read_text(encoding="utf-8")
+    )["files"], "the install rewrites the record it could not read"
