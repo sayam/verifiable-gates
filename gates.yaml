@@ -1336,6 +1336,15 @@ gates:
           The guard removed from --root — a directory that is not a checkout
           was a FileNotFoundError and exit 1, the code that means the
           numbers disagree (self-audit round 2, 2026-08-31).
+      - kind: mutation
+        ref: pr/179
+        date: 2026-09-01
+        caught: >-
+          The seven put back one at a time — three scanners' scaffold.json
+          reads and four package readers whose guards were written for a
+          file that is not there rather than one that cannot be decoded;
+          each was a raw UnicodeDecodeError and exit 1, seven cases red now
+          (self-audit round 3, 2026-09-01).
 
   - id: the-about-field-is-read-not-remembered
     title: The description on the hosting platform is read live and held to what the tree measures
