@@ -714,6 +714,13 @@ gates:
           `Signed-off-by:    <a@b.co>` — three spaces where the name goes —
           accepted by the module's `.+` and by the CI grep alike; red on both as
           they were, refused now (self-audit, 2026-08-31).
+      - kind: mutation
+        ref: pr/173
+        date: 2026-08-31
+        caught: >-
+          The guard removed from --msg-file — a path git hands the hook that
+          does not exist was a traceback and exit 1, which reads as a bad
+          message (self-audit round 2, 2026-08-31).
 
   - id: newcomer-issues-are-not-taken-silently
     title: A pull request closing an issue still labelled for newcomers has to say why
@@ -1011,6 +1018,14 @@ gates:
           A `created_at` of `1700000000` or `yesterday` raised `ValueError`
           from inside the measure, exit 1 — two cases red on the census as it
           was, each now exit 2 (self-audit, 2026-08-31).
+      - kind: mutation
+        ref: pr/173
+        date: 2026-08-31
+        caught: >-
+          The guard removed from --root — the census's --input had been
+          given the third answer in round 1 and its --root had not, so a
+          tree that is not there was a traceback (self-audit round 2,
+          2026-08-31).
 
   - id: a-rerun-cannot-erase-a-failure-from-the-count
     title: Failures a rerun turned green are still counted, and classified by who broke
@@ -1314,6 +1329,13 @@ gates:
           two counterparts, drifted by hand — four places `--write` never
           reached, and the suite stayed green (self-audit, 2026-08-31); now 23
           places, each named by the tree test when it says something else.
+      - kind: mutation
+        ref: pr/173
+        date: 2026-08-31
+        caught: >-
+          The guard removed from --root — a directory that is not a checkout
+          was a FileNotFoundError and exit 1, the code that means the
+          numbers disagree (self-audit round 2, 2026-08-31).
 
   - id: the-about-field-is-read-not-remembered
     title: The description on the hosting platform is read live and held to what the tree measures
@@ -1482,6 +1504,15 @@ gates:
           CONTRIBUTING made to say "the seven required checks" beside a list
           of eight — green while only the list was held (self-audit,
           2026-08-31); red now against the register's count.
+      - kind: mutation
+        ref: pr/173
+        date: 2026-08-31
+        caught: >-
+          The guard removed from the declared register — an unparsable file,
+          a list where the register belongs, and a path that is not there
+          each came back a raw traceback and exit 1, the code that means
+          findings, on the file this job reads every week (self-audit round
+          2, 2026-08-31).
 
   - id: every-advisory-has-been-judged
     title: Every finding has been decided about, and every decision still describes something
@@ -1516,6 +1547,14 @@ gates:
           cause became six, using the registry's internal number as the id,
           collapsing "no fix exists" into "a fix exists we cannot take", and
           reading the register's own comments as entries.
+      - kind: mutation
+        ref: pr/173
+        date: 2026-08-31
+        caught: >-
+          The guard removed from the report and the register — half a JSON
+          file, a report of the wrong shape, and either file missing were
+          four tracebacks and exit 1; pip-audit leaves exactly that half
+          file behind when it dies (self-audit round 2, 2026-08-31).
 
   - id: a-scan-proves-it-scanned
     title: A run that found nothing is told apart from a run that read nothing
@@ -2150,6 +2189,14 @@ gates:
           The checkout pin in `ci-template.yml` moved alone — the pin every
           installed project inherits, which Dependabot never sees — red against
           the pin our own workflows carry (self-audit, 2026-08-31).
+      - kind: mutation
+        ref: pr/173
+        date: 2026-08-31
+        caught: >-
+          The guard removed from the doctor's manifest — the installer
+          beside it had answered an unreadable manifest with exit 2 since
+          #154 while the doctor died of a traceback on the same three shapes
+          (self-audit round 2, 2026-08-31).
 
   - id: the-manifest-is-an-input
     title: The manifest is validated as data, and a rule the bundle cannot decide cannot carry a script
@@ -2380,6 +2427,13 @@ gates:
           translation rendered blank instead of the published text, pinning the
           headings to English whatever the language, writing the file during
           --check, and ignoring the requested layer.
+      - kind: mutation
+        ref: pr/173
+        date: 2026-08-31
+        caught: >-
+          The guard removed from --preamble — a preamble that is not there
+          was a traceback and exit 1 while the catalogue's own problems
+          already answered 2 (self-audit round 2, 2026-08-31).
 
   - id: the-harness-never-passes-what-it-cannot-decide
     title: The fail-fix harness answers machine-readably, and reports skips rather than hiding them
