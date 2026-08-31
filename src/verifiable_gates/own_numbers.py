@@ -180,7 +180,13 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--about", action="store_true", help="also read the platform's About field")
     args = parser.parse_args(argv)
     root = pathlib.Path(args.root)
-    values = facts(root)
+    try:
+        values = facts(root)
+    except OSError as problem:
+        # A root that is not a checkout is a call this reader cannot answer; it
+        # died of a traceback and exit 1 (round 2, 2026-08-31).
+        print(f"cannot read the checkout: {root}: {problem}", file=sys.stderr)
+        return 2
 
     status = 0
     inside = advertised.drift(root, PLACES, values)

@@ -174,7 +174,13 @@ def main(argv: list[str] | None = None) -> int:
     )
     bundle = manifest_path.parent
     root = pathlib.Path(root_arg).resolve() if root_arg else bundle.parent
-    manifest = load_manifest(manifest_path)
+    try:
+        manifest = load_manifest(manifest_path)
+    except (OSError, ValueError, TypeError) as problem:
+        # The installer already answers a manifest it cannot read this way; the
+        # doctor beside it still died of a traceback (round 2, 2026-08-31).
+        print(f"** cannot read the manifest: {problem}", file=sys.stderr)
+        return 2
 
     if args.installed:
         return check_installed(root, manifest, bundle)

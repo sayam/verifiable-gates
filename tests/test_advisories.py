@@ -299,3 +299,33 @@ def test_this_repositorys_register_is_readable_and_reasoned() -> None:
     register = advisories.accepted(ROOT / "pins" / "dev" / "advisories-accepted.txt")
 
     assert all(register.values()), f"an entry with no reason: {register}"
+
+
+@pytest.mark.parametrize(
+    ("report", "register", "why"),
+    [
+        ("not json", "", "a report the scanner left half-written"),
+        ("[]", "", "a report of the wrong shape"),
+        (None, "", "a report that is not there"),
+        ('{"dependencies": []}', None, "a register that is not there"),
+    ],
+    ids=["unparsable", "wrong-shape", "missing-report", "missing-register"],
+)
+def test_a_report_or_register_this_reader_cannot_read_is_a_misuse(
+    tmp_path: pathlib.Path,
+    capsys: pytest.CaptureFixture[str],
+    report: str | None,
+    register: str | None,
+    why: str,
+) -> None:
+    """`pip-audit` writes half a file when it dies, and the register is edited by hand.
+    Both were a traceback and exit 1 — the code that means findings (round 2, 2026-08-31)."""
+    report_path, register_path = tmp_path / "report.json", tmp_path / "accepted.txt"
+    if report is not None:
+        report_path.write_text(report, encoding="utf-8")
+    if register is not None:
+        register_path.write_text(register, encoding="utf-8")
+
+    argv = ["--kind", "pip-audit", "--report", str(report_path), "--register", str(register_path)]
+    assert advisories.main(argv) == 2, why
+    assert "cannot read the report or the register" in capsys.readouterr().err

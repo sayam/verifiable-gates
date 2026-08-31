@@ -771,3 +771,21 @@ def test_the_templates_checkout_is_the_pin_our_own_workflows_carry() -> None:
     our_pins = set(pin.findall(ours))
     assert len(our_pins) == 1, our_pins
     assert set(pin.findall(template)) == our_pins, (pin.findall(template), our_pins)
+
+
+@pytest.mark.parametrize(
+    ("body", "why"),
+    [("not json", "unparsable"), ("[]", "a list, not a manifest"), (None, "not there")],
+    ids=["unparsable", "wrong-shape", "missing"],
+)
+def test_a_manifest_the_doctor_cannot_read_is_a_misuse(
+    tmp_path: pathlib.Path, capsys: pytest.CaptureFixture[str], body: str | None, why: str
+) -> None:
+    """The installer answers an unreadable manifest with exit 2 (#154); the doctor beside
+    it still died of a traceback and exit 1 (round 2, 2026-08-31)."""
+    manifest = tmp_path / "overlay.json"
+    if body is not None:
+        manifest.write_text(body, encoding="utf-8")
+
+    assert gates_doctor.main(["--manifest", str(manifest)]) == 2, why
+    assert "cannot read the manifest" in capsys.readouterr().err

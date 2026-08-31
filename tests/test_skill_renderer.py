@@ -304,3 +304,22 @@ def test_a_layer_can_be_chosen_from_the_command_line(tmp_path: pathlib.Path) -> 
     ]
     assert skill.main(args) == 0
     assert "a-rule" not in out.read_text(encoding="utf-8"), "a baseline rule leaked into business"
+
+
+def test_a_preamble_that_is_not_there_is_a_misuse(
+    tmp_path: pathlib.Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """The sheet is generated from a catalogue and a preamble; a preamble that is not
+    there was a traceback and exit 1 (round 2, 2026-08-31)."""
+    catalogue, _ = a_project(tmp_path, CATALOGUE)
+    argv = [
+        "--catalogue",
+        str(catalogue),
+        "--preamble",
+        str(tmp_path / "not-there.md"),
+        "--out",
+        str(tmp_path / "SKILL.md"),
+    ]
+
+    assert skill.main(argv) == 2
+    assert "cannot read the preamble" in capsys.readouterr().err

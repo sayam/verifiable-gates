@@ -178,7 +178,13 @@ def main(argv: list[str] | None = None) -> int:
     root = pathlib.Path(args.root)
     registry = pathlib.Path(args.registry) if args.registry else root / "gates.yaml"
 
-    promised = promised_days(registry, workflows.workflow_dir(root))
+    try:
+        promised = promised_days(registry, workflows.workflow_dir(root))
+    except OSError as problem:
+        # `--input` was given this answer in round 1; `--root` was not, and a root
+        # that is not there was a traceback (round 2, 2026-08-31).
+        print(f"cannot read the registry or the workflows: {problem}", file=sys.stderr)
+        return 2
     if not promised:
         # Nothing to hold to anything: no gate declares a watcher. Said out loud,
         # because a green that means "nothing was measured" must read as such.
