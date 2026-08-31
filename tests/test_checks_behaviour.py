@@ -1850,6 +1850,8 @@ HASHED_REQ = (
         ({}, '      - run: pip install "--require-hashes" -r requirements.txt\n'),
         ({}, "      - run: pip install --no-index --find-links wheels/ ruff\n"),
         ({}, "      - run: pip install --no-deps ./dist/vg-0.1.0-py3-none-any.whl\n"),
+        ({}, "      - run: pip install --no-deps dist/*.whl\n"),
+        ({}, "      - run: pip install --no-deps --no-build-isolation dist/*.whl\n"),
         ({}, "      - run: PIP_REQUIRE_HASHES=1 pip install -r requirements.txt\n"),
         (
             {},
@@ -1868,6 +1870,8 @@ HASHED_REQ = (
         "quoted-flag",
         "no-index",
         "a-wheel-with-no-deps",
+        "a-wheel-without-the-dot-slash",
+        "a-wheel-globbed-as-this-repo-does",
         "env-on-the-command",
         "env-of-the-step",
         "every-requirement-hashed",
