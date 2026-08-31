@@ -308,9 +308,7 @@ def _toothless(workflow: dict[str, Any], job: dict[str, Any]) -> str:
     return ""
 
 
-def _read_workflow(
-    path: pathlib.Path, root: pathlib.Path
-) -> tuple[dict[str, Any] | None, str]:
+def _read_workflow(path: pathlib.Path, root: pathlib.Path) -> tuple[dict[str, Any] | None, str]:
     """One workflow, or the sentence saying why it could not be read.
 
     Three ways of not being readable, and each was a raw traceback once: bytes that are
@@ -330,9 +328,7 @@ def _read_workflow(
     return workflow, ""
 
 
-def _teeth(
-    workflow: dict[str, Any], name: str, job: object, steps: list[object]
-) -> dict[str, str]:
+def _teeth(workflow: dict[str, Any], name: str, job: object, steps: list[object]) -> dict[str, str]:
     """What cannot fail here: the job itself, and any step a step gate could name."""
     found: dict[str, str] = {}
     why = _toothless(workflow, job) if isinstance(job, dict) else ""
