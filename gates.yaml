@@ -1812,6 +1812,14 @@ gates:
           `flask.current_app`, `werkzeug.security` and a `request` of the
           file's own stay clean (self-audit, 2026-08-31).
       - kind: mutation
+        ref: pr/153
+        date: 2026-08-31
+        caught: >-
+          An entrypoint and a service file Python cannot parse — each a
+          traceback and exit 1 on the two AST scans as they were, which the
+          doctor reads as "findings"; now "cannot read <file>" on stderr and
+          exit 2, both cases red on the old scanners (self-audit, 2026-08-31).
+      - kind: mutation
         ref: pr/138
         date: 2026-08-31
         caught: >-

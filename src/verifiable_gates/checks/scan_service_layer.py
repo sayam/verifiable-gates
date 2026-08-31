@@ -127,7 +127,17 @@ def main(root: pathlib.Path) -> int:
 
     findings: list[str] = []
     for path in sorted(services.rglob("*.py")):
-        tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
+        try:
+            tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
+        except (SyntaxError, ValueError) as error:
+            # A file Python cannot parse is not a verdict either way — said plainly,
+            # exit 2, the way every other unreadable input is refused (self-audit,
+            # 2026-08-31: a traceback and exit 1, which reads as "findings").
+            print(
+                f"logic-knows-no-http: cannot read {path.relative_to(root)} — {error}",
+                file=sys.stderr,
+            )
+            return 2
         findings += _findings_in(tree, str(path.relative_to(root)))
 
     for finding in findings:

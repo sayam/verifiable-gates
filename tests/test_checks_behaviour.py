@@ -1802,3 +1802,27 @@ def test_the_application_side_and_a_name_of_ones_own_stay_clean(
     files = {"app/services/todos.py": source}
     assert scan_service_layer.main(build(tmp_path, files, SERVICES)) == 0
     assert capsys.readouterr().out == ""
+
+
+@pytest.mark.parametrize(
+    ("module", "files", "config"),
+    [
+        (scan_entrypoint_debug, {"run.py": "print 'x'\n"}, None),
+        (scan_service_layer, {"app/services/a.py": "def (:\n"}, SERVICES),
+    ],
+    ids=["entrypoint", "service-layer"],
+)
+def test_a_file_python_cannot_parse_is_refused_not_a_traceback(
+    tmp_path: pathlib.Path,
+    capsys: pytest.CaptureFixture[str],
+    module: ModuleType,
+    files: dict[str, str],
+    config: dict[str, Any] | None,
+) -> None:
+    """A scan that reads the AST answers exit 2 and says which file it could not read —
+    not a traceback whose exit 1 reads as findings (self-audit, 2026-08-31)."""
+    assert module.main(build(tmp_path, files, config)) == 2
+    out, err = capsys.readouterr()
+    assert out == ""
+    assert "cannot read" in err
+    assert "Traceback" not in err
