@@ -35,6 +35,8 @@ evidence is that what arrives equals the manifest and the doctor reads it back.
 from __future__ import annotations
 
 import argparse
+import hashlib
+import json
 import os
 import pathlib
 import re
@@ -42,6 +44,7 @@ import shutil
 import sys
 from typing import Any
 
+from verifiable_gates import __version__
 from verifiable_gates import manifest as manifest_module
 
 __all__ = ["install", "main"]
@@ -97,6 +100,35 @@ def _destination_problems(dest: pathlib.Path, names: list[str]) -> list[str]:
     return sorted(set(found))
 
 
+RECORD = "tools/installed.json"
+
+
+def digest(path: pathlib.Path) -> str:
+    """The sha256 of a file, as the record writes it."""
+    return hashlib.sha256(path.read_bytes()).hexdigest()
+
+
+def _record(dest: pathlib.Path, written: list[pathlib.Path]) -> None:
+    """Write down what this install put here, so the doctor can say whether it is still
+    what arrived.
+
+    `--installed` said "the bundle arrived intact" while checking only that each file is
+    present and compiles: a scanner whose body had been replaced with `return 0` passed
+    that check and then reported its gate as `pass` on a tree that violated it
+    (self-audit round 4, 2026-09-01). Only the files this install *wrote* are recorded —
+    the project's own `gates.yaml`, `scaffold.json` and workflow are its decisions to
+    edit, and a record of them would be a check against the project rather than the
+    bundle.
+    """
+    record = {
+        "version": __version__,
+        "files": {str(path.relative_to(dest)): digest(path) for path in sorted(written)},
+    }
+    target = dest / RECORD
+    target.parent.mkdir(parents=True, exist_ok=True)
+    target.write_text(json.dumps(record, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+
+
 def install(
     dest: pathlib.Path,
     manifest: dict[str, Any],
@@ -104,6 +136,7 @@ def install(
     manifest_path: pathlib.Path | None = None,
 ) -> int:
     kept_registry = False
+    written: list[pathlib.Path] = []
     names = manifest_module.shipped(manifest)
 
     # Refuse before touching the destination: the directories used to be made
@@ -134,9 +167,17 @@ def install(
                 continue
             target.parent.mkdir(parents=True, exist_ok=True)
             shutil.copy2(source, target)
+            if name not in KEEP_IF_PRESENT:
+                # The three files a project owns from the moment they land — its
+                # registry, its scaffold and its workflow — are its decisions to edit,
+                # so they are not recorded: a record of them would hold the project to
+                # the bundle's defaults rather than hold the bundle to what it shipped.
+                written.append(target)
     except OSError as error:
         print(f"** could not write to {dest}: {error} — the install is incomplete", file=sys.stderr)
         return 1
+
+    _record(dest, written)
 
     if kept_registry and not _registry_names_the_job(dest):
         print(

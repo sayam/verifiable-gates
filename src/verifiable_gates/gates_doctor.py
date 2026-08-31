@@ -45,6 +45,7 @@ scanner's own tests decide the verdicts it relays, and that NA is never a pass.
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import pathlib
 import py_compile
@@ -73,9 +74,46 @@ def suite_count(manifest: dict[str, Any]) -> int:
     return sum(1 for entry in manifest["gates"].values() if entry.get("kind") == "suite")
 
 
+def check_installed_record(root: pathlib.Path) -> list[str]:
+    """What the installer wrote and is no longer what it wrote.
+
+    "Arrived intact" was checked as *present and compiles*, so a scanner whose body had
+    been replaced with `return 0` passed the check and then reported its gate as `pass`
+    on a tree that violated it (self-audit round 4, 2026-09-01). The installer records a
+    digest of every file it writes; a bundle installed before it did says so rather than
+    claiming either answer.
+
+    The boundary, written down because it is real: this catches an edited *scanner*,
+    and cannot catch an edited *doctor* — a check that has been removed does not run.
+    Nothing local can close that; what closes it is the copy in the package, which the
+    installer rewrites, and the pull request that shows the edit.
+    """
+    record = root / "tools" / "installed.json"
+    if not record.is_file():
+        return [
+            (
+                "no tools/installed.json — this bundle was installed before the installer "
+                "recorded what it wrote, so intact cannot be checked; re-run the installer"
+            )
+        ]
+    try:
+        files = json.loads(record.read_text(encoding="utf-8"))["files"]
+    except (OSError, ValueError, KeyError, TypeError) as problem:
+        return [f"tools/installed.json cannot be read: {problem}"]
+    found = []
+    for name, recorded in sorted(files.items()):
+        path = root / name
+        if not path.is_file():
+            found.append(f"{name} was installed and is gone")
+        elif hashlib.sha256(path.read_bytes()).hexdigest() != recorded:
+            found.append(f"{name} is not what was installed — its contents have changed")
+    return found
+
+
 def check_installed(root: pathlib.Path, manifest: dict[str, Any], bundle: pathlib.Path) -> int:
-    """Is everything here and runnable? Says nothing about the project's own code."""
-    problems: list[str] = []
+    """Is everything here, runnable, and still what arrived? Says nothing about the
+    project's own code."""
+    problems: list[str] = check_installed_record(root)
     if not (root / "scaffold.json").is_file():
         problems.append("no scaffold.json — the install did not finish")
 

@@ -25,6 +25,21 @@ Notable changes to this project. The format follows
 
 ### Fixed
 
+- **"Arrived intact" now means unchanged, not merely present.** `gates_doctor
+  --installed` — whose own help says *check the bundle arrived intact* — checked
+  that each shipped file exists and compiles. A scanner whose body had been
+  replaced with `return 0` passed that check, and the doctor then reported its
+  gate as `[ pass]` on a tree that plainly violated it (self-audit round 4,
+  2026-09-01). The installer now writes `tools/installed.json` — a sha256 of every
+  file it wrote — and `--installed` holds the bundle to it: a file whose contents
+  changed, or one that was installed and is gone, is named. The three files a
+  project owns from the moment they land (`gates.yaml`, `scaffold.json` and the
+  workflow) are deliberately **not** recorded: a record of them would hold the
+  project to the bundle's defaults instead of holding the bundle to what it
+  shipped. A bundle installed before the record existed says exactly that rather
+  than claiming either answer. Proved by mutation: five cases red on the old
+  check.
+
 - **A gate whose tests were all skipped is not a gate that passed.** pytest exits
   0 when every test it collected was skipped, and the harness read only that exit
   code — so one line at the top of a claimed test file

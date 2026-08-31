@@ -789,3 +789,88 @@ def test_a_manifest_the_doctor_cannot_read_is_a_misuse(
 
     assert gates_doctor.main(["--manifest", str(manifest)]) == 2, why
     assert "cannot read the manifest" in capsys.readouterr().err
+
+
+def test_a_scanner_whose_body_was_replaced_is_not_intact(
+    tmp_path: pathlib.Path, bundle_copy: pathlib.Path
+) -> None:
+    """`--installed` said "the bundle arrived intact" while checking only that each file
+    is present and compiles. A scanner whose body had been replaced with `return 0`
+    passed that check and then reported its gate as `pass` on a tree that violates it
+    (self-audit round 4, 2026-09-01)."""
+    project = tmp_path / "project"
+    assert do_install(project, bundle_copy) == 0
+    assert run_doctor(project, "--installed").returncode == 0, "a fresh install is intact"
+
+    scanner = project / "tools" / "checks" / "scan_install_pinning.py"
+    body = scanner.read_text(encoding="utf-8")
+    scanner.write_text(
+        body.replace(
+            "def main(root: pathlib.Path) -> int:",
+            "def main(root: pathlib.Path) -> int:\n    return 0",
+            1,
+        ),
+        encoding="utf-8",
+    )
+
+    done = run_doctor(project, "--installed")
+    assert done.returncode == 1
+    assert "is not what was installed" in done.stdout + done.stderr
+
+
+def test_a_file_the_install_wrote_and_is_gone_is_not_intact(
+    tmp_path: pathlib.Path, bundle_copy: pathlib.Path
+) -> None:
+    """The other half of the record: present-and-compiles could not see a file removed
+    from a bundle whose manifest the remover also edited."""
+    project = tmp_path / "project"
+    assert do_install(project, bundle_copy) == 0
+    (project / "tools" / "check_issue_handoff.py").unlink()
+
+    done = run_doctor(project, "--installed")
+    assert done.returncode == 1
+    assert "was installed and is gone" in done.stdout + done.stderr
+
+
+def test_the_projects_own_files_are_not_held_to_the_bundle(
+    tmp_path: pathlib.Path, bundle_copy: pathlib.Path
+) -> None:
+    """A project owns its registry, its scaffold and its workflow from the moment they
+    land — editing them must stay clean, or the check would hold the project to the
+    bundle's defaults instead of holding the bundle to what it shipped."""
+    project = tmp_path / "project"
+    assert do_install(project, bundle_copy) == 0
+    (project / "gates.yaml").write_text("version: 1\ngates: []\n", encoding="utf-8")
+    (project / "scaffold.json").write_text('{"preflight_jobs": ["lint"]}\n', encoding="utf-8")
+
+    assert run_doctor(project, "--installed").returncode == 0
+
+
+def test_a_bundle_with_no_record_says_so(tmp_path: pathlib.Path, bundle_copy: pathlib.Path) -> None:
+    """A bundle installed before the installer recorded what it wrote says that, rather
+    than claiming either answer."""
+    project = tmp_path / "project"
+    assert do_install(project, bundle_copy) == 0
+    (project / "tools" / "installed.json").unlink()
+
+    done = run_doctor(project, "--installed")
+    assert done.returncode == 1
+    assert "no tools/installed.json" in done.stdout + done.stderr
+    assert gates_doctor.check_installed_record(project) == [
+        "no tools/installed.json — this bundle was installed before the installer "
+        "recorded what it wrote, so intact cannot be checked; re-run the installer"
+    ]
+
+
+def test_a_record_that_cannot_be_read_says_so(
+    tmp_path: pathlib.Path, bundle_copy: pathlib.Path
+) -> None:
+    """And one that is there and unreadable is the third answer, not a green."""
+    project = tmp_path / "project"
+    assert do_install(project, bundle_copy) == 0
+    (project / "tools" / "installed.json").write_text("not json", encoding="utf-8")
+
+    done = run_doctor(project, "--installed")
+    assert done.returncode == 1
+    assert "cannot be read" in done.stdout + done.stderr
+    assert "cannot be read" in gates_doctor.check_installed_record(project)[0]
