@@ -121,6 +121,12 @@ def _services_dir(root: pathlib.Path) -> tuple[pathlib.Path | None, int]:
 
 
 def main(root: pathlib.Path) -> int:
+    if not root.is_dir():
+        # NA means "this project has nothing of that kind"; a root that is not
+        # there has no project to say it about, and answering the second with
+        # the first is a green over nothing (self-audit round 2, 2026-08-31).
+        print(f"cannot read the tree: {root} is not a directory", file=sys.stderr)
+        return 2
     services, code = _services_dir(root)
     if services is None:
         return code
