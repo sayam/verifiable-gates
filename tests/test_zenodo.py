@@ -253,3 +253,28 @@ def test_an_archive_that_never_ends_is_a_refusal(monkeypatch: pytest.MonkeyPatch
 
 def test_the_call_declares_the_wrappers_time_budget() -> None:
     assert zenodo.NETWORK_TIMEOUT_SECONDS == gh.NETWORK_TIMEOUT_SECONDS
+
+
+def test_the_archive_is_asked_with_a_time_budget(monkeypatch: pytest.MonkeyPatch) -> None:
+    """`urlopen` without `timeout=` waits forever on a socket that never answers — the one
+    network call here that no test held; dropping the argument left the suite green
+    (self-audit, 2026-08-31)."""
+    asked: list[dict[str, object]] = []
+
+    class Empty(io.BytesIO):
+        def __enter__(self) -> Self:
+            return self
+
+        def __exit__(self, *_: object) -> None:
+            return None
+
+    def capture(_url: str, **kwargs: object) -> Empty:
+        asked.append(kwargs)
+        return Empty(b'{"hits": {"hits": []}}')
+
+    monkeypatch.setattr(urllib.request, "urlopen", capture)
+    zenodo.fetch_records("22103110")
+    assert asked, "the archive was never asked"
+    budgets = [k.get("timeout") for k in asked]
+    assert all(isinstance(b, int) and b > 0 for b in budgets), asked
+    assert asked[0]["timeout"] == gh.NETWORK_TIMEOUT_SECONDS
