@@ -25,6 +25,18 @@ Notable changes to this project. The format follows
 
 ### Fixed
 
+- **A gate whose tests were all skipped is not a gate that passed.** pytest exits
+  0 when every test it collected was skipped, and the harness read only that exit
+  code — so one line at the top of a claimed test file
+  (`pytestmark = pytest.mark.skip(...)`) turned a gate off and came back `pass`,
+  with the whole suite green and the 100% coverage floor still met beside it,
+  because the lines those tests cover are reached by others (self-audit round 4,
+  2026-09-01; the shape was observed and left unfiled in round 1). The harness now
+  answers `no test ran — every test this gate names was skipped`, which is a fail:
+  enforcement that did not happen must not be reported as enforcement that held. A
+  file with no test in it at all was already a fail, because pytest exits 5 for
+  that. Proved by mutation: one case red with the old reader put back.
+
 - **The third answer reaches the readers the first fix of this round did not.**
   Pointing the doctor at a tree whose every file was Latin-1 — after the seven
   scanners had been fixed — showed the same `UnicodeDecodeError` still coming out
