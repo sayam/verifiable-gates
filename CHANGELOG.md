@@ -25,6 +25,20 @@ Notable changes to this project. The format follows
 
 ### Fixed
 
+- **A gate whose job cannot turn the build red is a row in the index and nothing
+  else.** A gate names a job so that the job fails when the rule is broken, and
+  three shapes take that away without touching the index: a workflow with no
+  trigger never runs, `if: false` never starts the job, and
+  `continue-on-error: true` lets it fail while the run stays green. Adding the
+  third to this repository's own `test` job — the job **forty-five of its
+  fifty-four gates name** — left the whole suite, all fourteen readers and the
+  registry scanner green (self-audit round 3, 2026-09-01). A `kind: step` gate is
+  judged the same way one level down, on the step it names. Deliberately not
+  judged: a `workflow_dispatch`-only or `schedule`-only workflow, which is how
+  this repository runs `release-sign` and `posture`, and an `if:` holding an
+  expression rather than a literal. Proved by mutation: four cases red with the
+  old scanner, and the live case red on this repository's own workflow.
+
 - **Bytes that are not UTF-8 are the third answer, not a traceback.** Seven of
   the nine shipped scanners read every file as UTF-8 and died of a raw
   `UnicodeDecodeError` with exit 1 — the code that means *findings* — on a file
