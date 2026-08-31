@@ -2122,6 +2122,14 @@ gates:
           All nine overlay titles edited away from the catalogue's (and one id
           renamed) — green before the hold, red after; the only earlier hold was
           that a title existed (outside audit, 2026-08-31, reproduced).
+      - kind: mutation
+        ref: pr/166
+        date: 2026-08-31
+        caught: >-
+          A title in `gates.yaml.default` — the index every installed project
+          receives — edited by hand: green before, red against the catalogue
+          now; all nine had drifted from `rules.yaml` in words of their own
+          (self-audit, 2026-08-31).
 
   - id: the-shipped-reader-agrees-with-the-real-one
     title: The hand-written YAML reader agrees with PyYAML on this repository's own files

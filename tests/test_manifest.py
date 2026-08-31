@@ -163,3 +163,16 @@ def test_the_overlay_says_of_each_rule_exactly_what_the_catalogue_says() -> None
         if entry.get("kind") == "scan"
     }
     assert shipped == scripted, "an id or a title differs between overlay.json and rules.yaml"
+
+
+def test_the_default_registry_says_of_each_rule_exactly_what_the_catalogue_says() -> None:
+    """`gates.yaml.default` is what every installed project receives as its own index —
+    a third register describing the nine scan gates in words of its own, held by nothing,
+    while the overlay was held to the catalogue (self-audit, 2026-08-31)."""
+    default = yaml.safe_load(
+        (ROOT / "src" / "verifiable_gates" / "gates.yaml.default").read_text("utf-8")
+    )
+    rules = yaml.safe_load((ROOT / "rules.yaml").read_text("utf-8"))["rules"]
+    scripted = {rule["id"]: rule["title"] for rule in rules if "script" in rule}
+    shipped = {gate["id"]: gate["title"] for gate in default["gates"]}
+    assert shipped == scripted, "an id or a title differs between gates.yaml.default and rules.yaml"
