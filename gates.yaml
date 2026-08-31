@@ -1803,6 +1803,15 @@ gates:
           and a file Python cannot tokenize hold their direction either way
           (self-audit, 2026-08-31).
       - kind: mutation
+        ref: pr/152
+        date: 2026-08-31
+        caught: >-
+          `import flask` then `flask.request.args` (aliased too), `from flask
+          import *`, `from flask.globals import request` and werkzeug's request
+          side — six cases green on `logic-knows-no-http` as it was;
+          `flask.current_app`, `werkzeug.security` and a `request` of the
+          file's own stay clean (self-audit, 2026-08-31).
+      - kind: mutation
         ref: pr/138
         date: 2026-08-31
         caught: >-
