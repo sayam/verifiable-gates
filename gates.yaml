@@ -2061,6 +2061,14 @@ gates:
           and exit 0, the answer for a project with nothing of that kind
           given about a project that is not there; eighteen cases red (self-
           audit round 2, 2026-08-31).
+      - kind: mutation
+        ref: pr/177
+        date: 2026-09-01
+        caught: >-
+          The seven readers put back one at a time — a Latin-1 template,
+          Dockerfile, workflow, registry, index and scaffold each died of a
+          raw UnicodeDecodeError and exit 1, the code that means findings;
+          ten cases red now (self-audit round 3, 2026-09-01).
 
   - id: rules-we-ship-we-keep
     title: Scanners that apply to this repository are run against this repository
