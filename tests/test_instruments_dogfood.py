@@ -581,3 +581,20 @@ def test_the_number_of_suppressions_is_the_one_written_here() -> None:
         f"{counts['suppressions']} lines switch a check off, this file says "
         f"{SUPPRESSED_LINES} — rewrite the number here, with the reason on the new line"
     )
+
+
+def test_the_posture_cron_runs_the_archive_reader_live() -> None:
+    """`the-archive-is-read-back` promises "posture's cron runs it live"; the step could
+    be removed from posture.yml with every test green (self-audit, 2026-08-31)."""
+    jobs = preflight.jobs_on_disk(ROOT)
+    runs = [str(s.get("run")) for s in jobs["posture"]["steps"]]
+    assert any("python -m verifiable_gates.zenodo --root ." in run for run in runs), runs
+
+
+def test_the_lint_job_measures_docstring_coverage() -> None:
+    """`our-own-floors-sit-against-reality` holds the interrogate floor to a row and to
+    reality — but the step that measures it could be removed from the lint job with every
+    test green (self-audit, 2026-08-31)."""
+    jobs = preflight.jobs_on_disk(ROOT)
+    runs = [str(s.get("run")) for s in jobs["lint"]["steps"]]
+    assert any(run.strip() == "interrogate src" for run in runs), runs
