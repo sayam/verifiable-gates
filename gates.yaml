@@ -521,6 +521,14 @@ gates:
           added, red; two rows swapped, red. An outside audit did the first two
           on 2026-08-30 and the suite stayed green — every row's shape was held,
           which rows existed was not.
+      - kind: mutation
+        ref: pr/168
+        date: 2026-08-31
+        caught: >-
+          A revisit date removed from a row, and an expiry rewritten to
+          "Never" — both green while only the ids were held (self-audit,
+          2026-08-31); red now against the clocks and the never-set copied
+          here.
 
   - id: the-posture-is-read-on-a-schedule
     title: Branch protection and the repository switches are read weekly and on every push, and held to the register
@@ -1118,6 +1126,14 @@ gates:
           The `interrogate src` step removed from the lint job — the floor
           held to a row and to reality, and nothing measured it; red now
           (self-audit, 2026-08-31).
+      - kind: mutation
+        ref: pr/168
+        date: 2026-08-31
+        caught: >-
+          The `interrogate-at-84` row made to say "floor is 80%" — green while
+          the row's words were held by nothing (self-audit, 2026-08-31); red
+          now against the floor pyproject declares and the move point this
+          test uses.
 
   - id: a-number-comes-from-the-thing-itself
     title: Every figure a threshold is held against is read from the source, never from a summary
