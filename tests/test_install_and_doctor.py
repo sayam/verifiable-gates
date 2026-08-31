@@ -856,9 +856,12 @@ def test_a_bundle_with_no_record_says_so(tmp_path: pathlib.Path, bundle_copy: pa
     done = run_doctor(project, "--installed")
     assert done.returncode == 1
     assert "no tools/installed.json" in done.stdout + done.stderr
-    assert gates_doctor.check_installed_record(project) == [
-        "no tools/installed.json — this bundle was installed before the installer "
-        "recorded what it wrote, so intact cannot be checked; re-run the installer"
+    said = gates_doctor.check_installed_record(project)
+    assert said == [
+        (
+            "no tools/installed.json — this bundle was installed before the installer "
+            "recorded what it wrote, so intact cannot be checked; re-run the installer"
+        )
     ]
 
 
