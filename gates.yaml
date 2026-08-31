@@ -1906,6 +1906,17 @@ gates:
           SHA on the next line was 'pinned with no version comment' before and
           is clean now; the bare folded SHA is still a finding (outside audit,
           2026-08-31, reproduced).
+      - kind: mutation
+        ref: pr/162
+        date: 2026-08-31
+        caught: >-
+          Seven installs pip itself holds to hashes, or fetches nothing for —
+          the flag in quotes, `--no-index`, a wheel under `--no-deps`,
+          `PIP_REQUIRE_HASHES=1` on the command and in the step's env, a
+          requirements file with every line hashed, and that file reached
+          after `cd` — all findings on the scanner as it was; six that pip
+          would still fetch unpinned stay findings either way (self-audit,
+          2026-08-31, each proved against pip 26.2.1).
 
   - id: rules-we-ship-we-keep
     title: Scanners that apply to this repository are run against this repository

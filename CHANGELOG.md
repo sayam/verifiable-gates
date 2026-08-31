@@ -8,6 +8,22 @@ Notable changes to this project. The format follows
 
 ### Fixed
 
+- **An install pip itself holds to hashes, or fetches nothing for, is not a
+  finding.** `pip install "--require-hashes" -r …` (the flag in quotes),
+  `PIP_REQUIRE_HASHES=1 pip install -r …` and the same variable in the step's
+  own `env:`, `pip install -r requirements.txt` where every requirement carries
+  a `--hash=` (pip then requires hashes on its own — `pip-compile`'s shape),
+  `pip install --no-index …` and `pip install --no-deps ./dist/*.whl` (a wheel
+  is copied, never built) were each a finding of `ci-tools-hash-pinned` — a
+  scanner repeating what pip already enforces sent a project that did the
+  right thing back to rewrite it (self-audit, 2026-08-31, each proved against
+  pip 26.2.1). The install's arguments are read the way the shell splits them,
+  the step's `env:` is read for the one variable pip reads, and a named
+  requirements file is opened from where the shell stands. An unhashed line, a
+  file that is not there, the variable set to `0`, an sdist, or a wheel with
+  its dependencies stay findings. Proved by mutation: seven cases red on the
+  old scanner (#162).
+
 - **The template's checkout pin moves with ours.** `ci-template.yml` — the
   workflow the installer writes into every project — pins `actions/checkout`
   by SHA, and Dependabot, which moves the pins under `.github/workflows/`,

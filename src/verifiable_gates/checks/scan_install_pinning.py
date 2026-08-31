@@ -45,6 +45,7 @@ from __future__ import annotations
 
 import pathlib
 import re
+import shlex
 import sys
 
 # `pip` takes global options *before* the subcommand — `pip --python <interpreter>
@@ -286,12 +287,11 @@ def _installs_from_an_index(command: str) -> bool:
     # is the same fetch `python -m build` makes (review of 2026-08-30; this
     # repository's own four `pip install --no-deps -e .` lines had it).
     targets = _targets(command)
-    return not (
-        "--no-deps" in command
-        and "--no-build-isolation" in command
-        and targets
-        and all(LOCAL_TARGET.match(target) for target in targets)
-    )
+    if not ("--no-deps" in command and targets and all(LOCAL_TARGET.match(t) for t in targets)):
+        return True
+    # A wheel is copied, never built — nothing is fetched for it (self-audit,
+    # 2026-08-31: `pip install --no-deps ./dist/*.whl` was a finding).
+    return not ("--no-build-isolation" in command or all(t.endswith(".whl") for t in targets))
 
 
 def _without_comment(line: str) -> str:
@@ -391,6 +391,10 @@ def _with_scripts(root: pathlib.Path, targets: list[pathlib.Path]) -> list[pathl
 # 2026-08-31: `run: *cmd`, `"run":` and a folded `pip`⏎`install ruff` all exited 0).
 RUN = re.compile(r"""^(\s*-?\s*)["']?run["']?\s*:\s*(.*?)\s*$""")
 WORKING_DIRECTORY = re.compile(r"""^(\s*-?\s*)["']?working-directory["']?\s*:\s*(.+?)\s*$""")
+ENV_KEY = re.compile(r"""^(\s*-?\s*)["']?env["']?\s*:\s*$""")
+ENV_REQUIRE_HASHES = re.compile(
+    r"""^\s*["']?PIP_REQUIRE_HASHES["']?\s*:\s*["']?(?:1|true|yes|on)["']?\s*$""", re.IGNORECASE
+)
 FLOW_RUN = re.compile(r"""\{[^{}]*?\b["']?run["']?\s*:\s*([^,}]*)""")
 YAML = {".yml", ".yaml"}
 
@@ -407,7 +411,8 @@ def _folded(lines: list[str]) -> list[str]:
     piece: list[str] = []
     for line in lines:
         if line.strip():
-            piece.append(line.strip())
+            # A trailing backslash continues the command in the shell's eyes too.
+            piece.append(line.strip().removesuffix("\\").rstrip())
         elif piece:
             joined.append(" ".join(piece))
             piece = []
@@ -438,6 +443,39 @@ def _working_directory(lines: list[str], at: int, column: int) -> str:
     return ""
 
 
+def _step_item(lines: list[str], at: int, column: int) -> list[str]:
+    """The lines of the list item whose key sits at `column` on line `at`."""
+    marker = column - 2
+    first = at
+    while first > 0 and not (
+        lines[first].lstrip().startswith("- ")
+        and len(lines[first]) - len(lines[first].lstrip()) == marker
+    ):
+        first -= 1
+    last = at + 1
+    while last < len(lines) and (
+        not lines[last].strip() or len(lines[last]) - len(lines[last].lstrip()) > marker
+    ):
+        last += 1
+    return lines[first:last]
+
+
+def _requires_hashes_by_env(lines: list[str], at: int, column: int) -> bool:
+    """The step's own `env:` sets `PIP_REQUIRE_HASHES` on — pip reads it (self-audit,
+    2026-08-31: a step with it was a finding)."""
+    item = _step_item(lines, at, column)
+    for index, line in enumerate(item):
+        key = ENV_KEY.match(line)
+        if not key or len(key.group(1)) != column:
+            continue
+        for later in item[index + 1 :]:
+            if later.strip() and len(later) - len(later.lstrip()) <= column:
+                break
+            if ENV_REQUIRE_HASHES.match(later):
+                return True
+    return False
+
+
 def _run_lines(text: str) -> list[str]:
     """The lines a workflow or action hands to the shell: each `run:` value or block,
     standing in the step's `working-directory:` when it names one."""
@@ -457,6 +495,8 @@ def _run_lines(text: str) -> list[str]:
         indent, value = len(match.group(1)), match.group(2)
         stands_in = _working_directory(lines, index - 1, indent)
         prefix = f"cd {stands_in} && " if stands_in else ""
+        if _requires_hashes_by_env(lines, index - 1, indent):
+            prefix += "PIP_REQUIRE_HASHES=1 "
         # A block's lines, or a plain value's continuation lines: past the key's own column
         # — a sibling `env:` or `name:` of a `- run:` item sits at that column, not past it.
         rest: list[str] = []
@@ -507,16 +547,59 @@ def _files_read(root: pathlib.Path) -> list[pathlib.Path]:
     return targets + [p for p in [root / "Dockerfile"] if p.is_file()]
 
 
-def _pip_requires_hashes(command: str) -> bool:
-    """`--require-hashes` as an argument of the install itself — not a substring anywhere.
-    `MARKER=--require-hashes pip install ruff` carried the flag where pip never reads it
-    and passed (outside audit, 2026-08-30)."""
+# pip enters hash-checking mode by the flag, by `PIP_REQUIRE_HASHES=1` in the
+# environment, or on its own when every requirement in the file carries a
+# `--hash=`; `--no-index` fetches nothing from an index at all, and a wheel installed
+# with `--no-deps` is a file copied, not a build. Each of these was a finding
+# (self-audit, 2026-08-31, proved against pip 26.2.1) — a scanner that repeats what
+# pip already enforces sends a project that did the right thing back to rewrite it.
+REQUIRE_HASHES_ENV = re.compile(
+    r"(?:^|\s)PIP_REQUIRE_HASHES=(?:1|true|yes|on)(?=\s|$)", re.IGNORECASE
+)
+REQUIREMENT_FILE = re.compile(r"(?:^|\s)(?:-r|--requirement)[\s=]+[\"']?([^\s\"']+)")
+HASHED = re.compile(r"--hash[=\s]")
+
+
+def _requirements_all_hashed(command: str, where: pathlib.Path) -> bool:
+    """Every requirement in every `-r` file the command names carries a hash — pip
+    then requires hashes on its own. A file that is not there is not hashed."""
+    files = REQUIREMENT_FILE.findall(command)
+    if not files:
+        return False
+    for name in files:
+        path = where / name
+        if not path.is_file():
+            return False
+        # pip joins a line ending in `\` with the next — the shape `pip-compile`
+        # writes, one hash per continuation line.
+        text = re.sub(r"\\\s*\n", " ", path.read_text(encoding="utf-8", errors="replace"))
+        lines = [line.split("#", 1)[0].strip() for line in text.splitlines()]
+        requirements = [line for line in lines if line and not line.startswith("-")]
+        if not requirements or not all(HASHED.search(line) for line in requirements):
+            return False
+    return True
+
+
+def _pip_requires_hashes(command: str, where: pathlib.Path) -> bool:
+    """Hashes are required of the install itself — by its own argument, by
+    `PIP_REQUIRE_HASHES=1` on its command, or by a fully hashed requirements file — or
+    nothing is fetched from an index (`--no-index`). `MARKER=--require-hashes pip
+    install ruff` carried the flag where pip never reads it and passed (outside audit,
+    2026-08-30); `"--require-hashes"` in quotes was a finding (self-audit, 2026-08-31)."""
     matched = PIP_INSTALL.search(command)
     after = command[matched.end() :] if matched else ""
-    return "--require-hashes" in after.split()
+    try:
+        arguments = set(shlex.split(after))  # `"--require-hashes"` is the flag; `"# x"` is text
+    except ValueError:
+        arguments = set(after.split())
+    if "--require-hashes" in arguments or "--no-index" in arguments:
+        return True
+    if REQUIRE_HASHES_ENV.search(command[: matched.start()] if matched else ""):
+        return True
+    return _requirements_all_hashed(after, where)
 
 
-def _line_findings(where: pathlib.Path, line: str) -> list[str]:
+def _line_findings(where: pathlib.Path, line: str, stands_in: pathlib.Path) -> list[str]:
     """Everything one command does that reaches an index unpinned."""
     found: list[str] = []
     while KEYWORD.match(line):
@@ -526,7 +609,7 @@ def _line_findings(where: pathlib.Path, line: str) -> list[str]:
         return found
     if (
         PIP_INSTALL.search(line)
-        and not _pip_requires_hashes(line)
+        and not _pip_requires_hashes(line, stands_in)
         and _installs_from_an_index(line)
     ):
         found.append(f"{where}: {line.strip()[:70]}")
@@ -557,8 +640,12 @@ def main(root: pathlib.Path) -> int:
         # One `run:` line can chain several commands; each is judged on its own,
         # or the second hides behind the first's exemption.
         for joined in _commands(path):
+            stands_in = root
             for line in CHAIN.split(_as_the_shell_runs_it(joined)):
-                findings += _line_findings(path.relative_to(root), line)
+                if moved := CD.match(line):
+                    stands_in = stands_in / moved.group("dir")
+                    continue
+                findings += _line_findings(path.relative_to(root), line, stands_in)
 
     for finding in findings:
         print(f"ci-tools-hash-pinned: {finding}")

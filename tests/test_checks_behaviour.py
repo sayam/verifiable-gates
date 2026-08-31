@@ -1826,3 +1826,105 @@ def test_a_file_python_cannot_parse_is_refused_not_a_traceback(
     assert out == ""
     assert "cannot read" in err
     assert "Traceback" not in err
+
+
+HASHED_REQ = (
+    "ruff==0.6.0 \\\n    --hash=sha256:"
+    + "a" * 64
+    + "\nsix==1.16.0 --hash=sha256:"
+    + "b" * 64
+    + "\n"
+)
+
+
+@pytest.mark.parametrize(
+    ("files", "step"),
+    [
+        ({}, '      - run: pip install "--require-hashes" -r requirements.txt\n'),
+        ({}, "      - run: pip install --no-index --find-links wheels/ ruff\n"),
+        ({}, "      - run: pip install --no-deps ./dist/vg-0.1.0-py3-none-any.whl\n"),
+        ({}, "      - run: PIP_REQUIRE_HASHES=1 pip install -r requirements.txt\n"),
+        (
+            {},
+            (
+                "      - env:\n          PIP_REQUIRE_HASHES: '1'\n"
+                "        run: pip install -r requirements.txt\n"
+            ),
+        ),
+        ({"requirements.txt": HASHED_REQ}, "      - run: pip install -r requirements.txt\n"),
+        (
+            {"pins/requirements.txt": HASHED_REQ},
+            "      - run: cd pins && pip install -r requirements.txt\n",
+        ),
+    ],
+    ids=[
+        "quoted-flag",
+        "no-index",
+        "a-wheel-with-no-deps",
+        "env-on-the-command",
+        "env-of-the-step",
+        "every-requirement-hashed",
+        "hashed-file-after-cd",
+    ],
+)
+def test_an_install_pip_itself_holds_to_hashes_or_fetches_nothing_for_is_clean(
+    tmp_path: pathlib.Path, capsys: pytest.CaptureFixture[str], files: dict[str, str], step: str
+) -> None:
+    """pip requires hashes by the flag (quoted or not), by `PIP_REQUIRE_HASHES=1` on the
+    command or in the step's env, or on its own when every requirement carries a
+    `--hash=`; `--no-index` and a wheel under `--no-deps` fetch nothing. Each was a
+    finding (self-audit, 2026-08-31, proved against pip 26.2.1)."""
+    files = {**files, ".github/workflows/ci.yml": f"jobs:\n  a:\n    steps:\n{step}"}
+    assert scan_install_pinning.main(build(tmp_path, files)) == 0
+    assert capsys.readouterr().out == ""
+
+
+@pytest.mark.parametrize(
+    ("files", "step"),
+    [
+        (
+            {"requirements.txt": HASHED_REQ + "flask\n"},
+            "      - run: pip install -r requirements.txt\n",
+        ),
+        ({}, "      - run: pip install -r requirements.txt\n"),
+        ({}, "      - run: PIP_REQUIRE_HASHES=0 pip install -r requirements.txt\n"),
+        ({}, "      - run: pip install --no-deps ./dist/vg-0.1.0.tar.gz\n"),
+        ({}, "      - run: pip install ./dist/vg-0.1.0-py3-none-any.whl\n"),
+        ({}, '      - run: pip install ruff "unbalanced\n'),
+        (
+            {},
+            (
+                "      - env:\n          PIP_REQUIRE_HASHES: '0'\n"
+                "        run: pip install -r requirements.txt\n"
+            ),
+        ),
+    ],
+    ids=[
+        "one-requirement-unhashed",
+        "file-not-there",
+        "env-off-on-the-command",
+        "an-sdist-builds",
+        "a-wheel-with-its-deps",
+        "a-quote-the-shell-would-refuse",
+        "env-off-in-the-step",
+    ],
+)
+def test_what_pip_would_still_fetch_unpinned_stays_a_finding(
+    tmp_path: pathlib.Path, capsys: pytest.CaptureFixture[str], files: dict[str, str], step: str
+) -> None:
+    files = {**files, ".github/workflows/ci.yml": f"jobs:\n  a:\n    steps:\n{step}"}
+    assert scan_install_pinning.main(build(tmp_path, files)) == 1
+    assert "ci-tools-hash-pinned" in capsys.readouterr().out
+
+
+def test_a_script_whose_last_line_continues_into_nothing_is_still_read(
+    tmp_path: pathlib.Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """A trailing backslash at the end of the file leaves the shell a command with
+    nothing after it — the command is still the command."""
+    files = {
+        ".github/workflows/ci.yml": STEP.format(line="./scripts/setup.sh"),
+        "scripts/setup.sh": "pip install ruff \\",
+    }
+    assert scan_install_pinning.main(build(tmp_path, files)) == 1
+    assert "scripts/setup.sh: pip install ruff" in capsys.readouterr().out
