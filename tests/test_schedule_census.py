@@ -126,21 +126,67 @@ def test_a_workflow_nobody_asked_about_is_ignored() -> None:
 # ---------------------------------------------------------------- what cannot be checked
 
 
-def test_dependabot_is_named_rather_than_guessed(tmp_path: pathlib.Path) -> None:
-    """No public endpoint says when it last ran, so it is labelled, not judged."""
+DEPENDABOT_YML = (
+    "version: 2\nupdates:\n  - package-ecosystem: pip\n    schedule:\n      interval: weekly\n"
+    "  - package-ecosystem: docker\n    schedule:\n      interval: monthly\n"
+)
+
+
+def test_dependabot_is_one_clock_held_to_its_shortest_interval(tmp_path: pathlib.Path) -> None:
+    """The platform lists Dependabot's runs under `dynamic/dependabot/` with no
+    ecosystem on them, so the config's entries share one clock — the census once called
+    them unverifiable (self-audit, 2026-08-31)."""
     (tmp_path / ".github").mkdir()
-    (tmp_path / ".github" / "dependabot.yml").write_text(
-        "version: 2\nupdates:\n  - package-ecosystem: pip\n    schedule:\n      interval: weekly\n",
-        encoding="utf-8",
-    )
+    (tmp_path / ".github" / "dependabot.yml").write_text(DEPENDABOT_YML, encoding="utf-8")
 
-    found = census.unverifiable_schedules(tmp_path)
-
-    assert found == ["dependabot pip (weekly)"]
+    assert census.dependabot_entries(tmp_path) == ["pip (weekly)", "docker (monthly)"]
+    assert census.dependabot_schedule(tmp_path) == {"dependabot": census.WEEK}
+    assert census.unverifiable_schedules(tmp_path) == [
+        "dependabot pip (weekly)",
+        "dependabot docker (monthly)",
+    ]
 
 
 def test_a_project_without_dependabot_reports_nothing(tmp_path: pathlib.Path) -> None:
-    assert census.unverifiable_schedules(tmp_path) == []
+    assert census.dependabot_entries(tmp_path) == []
+    assert census.dependabot_schedule(tmp_path) == {}
+
+
+def test_the_platform_is_asked_for_dependabots_dynamic_runs(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    asked: list[str] = []
+
+    def api(url: str) -> dict[str, Any]:
+        asked.append(url)
+        if "event=dynamic" in url:
+            return {
+                "workflow_runs": [
+                    {
+                        "path": "dynamic/dependabot/dependabot-updates",
+                        "created_at": "2026-08-20T00:00:00Z",
+                    },
+                    {
+                        "path": "dynamic/pages/pages-build-deployment",
+                        "created_at": "2026-08-30T00:00:00Z",
+                    },
+                    {
+                        "path": "dynamic/dependabot/dependabot-updates",
+                        "created_at": "2026-08-25T00:00:00Z",
+                    },
+                ]
+            }
+        return {"workflow_runs": [{"created_at": "2026-08-26T03:00:00+00:00"}]}
+
+    monkeypatch.setattr(gh, "api", api)
+    found = census.fetch(["nightly.yml"], dependabot=True)
+    assert found["last_scheduled_run"]["dependabot"] == "2026-08-25T00:00:00Z"
+    assert any("actions/runs?event=dynamic" in url for url in asked), asked
+
+
+def test_no_dynamic_run_of_dependabots_is_never(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(gh, "api", lambda _url: {"workflow_runs": []})
+    assert census.fetch([], dependabot=True) == {"last_scheduled_run": {"dependabot": None}}
 
 
 # ---------------------------------------------------------------- the command line
@@ -224,7 +270,7 @@ def test_an_unreadable_history_is_its_own_answer(
     """
     a_workflow(tmp_path / ".github" / "workflows", "nightly.yml", "0 3 * * *")
 
-    def refuse(_files: list[str]) -> dict[str, Any]:
+    def refuse(_files: list[str], **_kwargs: object) -> dict[str, Any]:
         raise PermissionError("HTTP 403")
 
     monkeypatch.setattr(census, "fetch", refuse)
@@ -272,15 +318,38 @@ def test_what_cannot_be_checked_is_printed_beside_what_can(
     )
     state = tmp_path / "state.json"
     state.write_text(
-        '{"last_scheduled_run": {"nightly.yml": "2026-08-26T03:00:00+00:00"}}', encoding="utf-8"
+        '{"last_scheduled_run": {"nightly.yml": "2026-08-26T03:00:00+00:00",'
+        ' "dependabot": "2026-08-24T00:00:00+00:00"}}',
+        encoding="utf-8",
     )
 
     code = census.main(["--root", str(tmp_path), "--input", str(state), "--now", NOW])
     out = capsys.readouterr().out
 
     assert code == 0
-    assert "not checkable by machine" in out
-    assert "dependabot pip (weekly)" in out
+    assert "read as one clock (dependabot): pip (weekly)" in out
+    assert "2 of 2" in out or "every declared schedule is still firing" in out
+
+
+def test_a_dependabot_that_stopped_running_is_red(
+    tmp_path: pathlib.Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """Weekly declared, three weeks silent — the clock the census once refused to read."""
+    a_workflow(tmp_path / ".github" / "workflows", "nightly.yml", "0 3 * * *")
+    (tmp_path / ".github" / "dependabot.yml").write_text(
+        "version: 2\nupdates:\n  - package-ecosystem: pip\n    schedule:\n      interval: weekly\n",
+        encoding="utf-8",
+    )
+    state = tmp_path / "state.json"
+    state.write_text(
+        '{"last_scheduled_run": {"nightly.yml": "2026-08-26T03:00:00+00:00",'
+        ' "dependabot": "2026-08-01T00:00:00+00:00"}}',
+        encoding="utf-8",
+    )
+    code = census.main(["--root", str(tmp_path), "--input", str(state), "--now", NOW])
+    err = capsys.readouterr().err
+    assert code == 1
+    assert "dependabot: last scheduled run was" in err
 
 
 # ------------------------------------------- a cron that has not come round yet

@@ -8,6 +8,16 @@ Notable changes to this project. The format follows
 
 ### Fixed
 
+- **Dependabot is a clock the schedule census reads.** The census printed
+  "not checkable by machine (no public endpoint)" beside every Dependabot
+  entry, and `gates.yaml` said the same — but the platform lists Dependabot's
+  runs under `actions/runs?event=dynamic`, path `dynamic/dependabot/…`, each
+  with a `created_at` (self-audit, 2026-08-31, eleven runs read live). The
+  runs do not name an ecosystem, so Dependabot is read as one clock held to
+  the shortest interval `dependabot.yml` declares, judged and summarised like
+  every cron; its entries are printed beside the verdict as what the clock
+  stands for. Proved by mutation: five cases red on the old module (#171).
+
 - **The checks switched off in pyproject are a register too.** Ruff's `ignore`
   list and `per-file-ignores` relax whole classes of check for the tree or a
   directory — what `exception-registers-are-reasoned` is about — and the

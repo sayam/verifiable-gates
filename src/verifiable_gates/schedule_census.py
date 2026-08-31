@@ -51,6 +51,8 @@ from verifiable_gates import gh, history, removals, workflows
 
 __all__ = [
     "declared_schedules",
+    "dependabot_entries",
+    "dependabot_schedule",
     "fetch",
     "first_seen",
     "main",
@@ -98,28 +100,50 @@ def declared_schedules(directory: pathlib.Path) -> dict[str, int]:
     return found
 
 
-def unverifiable_schedules(root: pathlib.Path) -> list[str]:
-    """Schedules declared to a service that will not say when it last ran.
+# Dependabot's runs are on the platform after all: `actions/runs?event=dynamic`
+# lists them under a path beginning `dynamic/dependabot/`, each with a `created_at`
+# — the census called it "no public endpoint" and printed a label instead of a
+# verdict (self-audit, 2026-08-31, read live: eleven runs). The runs do not say which
+# ecosystem ran, so Dependabot is read as **one clock**, held to the shortest
+# interval its config declares.
+DEPENDABOT = "dependabot"
+DEPENDABOT_RUN_PATH = "dynamic/dependabot/"
+INTERVAL_HOURS = {"daily": DAY, "weekly": WEEK, "monthly": MONTH}
 
-    Dependabot is the standing example: no public endpoint reports its last run,
-    and "no pull requests appeared" is correct whenever nothing needed updating.
-    So these are named and printed with a label rather than guessed either way —
-    a thing that cannot be classified by machine has to be called that, not
-    quietly rounded to pass or to fail.
-    """
+
+def _dependabot_updates(root: pathlib.Path) -> list[dict[str, Any]]:
     config_path = root / ".github" / "dependabot.yml"
     if not config_path.is_file():
         return []
     config = yaml.safe_load(config_path.read_text(encoding="utf-8")) or {}
+    return [entry for entry in config.get("updates", []) if isinstance(entry, dict)]
+
+
+def dependabot_entries(root: pathlib.Path) -> list[str]:
+    """What the one Dependabot clock stands for — each ecosystem and its interval."""
     return [
-        f"dependabot {entry.get('package-ecosystem')} "
-        f"({(entry.get('schedule') or {}).get('interval')})"
-        for entry in config.get("updates", [])
+        f"{entry.get('package-ecosystem')} ({(entry.get('schedule') or {}).get('interval')})"
+        for entry in _dependabot_updates(root)
     ]
 
 
-def fetch(files: list[str]) -> dict[str, dict[str, str | None]]:
-    """When each file's most recent `schedule` run happened — None means never.
+def dependabot_schedule(root: pathlib.Path) -> dict[str, int]:
+    """`{"dependabot": hours}` — the shortest interval the config declares — or nothing."""
+    periods = [
+        INTERVAL_HOURS.get(str((entry.get("schedule") or {}).get("interval")), DAY)
+        for entry in _dependabot_updates(root)
+    ]
+    return {DEPENDABOT: min(periods)} if periods else {}
+
+
+def unverifiable_schedules(root: pathlib.Path) -> list[str]:
+    """Kept for callers of the old name: Dependabot's entries, now read as one clock."""
+    return [f"{DEPENDABOT} {entry}" for entry in dependabot_entries(root)]
+
+
+def fetch(files: list[str], *, dependabot: bool = False) -> dict[str, dict[str, str | None]]:
+    """When each file's most recent `schedule` run happened — None means never — and,
+    when asked, when Dependabot last ran, read from the platform's `dynamic` runs.
 
     **A workflow the platform does not know yet answers 404, and that is "never",
     not "cannot see".** A cron fires only from the default branch, so a file that
@@ -142,6 +166,14 @@ def fetch(files: list[str]) -> dict[str, dict[str, str | None]]:
             continue
         rows = runs.get("workflow_runs") or []
         last[name] = rows[0]["created_at"] if rows else None
+    if dependabot:
+        runs = gh.api("repos/:owner/:repo/actions/runs?event=dynamic&per_page=50")
+        stamps = [
+            str(row["created_at"])
+            for row in runs.get("workflow_runs") or []
+            if str(row.get("path") or "").startswith(DEPENDABOT_RUN_PATH)
+        ]
+        last[DEPENDABOT] = max(stamps) if stamps else None
     return {"last_scheduled_run": last}
 
 
@@ -173,13 +205,16 @@ def first_seen(root: pathlib.Path, files: list[str]) -> dict[str, str | None]:
             # that would go unnoticed.
             return dict.fromkeys(files)
         for name in files:
+            tracked = (
+                ".github/dependabot.yml" if name == DEPENDABOT else f".github/workflows/{name}"
+            )
             raw = removals._git(  # noqa: SLF001 — the same one, for the same reason
                 root,
                 "log",
                 "--diff-filter=A",
                 "--format=%aI",
                 "--",
-                f".github/workflows/{name}",
+                tracked,
             )
             stamps = [line.strip() for line in raw.splitlines() if line.strip()]
             born[name] = stamps[-1] if stamps else None
@@ -268,11 +303,13 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--now", help="reference time in ISO format (for tests)")
     args = parser.parse_args(argv)
 
-    directory = workflows.workflow_dir(pathlib.Path(args.root))
-    schedules = declared_schedules(directory)
+    root = pathlib.Path(args.root)
+    directory = workflows.workflow_dir(root)
+    schedules = declared_schedules(directory) | dependabot_schedule(root)
     if not schedules:
         print("no workflow declares a cron — there is nothing to watch")
         return 0
+    files = [name for name in schedules if name != DEPENDABOT]
 
     try:
         # The answer is an object carrying `last_scheduled_run`, a mapping from
@@ -281,7 +318,7 @@ def main(argv: list[str] | None = None) -> int:
         # 2026-08-31); an object of the wrong shape is unreadable, not never.
         state = history.read(
             args.input,
-            lambda: fetch(list(schedules)),
+            lambda: fetch(files, dependabot=DEPENDABOT in schedules),
             shape=dict,
             must_hold_something=False,
             fields={"last_scheduled_run": (dict,)},
@@ -311,8 +348,8 @@ def main(argv: list[str] | None = None) -> int:
     for line in waiting:
         print(f"  declared but not due yet: {line}")
 
-    for line in unverifiable_schedules(pathlib.Path(args.root)):
-        print(f"  not checkable by machine (no public endpoint): {line}")
+    for line in dependabot_entries(root):
+        print(f"  read as one clock ({DEPENDABOT}): {line}")
 
     if found:
         print("declared schedules disagree with what actually fired:", file=sys.stderr)
