@@ -1535,3 +1535,121 @@ def test_a_floating_uses_behind_a_yaml_shape_names_the_action(
     assert "ci.yml: actions/checkout@v4" in out
     assert "*co" not in out
     assert "&co" not in out
+
+
+STEP = "jobs:\n  a:\n    steps:\n      - run: {line}\n"
+
+
+@pytest.mark.parametrize(
+    "line",
+    [
+        'bash -lc "pip install ruff"',
+        "sh -ec 'pip install ruff'",
+        'echo "pip install ruff" | bash',
+        "printf 'pip install ruff' | sh",
+        'bash <<< "pip install ruff"',
+        'eval "pip install ruff"',
+        "echo preparing & pip install ruff",
+        "echo \\#1 && pip install ruff",
+        "${PIP:-pip} install ruff",
+        "python3 -c \"import os; os.system('pip install ruff')\"",
+    ],
+    ids=[
+        "flag-folded-c",
+        "flag-folded-ec",
+        "echo-piped-to-bash",
+        "printf-piped-to-sh",
+        "here-string",
+        "eval-of-a-string",
+        "after-a-lone-ampersand",
+        "after-an-escaped-hash",
+        "default-word-of-an-expansion",
+        "string-handed-to-os-system",
+    ],
+)
+def test_text_a_shell_will_run_is_read_as_the_command_it_becomes(
+    tmp_path: pathlib.Path, capsys: pytest.CaptureFixture[str], line: str
+) -> None:
+    """`-c` folded into other flags, words piped or here-stringed into a shell, `eval`,
+    a lone `&`, an escaped `#`, a `${VAR:-pip}` default and a string inside `os.system`
+    all execute the install — and all were green (self-audit, 2026-08-31)."""
+    files = {".github/workflows/ci.yml": STEP.format(line=line)}
+    assert scan_install_pinning.main(build(tmp_path, files)) == 1
+    assert "pip install ruff" in capsys.readouterr().out
+
+
+@pytest.mark.parametrize(
+    "line",
+    [
+        'echo "pip install ruff" | tee install.log',
+        "echo '# pip install ruff'",
+        'grep -c "pip install ruff" README.md',
+        "echo done # pip install ruff",
+        "${PIP:-pip} install --require-hashes -r requirements.txt",
+    ],
+    ids=["piped-to-a-file", "quoted-hash", "grep-of-the-words", "real-comment", "default-pinned"],
+)
+def test_words_no_shell_runs_stay_prose(
+    tmp_path: pathlib.Path, capsys: pytest.CaptureFixture[str], line: str
+) -> None:
+    files = {".github/workflows/ci.yml": STEP.format(line=line)}
+    assert scan_install_pinning.main(build(tmp_path, files)) == 0
+    assert capsys.readouterr().out == ""
+
+
+def test_a_hash_inside_a_word_is_not_a_comment(
+    tmp_path: pathlib.Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """`$#` and `${#PKGS}` are what the shell reads them as; the install after them runs."""
+    files = {
+        ".github/workflows/ci.yml": STEP.format(line="./scripts/setup.sh"),
+        "scripts/setup.sh": 'if [ $# -gt 0 ]; then pip install "$@"; fi\n'
+        "if [ ${#PKGS} -gt 0 ]; then pip install $PKGS; fi\n",
+    }
+    assert scan_install_pinning.main(build(tmp_path, files)) == 1
+    assert capsys.readouterr().out.count("scripts/setup.sh: pip install") == 2
+
+
+@pytest.mark.parametrize(
+    "step",
+    [
+        '      - run: bash "scripts/setup.sh"\n',
+        "      - run: cd scripts && ./setup.sh\n",
+        "      - run: ./setup.sh\n        working-directory: scripts\n",
+        "      - working-directory: scripts\n        run: ./setup.sh\n",
+        (
+            "      - name: set up\n        working-directory: scripts\n"
+            "        run: |\n          ./setup.sh\n"
+        ),
+    ],
+    ids=["quoted-path", "after-cd", "working-directory-after", "working-directory-before", "block"],
+)
+def test_a_script_is_followed_from_where_the_shell_stands(
+    tmp_path: pathlib.Path, capsys: pytest.CaptureFixture[str], step: str
+) -> None:
+    """A quoted path is the path; `cd dir &&` and the step's `working-directory:` move
+    the shell before it names the script (self-audit, 2026-08-31: all three unread)."""
+    files = {
+        ".github/workflows/ci.yml": f"jobs:\n  a:\n    steps:\n{step}",
+        "scripts/setup.sh": "pip install ruff\n",
+    }
+    assert scan_install_pinning.main(build(tmp_path, files)) == 1
+    assert "scripts/setup.sh: pip install ruff" in capsys.readouterr().out
+
+
+def test_another_steps_working_directory_does_not_move_this_one(
+    tmp_path: pathlib.Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """`docs/build.sh` is clean and is the one this step runs; `scripts/setup.sh` is not."""
+    steps = (
+        "      - run: ./setup.sh\n        working-directory: scripts\n"
+        "      - run: ./build.sh\n        working-directory: docs\n"
+    )
+    files = {
+        ".github/workflows/ci.yml": f"jobs:\n  a:\n    steps:\n{steps}",
+        "scripts/setup.sh": "echo nothing\n",
+        "docs/build.sh": "echo nothing\n",
+        "setup.sh": "pip install ruff\n",
+    }
+    assert scan_install_pinning.main(build(tmp_path, files)) == 0
+    assert capsys.readouterr().out == ""
