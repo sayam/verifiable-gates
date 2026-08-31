@@ -262,3 +262,35 @@ def test_a_registry_that_is_not_there_is_a_misuse(
     (root / "gates.yaml").unlink()
     assert run(root) == 2
     assert "cannot read the registry" in capsys.readouterr().err
+
+
+SKIPPED = (
+    "import pytest\n\npytestmark = pytest.mark.skip(reason='switched off')\n\n\n"
+    "def test_ok():\n    assert True\n"
+)
+
+
+def test_a_gate_whose_tests_were_all_skipped_did_not_run(
+    tmp_path: pathlib.Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """pytest exits 0 when every test it collected was skipped, so one line at the top of
+    a claimed file turned a gate off and the harness called it `pass` — with the whole
+    suite and the 100% coverage floor green beside it, because the lines those tests
+    cover are reached by others (self-audit round 4, 2026-09-01)."""
+    root = a_project(tmp_path, SKIPPED)
+
+    assert run(root) == 1
+    printed = capsys.readouterr().out
+    assert "no test ran" in printed
+    assert "0 pass · 1 fail" in printed
+
+
+def test_a_file_with_no_test_in_it_is_still_a_fail(
+    tmp_path: pathlib.Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """The neighbouring shape, which already worked: pytest exits 5 for a file it
+    collected nothing from, and that has always been a fail."""
+    root = a_project(tmp_path, "# nothing here\n")
+
+    assert run(root) == 1
+    assert "1 fail" in capsys.readouterr().out

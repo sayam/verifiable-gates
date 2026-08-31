@@ -24,6 +24,7 @@ from __future__ import annotations
 import argparse
 import json
 import pathlib
+import re
 import subprocess
 import sys
 import time
@@ -41,6 +42,29 @@ GATE_TIMEOUT_SECONDS = 1800  # one gate is a subset of the suite, not the whole 
 
 ROUND_LOG = ".gate-rounds.jsonl"  # per-machine notes; belongs in .gitignore
 CAUSE_LINES = 12  # enough to point at the failure without carrying the whole log
+
+
+RAN = re.compile(r"(?<![\w.])(\d+) (?:passed|failed)(?![\w.])")
+
+
+def _ran_or_not(output: str, seconds: float) -> dict[str, Any]:
+    """A pass, or the third answer when pytest ran nothing it collected.
+
+    pytest exits 0 when every test it collected was skipped, so a gate whose tests
+    are all `pytest.mark.skip` came back `pass` — enforcement that did not happen,
+    reported as enforcement that held. The whole suite and the coverage floor stayed
+    green beside it, because the lines those tests cover are reached by others
+    (self-audit round 4, 2026-09-01; observed and unfiled in round 1, ledger L-0036).
+    A file with no test in it at all is already a fail: pytest exits 5 for that.
+    """
+    if any(int(count) for count in RAN.findall(output)):
+        return {"status": "pass", "seconds": seconds}
+    tail = [line for line in output.splitlines() if line.strip()][-1:]
+    return {
+        "status": "fail",
+        "seconds": seconds,
+        "cause": "no test ran — every test this gate names was skipped: " + " ".join(tail),
+    }
 
 
 def run_test_gate(gate: dict[str, Any], root: pathlib.Path) -> dict[str, Any]:
@@ -64,7 +88,7 @@ def run_test_gate(gate: dict[str, Any], root: pathlib.Path) -> dict[str, Any]:
         return {"status": "fail", "seconds": seconds, "cause": cause}
     seconds = round(time.monotonic() - started, 2)
     if result.returncode == 0:
-        return {"status": "pass", "seconds": seconds}
+        return _ran_or_not(result.stdout, seconds)
 
     # The cause is the tail of pytest's own output — the summary and the last
     # assertion. Enough for the loop to know where to look, without a report that
