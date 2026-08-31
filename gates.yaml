@@ -544,6 +544,16 @@ gates:
           "Never" — both green while only the ids were held (self-audit,
           2026-08-31); red now against the clocks and the never-set copied
           here.
+      - kind: mutation
+        ref: pr/185
+        date: 2026-09-01
+        caught: >-
+          The shared rule put back to two — `DECISIONS.md` compared against
+          plain UTC while `gates.yaml` accepted the date it already is
+          somewhere on Earth, so a decision written at 05:00 in Bangkok and
+          dated with the machine's own clock was "in the future" and red
+          while the same date in a proof passed; four cases red now (self-
+          audit round 7, 2026-09-01).
 
   - id: the-posture-is-read-on-a-schedule
     title: Branch protection and the repository switches are read weekly and on every push, and held to the register
