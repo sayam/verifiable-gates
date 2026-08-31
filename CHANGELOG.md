@@ -8,6 +8,14 @@ Notable changes to this project. The format follows
 
 ### Fixed
 
+- **The doctor's pass-through stderr lands beside its own gate line under a
+  pipe.** In a CI log — one pipe for both streams — stdout is block-buffered
+  and stderr is not, so every scan's stderr surfaced above the first gate line
+  and a traceback could not be matched to the gate it belonged to (self-audit,
+  2026-08-31, reproduced on v0.1.10). The doctor flushes what it has said
+  before passing a scan's stderr through. Proved by mutation: the ordering
+  test is red on the old doctor (#156).
+
 - **An input the instruments cannot read is exit 2 everywhere — not a traceback,
   and never "never".** A run history whose records carried every key with the
   wrong kinds behind them (`failures` a string, `attempt` a string, `created_at`

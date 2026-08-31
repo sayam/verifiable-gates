@@ -738,3 +738,23 @@ def test_a_write_that_fails_midway_is_said_plainly(
     assert code == 1
     assert "could not write to" in err
     assert "Traceback" not in err
+
+
+def test_a_scans_stderr_lands_beside_its_own_gate_line_under_a_pipe(
+    tmp_path: pathlib.Path, bundle_copy: pathlib.Path
+) -> None:
+    """Under a pipe — a CI log — stdout is block-buffered and stderr is not, so every
+    scan's stderr surfaced above the first gate line (self-audit, 2026-08-31). With one
+    stream for both, the traceback of the second scan must come after the first gate's
+    line and before its own."""
+    project = tmp_path / "project"
+    assert do_install(project, bundle_copy) == 0
+    second = project / "tools" / "checks" / "scan_adr_index.py"
+    marker = "from __future__ import annotations\n"
+    text = second.read_text(encoding="utf-8")
+    second.write_text(text.replace(marker, marker + 'raise RuntimeError("boom")\n', 1), "utf-8")
+    out = run_doctor(project, one_stream=True).stdout
+    first_gate = out.index("] actions-sha-pinned")
+    traceback = out.index("Traceback")
+    its_gate = out.index("[error] adr-index-complete")
+    assert first_gate < traceback < its_gate, out
