@@ -247,10 +247,10 @@ def test_a_fix_that_cannot_be_written_is_a_misuse(
         message = "read-only file system"
         raise OSError(message)
 
-    monkeypatch.setattr(own_numbers.advertised, "write", refuse)
+    monkeypatch.setattr(advertised, "write", refuse)
     monkeypatch.setattr(own_numbers, "facts", lambda _root: {})
     monkeypatch.setattr(
-        own_numbers.advertised,
+        advertised,
         "drift",
         lambda *_args: [
             advertised.Drift(advertised.Place("README.md", r"(\d+) rules"), "93", "92")
