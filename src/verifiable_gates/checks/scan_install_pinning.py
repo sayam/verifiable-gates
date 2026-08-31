@@ -173,7 +173,11 @@ def _text(path: pathlib.Path) -> str:
     """
     try:
         return path.read_text(encoding="utf-8")
-    except UnicodeDecodeError as problem:
+    except (UnicodeDecodeError, OSError) as problem:
+        # `OSError` too: a file the scanner is not allowed to read, or that turned into
+        # a directory between the glob and the read, was still a raw traceback after the
+        # decode guard landed — the guard was written for the exception in hand rather
+        # than for the question (self-audit round 5, 2026-09-01).
         message = f"{path}: {problem}"
         raise _UnreadableError(message) from problem
 

@@ -97,7 +97,7 @@ def _config_text(path: pathlib.Path) -> str:
     and died of a traceback (self-audit round 3, 2026-09-01)."""
     try:
         return path.read_text(encoding="utf-8")
-    except UnicodeDecodeError as problem:
+    except (UnicodeDecodeError, OSError) as problem:
         print(f"cannot read the tree: {path}: {problem}", file=sys.stderr)
         raise SystemExit(2) from problem
 

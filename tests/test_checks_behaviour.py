@@ -2240,3 +2240,56 @@ def test_a_scaffold_that_is_not_utf_8_is_the_third_answer(
 
     assert refused.value.code == 2
     assert "cannot read the tree" in capsys.readouterr().err
+
+
+UNREADABLE_TREE = {
+    "scaffold.json": '{"app": "app"}\n',
+    "gates.yaml": "version: 1\ngates: []\n",
+    ".github/workflows/ci.yml": (
+        "name: t\non: push\njobs:\n  x:\n    runs-on: u\n    steps:\n      - run: echo\n"
+    ),
+    "app/templates/p.html": "<p>ok</p>\n",
+    "app/services/a.py": "x = 1\n",
+    "app/models.py": "x = 1\n",
+    "app.py": "x = 1\n",
+    "Dockerfile": "FROM scratch\n",
+    "docs/adr/README.md": "- [0001](0001-a.md)\n",
+    "docs/adr/0001-a.md": "# 0001 A\n",
+}
+
+
+def answer(module: ModuleType, root: pathlib.Path) -> object:
+    """The scanner's answer, whether it returns it or exits with it."""
+    try:
+        return module.main(root)
+    except SystemExit as refused:
+        return refused.code
+
+
+@pytest.mark.parametrize("module", EVERY_SCANNER, ids=lambda m: m.__name__.rsplit(".", 1)[-1])
+def test_a_file_it_may_not_read_is_the_third_answer(
+    tmp_path: pathlib.Path, capsys: pytest.CaptureFixture[str], module: ModuleType
+) -> None:
+    """The decode guard of round 3 was written for the exception in hand. A file the
+    scanner is not allowed to open — a mode nobody intended, a checkout restored by a
+    backup tool — went on being a raw `PermissionError` and exit 1 (self-audit round 5,
+    2026-09-01). `scan_gates_registry` names the file on the route it already has for an
+    index it cannot read, which is a finding rather than a misuse."""
+    written = []
+    for name, body in UNREADABLE_TREE.items():
+        path = tmp_path / name
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(body, encoding="utf-8")
+        written.append(path)
+    for path in written:
+        path.chmod(0o000)
+
+    try:
+        got = answer(module, tmp_path)
+    finally:
+        for path in written:
+            path.chmod(0o644)
+
+    printed = capsys.readouterr()
+    assert got in {1, 2}, got
+    assert "cannot read" in printed.err or "could not be read" in printed.out
