@@ -173,6 +173,20 @@ def _report(found: list[advertised.Drift]) -> None:
         print(f"  {item.place.path}: {said}, should say {item.want!r}")
 
 
+def _write_the_fix(root: pathlib.Path, drift: list[advertised.Drift]) -> None:
+    """Put the numbers right, or say why not.
+
+    `--write` that cannot write is a call that could not be answered; it died as a
+    traceback and exit 1 — the code that means the numbers disagree, which they still
+    did (self-audit round 5, 2026-09-01).
+    """
+    try:
+        advertised.write(root, drift)
+    except OSError as unwritable:
+        print(f"cannot write the fix: {unwritable}", file=sys.stderr)
+        raise SystemExit(2) from unwritable
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="Hold what this repository advertises to reality.")
     parser.add_argument("--root", default=".", help="the checkout (default: here)")
@@ -196,7 +210,7 @@ def main(argv: list[str] | None = None) -> int:
         print("inside the repository:")
         _report(inside)
         if args.write:
-            advertised.write(root, inside)
+            _write_the_fix(root, inside)
             print(f"  fixed {len(inside)} place(s) — review the diff, then commit it")
         else:
             status = 1

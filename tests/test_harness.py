@@ -294,3 +294,30 @@ def test_a_file_with_no_test_in_it_is_still_a_fail(
 
     assert run(root) == 1
     assert "1 fail" in capsys.readouterr().out
+
+
+def test_notes_that_cannot_be_written_do_not_change_the_verdict(
+    tmp_path: pathlib.Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """A checkout mounted read-only ended the run with a raw `PermissionError` and exit 1
+    *after every gate had passed* — a red that reads as a broken gate and sends the next
+    person hunting for one (self-audit round 5, 2026-09-01)."""
+    root = a_project(tmp_path, PASSING)
+    (root / harness.ROUND_LOG).mkdir()
+
+    assert run(root) == 0
+    printed = capsys.readouterr()
+    assert "could not write the round notes" in printed.err
+    assert "1 pass · 0 fail" in printed.out
+
+
+def test_a_report_that_cannot_be_written_is_a_misuse(
+    tmp_path: pathlib.Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """Unlike the notes, `--output` was asked for by name: not producing it is a call that
+    could not be answered, which is exit 2 — not exit 1, which would say the gates failed."""
+    root = a_project(tmp_path, PASSING)
+    somewhere = tmp_path / "not-a-directory" / "report.json"
+
+    assert run(root, "--output", str(somewhere)) == 2
+    assert "cannot write the report" in capsys.readouterr().err

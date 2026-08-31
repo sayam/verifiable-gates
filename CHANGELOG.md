@@ -25,6 +25,22 @@ Notable changes to this project. The format follows
 
 ### Fixed
 
+- **What the instruments say when they cannot *write*.** Four rounds asked what
+  they say when they cannot *read*; nobody had asked the other direction, and the
+  answer was a raw traceback and exit 1 in every case (self-audit round 5,
+  2026-09-01). The worst of them: on a checkout mounted read-only the harness ran
+  every gate, passed all of them, and then died writing its own per-machine notes
+  — reporting **exit 1, which reads as a gate failure**, and sending the next
+  person hunting for a broken gate that does not exist. The notes are now written
+  inside a guard that says `could not write the round notes: …` on stderr and
+  leaves the gates' verdict exactly as the gates gave it. Three others asked for
+  a file by name, so not producing it is a call that could not be answered and is
+  exit 2: `harness --output`, `skill --out` (a directory, or a place without
+  permission — exit 1 there means "the file on disk differs", which is a
+  different thing), and `own_numbers --write` (exit 1 there means the numbers
+  disagree, which they still did). `install` already answered this way and is
+  unchanged. Proved by mutation: four cases red with the old writers put back.
+
 - **"Arrived intact" now means unchanged, not merely present.** `gates_doctor
   --installed` — whose own help says *check the bundle arrived intact* — checked
   that each shipped file exists and compiles. A scanner whose body had been
