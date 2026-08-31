@@ -224,6 +224,13 @@ gates:
           The CLA line with three spaces, or a tab, where the name goes was an
           acceptance with nobody's name on it — two cases red on the job's grep
           as it was, refused now (self-audit, 2026-08-31).
+      - kind: mutation
+        ref: pr/169
+        date: 2026-08-31
+        caught: >-
+          CLA.md's title moved to v2 while its signing line, CONTRIBUTING and
+          the job's grep stayed at v1 — green, four places held to each other
+          by nothing (self-audit, 2026-08-31); red now.
 
   - id: preflight-and-the-harness-walk-this-repository
     title: The developer-side instruments this bundle ships are pointed at this repository
@@ -1450,6 +1457,13 @@ gates:
           module as it was; and `readable: false` added to a switch turned a red
           "blind" into a green "by hand" with nothing seeing it — red now
           against the held set (self-audit, 2026-08-31).
+      - kind: mutation
+        ref: pr/169
+        date: 2026-08-31
+        caught: >-
+          CONTRIBUTING made to say "the seven required checks" beside a list
+          of eight — green while only the list was held (self-audit,
+          2026-08-31); red now against the register's count.
 
   - id: every-advisory-has-been-judged
     title: Every finding has been decided about, and every decision still describes something

@@ -21,7 +21,7 @@ from typing import Any
 
 import pytest
 
-from verifiable_gates import advisories, check_names, gh, posture, workflows
+from verifiable_gates import advisories, check_names, gh, own_numbers, posture, workflows
 
 EXEMPT = {"scorecard": "a score, not a verdict, and it never runs on a pull request"}
 
@@ -753,3 +753,15 @@ def test_a_switch_still_wants_what_it_wanted(name: str) -> None:
     declared = json.loads(REGISTER.read_text(encoding="utf-8"))["settings"]
     assert declared[name]["want"] == HELD[name], f"{name} was turned; turn it here too, with why"
     assert str(declared[name].get("why", "")).strip(), f"{name} has no why"
+
+
+def test_contributing_counts_the_required_checks_the_register_requires() -> None:
+    """ "the eight required checks" is prose beside the list a test already holds; the word
+    went stale on its own — eight → seven stayed green (self-audit, 2026-08-31)."""
+    _branch, _settings, excused = posture.declared(ROOT / "pins" / "dev" / "posture-declared.json")
+    found = workflows.all_workflows(workflows.workflow_dir(ROOT))
+    required = {name for name in check_names.pull_request_checks(found) if name not in excused}
+    text = (ROOT / "CONTRIBUTING.md").read_text(encoding="utf-8")
+    said = re.search(r"the (\w+) required checks", text)
+    assert said, "CONTRIBUTING no longer counts the required checks"
+    assert said.group(1) == own_numbers.as_word(len(required)), (said.group(0), len(required))

@@ -8,6 +8,14 @@ Notable changes to this project. The format follows
 
 ### Fixed
 
+- **The words beside two registers are held.** CONTRIBUTING's "the eight
+  required checks" sat beside a list a test holds to the register, and the
+  word could go to "seven" alone; CLA.md's `v1` appears in its title, its
+  signing line, CONTRIBUTING's example and the `cla` job's grep, and a new
+  CLA.md v2 would have left the job accepting v1 (self-audit, 2026-08-31, both
+  reproduced on v0.1.10). The count is now read against the register, and the
+  four places carry one version. Proved by mutation: each drift is red (#169).
+
 - **A DECISIONS row is held by its clock and its words, not only its id.** A
   `revisit` date could be removed from a row, an `expires when` could be
   rewritten to "Never", and the `interrogate-at-84` row could say "floor is

@@ -598,3 +598,19 @@ def test_the_lint_job_measures_docstring_coverage() -> None:
     jobs = preflight.jobs_on_disk(ROOT)
     runs = [str(s.get("run")) for s in jobs["lint"]["steps"]]
     assert any(run.strip() == "interrogate src" for run in runs), runs
+
+
+def test_the_cla_version_is_one_version_everywhere() -> None:
+    """CLA.md carries `v1` in its title and its signing line; CONTRIBUTING shows the line;
+    the `cla` job greps for it — four places, held to each other by nothing, so a new
+    CLA.md v2 would leave the job accepting v1 (self-audit, 2026-08-31)."""
+    cla = (ROOT / "CLA.md").read_text(encoding="utf-8")
+    title = re.search(r"^# .*— (v\d+),", cla, re.MULTILINE)
+    assert title, "CLA.md's title names no version"
+    version = title.group(1)
+    line = f"I have read and agree to CLA.md {version}."
+    assert line in cla, "CLA.md's signing line names another version than its title"
+    assert line in (ROOT / "CONTRIBUTING.md").read_text(encoding="utf-8")
+    block = next(s for s in preflight.jobs_on_disk(ROOT)["cla"]["steps"] if "CLA=" in s["run"])
+    definition = next(row for row in block["run"].splitlines() if row.startswith("CLA="))
+    assert f"CLA\\.md {version}\\." in definition, definition
