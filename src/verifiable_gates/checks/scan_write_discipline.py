@@ -115,8 +115,18 @@ def _judge(root: pathlib.Path) -> int:
         return 0
     patterns = config.get("purge_paths", ["app/purge.py"])
 
+    readable = sorted(src.rglob("*.py"))
+    # A directory that is there and holds nothing this scanner reads is not a
+    # clean project — it is a project this scanner cannot see, which the manifest's
+    # own words forbid reporting as checked: "A rule the tool cannot check must not
+    # look like a rule it checked." A Go project's `app/` came back `[ pass]`
+    # (self-audit round 8, 2026-09-01).
+    if not readable:
+        print(f"NA: no Python under {src.relative_to(root)} — nothing to check yet")
+        return 0
+
     findings: list[str] = []
-    for path in sorted(src.rglob("*.py")):
+    for path in readable:
         relative = path.relative_to(root)
         if any(fnmatch.fnmatch(str(relative), pattern) for pattern in patterns):
             continue

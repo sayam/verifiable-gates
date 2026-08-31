@@ -25,6 +25,21 @@ Notable changes to this project. The format follows
 
 ### Fixed
 
+- **Nothing to read is not a pass.** Four scanners answered `NA` when their
+  directory was missing and fell silent — which the doctor prints as `[ pass]` —
+  when the directory was **there and held nothing they can read**. Installed into
+  a Go project, `delete-means-soft-delete` reported `[ pass]` over an `app/` of
+  `.go` files it had never opened; the same shape applies to `logic-knows-no-http`
+  over a services directory with no Python, `csp-no-inline` over a templates
+  directory of `.ejs`, and `adr-index-complete` over an ADR directory with no
+  records (self-audit round 8, 2026-09-01). This bundle installs into projects
+  that are not this one, and the manifest's own words are the rule it broke:
+  *"A rule the tool cannot check must not look like a rule it checked, which is
+  the failure this whole project is organised against."* Each now says
+  `NA: no Python under app` — naming what it looked for — and a directory holding
+  a file it *can* read is judged exactly as before. Proved by mutation: four cases
+  red, and six more hold the direction that must not change.
+
 - **One answer to what day it is.** Two registers asked the same question and gave
   different answers: `gates.yaml` accepts a `proved_by` date that is already today
   *somewhere on Earth* — `registry` computes it at UTC+14, on purpose, because a
