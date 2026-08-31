@@ -856,8 +856,9 @@ gates:
       exactly once in the repository's lifetime, and if it had stopped that day no
       test, job or cadence row would have known. GitHub also disables schedules
       for repositories quiet for 60 days, which is silence arriving from outside.
-      Things that cannot be checked by machine — Dependabot has no public endpoint
-      saying when it last ran — are labelled as such rather than guessed either way.
+      Dependabot is read as one clock from the platform's `dynamic` runs, held to
+      the shortest interval its config declares — the census once called it
+      unverifiable and printed a label where a verdict belonged (2026-08-31).
     proved_by:
       - kind: mutation
         ref: pr/17
@@ -885,6 +886,15 @@ gates:
           was a number or a word raised from inside the measure, exit 1 — five
           cases red on the census as it was, each now "cannot read the run
           history", exit 2 (self-audit, 2026-08-31).
+      - kind: mutation
+        ref: pr/171
+        date: 2026-08-31
+        caught: >-
+          Dependabot three weeks silent under a weekly schedule — a label, not
+          a verdict, on the census as it was; five cases red on the old
+          module: the one clock from its config, the `event=dynamic` ask, no
+          dynamic run as never, the entries printed beside the verdict, and
+          the silence itself (self-audit, 2026-08-31; the endpoint read live).
 
   - id: a-census-over-nothing-counts-nothing
     title: A run history the censuses cannot see is the third answer, never a pass
