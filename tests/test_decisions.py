@@ -105,6 +105,11 @@ HELD = (
     "manifest-problems-is-a-test-time-check",
     "git-signing-not-required",
     "gitleaks-pinned-by-our-checksum",
+    "codeql-not-semgrep",
+    "no-risk-register-here",
+    "no-cadence-register-here",
+    "write-scanner-reads-session-delete",
+    "dependency-licences-read-at-the-pin",
 )
 
 
