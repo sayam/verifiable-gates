@@ -97,10 +97,22 @@ def check_installed_record(root: pathlib.Path) -> list[str]:
             )
         ]
     try:
-        files = json.loads(record.read_text(encoding="utf-8"))["files"]
+        written = json.loads(record.read_text(encoding="utf-8"))
+        files = written["files"]
     except (OSError, ValueError, KeyError, TypeError) as problem:
         return [f"tools/installed.json cannot be read: {problem}"]
     found = []
+    # An install that stopped partway leaves a tree that is half one bundle and half the
+    # one before it. Until the installer said so, the record went on describing the
+    # previous install and every file the stopped one *had* written came back as "its
+    # contents have changed" — the sentence for a bundle somebody edited. A record with no
+    # such key was written by an installer that did not know the question, and is read as
+    # finished (self-audit round 16, 2026-09-01).
+    if written.get("finished", True) is False:
+        found.append(
+            "the last install into this tree did not finish, so part of the bundle may "
+            "still be the previous version — re-run the installer"
+        )
     for name, recorded in sorted(files.items()):
         path = root / name
         if not path.is_file():

@@ -333,6 +333,147 @@ def test_the_doctor_needs_a_finished_install(
     assert "the install did not finish" in done.stdout
 
 
+# ------------------------------------------- an install that did not get to the end
+#
+# An install that stops partway leaves a tree that is half one bundle and half the one
+# before it. Until the installer said so, the record went on describing the previous
+# install, and every file the stopped one *had* written came back from the doctor as
+# "its contents have changed" — the sentence round 4 wrote to mean *somebody edited the
+# bundle*. A tree the installer itself left that way was reported as tampering
+# (self-audit round 16, 2026-09-01).
+
+
+def a_stopped_install(
+    project: pathlib.Path, bundle_copy: pathlib.Path
+) -> subprocess.CompletedProcess[str]:
+    """Install, then upgrade to a changed bundle with one target that cannot be written."""
+    assert do_install(project, bundle_copy) == 0
+    (bundle_copy / DOCTOR.removeprefix("tools/")).write_text(
+        (bundle_copy / DOCTOR.removeprefix("tools/")).read_text(encoding="utf-8")
+        + "\n# a second bundle, so the copied files differ from the recorded ones\n",
+        encoding="utf-8",
+    )
+    locked = project / "tools" / "checks" / "scan_install_pinning.py"
+    locked.chmod(0o444)
+    try:
+        assert do_install(project, bundle_copy) == 1
+    finally:
+        locked.chmod(0o644)
+    return run_doctor(project, "--installed")
+
+
+def test_an_install_that_stopped_partway_says_so_instead_of_accusing_the_files(
+    tmp_path: pathlib.Path, bundle_copy: pathlib.Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """The doctor has to name the cause the installer already knew."""
+    project = tmp_path / "project"
+
+    done = a_stopped_install(project, bundle_copy)
+    capsys.readouterr()
+
+    record = json.loads((project / "tools" / "installed.json").read_text(encoding="utf-8"))
+    assert record["finished"] is False, "the installer did not record that it stopped"
+    assert done.returncode == 1
+    assert "did not finish" in done.stdout, done.stdout
+    assert "contents have changed" not in done.stdout, (
+        "a tree the installer itself left half-written was reported as tampering"
+    )
+
+
+def test_the_record_of_a_stopped_install_is_a_problem_in_process_too(
+    tmp_path: pathlib.Path, bundle_copy: pathlib.Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """The same judgement, read straight out of the function a consumer imports."""
+    project = tmp_path / "project"
+    assert do_install(project, bundle_copy) == 0
+    capsys.readouterr()
+    record = project / "tools" / "installed.json"
+    stopped = json.loads(record.read_text(encoding="utf-8")) | {"finished": False}
+    record.write_text(json.dumps(stopped), encoding="utf-8")
+
+    problems = gates_doctor.check_installed_record(project)
+
+    assert any("did not finish" in problem for problem in problems), problems
+
+
+def test_a_finished_install_records_that_it_finished(
+    tmp_path: pathlib.Path, bundle_copy: pathlib.Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """The control: without it, recording `false` always would pass the test above."""
+    project = tmp_path / "project"
+    assert do_install(project, bundle_copy) == 0
+    capsys.readouterr()
+
+    record = json.loads((project / "tools" / "installed.json").read_text(encoding="utf-8"))
+    done = run_doctor(project, "--installed")
+
+    assert record["finished"] is True
+    assert done.returncode == 0
+    assert "did not finish" not in done.stdout
+
+
+def test_a_record_from_an_installer_that_did_not_know_the_question_reads_as_finished(
+    tmp_path: pathlib.Path, bundle_copy: pathlib.Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """A project that installed before this key existed must not be told its install
+    stopped — the doctor reads a record with no `finished` as one that did."""
+    project = tmp_path / "project"
+    assert do_install(project, bundle_copy) == 0
+    capsys.readouterr()
+    record = project / "tools" / "installed.json"
+    older = json.loads(record.read_text(encoding="utf-8"))
+    del older["finished"]
+    record.write_text(json.dumps(older), encoding="utf-8")
+
+    done = run_doctor(project, "--installed")
+
+    assert done.returncode == 0, done.stdout
+    assert "did not finish" not in done.stdout
+
+
+def test_an_install_that_landed_nothing_leaves_the_record_of_the_one_before_it(
+    tmp_path: pathlib.Path, bundle_copy: pathlib.Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """Nothing landed, so nothing changed — and a true account of the install before must
+    not be overwritten with an empty one that says it stopped."""
+    project = tmp_path / "project"
+    assert do_install(project, bundle_copy) == 0
+    capsys.readouterr()
+    before = (project / "tools" / "installed.json").read_text(encoding="utf-8")
+    # The first file the installer copies: it stops before anything has landed.
+    first = project / DOCTOR
+    first.chmod(0o444)
+    try:
+        assert do_install(project, bundle_copy) == 1
+    finally:
+        first.chmod(0o644)
+
+    assert (project / "tools" / "installed.json").read_text(encoding="utf-8") == before
+
+
+def test_an_install_whose_record_cannot_be_written_says_so_rather_than_a_traceback(
+    tmp_path: pathlib.Path, bundle_copy: pathlib.Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """Every file landed and the record could not be written: round 5's shape, in the one
+    writer it had not reached. It ended a complete, correct install in a raw
+    `PermissionError` (self-audit round 16, 2026-09-01)."""
+    project = tmp_path / "project"
+    assert do_install(project, bundle_copy) == 0
+    capsys.readouterr()
+    (project / "tools" / "installed.json").chmod(0o444)
+
+    try:
+        with pytest.raises(SystemExit) as refused:
+            do_install(project, bundle_copy)
+    finally:
+        (project / "tools" / "installed.json").chmod(0o644)
+
+    assert refused.value.code == 1
+    said = capsys.readouterr().err
+    assert "the record of it could not be written" in said, said
+    assert "the doctor cannot check this install" in said
+
+
 def test_suite_gates_are_reported_as_pending_not_passed(
     tmp_path: pathlib.Path, bundle_copy: pathlib.Path, capsys: pytest.CaptureFixture[str]
 ) -> None:
