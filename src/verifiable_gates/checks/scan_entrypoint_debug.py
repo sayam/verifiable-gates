@@ -85,6 +85,25 @@ def _debug_findings(tree: ast.AST) -> list[tuple[int, str]]:
     return sorted(found for node in ast.walk(tree) if (found := _shape(node)))
 
 
+OUTSIDE = (
+    "scaffold.json names {key} {path}, which leads outside the project — a checker "
+    "pointed out of the tree judges files this project does not own"
+)
+
+
+def _inside(root: pathlib.Path, path: pathlib.Path) -> bool:
+    """Is `path` still inside the tree this scanner was pointed at?
+
+    The installer was taught this in an earlier round — fourteen files landed outside the
+    destination through a `tools` symlink — and the readers were never asked the same
+    question. A `scaffold.json` path starting with `/` or climbing with `..` walked out of
+    the project, judged files it does not own, and printed them under a path no reviewer
+    can open; an absolute one also made `relative_to` raise, so the misconfiguration
+    answered with a traceback (self-audit round 13, 2026-09-01).
+    """
+    return path.resolve().is_relative_to(root.resolve())
+
+
 MISCONFIGURED = (
     "scaffold.json names {key} {path}, which is not there — a configured path that "
     "is missing is a broken configuration, not nothing to check"
@@ -118,6 +137,10 @@ def main(root: pathlib.Path) -> int:
     # exist beside a dirty one that did, and the answer was "nothing to check".
     config = json.loads(_config_text(config_path)) if config_path.is_file() else {}
     names = config.get("entrypoints", ["run.py", "wsgi.py", "app.py", "main.py"])
+    outside = [n for n in names if not _inside(root, root / n)]
+    if outside:
+        print("no-debug-entrypoint: " + OUTSIDE.format(key="entrypoints", path=outside))
+        return 1
     present = [root / n for n in names if (root / n).is_file()]
     if not present:
         # The list is candidates, so one missing name is fine; none present when
