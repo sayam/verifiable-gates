@@ -519,6 +519,25 @@ def _never_red(
     print(text["never_red_footer"])
 
 
+def _hold_each_failure(records: list[Mapping[str, Any]]) -> None:
+    """Every entry in a record's `failures` is a mapping — which the declared shape omits.
+
+    `fields={"failures": (list,)}` holds the list and says nothing about what is in it, so
+    a hand-written offline file whose failures are plain job names — `"failures": ["lint"]`,
+    the shape anyone would write first — passed the shape check and then met `.get` on a
+    `str` inside the census: a raw `AttributeError` with exit 1, the code that means
+    *findings*, from a reader whose own words are "this must never become a silent skip"
+    (self-audit round 14, 2026-09-01). A shape declared one level short is not a shape.
+    """
+    for index, record in enumerate(records):
+        for failure in record.get("failures", []):
+            if not isinstance(failure, dict):
+                raise history.UnreadableError(
+                    f"record {index}: a failure is {type(failure).__name__}, not a mapping — "
+                    "each one needs at least 'job', and 'attempt' if the run was retried"
+                )
+
+
 def main(argv: list[str] | None = None, *, messages: Mapping[str, str] | None = None) -> int:
     """Fetch (or read a file) → summarise → print · returns 1 over the ceiling."""
     parser = argparse.ArgumentParser(description="Census of CI failures, reruns included.")
@@ -556,6 +575,7 @@ def main(argv: list[str] | None = None, *, messages: Mapping[str, str] | None = 
             must_hold_something=True,
             fields={"id": (int, str), "failures": (list,), "?attempt": (int,)},
         )
+        _hold_each_failure(records)
     except (PermissionError, RuntimeError) as problem:
         print(text["cannot_read"].format(problem=problem), file=sys.stderr)
         return 2
