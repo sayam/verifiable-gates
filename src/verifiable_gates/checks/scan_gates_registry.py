@@ -30,10 +30,25 @@ standalone file; its evidence is a planted violation and a clean tree in
 from __future__ import annotations
 
 import json
+import os
 import pathlib
 import re
 import sys
 from typing import Any
+
+
+def _shown(path: str | pathlib.Path) -> str:
+    """A path as text that can always be printed.
+
+    A file name here is bytes, not characters. One that is not UTF-8 arrives from the
+    directory listing carrying surrogates, and printing it raises `UnicodeEncodeError`:
+    a traceback and exit 1 — the code that means *findings* — from a scanner that had a
+    verdict to give, losing every finding it had already collected (self-audit round 15,
+    2026-09-01). A name nobody can decode is still a name; it is shown with its bytes
+    escaped, and the verdict stands.
+    """
+    return os.fsencode(str(path)).decode("utf-8", "backslashreplace")
+
 
 KINDS = {"test", "step", "job"}
 GATE_ID = re.compile(r"^[a-z0-9]+(-[a-z0-9]+)*$")
@@ -318,13 +333,13 @@ def _read_workflow(path: pathlib.Path, root: pathlib.Path) -> tuple[dict[str, An
     try:
         workflow = load(path.read_text(encoding="utf-8"))
     except UnicodeDecodeError as error:
-        return None, f"{path.relative_to(root)}: not UTF-8 ({error.reason})"
+        return None, f"{_shown(path.relative_to(root))}: not UTF-8 ({error.reason})"
     except OSError as error:
-        return None, f"{path.relative_to(root)}: {error.strerror or error}"
+        return None, f"{_shown(path.relative_to(root))}: {error.strerror or error}"
     except SubsetError as error:
-        return None, f"{path.relative_to(root)}: {error}"
+        return None, f"{_shown(path.relative_to(root))}: {error}"
     if not isinstance(workflow, dict):
-        return None, f"{path.relative_to(root)}: not a mapping"
+        return None, f"{_shown(path.relative_to(root))}: not a mapping"
     return workflow, ""
 
 
@@ -363,7 +378,7 @@ def workflow_jobs(
             jobs[str(name)] = [
                 str(s["name"]) for s in steps if isinstance(s, dict) and s.get("name")
             ]
-            homes.setdefault(str(name), []).append(str(path.relative_to(root)))
+            homes.setdefault(str(name), []).append(_shown(path.relative_to(root)))
             toothless |= _teeth(workflow, str(name), job, steps)
     clashes = [
         f"job {name} is defined in {' and '.join(files)} — one gate cannot hold two jobs"
@@ -454,7 +469,7 @@ def _partition(
     # directory under the tests root — a file in `tests/unit/` ran on every push
     # and was in no gate's partition (self-audit, 2026-08-31).
     on_disk = {
-        path.relative_to(root).as_posix()
+        _shown(path.relative_to(root).as_posix())
         for path in tests_dir.rglob("*.py")
         if path.name.startswith("test_") or path.name.endswith("_test.py")
     }
@@ -519,7 +534,7 @@ def _config_text(path: pathlib.Path) -> str:
     try:
         return path.read_text(encoding="utf-8")
     except (UnicodeDecodeError, OSError) as problem:
-        print(f"cannot read the tree: {path}: {problem}", file=sys.stderr)
+        print(f"cannot read the tree: {_shown(path)}: {problem}", file=sys.stderr)
         raise SystemExit(2) from problem
 
 
@@ -528,7 +543,7 @@ def main(root: pathlib.Path) -> int:
         # NA means "this project has nothing of that kind"; a root that is not
         # there has no project to say it about, and answering the second with
         # the first is a green over nothing (self-audit round 2, 2026-08-31).
-        print(f"cannot read the tree: {root} is not a directory", file=sys.stderr)
+        print(f"cannot read the tree: {_shown(root)} is not a directory", file=sys.stderr)
         return 2
     config_path = root / "scaffold.json"
     config = json.loads(_config_text(config_path)) if config_path.is_file() else {}
