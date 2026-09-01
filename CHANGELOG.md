@@ -8,6 +8,29 @@ Notable changes to this project. The format follows
 
 ### Fixed
 
+- **An install that stopped partway was reported as tampering, and one that
+  finished could still end in a traceback.** The installer records what it wrote so
+  `gates_doctor --installed` can say whether the bundle is still what arrived — and
+  it wrote that record on the happy path only. Both halves were wrong. An **upgrade
+  that stopped** (one target unwritable, four of fourteen files already replaced)
+  left the record describing the *previous* install, so the doctor reported each
+  file that had landed as *"is not what was installed — its contents have changed"*,
+  which is the sentence round 4 wrote to mean somebody edited the bundle: a tree the
+  installer itself left half-written, read as an attack, with the true cause known
+  to the installer and thrown away. And an install where **every file landed** but
+  `tools/installed.json` could not be rewritten ended in a raw `PermissionError` —
+  round 5's shape, in the one writer it had not reached (self-audit round 16,
+  2026-09-01). A stopped install now records what did land, keeps the previous
+  record's entry for every file it never reached, and marks itself unfinished; the
+  doctor leads with *"the last install into this tree did not finish"* and stops
+  accusing. A record that cannot be written is said out loud, exit 1, never a
+  traceback. A record with no `finished` key — written by an installer that did not
+  know the question — is read as finished. Proved by mutation: the stopped install
+  recording nothing, the doctor ignoring the flag, and the record write left
+  unguarded — one case red each, plus a control that a finished install records that
+  it finished, and one that an install landing nothing leaves the earlier record
+  alone.
+
 - **A correction that stopped halfway said nothing about what it had already
   changed.** `own_numbers --write` corrects the claims this repository publishes —
   the version in `pyproject.toml`, in `CITATION.cff`, in `.zenodo.json` — one file
