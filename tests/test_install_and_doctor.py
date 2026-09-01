@@ -209,10 +209,16 @@ def test_an_incomplete_bundle_refuses_to_install(
     assert "the bundle is incomplete" in capsys.readouterr().err
 
 
-def test_a_scan_that_crashes_is_an_error_with_its_traceback_not_a_finding(
+def test_a_configuration_that_cannot_be_read_is_an_error_in_a_sentence(
     tmp_path: pathlib.Path, bundle_copy: pathlib.Path, capsys: pytest.CaptureFixture[str]
 ) -> None:
-    """A broken `scaffold.json` makes the scans traceback; the doctor must say so, not `[found]`."""
+    """A `scaffold.json` that is not JSON is refused the way undecodable bytes are: exit 2,
+    naming the file and what is wrong with it. Round 3 wrapped the *read* of this file and
+    stopped one line short of the parse, so every scan answered a malformed configuration
+    with a `JSONDecodeError` traceback and exit 1 — the code that means *findings* — and
+    what reached the project was a stack (self-audit round 17, 2026-09-01). The doctor
+    caught it as an error either way; a traceback is still not a sentence anyone can act on.
+    """
     project = tmp_path / "project"
     assert do_install(project, bundle_copy) == 0
     capsys.readouterr()
@@ -221,11 +227,11 @@ def test_a_scan_that_crashes_is_an_error_with_its_traceback_not_a_finding(
     done = run_doctor(project)
     assert done.returncode == 1
     assert "[found]" not in done.stdout
-    assert "[error] no-debug-entrypoint — the scan did not answer (exit 1)" in done.stdout
+    assert "[error] no-debug-entrypoint — the scan did not answer (exit 2)" in done.stdout
     assert "scans did not answer, which is no verdict" in done.stdout
     assert "found problems" not in done.stdout
-    assert "Traceback" in done.stderr
-    assert "JSONDecodeError" in done.stderr
+    assert "Traceback" not in done.stderr, "a project reads a stack instead of the reason"
+    assert "scaffold.json: not JSON" in done.stderr
 
 
 def test_a_scan_that_hangs_is_an_error_not_a_traceback(
@@ -531,7 +537,7 @@ def test_the_doctor_reports_a_crashed_scan_when_called_in_process(
     assert code == 1
     assert "[error] no-debug-entrypoint" in captured.out
     assert "did not answer, which is no verdict" in captured.out
-    assert "JSONDecodeError" in captured.err
+    assert "scaffold.json: not JSON" in captured.err
 
 
 def test_the_doctor_checks_the_install_when_called_in_process(

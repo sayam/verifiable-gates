@@ -550,8 +550,21 @@ def test_a_workflow_this_walk_may_not_open_is_a_misuse_too(
         (b'{"preflight_jobs": 5}\n', "not a list of job names"),
         (b'{"preflight_jobs": {"lint": 1}}\n', "not a list of job names"),
         (b'{"preflight_jobs": ["lint", 5]}\n', "not a list of job names"),
+        (b"[]\n", "not an object"),
+        (b'"lint"\n', "not an object"),
+        (b"null\n", "not an object"),
     ],
-    ids=["not-utf-8", "not-json", "a-string", "a-number", "an-object", "a-list-with-a-number"],
+    ids=[
+        "not-utf-8",
+        "not-json",
+        "a-string",
+        "a-number",
+        "an-object",
+        "a-list-with-a-number",
+        "document-is-a-list",
+        "document-is-a-string",
+        "document-is-null",
+    ],
 )
 def test_a_config_this_walk_cannot_read_is_a_misuse_too(
     tmp_path: pathlib.Path, capsys: pytest.CaptureFixture[str], content: bytes, says: str
