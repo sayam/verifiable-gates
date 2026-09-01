@@ -13,8 +13,12 @@ into "this passed", which is the failure this whole project is organised against
 
 from __future__ import annotations
 
+import io
 import json
+import os
 import pathlib
+import subprocess
+import sys
 from typing import Any
 
 import pytest
@@ -340,3 +344,84 @@ def test_notes_that_cannot_be_decoded_are_left_alone_and_do_not_change_the_verdi
     assert "could not read the round notes: not UTF-8" in printed.err
     assert "round 0: 1 pass · 0 fail" in printed.out
     assert log.read_bytes() == b"notes somebody saved as cp1252: caf\xe9\n"
+
+
+# ------------------------------------------- what the harness says, in what bytes
+#
+# The harness prints two things it did not write — the `hint`, which is the registry's
+# prose, and its own summary's `·` — and writes two files nobody asked it to encode. All
+# four went out in the **machine's** locale, while every reader in this package insists
+# on UTF-8. On a machine whose stdout is not UTF-8 a round in which every gate was
+# skipped and nothing failed printed nothing at all, ended in `UnicodeEncodeError` and
+# exited **1** (self-audit round 15, 2026-09-01).
+
+PROSE = "the trap that produced it — an em dash, as the registry's prose is full of"
+WITH_PROSE = REGISTRY.replace("born_from: the trap that produced it", f"born_from: {PROSE}")
+
+
+def an_ascii_terminal(monkeypatch: pytest.MonkeyPatch) -> io.BytesIO:
+    """Replace stdout with one that can encode ASCII and nothing else, and return its bytes."""
+    raw = io.BytesIO()
+    monkeypatch.setattr("sys.stdout", io.TextIOWrapper(raw, encoding="ascii", write_through=True))
+    return raw
+
+
+def test_a_green_round_is_still_green_on_a_terminal_that_is_not_utf8(
+    tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The `·` in the harness's own summary line must not be able to fail the run."""
+    root = a_project(tmp_path, PASSING)
+    said = an_ascii_terminal(monkeypatch)
+
+    assert run(root) == 0, "a round with nothing wrong was failed by the act of reporting it"
+    assert b"1 pass \\xb7 0 fail" in said.getvalue(), said.getvalue()
+
+
+def test_a_hint_the_terminal_cannot_show_is_shown_escaped(
+    tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The hint is the registry's prose, and prose is not ASCII — but it is still a hint."""
+    root = a_tree(tmp_path, FAILING)
+    (root / "gates.yaml").write_text(WITH_PROSE, encoding="utf-8")
+    said = an_ascii_terminal(monkeypatch)
+
+    assert run(root) == 1
+    written = said.getvalue()
+    assert b"hint: the trap that produced it" in written
+    assert b"\\u2014" in written or b"\\x" in written, written
+
+
+def test_the_report_is_utf8_whatever_the_machine_reads_by_default(tmp_path: pathlib.Path) -> None:
+    """The report is written for another machine, and read back with `encoding="utf-8"`.
+
+    Run for real in a subprocess, because the encoding `write_text` picks with no
+    `encoding=` is the interpreter's at startup and cannot be changed from inside the
+    test. `PYTHONUTF8=0` with the C locale is one machine where they differ; a Windows
+    default (cp1252) is another, and there the file is written and silently misread
+    rather than refused.
+    """
+    root = a_tree(tmp_path, FAILING)
+    (root / "gates.yaml").write_text(WITH_PROSE, encoding="utf-8")
+    report = tmp_path / "report.json"
+
+    done = subprocess.run(  # noqa: S603 — sys.executable and paths this test just wrote
+        [
+            sys.executable,
+            "-m",
+            "verifiable_gates.harness",
+            "--registry",
+            str(root / "gates.yaml"),
+            "--root",
+            str(root),
+            "--output",
+            str(report),
+        ],
+        env={**os.environ, "PYTHONUTF8": "0", "LC_ALL": "C"},
+        capture_output=True,
+        check=False,
+        timeout=300,
+    )
+
+    assert done.returncode == 1, f"the gate failed, so the run is 1: {done.stderr.decode()[-400:]}"
+    written = json.loads(report.read_text(encoding="utf-8"))
+    assert "—" in written["results"][0]["hint"], "the registry's prose did not survive the trip"
