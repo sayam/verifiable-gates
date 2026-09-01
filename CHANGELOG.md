@@ -8,6 +8,26 @@ Notable changes to this project. The format follows
 
 ### Added
 
+- **Seven decisions the owner made, written down.** The self-audit's §B — the
+  items that were never defects but choices nobody had recorded — is closed
+  (2026-09-01). `proved-by-ref-is-a-shape`: the ref is held to its shape and not
+  resolved, because resolving it needs the network the suite is held not to use,
+  and it carries a revisit date of **2026-11-27**, the day the 90-day retention
+  deletes the logs of the six `run/N` proofs. `removals-census-not-run-here` and
+  `asvs-worksheet-not-kept-here`: two rules this bundle publishes and does not
+  keep, each with the condition that would change that — the shape
+  `no-risk-register-here` set. `pillar-is-content-a-reviewer-sees`: between valid
+  values the choice is content, and a copy in a test would be a second place to
+  edit. `decisions-have-one-owner`: no `owner` column while one person decides
+  everything, because the signer of the commit is already the record.
+  `a-rule-title-is-the-rule-not-the-scanner`: a rule's title states the rule, and
+  how far a shipped scan reaches is its own row — narrowing the title would
+  publish a smaller rule than the one that is true.
+  `proved-by-is-history-not-a-warranty`: `proved_by` records that a gate *has*
+  gone red on a real defect, which eleven rows older than the code they claim do
+  not contradict; wanting it to mean current evidence needs a freshness rule, and
+  that is a new rule.
+
 - **The installer says what it stopped shipping.** A bundle that renames or drops a
   scanner left the old file in the project's repository for good: nothing in the
   manifest names it, the doctor never runs it, and `--installed` reported

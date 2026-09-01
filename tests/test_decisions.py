@@ -118,6 +118,14 @@ HELD = {
     "no-cadence-register-here": "",
     "write-scanner-reads-session-delete": "",
     "dependency-licences-read-at-the-pin": "",
+    # The seven the owner decided on 2026-09-01, closing §B of the self-audit.
+    "proved-by-ref-is-a-shape": "2026-11-27",
+    "removals-census-not-run-here": "",
+    "asvs-worksheet-not-kept-here": "",
+    "pillar-is-content-a-reviewer-sees": "",
+    "decisions-have-one-owner": "",
+    "a-rule-title-is-the-rule-not-the-scanner": "",
+    "proved-by-is-history-not-a-warranty": "",
 }
 
 # The rows whose `expires when` is `Never` — an expiry rewritten to "Never" was
