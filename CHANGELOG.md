@@ -44,6 +44,18 @@ Notable changes to this project. The format follows
 
 ### Changed
 
+- **The line `CLA.md` asks you to copy is now one the gate accepts.** `CONTRIBUTING.md`
+  shows the shape, a filled example and a sentence saying the brackets around the
+  address are literal — and a test drives the `cla` job's own regex over that example.
+  `CLA.md` showed only `I have read and agree to CLA.md v1. — <your name> <your email>`,
+  in both languages, with no example and no sentence: brackets meaning a placeholder in
+  one half of the line and literal syntax in the other. Copied as written it is refused,
+  and `CLA.md` is the file a contributor opens, because the line names it. An outside
+  contributor was tripped by the same ambiguity in the other direction on 2026-08-30,
+  writing the address bare. Both halves now show the example, the shape as
+  `NAME <EMAIL>`, and why — and the test that already held CONTRIBUTING's example holds
+  CLA.md's too, and that the two say the same line (self-audit round 11, 2026-09-01).
+
 - **The two languages: what actually holds them together.** `rules.yaml` said the
   reference implementation *"checks its own Thai against `*_th` byte for byte, so
   the two cannot drift apart in silence."* Measured from the other side of the seam

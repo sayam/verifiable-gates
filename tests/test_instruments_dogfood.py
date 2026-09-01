@@ -130,6 +130,18 @@ def test_the_example_line_contributing_shows_is_one_the_job_accepts() -> None:
     accepted = subprocess.run(["bash", "-c", script, "-", example.group(1)], check=False)  # noqa: S603, S607 — the job's own grep, on a fixed string
     assert accepted.returncode == 0, example.group(1)
     assert example.group(1) in block["run"], "the job's FAIL message should show the same example"
+    # And the file the line names. `CLA.md` showed only `— <your name> <your email>`,
+    # where the brackets mean a placeholder in one half and literal syntax in the other,
+    # with no example and no sentence beside it — and it is the file a contributor opens,
+    # because the line names it (self-audit round 11, 2026-09-01).
+    cla = (ROOT / "CLA.md").read_text(encoding="utf-8")
+    shown = re.search(r"`(I have read and agree to CLA\.md v1\. — Ada[^`]+)`", cla)
+    assert shown is not None, "CLA.md shows no example line"
+    assert shown.group(1) == example.group(1), "the two documents show different lines"
+    assert cla.count(shown.group(1)) == BILINGUAL_HALVES, "both halves show the same line"
+    assert not re.search(r"CLA\.md v1\. — <", cla), (
+        "a template whose brackets mean a placeholder in one half and syntax in the other"
+    )
     # The FAIL branch, run for real: the review of 2026-08-30 found the echo's
     # quoting broken — `<ada@example.org>` had become a redirection and the
     # contributor saw "No such file or directory" instead of the example.
@@ -684,6 +696,9 @@ def test_every_check_switched_off_in_pyproject_carries_a_reason() -> None:
         if line:
             previous = line
 
+
+# `CLA.md` carries English above and Thai below; the example belongs in both.
+BILINGUAL_HALVES = 2
 
 HELPERS = [
     "check_names",
