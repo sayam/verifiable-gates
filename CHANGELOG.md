@@ -44,6 +44,18 @@ Notable changes to this project. The format follows
 
 ### Changed
 
+- **The two languages: what actually holds them together.** `rules.yaml` said the
+  reference implementation *"checks its own Thai against `*_th` byte for byte, so
+  the two cannot drift apart in silence."* Measured from the other side of the seam
+  on 2026-09-01: that check reads
+  `vendor/verifiable-gates/rules.yaml` — the **pinned** submodule — and the pin was
+  four days and **223 commits** old, with **eight `*_th` lines already moved**. They
+  had drifted, and quietly. The mechanism that closes it is real but slower than
+  the sentence claimed: Dependabot moves that pin weekly, so a drift surfaces as a
+  red on the submodule bump. The comment now says exactly that — the window is the
+  pin's age, the mechanism is the bump — because a claim about another repository
+  can only be checked from inside it (self-audit round 10).
+
 - **Two sentences that said more than had been checked.** The pinning scanner's
   own docstring read "It has to be `--require-hashes -r <lockfile>`" while the
   scanner accepts `--require-hashes` without `-r` on purpose — pip refuses that
