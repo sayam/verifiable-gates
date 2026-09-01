@@ -39,6 +39,18 @@ Notable changes to this project. The format follows
   link still points at the concept DOI, so nothing about the citation changed.
   A test pins the one thing that outlives the measurement: a badge image host is
   a decision recorded with its reason, not markdown copied off a web page.
+
+- **A signature by an identity with nothing to do with the work.** The `cla` job read
+  the line's shape and accepted any address in it, which is right for a contributor —
+  the CLA wants a real identity from them — and wrong for the owner, whose address is
+  fixed by this repository and appears on every commit. Four merged pull requests were
+  signed with a private address pasted out of an editor's context, and a fifth kept it
+  in its body's edit history after the visible text was corrected, because GitHub does
+  not forget an edit. The job now requires the owner's own pull requests to carry the
+  noreply address the commits are signed with, and leaves every contributor's line
+  alone. Proved both ways against the job's own shell: the owner's address passes, a
+  private one and anybody else's noreply are refused, and a contributor's address still
+  passes.
 - **A list of helpers written by hand was seven short.** Round 11 gave seven
   modules a guard so that running a helper as a command says so and exits 2,
   because run as one they imported cleanly and exited **0** having done nothing —
