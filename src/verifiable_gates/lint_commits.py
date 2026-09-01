@@ -46,6 +46,7 @@ __all__ = [
     "check_trailers",
     "commits_in_range",
     "main",
+    "not_utf8",
     "parse_log",
 ]
 
@@ -149,11 +150,36 @@ def commits_in_range(rev_range: str) -> list[tuple[str, str, str]]:
     out = subprocess.run(  # noqa: S603 — input comes from CI or the developer, not a user
         ["git", "log", "--no-merges", f"--format={LOG_FORMAT}", rev_range],  # noqa: S607 — git resolved from PATH, as the developer's own shell does
         capture_output=True,
-        text=True,
         check=True,
         timeout=LOCAL_TIMEOUT_SECONDS,
     ).stdout
-    return parse_log(out)
+    # **A commit message is bytes.** git keeps what the author's client sent, and a
+    # client that was not speaking UTF-8 leaves bytes no decoder can turn into text.
+    # `text=True` decoded them with the machine's locale and `errors="strict"`, so
+    # this road — the one that runs on a fork, where the messages are written by
+    # people whose tools we do not choose — answered with a raw `UnicodeDecodeError`
+    # and exit 1, the code that means *these commit messages are bad*. The hook road
+    # reading the same bytes from a file has always answered exit 2 with words
+    # (self-audit round 15, 2026-09-01). Carry the bytes through instead, and let
+    # `not_utf8` say which commit could not be read.
+    return parse_log(out.decode("utf-8", "surrogateescape"))
+
+
+def not_utf8(commits: list[tuple[str, str, str]]) -> list[str]:
+    """The commits whose message is not UTF-8 — bytes with no reading, not a verdict.
+
+    A surrogate is how `surrogateescape` carries a byte that is not text. A message
+    holding one cannot be judged: the subject nobody can decode is not a subject that
+    breaks the shape, and reporting it as one would hold an author to a rule about
+    characters that are not there.
+    """
+    unreadable = []
+    for sha, subject, body in commits:
+        try:
+            (subject + body).encode("utf-8")
+        except UnicodeEncodeError:
+            unreadable.append(sha)
+    return unreadable
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -179,7 +205,16 @@ def main(argv: list[str] | None = None) -> int:
         failures.extend((None, title, problem) for problem in check_sign_off(message))
         failures.extend((None, title, problem) for problem in check_trailers(message))
     else:
-        for sha, subject, body in commits_in_range(args.rev_range):
+        commits = commits_in_range(args.rev_range)
+        if undecodable := not_utf8(commits):
+            # The same answer the hook road gives for the same bytes: no verdict,
+            # said out loud, naming what could not be read.
+            print(
+                f"cannot read the message of {', '.join(undecodable)}: not UTF-8",
+                file=sys.stderr,
+            )
+            return 2
+        for sha, subject, body in commits:
             failures.extend((sha, subject, problem) for problem in check_title(subject))
             failures.extend((sha, subject, problem) for problem in check_sign_off(body))
             failures.extend((sha, subject, problem) for problem in check_trailers(body))

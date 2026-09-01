@@ -18,11 +18,15 @@ import functools
 import pathlib
 import shutil
 import subprocess
+from typing import TYPE_CHECKING, Any
 
 import pytest
 import yaml
 
 from verifiable_gates import lint_commits
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
 
 # ---------------------------------------------------------------- the subject
 
@@ -265,6 +269,84 @@ def test_the_range_mode_names_the_commit_it_refused(
 
     assert "FAIL" in out
     assert head[:9] in out, "went red without saying which commit"
+
+
+def plant_a_message_that_is_not_utf8(root: pathlib.Path, message: bytes) -> str:
+    """Rewrite HEAD with a message git itself refuses to write, and return its sha.
+
+    `git commit` transliterates bytes that are not UTF-8 before storing them, so a
+    commit really holding them has to be written as an object. That is not a contrived
+    shape: it is what a repository contains once a client that was not speaking UTF-8
+    has pushed to it — and this mode's whole reason to exist is the fork, where the
+    commits were written by tools this project does not choose.
+    """
+    binary = shutil.which("git")
+    assert binary, "this test reads a real history and needs git"
+    # Annotated because `subprocess.run` with neither `text` nor `encoding` returns
+    # bytes, which is the whole point here, and the overload mypy picks says otherwise.
+    git: Callable[..., subprocess.CompletedProcess[Any]] = functools.partial(
+        subprocess.run, cwd=root, check=True, capture_output=True, timeout=60
+    )
+
+    def out(*args: str) -> bytes:
+        stdout: bytes = git([binary, *args]).stdout
+        return stdout.strip()
+
+    who = b"A B <a@b.co> 1756700000 +0000"
+    obj = (
+        b"tree " + out("rev-parse", "HEAD^{tree}") + b"\n"
+        b"parent " + out("rev-parse", "HEAD^") + b"\n"
+        b"author " + who + b"\ncommitter " + who + b"\n\n" + message
+    )
+    written = (
+        git([binary, "hash-object", "-w", "-t", "commit", "--stdin"], input=obj)
+        .stdout.decode()
+        .strip()
+    )
+    git([binary, "reset", "--hard", "-q", written])
+    return str(written)
+
+
+def test_the_range_mode_refuses_a_message_it_cannot_read(
+    tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """The same answer the hook mode gives the same bytes: no verdict, and which commit.
+
+    The hook mode reads the message from a file and has always answered exit 2 with
+    "not UTF-8". The range mode took the same bytes through `subprocess(text=True)`,
+    which decodes with the machine's locale and refuses anything else, so it answered
+    a stranger's commit with a raw `UnicodeDecodeError` and **exit 1** — the code that
+    means *these commit messages break the rules* (self-audit round 15, 2026-09-01).
+    The exit code is asserted rather than the traceback: 1 and 2 are different claims.
+    """
+    base = a_repo(tmp_path, "fix: a well-formed one\n\nSigned-off-by: A B <a@b.co>")
+    monkeypatch.chdir(tmp_path)
+    sha = plant_a_message_that_is_not_utf8(
+        tmp_path, b"fix: caf\xe9 from another client\n\nSigned-off-by: A B <a@b.co>\n"
+    )
+
+    code = run(monkeypatch, ["--range", f"{base}..HEAD"])
+
+    assert code == 2, f"a message nobody can decode was answered with {code}, not the third answer"
+    said = capsys.readouterr().err
+    assert "not UTF-8" in said, f"refused without saying why: {said!r}"
+    assert sha[:9] in said, f"refused without saying which commit: {said!r}"
+
+
+def test_the_range_mode_still_reads_the_commits_beside_an_unreadable_one(
+    tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The control: the same repository one commit earlier is judged, not refused.
+
+    Without this, a `return 2` at the top of the range mode would pass the test above.
+    """
+    base = a_repo(tmp_path, "fix: a well-formed one\n\nSigned-off-by: A B <a@b.co>")
+    monkeypatch.chdir(tmp_path)
+    plant_a_message_that_is_not_utf8(
+        tmp_path, b"fix: caf\xe9 from another client\n\nSigned-off-by: A B <a@b.co>\n"
+    )
+
+    assert run(monkeypatch, ["--range", f"{base}..HEAD~1"]) == 0
 
 
 def test_the_range_mode_skips_merge_commits(
