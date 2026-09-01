@@ -33,6 +33,7 @@ from __future__ import annotations
 import datetime
 import pathlib
 import re
+import sys
 from typing import Any
 
 import yaml
@@ -244,3 +245,17 @@ def problems(gates: list[dict[str, Any]]) -> list[str]:
             found.extend(_proof_problems(gate_id, gate["proved_by"]))
 
     return found
+
+
+if __name__ == "__main__":
+    # A helper is not a command. Run as one, these modules imported cleanly and exited 0
+    # with nothing done — a wrong call that looked like a pass, which `gates.yaml` forbids
+    # in as many words ("A misuse must exit 2, never 0") and which `gates_doctor` had
+    # already decided once, by accepting `--root` as the spelling an operator reaches for
+    # (self-audit round 2, owner decision B6, 2026-09-01). `sys.stderr.write` rather than
+    # `print`, because a helper may not print and the suppression ceiling only falls.
+    sys.stderr.write(
+        "verifiable_gates.registry is a helper, not a command — it has no entry point of\\n"
+        "its own; the readers that answer for themselves are listed in CONTRIBUTING.\\n"
+    )
+    sys.exit(2)

@@ -11,6 +11,7 @@ from __future__ import annotations
 import json
 import pathlib
 import re
+import runpy
 import shutil
 import subprocess
 import tomllib
@@ -682,3 +683,36 @@ def test_every_check_switched_off_in_pyproject_carries_a_reason() -> None:
             raise AssertionError(f"switched off with no reason above it: {line}")
         if line:
             previous = line
+
+
+HELPERS = [
+    "check_names",
+    "advertised",
+    "registry",
+    "rules",
+    "history",
+    "asvs_probe",
+    "measure",
+]
+
+
+@pytest.mark.parametrize("helper", HELPERS)
+def test_a_helper_run_as_a_command_says_so(helper: str, capsys: pytest.CaptureFixture[str]) -> None:
+    """These seven have no entry point of their own. Run as commands they imported
+    cleanly and exited 0 having done nothing — a wrong call that looked like a pass,
+    which this repository's own register forbids in as many words ("A misuse must exit 2,
+    never 0") and which `gates_doctor` had already decided once, by accepting `--root` as
+    the spelling an operator reaches for (self-audit round 2, owner decision B6,
+    2026-09-01).
+
+    Run through `runpy` rather than a subprocess: `run_name="__main__"` is what `python -m`
+    does, and it needs no `subprocess` call and so no suppression — the count of those is
+    a ceiling that only falls.
+    """
+    with pytest.raises(SystemExit) as refused:
+        runpy.run_module(f"verifiable_gates.{helper}", run_name="__main__")
+
+    assert refused.value.code == 2
+    printed = capsys.readouterr()
+    assert f"verifiable_gates.{helper} is a helper, not a command" in printed.err
+    assert printed.out == "", "a helper cannot be mistaken for a reader that answered"

@@ -41,6 +41,20 @@ Notable changes to this project. The format follows
 
 ### Fixed
 
+- **A helper run as a command says so.** `check_names`, `advertised`, `registry`,
+  `rules`, `history`, `asvs_probe` and `measure` have no entry point of their own:
+  run as `python -m verifiable_gates.<name>` they imported cleanly, did nothing at
+  all, and **exited 0** — a wrong call that looked like a pass, which this
+  repository's own register forbids in as many words (*"A misuse must exit 2,
+  never 0, so a wrong call cannot look like a pass"*) and which `gates_doctor` had
+  already decided once, by accepting `--root` as the spelling an operator reaches
+  for. Round 2 filed it as "seven modules swallow their arguments"; the truth was
+  simpler and worse — nothing looked at the arguments because nothing ran (owner
+  decision B6, 2026-09-01). Each now names itself on stderr and exits 2. The line
+  is written with `sys.stderr.write` rather than `print`, because a helper may not
+  print and the suppression ceiling only falls. Proved by mutation: seven cases,
+  each driven as a subprocess because `__main__` is what is under test.
+
 - **Nothing to read is not a pass.** Four scanners answered `NA` when their
   directory was missing and fell silent — which the doctor prints as `[ pass]` —
   when the directory was **there and held nothing they can read**. Installed into
