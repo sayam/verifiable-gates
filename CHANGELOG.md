@@ -6,6 +6,20 @@ Notable changes to this project. The format follows
 
 ## [Unreleased]
 
+## [0.1.11] - 2026-09-01
+
+Eleven rounds of the project auditing itself, each asking one question of the
+bundle and stopping only where the answer was reproducible. Ten of them found
+something: nothing to read is not a pass, a tree that is not there is no
+verdict, a file we may not decode or open is the third answer rather than a
+traceback, a helper run as a command says so, a gate whose job cannot turn the
+build red is a finding, a suite whose tests all skipped did not pass, and the
+bundle now holds what it installed to the contents it wrote and names what it
+stopped shipping. The seven questions the rounds could not settle — they were
+choices, not defects — are seven rows in `DECISIONS.md` with the condition that
+would reopen each. No gate, rule or badge was added: the registers stand at
+54 / 92 / 1 across all of it (#146–#192).
+
 ### Added
 
 - **Seven decisions the owner made, written down.** The self-audit's §B — the
@@ -1847,7 +1861,8 @@ order it happened.
 - **`gates.yaml`, deliberately empty.** This repository will not list a gate
   before the thing that enforces it exists.
 
-[Unreleased]: https://github.com/sayam/verifiable-gates/compare/v0.1.10...HEAD
+[Unreleased]: https://github.com/sayam/verifiable-gates/compare/v0.1.11...HEAD
+[0.1.11]: https://github.com/sayam/verifiable-gates/releases/tag/v0.1.11
 [0.1.10]: https://github.com/sayam/verifiable-gates/releases/tag/v0.1.10
 [0.1.9]: https://github.com/sayam/verifiable-gates/releases/tag/v0.1.9
 [0.1.8]: https://github.com/sayam/verifiable-gates/releases/tag/v0.1.8
