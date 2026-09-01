@@ -36,6 +36,7 @@ which is what makes it checkable at all.
 from __future__ import annotations
 
 import re
+import sys
 from typing import TYPE_CHECKING, Any
 
 from verifiable_gates import workflows as gha
@@ -127,3 +128,17 @@ def total_checks(workflows: dict[str, Workflow]) -> int:
             matrix = strategy.get("matrix") if isinstance(strategy, dict) else None
             total += len(next(iter(matrix.values()))) if matrix else 1
     return total
+
+
+if __name__ == "__main__":
+    # A helper is not a command. Run as one, these modules imported cleanly and exited 0
+    # with nothing done — a wrong call that looked like a pass, which `gates.yaml` forbids
+    # in as many words ("A misuse must exit 2, never 0") and which `gates_doctor` had
+    # already decided once, by accepting `--root` as the spelling an operator reaches for
+    # (self-audit round 2, owner decision B6, 2026-09-01). `sys.stderr.write` rather than
+    # `print`, because a helper may not print and the suppression ceiling only falls.
+    sys.stderr.write(
+        "verifiable_gates.check_names is a helper, not a command — it has no entry point of\\n"
+        "its own; the readers that answer for themselves are listed in CONTRIBUTING.\\n"
+    )
+    sys.exit(2)

@@ -3,6 +3,8 @@
 A ratchet is worth nothing without a number to hold it against, and where that
 number comes from decides whether the check means anything. Every reader here
 follows one rule: **ask the source, never the summary.** A coverage figure comes
+import sys
+
 from the coverage data, not from a badge; a count of switched-off checkers comes
 from the lines themselves, not from a register somebody keeps by hand.
 
@@ -34,6 +36,7 @@ import json
 import re
 import shutil
 import subprocess
+import sys
 import tomllib
 from typing import TYPE_CHECKING, Any
 
@@ -233,3 +236,17 @@ def list_literal_length(path: pathlib.Path, name: str) -> int:
             raise TypeError(f"{name} in {path.name} is not a literal sequence")
         return len(node.value.elts)
     raise RuntimeError(f"cannot find the register {name} in {path.name}")
+
+
+if __name__ == "__main__":
+    # A helper is not a command. Run as one, these modules imported cleanly and exited 0
+    # with nothing done — a wrong call that looked like a pass, which `gates.yaml` forbids
+    # in as many words ("A misuse must exit 2, never 0") and which `gates_doctor` had
+    # already decided once, by accepting `--root` as the spelling an operator reaches for
+    # (self-audit round 2, owner decision B6, 2026-09-01). `sys.stderr.write` rather than
+    # `print`, because a helper may not print and the suppression ceiling only falls.
+    sys.stderr.write(
+        "verifiable_gates.measure is a helper, not a command — it has no entry point of\\n"
+        "its own; the readers that answer for themselves are listed in CONTRIBUTING.\\n"
+    )
+    sys.exit(2)
