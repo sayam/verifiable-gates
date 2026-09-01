@@ -8,6 +8,18 @@ Notable changes to this project. The format follows
 
 ### Fixed
 
+- **A list of helpers written by hand was seven short.** Round 11 gave seven
+  modules a guard so that running a helper as a command says so and exits 2,
+  because run as one they imported cleanly and exited **0** having done nothing —
+  a wrong call that looks like a pass, which `gates.yaml` forbids in as many
+  words. The seven were named in a list somebody typed, and the package held
+  fourteen: `asvs_worksheet`, `gates_crosswalk`, `gh`, `manifest`, `ratchets`,
+  `scan_coverage` and `workflows` still answered `python -m` with silence and
+  zero (self-audit round 12, 2026-09-01). All seven now refuse, and the test no
+  longer keeps a list — it reads the package for every module with no `main` of
+  its own, so the next helper cannot be missed the same way. Proved by mutation:
+  the guard taken off `gh` turns the derived test red on `gh` alone.
+
 - **The third answer reaches six more readers — and this time the sweep was
   counted.** v0.1.11 says three separate times that *an input the instruments
   cannot read is exit 2 everywhere*; every one of those sweeps was aimed at the
