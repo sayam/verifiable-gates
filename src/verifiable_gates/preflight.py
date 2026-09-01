@@ -198,6 +198,18 @@ def wanted_jobs(root: pathlib.Path, chosen: list[str]) -> tuple[str, ...]:
             raise ValueError(f"{CONFIG}: not UTF-8 ({problem.reason})") from problem
         except (OSError, json.JSONDecodeError) as problem:
             raise ValueError(f"{CONFIG}: {problem}") from problem
+        # `scaffold.json.default` declares this key as a list of job names and nothing
+        # held a project to it: `"preflight_jobs": "test"` was walked one character at a
+        # time — `no job ['t', 'e', 's', 't']` — and a number left a raw `TypeError` and
+        # exit 1, the code that means *a job failed*, before a single job had been
+        # walked (self-audit round 17, 2026-09-01).
+        if declared is not None and not (
+            isinstance(declared, list) and all(isinstance(job, str) for job in declared)
+        ):
+            raise ValueError(
+                f"{CONFIG}: preflight_jobs is {json.dumps(declared)[:40]}, "
+                "which is not a list of job names"
+            )
         if declared:
             return tuple(declared)
     return DEFAULT_JOBS

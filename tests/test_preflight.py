@@ -546,14 +546,24 @@ def test_a_workflow_this_walk_may_not_open_is_a_misuse_too(
     [
         (b'{"preflight_jobs": ["caf\xe9"]}\n', "not UTF-8"),
         (b"{not json at all\n", "Expecting property name"),
+        (b'{"preflight_jobs": "test"}\n', "not a list of job names"),
+        (b'{"preflight_jobs": 5}\n', "not a list of job names"),
+        (b'{"preflight_jobs": {"lint": 1}}\n', "not a list of job names"),
+        (b'{"preflight_jobs": ["lint", 5]}\n', "not a list of job names"),
     ],
-    ids=["not-utf-8", "not-json"],
+    ids=["not-utf-8", "not-json", "a-string", "a-number", "an-object", "a-list-with-a-number"],
 )
 def test_a_config_this_walk_cannot_read_is_a_misuse_too(
     tmp_path: pathlib.Path, capsys: pytest.CaptureFixture[str], content: bytes, says: str
 ) -> None:
     """`scaffold.json` chooses which jobs to walk, so a file this reader cannot parse
-    silently changed *what ran* — and did it with a traceback."""
+    silently changed *what ran* — and did it with a traceback.
+
+    The parse was guarded and the *shape* under it was not: `"preflight_jobs": "test"`
+    was walked one character at a time (`no job ['t', 'e', 's', 't']`) and a number left
+    a raw `TypeError` and exit 1 — the code that means *a job failed* — before a single
+    job had been walked (self-audit round 17, 2026-09-01).
+    """
     write(tmp_path, "ci.yml", "jobs:\n  lint:\n    steps:\n      - run: 'true'\n")
     (tmp_path / preflight.CONFIG).write_bytes(content)
 

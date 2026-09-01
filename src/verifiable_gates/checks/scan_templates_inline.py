@@ -149,13 +149,28 @@ MISCONFIGURED = (
 )
 
 
-def _judge(root: pathlib.Path) -> int:
-    if not root.is_dir():
-        # NA means "this project has nothing of that kind"; a root that is not
-        # there has no project to say it about, and answering the second with
-        # the first is a green over nothing (self-audit round 2, 2026-08-31).
-        print(f"cannot read the tree: {_shown(root)} is not a directory", file=sys.stderr)
-        return 2
+MISSHAPEN = (
+    "scaffold.json gives {key} {value}, which is not {want} — a configured value of the "
+    "wrong shape is a broken configuration, not a value"
+)
+
+
+def _configured_path(config: dict[str, object], key: str, default: str) -> tuple[str | None, str]:
+    """The path configured under `key`, or `None` and the finding saying it is not a path.
+
+    `scaffold.json.default` ships the shape of every key it declares and nothing held a
+    project to it. A path written as a list, a number or `null` reached `root / value`
+    and left a raw `TypeError` and exit 1 — the code that means *findings* — out of a
+    scanner that had judged nothing (self-audit round 17, 2026-09-01).
+    """
+    value = config.get(key, default)
+    if isinstance(value, str):
+        return value, ""
+    return None, MISSHAPEN.format(key=key, value=json.dumps(value)[:40], want="a string")
+
+
+def _templates_dir(root: pathlib.Path) -> tuple[pathlib.Path | None, int]:
+    """Where to look, or why there is nothing to look at — with the exit code for that."""
     config_path = root / "scaffold.json"
     # A project that has not configured the bundle is not a misuse — the paths
     # below fall back to their defaults, and a default that is not there reports
@@ -164,21 +179,36 @@ def _judge(root: pathlib.Path) -> int:
     # 2026-08-29 planted a `scaffold.json` pointing at a Dockerfile that did not
     # exist beside a dirty one that did, and the answer was "nothing to check".
     config = json.loads(_text(config_path)) if config_path.is_file() else {}
-    templates = root / config.get("templates_path", "app/templates")
+    named, wrong = _configured_path(config, "templates_path", "app/templates")
+    if named is None:
+        print(f"csp-no-inline: {wrong}")
+        return None, 1
+    templates = root / named
     if not _inside(root, templates):
+        print("csp-no-inline: " + OUTSIDE.format(key="templates_path", path=named))
+        return None, 1
+    if templates.is_dir():
+        return templates, 0
+    if "templates_path" in config:
         print(
-            "csp-no-inline: " + OUTSIDE.format(key="templates_path", path=config["templates_path"])
+            "csp-no-inline: "
+            + MISCONFIGURED.format(key="templates_path", path=templates.relative_to(root))
         )
-        return 1
-    if not templates.is_dir():
-        if "templates_path" in config:
-            print(
-                "csp-no-inline: "
-                + MISCONFIGURED.format(key="templates_path", path=templates.relative_to(root))
-            )
-            return 1
-        print(f"NA: no {templates.relative_to(root)} — nothing to check yet")
-        return 0
+        return None, 1
+    print(f"NA: no {templates.relative_to(root)} — nothing to check yet")
+    return None, 0
+
+
+def _judge(root: pathlib.Path) -> int:
+    if not root.is_dir():
+        # NA means "this project has nothing of that kind"; a root that is not
+        # there has no project to say it about, and answering the second with
+        # the first is a green over nothing (self-audit round 2, 2026-08-31).
+        print(f"cannot read the tree: {_shown(root)} is not a directory", file=sys.stderr)
+        return 2
+    templates, code = _templates_dir(root)
+    if templates is None:
+        return code
 
     paths = sorted(p for p in templates.rglob("*") if p.suffix in TEMPLATE_SUFFIXES)
     # A directory that is there and holds nothing this scanner reads is not a

@@ -122,6 +122,29 @@ MISCONFIGURED = (
 )
 
 
+MISSHAPEN = (
+    "scaffold.json gives {key} {value}, which is not {want} — a configured value of the "
+    "wrong shape is a broken configuration, not a value"
+)
+
+
+def _configured_list(
+    config: dict[str, object], key: str, default: list[str]
+) -> tuple[list[str] | None, str]:
+    """The names configured under `key`, or `None` and the finding saying they are not names.
+
+    A list written as a single string was iterated **one character at a time**, so the
+    project's configuration was read as a set of one-letter names: nonsense findings at
+    best, and where the list is a set of exemptions, the `*` among those letters matched
+    every path there is and the gate answered `pass` over a tree with a real violation in
+    it (self-audit round 17, 2026-09-01).
+    """
+    value = config.get(key, default)
+    if isinstance(value, list) and all(isinstance(item, str) for item in value):
+        return value, ""
+    return None, MISSHAPEN.format(key=key, value=json.dumps(value)[:40], want="a list of strings")
+
+
 def _unnamed(root: pathlib.Path) -> list[str]:
     """Every `Dockerfile*` in the tree, when the project named none and has no default one.
 
@@ -149,6 +172,29 @@ def _unpinned(root: pathlib.Path, path: pathlib.Path) -> list[str]:
     ]
 
 
+def _declared(root: pathlib.Path) -> tuple[list[str] | None, bool, int]:
+    """The names to judge, whether the project chose them, and the code when there are none.
+
+    A project that has not configured the bundle is not a misuse — the names below fall
+    back to their default, and a default that is not there reports NA. A name the project
+    *wrote* and does not have is the opposite case: a broken configuration, reported as a
+    finding — an outside audit on 2026-08-29 planted a `scaffold.json` pointing at a
+    Dockerfile that did not exist beside a dirty one that did, and the answer was
+    "nothing to check".
+    """
+    config_path = root / "scaffold.json"
+    config = json.loads(_text(config_path)) if config_path.is_file() else {}
+    names, wrong = _configured_list(config, "dockerfiles", ["Dockerfile"])
+    if names is None:
+        print(f"image-digest-pinned: {wrong}")
+        return None, False, 1
+    outside = [n for n in names if not _inside(root, root / n)]
+    if outside:
+        print("image-digest-pinned: " + OUTSIDE.format(key="dockerfiles", path=outside))
+        return None, False, 1
+    return names, "dockerfiles" in config, 0
+
+
 def _judge(root: pathlib.Path) -> int:
     if not root.is_dir():
         # NA means "this project has nothing of that kind"; a root that is not
@@ -156,27 +202,17 @@ def _judge(root: pathlib.Path) -> int:
         # the first is a green over nothing (self-audit round 2, 2026-08-31).
         print(f"cannot read the tree: {_shown(root)} is not a directory", file=sys.stderr)
         return 2
-    config_path = root / "scaffold.json"
-    # A project that has not configured the bundle is not a misuse — the paths
-    # below fall back to their defaults, and a default that is not there reports
-    # NA. A path the project *named* and does not have is the opposite case: a
-    # broken configuration, reported as a finding — an outside audit on
-    # 2026-08-29 planted a `scaffold.json` pointing at a Dockerfile that did not
-    # exist beside a dirty one that did, and the answer was "nothing to check".
-    config = json.loads(_text(config_path)) if config_path.is_file() else {}
-    names = config.get("dockerfiles", ["Dockerfile"])
-    outside = [n for n in names if not _inside(root, root / n)]
-    if outside:
-        print("image-digest-pinned: " + OUTSIDE.format(key="dockerfiles", path=outside))
-        return 1
+    names, chosen, code = _declared(root)
+    if names is None:
+        return code
     dockerfiles = [root / n for n in names if (root / n).is_file()]
     # A name the project wrote down and does not have is judged, not skipped.
     findings: list[str] = [
         MISCONFIGURED.format(key="dockerfiles", path=n)
         for n in names
-        if "dockerfiles" in config and not (root / n).is_file()
+        if chosen and not (root / n).is_file()
     ]
-    if not dockerfiles and "dockerfiles" not in config:
+    if not dockerfiles and not chosen:
         findings += _unnamed(root)
     if not dockerfiles and not findings:
         print("NA: no Dockerfile — nothing to check yet")

@@ -125,6 +125,29 @@ MISCONFIGURED = (
 )
 
 
+MISSHAPEN = (
+    "scaffold.json gives {key} {value}, which is not {want} — a configured value of the "
+    "wrong shape is a broken configuration, not a value"
+)
+
+
+def _configured_list(
+    config: dict[str, object], key: str, default: list[str]
+) -> tuple[list[str] | None, str]:
+    """The names configured under `key`, or `None` and the finding saying they are not names.
+
+    A list written as a single string was iterated **one character at a time**, so the
+    project's configuration was read as a set of one-letter names: nonsense findings at
+    best, and where the list is a set of exemptions, the `*` among those letters matched
+    every path there is and the gate answered `pass` over a tree with a real violation in
+    it (self-audit round 17, 2026-09-01).
+    """
+    value = config.get(key, default)
+    if isinstance(value, list) and all(isinstance(item, str) for item in value):
+        return value, ""
+    return None, MISSHAPEN.format(key=key, value=json.dumps(value)[:40], want="a list of strings")
+
+
 def _config_text(path: pathlib.Path) -> str:
     """`scaffold.json`'s text, or the third answer. Every scanner routes the files it
     judges around undecodable bytes; the configuration beside them was still read bare
@@ -136,13 +159,8 @@ def _config_text(path: pathlib.Path) -> str:
         raise SystemExit(2) from problem
 
 
-def main(root: pathlib.Path) -> int:
-    if not root.is_dir():
-        # NA means "this project has nothing of that kind"; a root that is not
-        # there has no project to say it about, and answering the second with
-        # the first is a green over nothing (self-audit round 2, 2026-08-31).
-        print(f"cannot read the tree: {_shown(root)} is not a directory", file=sys.stderr)
-        return 2
+def _entrypoints(root: pathlib.Path) -> tuple[list[pathlib.Path] | None, int]:
+    """Which files to read, or why there are none to read — with the exit code for that."""
     config_path = root / "scaffold.json"
     # A project that has not configured the bundle is not a misuse — the paths
     # below fall back to their defaults, and a default that is not there reports
@@ -151,20 +169,38 @@ def main(root: pathlib.Path) -> int:
     # 2026-08-29 planted a `scaffold.json` pointing at a Dockerfile that did not
     # exist beside a dirty one that did, and the answer was "nothing to check".
     config = json.loads(_config_text(config_path)) if config_path.is_file() else {}
-    names = config.get("entrypoints", ["run.py", "wsgi.py", "app.py", "main.py"])
+    names, wrong = _configured_list(
+        config, "entrypoints", ["run.py", "wsgi.py", "app.py", "main.py"]
+    )
+    if names is None:
+        print(f"no-debug-entrypoint: {wrong}")
+        return None, 1
     outside = [n for n in names if not _inside(root, root / n)]
     if outside:
         print("no-debug-entrypoint: " + OUTSIDE.format(key="entrypoints", path=outside))
-        return 1
+        return None, 1
     present = [root / n for n in names if (root / n).is_file()]
     if not present:
         # The list is candidates, so one missing name is fine; none present when
         # the project wrote the list itself is a broken configuration.
         if "entrypoints" in config:
             print("no-debug-entrypoint: " + MISCONFIGURED.format(key="entrypoints", path=names))
-            return 1
+            return None, 1
         print("NA: none of the declared entrypoints exist — nothing to check yet")
-        return 0
+        return None, 0
+    return present, 0
+
+
+def main(root: pathlib.Path) -> int:
+    if not root.is_dir():
+        # NA means "this project has nothing of that kind"; a root that is not
+        # there has no project to say it about, and answering the second with
+        # the first is a green over nothing (self-audit round 2, 2026-08-31).
+        print(f"cannot read the tree: {_shown(root)} is not a directory", file=sys.stderr)
+        return 2
+    present, code = _entrypoints(root)
+    if present is None:
+        return code
 
     findings: list[str] = []
     for path in present:

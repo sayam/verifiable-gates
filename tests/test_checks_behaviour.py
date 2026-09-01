@@ -2439,8 +2439,15 @@ class Configured(NamedTuple):
     default: object
 
 
+# The two readers every shipped scanner routes `scaffold.json` through. They replaced the
+# bare `config.get(...)` this derivation used to look for (self-audit round 17,
+# 2026-09-01) — and a derivation that finds nothing proves nothing, which is what
+# `test_the_exception_list_holds_only_keys_that_exist` below is standing guard over.
+CONFIG_READERS = ("_configured_path", "_configured_list")
+
+
 def configured_keys() -> list[Configured]:
-    """Every `config.get(...)` the shipped scanners make, read from the scanners.
+    """Every value the shipped scanners read out of `scaffold.json`, read from the scanners.
 
     A list of names typed by hand was the whole of round 12's second finding — seven
     modules short. The keys and their default shapes come out of the source with `ast`
@@ -2450,16 +2457,14 @@ def configured_keys() -> list[Configured]:
     for path in bundle.SCANNERS:
         tree = ast.parse(path.read_text(encoding="utf-8"))
         for node in ast.walk(tree):
-            if not isinstance(node, ast.Call) or not isinstance(node.func, ast.Attribute):
+            if not isinstance(node, ast.Call) or not isinstance(node.func, ast.Name):
                 continue
-            reader = node.func
-            named = isinstance(reader.value, ast.Name) and reader.value.id == "config"
-            if not (reader.attr == "get" and named):
+            if node.func.id not in CONFIG_READERS or len(node.args) != 3:
                 continue
-            if not node.args or not isinstance(node.args[0], ast.Constant):
+            key, default = node.args[1], node.args[2]
+            if not isinstance(key, ast.Constant):
                 continue
-            default = ast.literal_eval(node.args[1]) if len(node.args) > 1 else None
-            found.append(Configured(path.stem, str(node.args[0].value), default))
+            found.append(Configured(path.stem, str(key.value), ast.literal_eval(default)))
     return sorted(found)
 
 
@@ -2502,6 +2507,92 @@ def test_a_configured_path_that_leaves_the_project_is_a_finding(
     out = capsys.readouterr().out
     assert "leads outside the project" in out, "the finding does not say what is wrong"
     assert case.key in out, "the finding does not name the configuration key"
+
+
+# ---------------------------------------- a configured value of the wrong shape
+#
+# `scaffold.json.default` ships the shape of every key it declares — three lists of
+# names and six single paths — and nothing held a project to it. `scan_gates_registry`
+# checks every level of the shape of the project's `gates.yaml`, and round 14 taught the
+# census readers the same discipline; the bundle's own configuration was the one input
+# read on trust (self-audit round 17, 2026-09-01).
+#
+# The direction of the mistake decided what happened. A path given as a list or a number
+# reached `root / value` and left a raw `TypeError`; a list of names given as one string
+# was iterated a character at a time, which for the two lists of files is one nonsense
+# finding per letter — and for `purge_paths`, a list of *exemptions* documented as taking
+# globs, put a `*` among those letters, matched every path there is, and turned the gate
+# green over a tree with a real violation in it.
+
+WRONG_FOR_A_PATH = [
+    pytest.param(["one"], id="a-list"),
+    pytest.param({"path": "one"}, id="an-object"),
+    pytest.param(7, id="a-number"),
+    pytest.param(True, id="a-boolean"),
+    pytest.param(None, id="null"),
+]
+WRONG_FOR_A_LIST = [
+    pytest.param("one/*.py", id="a-string"),
+    pytest.param({"one": 1}, id="an-object"),
+    pytest.param(7, id="a-number"),
+    pytest.param(None, id="null"),
+    pytest.param(["one", 7], id="a-list-holding-a-number"),
+]
+
+
+def misshapen_values() -> list[Any]:
+    """Every configured key, each paired with the shapes it is not, from the scanners."""
+    return [
+        pytest.param(
+            case,
+            wrong.values[0],
+            id=f"{case.scanner.removeprefix('scan_')}-{case.key}-{wrong.id}",
+        )
+        for case in configured_keys()
+        for wrong in (WRONG_FOR_A_LIST if isinstance(case.default, list) else WRONG_FOR_A_PATH)
+    ]
+
+
+@pytest.mark.parametrize(("case", "wrong"), misshapen_values())
+def test_a_configured_value_of_the_wrong_shape_is_a_finding(
+    tmp_path: pathlib.Path, capsys: pytest.CaptureFixture[str], case: Configured, wrong: object
+) -> None:
+    """Nine of the eleven answered with a traceback and exit 1 — the code that means
+    *findings* — from a scanner that had judged nothing; the other two read a string one
+    letter at a time. A value the project wrote in the wrong shape is a broken
+    configuration, and this project already calls that a finding."""
+    module = importlib.import_module(f"verifiable_gates.checks.{case.scanner}")
+    # `gates_path` and `tests_path` are only reached once there is an index to read.
+    index = bundle.BUNDLE.parent.parent / "gates.yaml"
+    root = build(tmp_path, {"gates.yaml": index.read_text(encoding="utf-8")}, {case.key: wrong})
+
+    assert answer(module, root) == 1, "a value of the wrong shape was acted on anyway"
+    out = capsys.readouterr().out
+    assert not out.startswith("NA:"), "a broken configuration was reported as nothing to check"
+    assert "wrong shape" in out, "the finding does not say what is wrong with the value"
+    assert case.key in out, "the finding does not name the configuration key"
+
+
+def test_an_exemption_list_written_as_one_glob_does_not_exempt_the_whole_tree(
+    tmp_path: pathlib.Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """The measured shape of the worst of them, kept as its own test because the exit code
+    is the point: `purge_paths` takes globs, so the natural way to write it wrong is a
+    single glob rather than a list holding one. Read letter by letter, the `*` in it
+    matched every path in the tree, every file was exempted, and the doctor printed
+    `[ pass] delete-means-soft-delete` and exited 0 over this exact tree."""
+    files = {"app/models.py": "db.session.delete(row)\n"}
+    assert (
+        scan_write_discipline.main(build(tmp_path, files, {"purge_paths": ["app/purge.py"]})) == 1
+    )
+    assert "app/models.py" in capsys.readouterr().out, "the violation this test needs is not there"
+
+    root = build(tmp_path, files, {"purge_paths": "app/*.py"})
+
+    assert scan_write_discipline.main(root) == 1, "one glob written as a string exempted the tree"
+    out = capsys.readouterr().out
+    assert "purge_paths" in out, "the finding does not name the key that turned the gate off"
+    assert "app/models.py" not in out, "a broken configuration is not a verdict about the code"
 
 
 # --------------------------------------------------- a name that is not UTF-8
