@@ -8,6 +8,22 @@ Notable changes to this project. The format follows
 
 ### Fixed
 
+- **A correction that stopped halfway said nothing about what it had already
+  changed.** `own_numbers --write` corrects the claims this repository publishes —
+  the version in `pyproject.toml`, in `CITATION.cff`, in `.zenodo.json` — one file
+  at a time. Measured with three drifting places and the third read-only: two files
+  were rewritten, and the whole report was `cannot write the fix: [Errno 13]
+  Permission denied: '.zenodo.json'` with exit 2 (self-audit round 16,
+  2026-09-01). That reads as *nothing was written*, so the operator cannot tell an
+  untouched checkout from a half-corrected one — the worst of the three states,
+  from the tool whose job is keeping published claims true. `advertised.write` now
+  returns the places that landed and raises `PartialWriteError` carrying them when
+  one cannot be written, and the report names them before it names what stopped it.
+  Nothing here was made atomic and nothing needs to be: every place is a tracked
+  file, so the bytes are recoverable from the history — being told was what was
+  missing. Proved by mutation: the failure forgetting what landed, and the report
+  dropping the line — one case red each, against a real tree.
+
 - **The harness reported in whatever bytes the machine happened to use.** Every
   file this package reads names `encoding="utf-8"`; the two files the harness
   *writes* named nothing, so they went to disk in the machine's locale encoding and

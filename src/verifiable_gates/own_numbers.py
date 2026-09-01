@@ -174,16 +174,25 @@ def _report(found: list[advertised.Drift]) -> None:
 
 
 def _write_the_fix(root: pathlib.Path, drift: list[advertised.Drift]) -> None:
-    """Put the numbers right, or say why not.
+    """Put the numbers right, or say why not — **and what was already changed**.
 
     `--write` that cannot write is a call that could not be answered; it died as a
     traceback and exit 1 — the code that means the numbers disagree, which they still
     did (self-audit round 5, 2026-09-01).
+
+    Saying only *why not* was still not enough. This tool corrects the claims the
+    repository publishes, one file at a time; a place that cannot be written after two
+    others already have leaves a checkout that is neither what it was nor what it should
+    be, and `cannot write the fix` on its own reads as *nothing was written*. Measured
+    with three drifting places and the third read-only: two files rewritten, exit 2, and
+    not a word about them (self-audit round 16, 2026-09-01).
     """
     try:
         advertised.write(root, drift)
-    except OSError as unwritable:
-        print(f"cannot write the fix: {unwritable}", file=sys.stderr)
+    except advertised.PartialWriteError as unwritable:
+        for item in unwritable.written:
+            print(f"  already changed before it stopped: {item.place.path}", file=sys.stderr)
+        print(f"cannot write the fix: {unwritable.problem}", file=sys.stderr)
         raise SystemExit(2) from unwritable
 
 

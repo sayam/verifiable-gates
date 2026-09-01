@@ -236,6 +236,39 @@ def test_a_checkout_that_is_not_utf_8_is_a_misuse(
     assert "cannot read the checkout" in capsys.readouterr().err
 
 
+def test_a_fix_that_stopped_partway_names_what_it_already_changed(
+    tmp_path: pathlib.Path, capsys: pytest.CaptureFixture[str], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Measured with three drifting places and the third read-only: two files rewritten,
+    exit 2, and not a word about them — `cannot write the fix` on its own reads as
+    *nothing was written*, so the operator cannot tell an untouched checkout from a
+    half-corrected one (self-audit round 16, 2026-09-01). The places that landed are
+    proved against a real tree in `tests/test_advertised.py`; this drives the report."""
+    landed = [advertised.Drift(advertised.Place("pyproject.toml", r"(\d+)"), "9", "1")]
+
+    def refuse(*_args: object, **_kwargs: object) -> None:
+        message = "read-only file system"
+        raise advertised.PartialWriteError(landed, OSError(message))
+
+    monkeypatch.setattr(advertised, "write", refuse)
+    monkeypatch.setattr(own_numbers, "facts", lambda _root: {})
+    monkeypatch.setattr(
+        advertised,
+        "drift",
+        lambda *_args: [
+            advertised.Drift(advertised.Place("README.md", r"(\d+) rules"), "93", "92")
+        ],
+    )
+
+    with pytest.raises(SystemExit) as refused:
+        own_numbers.main(["--root", str(tmp_path), "--write"])
+
+    assert refused.value.code == 2
+    said = capsys.readouterr().err
+    assert "already changed before it stopped: pyproject.toml" in said, said
+    assert "cannot write the fix" in said, "it named what it changed and not what stopped it"
+
+
 def test_a_fix_that_cannot_be_written_is_a_misuse(
     tmp_path: pathlib.Path, capsys: pytest.CaptureFixture[str], monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -245,7 +278,7 @@ def test_a_fix_that_cannot_be_written_is_a_misuse(
 
     def refuse(*_args: object, **_kwargs: object) -> None:
         message = "read-only file system"
-        raise OSError(message)
+        raise advertised.PartialWriteError([], OSError(message))
 
     monkeypatch.setattr(advertised, "write", refuse)
     monkeypatch.setattr(own_numbers, "facts", lambda _root: {})
