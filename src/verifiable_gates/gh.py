@@ -113,6 +113,41 @@ def api(path: str, *, token_env: str | None = None) -> Any:  # noqa: ANN401 — 
     return json.loads(run(["api", path], token_env=token_env))
 
 
+def _page_of_rows(answer: object, key: str | None, url: str) -> list[Any]:
+    """One page's rows, or a `RuntimeError` saying the answer was not a page of rows.
+
+    `rows.extend(...)` takes anything that iterates, and `api` is honestly typed `Any`, so
+    nothing here could tell rows from not-rows. An object answered where a list was
+    expected extended the result with its **keys**, a string with its **characters**, and
+    because neither is ever empty the loop asked for the next page for ever — one `gh api`
+    subprocess per page, with nothing to stop it (self-audit round 18, 2026-09-02). The
+    callers of this function publish counts; rows nobody can account for become numbers
+    nobody can account for, and an unbounded loop is the job that never ends.
+
+    A page that is not a page of rows is the third answer, not a guess and not a zero:
+    `RuntimeError` is what a timeout here already raises, and every caller routes it to
+    "the platform could not be asked", exit 2. A **named `key` the answer does not carry**
+    goes the same way rather than counting as an empty page — the platform sends
+    `{"workflow_runs": []}` for "none", so a missing key is a platform this reader does
+    not understand, and reading it as zero is how a silent nothing becomes a green claim.
+    """
+    if key is not None:
+        if not isinstance(answer, dict) or key not in answer:
+            raise RuntimeError(
+                f"`gh api {url}` did not answer with an object carrying {key!r}"
+                " — the platform could not be read"
+            )
+        answer = answer[key]
+    if not isinstance(answer, list):
+        # Not the `TypeError` the linter prefers: nothing here is a programming mistake
+        # to debug — the platform refused to be read, and `RuntimeError` is the answer
+        # every caller of this module already routes to "could not ask", exit 2.
+        raise RuntimeError(  # noqa: TRY004 — the platform is wrong here, not the program
+            f"`gh api {url}` did not answer with a list of rows — the platform could not be read"
+        )
+    return answer
+
+
 def api_pages(
     path: str,
     *,
@@ -140,7 +175,7 @@ def api_pages(
         size = PAGE_SIZE if limit is None else min(PAGE_SIZE, limit - len(rows))
         url = f"{path}{joiner}per_page={size}&page={page}"
         answer = api(url) if token_env is None else api(url, token_env=token_env)
-        batch = answer.get(key, []) if key else answer
+        batch = _page_of_rows(answer, key, url)
         if not batch:
             break
         rows.extend(batch)
