@@ -85,6 +85,25 @@ def _supersession_findings(adr_dir: pathlib.Path, on_disk: dict[str, str]) -> li
     return forward + backward
 
 
+OUTSIDE = (
+    "scaffold.json names {key} {path}, which leads outside the project — a checker "
+    "pointed out of the tree judges files this project does not own"
+)
+
+
+def _inside(root: pathlib.Path, path: pathlib.Path) -> bool:
+    """Is `path` still inside the tree this scanner was pointed at?
+
+    The installer was taught this in an earlier round — fourteen files landed outside the
+    destination through a `tools` symlink — and the readers were never asked the same
+    question. A `scaffold.json` path starting with `/` or climbing with `..` walked out of
+    the project, judged files it does not own, and printed them under a path no reviewer
+    can open; an absolute one also made `relative_to` raise, so the misconfiguration
+    answered with a traceback (self-audit round 13, 2026-09-01).
+    """
+    return path.resolve().is_relative_to(root.resolve())
+
+
 MISCONFIGURED = (
     "scaffold.json names {key} {path}, which is not there — a configured path that "
     "is missing is a broken configuration, not nothing to check"
@@ -126,6 +145,9 @@ def _judge(root: pathlib.Path) -> int:
     # exist beside a dirty one that did, and the answer was "nothing to check".
     config = json.loads(_text(config_path)) if config_path.is_file() else {}
     adr_dir = root / config.get("adr_path", "docs/adr")
+    if not _inside(root, adr_dir):
+        print("adr-index-complete: " + OUTSIDE.format(key="adr_path", path=config["adr_path"]))
+        return 1
     if not adr_dir.is_dir():
         if "adr_path" in config:
             print(

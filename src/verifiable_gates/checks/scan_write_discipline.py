@@ -82,10 +82,49 @@ def _code_lines(text: str) -> list[str]:
     return lines
 
 
+OUTSIDE = (
+    "scaffold.json names {key} {path}, which leads outside the project — a checker "
+    "pointed out of the tree judges files this project does not own"
+)
+
+
+def _inside(root: pathlib.Path, path: pathlib.Path) -> bool:
+    """Is `path` still inside the tree this scanner was pointed at?
+
+    The installer was taught this in an earlier round — fourteen files landed outside the
+    destination through a `tools` symlink — and the readers were never asked the same
+    question. A `scaffold.json` path starting with `/` or climbing with `..` walked out of
+    the project, judged files it does not own, and printed them under a path no reviewer
+    can open; an absolute one also made `relative_to` raise, so the misconfiguration
+    answered with a traceback (self-audit round 13, 2026-09-01).
+    """
+    return path.resolve().is_relative_to(root.resolve())
+
+
 MISCONFIGURED = (
     "scaffold.json names {key} {path}, which is not there — a configured path that "
     "is missing is a broken configuration, not nothing to check"
 )
+
+
+def _src_dir(root: pathlib.Path, config: dict[str, object]) -> tuple[pathlib.Path | None, int]:
+    """Where to look, or why there is nothing to look at — with the exit code for that."""
+    src = root / str(config.get("src_path", "app"))
+    if not _inside(root, src):
+        print(
+            "delete-means-soft-delete: " + OUTSIDE.format(key="src_path", path=config["src_path"])
+        )
+        return None, 1
+    if not src.is_dir():
+        if "src_path" in config:
+            print(
+                "delete-means-soft-delete: "
+                + MISCONFIGURED.format(key="src_path", path=src.relative_to(root))
+            )
+            return None, 1
+        print(f"NA: no {src.relative_to(root)} — nothing to check yet")
+        return None, 0
+    return src, 0
 
 
 def _judge(root: pathlib.Path) -> int:
@@ -103,16 +142,9 @@ def _judge(root: pathlib.Path) -> int:
     # 2026-08-29 planted a `scaffold.json` pointing at a Dockerfile that did not
     # exist beside a dirty one that did, and the answer was "nothing to check".
     config = json.loads(_text(config_path)) if config_path.is_file() else {}
-    src = root / config.get("src_path", "app")
-    if not src.is_dir():
-        if "src_path" in config:
-            print(
-                "delete-means-soft-delete: "
-                + MISCONFIGURED.format(key="src_path", path=src.relative_to(root))
-            )
-            return 1
-        print(f"NA: no {src.relative_to(root)} — nothing to check yet")
-        return 0
+    src, code = _src_dir(root, config)
+    if src is None:
+        return code
     patterns = config.get("purge_paths", ["app/purge.py"])
 
     readable = sorted(src.rglob("*.py"))

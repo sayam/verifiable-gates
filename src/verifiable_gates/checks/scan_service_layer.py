@@ -91,6 +91,25 @@ def _findings_in(tree: ast.AST, where: str) -> list[str]:
     return found
 
 
+OUTSIDE = (
+    "scaffold.json names {key} {path}, which leads outside the project — a checker "
+    "pointed out of the tree judges files this project does not own"
+)
+
+
+def _inside(root: pathlib.Path, path: pathlib.Path) -> bool:
+    """Is `path` still inside the tree this scanner was pointed at?
+
+    The installer was taught this in an earlier round — fourteen files landed outside the
+    destination through a `tools` symlink — and the readers were never asked the same
+    question. A `scaffold.json` path starting with `/` or climbing with `..` walked out of
+    the project, judged files it does not own, and printed them under a path no reviewer
+    can open; an absolute one also made `relative_to` raise, so the misconfiguration
+    answered with a traceback (self-audit round 13, 2026-09-01).
+    """
+    return path.resolve().is_relative_to(root.resolve())
+
+
 MISCONFIGURED = (
     "scaffold.json names {key} {path}, which is not there — a configured path that "
     "is missing is a broken configuration, not nothing to check"
@@ -108,6 +127,12 @@ def _services_dir(root: pathlib.Path) -> tuple[pathlib.Path | None, int]:
     # exist beside a dirty one that did, and the answer was "nothing to check".
     config = json.loads(_config_text(config_path)) if config_path.is_file() else {}
     services = root / config.get("services_path", "app/services")
+    if not _inside(root, services):
+        print(
+            "logic-knows-no-http: "
+            + OUTSIDE.format(key="services_path", path=config["services_path"])
+        )
+        return None, 1
     if services.is_dir():
         return services, 0
     if "services_path" in config:

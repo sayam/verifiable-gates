@@ -8,6 +8,27 @@ Notable changes to this project. The format follows
 
 ### Fixed
 
+- **A checker pointed out of the tree judged files the project does not own.**
+  The installer was taught in an earlier round that a path leading outside the
+  destination is a refusal — fourteen files had landed outside it through a
+  `tools` symlink — and the nine readers were never asked the same question.
+  Every `scaffold.json` path is joined to the root and none of them checked that
+  the result was still inside it, so `"src_path": "../../elsewhere"` walked out
+  of the project, read a neighbour's code, and printed findings under paths no
+  reviewer can open; `"gates_path": "/etc/hostname"` was read as the project's
+  gate index; and an absolute path made `relative_to` raise, so four scanners
+  answered a misconfiguration with a raw `ValueError` and exit 1 instead of
+  words (self-audit round 13, 2026-09-01). All eight configured paths across
+  seven scanners now answer the way a missing path already did: a finding that
+  names the key and says it leads outside the project. `purge_paths` is the one
+  configured value that is not joined to the root — `fnmatch` patterns matched
+  against paths already found inside `src_path` — and the reason is written
+  where the test can see it. Proved by mutation: the containment check neutered
+  one file at a time, sixteen cases red across seven files. The test reads the
+  keys and their default shapes out of the scanners with `ast` rather than
+  keeping a list, because a list somebody typed was the whole of round 12's
+  second finding.
+
 - **A list of helpers written by hand was seven short.** Round 11 gave seven
   modules a guard so that running a helper as a command says so and exits 2,
   because run as one they imported cleanly and exited **0** having done nothing —

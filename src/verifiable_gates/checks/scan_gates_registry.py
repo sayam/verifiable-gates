@@ -487,6 +487,25 @@ def _read_registry(registry: pathlib.Path) -> tuple[list[str], list[object]]:
     return [], document["gates"]
 
 
+OUTSIDE = (
+    "scaffold.json names {key} {path}, which leads outside the project — a checker "
+    "pointed out of the tree judges files this project does not own"
+)
+
+
+def _inside(root: pathlib.Path, path: pathlib.Path) -> bool:
+    """Is `path` still inside the tree this scanner was pointed at?
+
+    The installer was taught this in an earlier round — fourteen files landed outside the
+    destination through a `tools` symlink — and the readers were never asked the same
+    question. A `scaffold.json` path starting with `/` or climbing with `..` walked out of
+    the project, judged files it does not own, and printed them under a path no reviewer
+    can open; an absolute one also made `relative_to` raise, so the misconfiguration
+    answered with a traceback (self-audit round 13, 2026-09-01).
+    """
+    return path.resolve().is_relative_to(root.resolve())
+
+
 MISCONFIGURED = (
     "scaffold.json names {key} {path}, which is not there — a configured path that "
     "is missing is a broken configuration, not nothing to check"
@@ -515,6 +534,9 @@ def main(root: pathlib.Path) -> int:
     config = json.loads(_config_text(config_path)) if config_path.is_file() else {}
     declared = config.get("gates_path", "gates.yaml")
     registry = root / declared
+    if not _inside(root, registry):
+        print("gates-registry-total: " + OUTSIDE.format(key="gates_path", path=declared))
+        return 1
     if not registry.is_file():
         # An index the project named and does not have is a broken configuration,
         # not "no index yet" — the same two answers every scaffold path gives.
@@ -555,7 +577,11 @@ def main(root: pathlib.Path) -> int:
             f"job with no gate in the index: {job} — give it one"
             for job in sorted(set(jobs) - covered)
         ]
-        findings += _partition(gates, root, root / config.get("tests_path", "tests"))
+        tests_dir = root / config.get("tests_path", "tests")
+        if _inside(root, tests_dir):
+            findings += _partition(gates, root, tests_dir)
+        else:
+            findings.append(OUTSIDE.format(key="tests_path", path=config["tests_path"]))
 
     for finding in findings:
         print(f"gates-registry-total: {finding}")

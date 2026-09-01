@@ -14,6 +14,7 @@ exits 0, and that has to be visible in the output. Otherwise a whole class of
 
 from __future__ import annotations
 
+import ast
 import importlib
 import json
 import re
@@ -2416,3 +2417,88 @@ def test_a_directory_it_can_read_is_still_judged(
 
     assert module.main(tmp_path) == expected
     assert not capsys.readouterr().out.startswith("NA: ")
+
+
+# ------------------------------------------------- a checker pointed out of the tree
+
+
+# `purge_paths` is the one configured value that is not joined to the root: it is a
+# set of `fnmatch` patterns matched against paths already found *inside* `src_path`,
+# so it cannot reach a file this project does not own. Every other key here is a path
+# the scanner joins to the root, and each one has to stay inside it.
+NOT_JOINED_TO_THE_ROOT = {
+    "purge_paths": "fnmatch patterns, matched against paths already inside src_path",
+}
+
+
+class Configured(NamedTuple):
+    """A shipped scanner, a `scaffold.json` key it reads, and that key's default shape."""
+
+    scanner: str
+    key: str
+    default: object
+
+
+def configured_keys() -> list[Configured]:
+    """Every `config.get(...)` the shipped scanners make, read from the scanners.
+
+    A list of names typed by hand was the whole of round 12's second finding — seven
+    modules short. The keys and their default shapes come out of the source with `ast`
+    so a new one cannot be added without this test seeing it.
+    """
+    found: list[Configured] = []
+    for path in bundle.SCANNERS:
+        tree = ast.parse(path.read_text(encoding="utf-8"))
+        for node in ast.walk(tree):
+            if not isinstance(node, ast.Call) or not isinstance(node.func, ast.Attribute):
+                continue
+            reader = node.func
+            named = isinstance(reader.value, ast.Name) and reader.value.id == "config"
+            if not (reader.attr == "get" and named):
+                continue
+            if not node.args or not isinstance(node.args[0], ast.Constant):
+                continue
+            default = ast.literal_eval(node.args[1]) if len(node.args) > 1 else None
+            found.append(Configured(path.stem, str(node.args[0].value), default))
+    return sorted(found)
+
+
+def test_the_exception_list_holds_only_keys_that_exist() -> None:
+    """A reason written for a key nobody configures any more is a reason nobody reads."""
+    keys = {case.key for case in configured_keys()}
+    assert set(NOT_JOINED_TO_THE_ROOT) <= keys, "a reason survives the key it was written for"
+
+
+@pytest.mark.parametrize(
+    "case",
+    [
+        pytest.param(case, id=f"{case.scanner.removeprefix('scan_')}-{case.key}")
+        for case in configured_keys()
+        if case.key not in NOT_JOINED_TO_THE_ROOT
+    ],
+)
+@pytest.mark.parametrize("escape", ["/etc", "../../elsewhere"], ids=["absolute", "climbing"])
+def test_a_configured_path_that_leaves_the_project_is_a_finding(
+    tmp_path: pathlib.Path,
+    capsys: pytest.CaptureFixture[str],
+    case: Configured,
+    escape: str,
+) -> None:
+    """The installer was taught this in an earlier round — fourteen files landed outside
+    the destination through a `tools` symlink — and the readers were never asked the same
+    question. Pointed out of the tree, every one of them read files the project does not
+    own and printed them under a path no reviewer can open; four answered an absolute path
+    with a raw `ValueError` from `relative_to` (self-audit round 13, 2026-09-01)."""
+    module = importlib.import_module(f"verifiable_gates.checks.{case.scanner}")
+    named = [f"{escape}/x"] if isinstance(case.default, list) else escape
+    # `gates_path` and `tests_path` are only reached once there is an index to read.
+    index = bundle.BUNDLE.parent.parent / "gates.yaml"
+    files = {"gates.yaml": index.read_text(encoding="utf-8")}
+    root = tmp_path / escape.replace("/", "_")
+    root.mkdir(parents=True)
+    build(root, files, {case.key: named})
+
+    assert module.main(root) == 1, "a path that leaves the project was walked, not refused"
+    out = capsys.readouterr().out
+    assert "leads outside the project" in out, "the finding does not say what is wrong"
+    assert case.key in out, "the finding does not name the configuration key"
