@@ -1,5 +1,5 @@
 {
-  "_comment": "Configuration for the gate bundle. Every path has a default, and a default that is not there reports NA; a path you write here and do not have is a finding, because a configured path that does not exist is a broken configuration, not nothing to check. Defaults: services_path app/services, src_path app, purge_paths [app/purge.py], templates_path app/templates, entrypoints [run.py, wsgi.py, app.py, main.py], dockerfiles [Dockerfile], adr_path docs/adr, gates_path gates.yaml, tests_path tests. Name a path only to move it.",
+  "_comment": "Configuration for the gate bundle. Every path has a default, and a default that is not there reports NA; a path you write here and do not have is a finding, because a configured path that does not exist is a broken configuration, not nothing to check; and a path that is there but holds no file of the kind the checker reads reports NA too, naming what it looked for, because a rule the tool cannot check must not look like a rule it checked. Defaults: services_path app/services, src_path app, purge_paths [app/purge.py], templates_path app/templates, entrypoints [run.py, wsgi.py, app.py, main.py], dockerfiles [Dockerfile], adr_path docs/adr, gates_path gates.yaml, tests_path tests. Name a path only to move it.",
   "preflight_jobs": [
     "scans"
   ]

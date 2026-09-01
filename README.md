@@ -84,14 +84,24 @@ project where every rule is `NA` exits 0 — that is "nothing was measured", not
 project passed" (a path that `scaffold.json` *names* and the project does not have is
 never `NA`, though: that is a broken configuration, and it is a finding; and a
 `Dockerfile*` the project has but never named is a finding too, not "no
-Dockerfile"; and a scan that crashes, hangs past its timeout, or answers half a verdict
-before crashing is `[error]` with its stderr passed through, never `[found]` — red,
+Dockerfile"; a directory that is *there* and holds no file of the kind a checker reads
+— an `app/` of Go, a templates directory of `.ejs` — is `NA` naming what it looked for,
+not a pass, because a rule the tool cannot check must not look like a rule it checked;
+and a scan that crashes, hangs past its timeout, answers half a verdict
+before crashing, or meets a file it cannot decode or may not open is `[error]` with its
+stderr passed through, never `[found]` — red,
 but no verdict); and `rules.problems()` only checks that a `script:` exists when it is
 given the package directory (`package_dir=`), as the doctor does. On a fresh
 install the only `pass` is the shipped index (`gates-registry-total`), which has
 to be true about itself; the starting workflow the installer wrote is `NA` to the
 two pinning checkers until a line of it changes — a green on the bundle's own
-file says nothing about the project.
+file says nothing about the project. That index check reads its own direction too: a
+gate whose job cannot turn the build red — a workflow with no trigger, `if: false`, or
+`continue-on-error: true` — is a finding, because a row nothing can fail is a row and
+nothing else. And the bundle keeps a record of what it installed: `gates_doctor
+--installed` holds every file it wrote to the contents it wrote, not merely to being
+present, and an upgrade names what this version no longer ships and leaves it in place,
+because a file in your repository is yours to remove.
 
 **What the two pinning checkers read.** `ci-tools-hash-pinned` and
 `actions-sha-pinned` read every workflow, every composite action a workflow names
@@ -207,11 +217,17 @@ repo นี้เผยแพร่ ส่วน `gates.yaml` คือสิ่
 
 **บันเดิลตัดสินได้ 9 จาก 92** — เฉพาะกฎที่มี `script:` เท่านั้นที่ doctor กับ installer
 ตัดสินให้ อีก 83 ข้อคือแผ่นกฎที่ agent ถูกบังคับด้วยการอ่าน · doctor รายงานกฎที่ตัดสินไม่ได้เป็น `NA`
-และโปรเจกต์ที่ทุกข้อเป็น `NA` ออก 0 แปลว่า "ไม่ได้วัดอะไร" ไม่ใช่ "ผ่าน" · สแกนที่ล่ม ค้างเกินเวลา หรือพิมพ์คำตัดสินได้ครึ่งเดียวแล้วพัง
-รายงานเป็น `[error]` พร้อมส่ง stderr ต่อ ไม่ใช่ `[found]` · หลังติดตั้งใหม่
+และโปรเจกต์ที่ทุกข้อเป็น `NA` ออก 0 แปลว่า "ไม่ได้วัดอะไร" ไม่ใช่ "ผ่าน" · ไดเรกทอรีที่ *มีอยู่* แต่ไม่มีไฟล์ชนิดที่ตัวตรวจอ่านเลย
+— `app/` ที่มีแต่ Go หรือไดเรกทอรี template ที่มีแต่ `.ejs` — เป็น `NA` พร้อมบอกว่าไปหาอะไร ไม่ใช่ `pass`
+เพราะกฎที่เครื่องมือตรวจไม่ได้ต้องไม่หน้าตาเหมือนกฎที่ตรวจแล้ว · สแกนที่ล่ม ค้างเกินเวลา พิมพ์คำตัดสินได้ครึ่งเดียวแล้วพัง
+หรือเจอไฟล์ที่ถอดรหัสไม่ได้หรือไม่มีสิทธิ์เปิด รายงานเป็น `[error]` พร้อมส่ง stderr ต่อ ไม่ใช่ `[found]` · หลังติดตั้งใหม่
 ด่านเดียวที่ `pass` คือทะเบียนที่ส่งมากับบันเดิล (`gates-registry-total`) ส่วน workflow
 ตั้งต้นที่ตัวติดตั้งเขียนให้เป็น `NA` สำหรับตัวตรวจ pin ทั้งสองจนกว่าจะมีบรรทัดถูกแก้ —
-เขียวบนไฟล์ของบันเดิลเองไม่ได้บอกอะไรเกี่ยวกับโปรเจกต์ · ตัวตรวจ pin อ่าน workflow ทุกไฟล์
+เขียวบนไฟล์ของบันเดิลเองไม่ได้บอกอะไรเกี่ยวกับโปรเจกต์ · ตัวตรวจทะเบียนอ่านทิศของตัวเองด้วย: gate ที่งานของมัน
+ทำให้ build แดงไม่ได้ — workflow ที่ไม่มี trigger, `if: false`, หรือ `continue-on-error: true` — เป็น finding
+เพราะแถวที่ไม่มีอะไรทำให้ล้มได้คือแถวเปล่า ๆ · และบันเดิลจดสิ่งที่มันติดตั้งไว้: `gates_doctor --installed`
+ถือทุกไฟล์ที่มันเขียนไว้กับ *เนื้อ* ที่มันเขียน ไม่ใช่แค่ว่ามีไฟล์อยู่ · และตอนอัปเกรด มันบอกว่ารุ่นนี้เลิกส่งอะไร
+แล้วปล่อยไฟล์นั้นไว้ เพราะไฟล์ในรีโปของคุณเป็นสิทธิ์ของคุณที่จะลบ · ตัวตรวจ pin อ่าน workflow ทุกไฟล์
 composite action ที่ `uses: ./<path>` ชี้ไม่ว่าอยู่ที่ไหนหรือพับบรรทัดอย่างไร และเชลล์สคริปต์ที่ `run:`
 เรียกต่อ ไม่ว่าจะรู้จากชื่อ `.sh` หรือจาก shebang ใส่เครื่องหมายคำพูดหรือไม่ก็ตาม จากที่ที่เชลล์ยืนอยู่ (`cd dir &&` ก่อนหน้า หรือ `working-directory:` ของ step) โดยตัดคอมเมนต์ก่อน — `#` ที่อยู่ในคำ (`$#`, `${#PKGS}`, `\#`) ไม่ใช่คอมเมนต์ · ใน workflow ตัดสินเฉพาะสิ่งที่
 `run:` รันจริง (`name:` หรือ `env:` ที่ยกคำสั่งมาพูดถึงเป็นแค่ข้อความ) และ `--require-hashes` นับเมื่อเป็น
