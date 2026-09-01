@@ -147,3 +147,16 @@ def test_an_optional_field_may_be_absent_but_not_wrong() -> None:
         None, lambda: [{"created_at": stamp}], shape=list, fields={"?created_at": STAMP}
     )
     assert found == [{"created_at": stamp}]
+
+
+def test_a_file_that_is_not_utf_8_is_unreadable_not_a_traceback(tmp_path: pathlib.Path) -> None:
+    """Every other way of not seeing raises `UnreadableError`, which the censuses turn into
+    exit 2. Bytes in another encoding went straight past that route and reached
+    `rerun_census --input` and `red_streak_census --input` as a raw `UnicodeDecodeError`
+    with exit 1 — a census reporting *findings* because it could not read its own input
+    (self-audit round 12, 2026-09-01)."""
+    path = tmp_path / "runs.json"
+    path.write_bytes(b'[{"id": 1, "name": "caf\xe9"}]')
+
+    with pytest.raises(history.UnreadableError, match="not UTF-8"):
+        history.read(str(path), list, shape=list)

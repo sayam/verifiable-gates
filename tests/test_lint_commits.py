@@ -449,3 +449,19 @@ def test_a_message_file_that_is_not_there_is_a_misuse(
     traceback and exit 1 — the code that means the message is bad (round 2, 2026-08-31)."""
     assert run(monkeypatch, ["--msg-file", str(tmp_path / "COMMIT_EDITMSG")]) == 2
     assert "cannot read the message file" in capsys.readouterr().err
+
+
+def test_a_message_file_this_hook_cannot_decode_is_a_misuse(
+    tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """Round 2 gave the hook an answer for a path that is not there; a message an editor
+    saved in another encoding — the likeliest of all, since the author writes it by hand —
+    still died of a raw `UnicodeDecodeError` and exit 1, which reads as *your message is
+    bad* (self-audit round 12, 2026-09-01)."""
+    path = tmp_path / "COMMIT_EDITMSG"
+    path.write_bytes(b"fix: caf\xe9 in the title\n\nSigned-off-by: A <a@b.co>\n")
+
+    assert run(monkeypatch, ["--msg-file", str(path)]) == 2
+    printed = capsys.readouterr().err
+    assert "cannot read the message file" in printed
+    assert "not UTF-8" in printed

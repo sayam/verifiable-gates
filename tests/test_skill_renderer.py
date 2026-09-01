@@ -364,3 +364,22 @@ def test_a_sheet_that_cannot_be_written_is_a_misuse(
 
     assert refused.value.code == 2
     assert "cannot write the sheet" in capsys.readouterr().err
+
+
+def test_a_preamble_this_renderer_cannot_decode_stops_the_render(
+    tmp_path: pathlib.Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """The preamble is prose a person wrote, so another encoding is the ordinary case, not
+    the exotic one — and it ended the render with a raw `UnicodeDecodeError` and exit 1
+    rather than the 2 this reader answers for a preamble it cannot open (self-audit round
+    12, 2026-09-01)."""
+    catalogue, preamble = a_project(tmp_path, CATALOGUE)
+    preamble.write_bytes(b"A preamble with a caf\xe9 in it\n")
+    out = tmp_path / "SKILL.md"
+    args = ["--catalogue", str(catalogue), "--preamble", str(preamble), "--out", str(out)]
+
+    assert skill.main(args) == 2
+    printed = capsys.readouterr().err
+    assert "cannot read the preamble" in printed
+    assert "not UTF-8" in printed
+    assert not out.exists(), "nothing should be written from a preamble that could not be read"

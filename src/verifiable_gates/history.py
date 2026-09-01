@@ -69,6 +69,8 @@ def read(
     else:
         try:
             found = json.loads(pathlib.Path(path).read_text(encoding="utf-8"))
+        except UnicodeDecodeError as problem:
+            raise UnreadableError(f"{path}: not UTF-8 ({problem.reason})") from problem
         except OSError as problem:
             raise UnreadableError(f"{path}: {problem.strerror or problem}") from problem
         except json.JSONDecodeError as problem:

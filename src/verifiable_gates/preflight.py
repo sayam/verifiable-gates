@@ -160,12 +160,29 @@ def _label(step: dict[str, Any]) -> str:
     return lines[0][:70] if lines else "?"
 
 
+def _read_workflow(path: pathlib.Path) -> dict[str, Any]:
+    """One workflow, or a `ValueError` naming the file and what stopped the read.
+
+    A workflow in any other encoding — a job name a Windows editor saved as cp1252 —
+    ended this walk with a raw `UnicodeDecodeError` and exit 1, the code that means
+    *a job failed* (self-audit round 12, 2026-09-01). This reader already has a third
+    answer for a job it cannot find; a file it cannot read takes the same route.
+    """
+    try:
+        return yaml.safe_load(path.read_text(encoding="utf-8")) or {}
+    except UnicodeDecodeError as problem:
+        raise ValueError(f"{path.name}: not UTF-8 ({problem.reason})") from problem
+    except OSError as problem:
+        raise ValueError(f"{path.name}: {problem.strerror or problem}") from problem
+    except yaml.YAMLError as problem:
+        raise ValueError(f"{path.name}: not YAML this reader can parse") from problem
+
+
 def jobs_on_disk(root: pathlib.Path) -> dict[str, Any]:
     """job → its definition, from **every** workflow file; job names are unique across them."""
     found: dict[str, Any] = {}
     for path in sorted((root / WORKFLOW_DIR).glob("*.y*ml")):
-        workflow = yaml.safe_load(path.read_text(encoding="utf-8")) or {}
-        found.update(workflow.get("jobs") or {})
+        found.update(_read_workflow(path).get("jobs") or {})
     return found
 
 
@@ -175,7 +192,12 @@ def wanted_jobs(root: pathlib.Path, chosen: list[str]) -> tuple[str, ...]:
         return tuple(chosen)
     config = root / CONFIG
     if config.is_file():
-        declared = json.loads(config.read_text(encoding="utf-8")).get("preflight_jobs")
+        try:
+            declared = json.loads(config.read_text(encoding="utf-8")).get("preflight_jobs")
+        except UnicodeDecodeError as problem:
+            raise ValueError(f"{CONFIG}: not UTF-8 ({problem.reason})") from problem
+        except (OSError, json.JSONDecodeError) as problem:
+            raise ValueError(f"{CONFIG}: {problem}") from problem
         if declared:
             return tuple(declared)
     return DEFAULT_JOBS
@@ -397,8 +419,12 @@ def main(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
 
     root = pathlib.Path(args.root).resolve()
-    workflow = {"jobs": jobs_on_disk(root)}
-    jobs = wanted_jobs(root, args.only)
+    try:
+        workflow = {"jobs": jobs_on_disk(root)}
+        jobs = wanted_jobs(root, args.only)
+    except ValueError as unreadable:
+        print(f"cannot read {unreadable}", file=sys.stderr)
+        return 2
     unknown = [j for j in jobs if j not in workflow["jobs"]]
     if unknown:
         print(f"no job {unknown} under {WORKFLOW_DIR}/", file=sys.stderr)

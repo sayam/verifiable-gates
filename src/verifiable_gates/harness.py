@@ -131,10 +131,22 @@ def _note_the_round(
     the next person hunting for one (self-audit round 5, 2026-09-01). The gates' answer
     is the gates' answer; a failure to keep notes about it is said out loud and changes
     nothing.
+
+    Notes we cannot **decode** are left exactly as they are and the round is numbered
+    `0` — "not noted". Overwriting a file this reader could not read would destroy
+    whatever it actually held, and inventing a round number would claim a note that
+    was never written (self-audit round 12, 2026-09-01).
     """
     log_path = root / ROUND_LOG
     try:
         previous = log_path.read_text(encoding="utf-8").splitlines() if log_path.exists() else []
+    except UnicodeDecodeError as problem:
+        print(
+            f"could not read the round notes: not UTF-8 ({problem.reason})"
+            " — leaving them as they are",
+            file=sys.stderr,
+        )
+        return {"round": 0, "counts": counts, "failed": [r["gate"] for r in failed]}
     except OSError:
         previous = []
     record = {"round": len(previous) + 1, "counts": counts, "failed": [r["gate"] for r in failed]}
