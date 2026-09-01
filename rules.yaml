@@ -11,7 +11,12 @@
 # original wording from the reference implementation, kept because a translation of
 # an incident report is a retelling, and the retelling is not the record. Nothing here
 # is free-floating duplication: the reference implementation checks its own Thai
-# against `*_th` byte for byte, so the two cannot drift apart in silence.
+# against the `*_th` of the commit it pins, byte for byte, and Dependabot moves that
+# pin weekly — so a drift here surfaces as a red on the submodule bump, not never and
+# not immediately. Written this way because it was measured from the other side: on
+# 2026-09-01 the pin was four days and 223 commits old and eight `*_th` lines had
+# already moved, while the sentence here read "cannot drift apart in silence" (self-audit
+# round 10). The window is the pin's age; the mechanism is the bump.
 #
 # `born_from` is the part that matters most. A rule with no incident behind it is
 # somebody's preference, and preferences do not deserve a gate.
