@@ -64,6 +64,32 @@ def _text(path: pathlib.Path) -> str:
         raise _UnreadableError(message) from problem
 
 
+def _config(path: pathlib.Path) -> dict[str, object]:
+    """The project's `scaffold.json`, or the third answer saying why it is not one.
+
+    Round 3 wrapped the *read* of this file and stopped one line short of the parse, so a
+    configuration that is malformed, empty, or saved with a byte-order mark — and one that
+    parses to a list, a string or `null` rather than an object — was still a raw traceback
+    and exit 1, the code that means *findings*, out of a scanner that had judged nothing
+    (self-audit round 17, 2026-09-01). A file nobody can read as a configuration is the
+    same answer as one nobody can decode: no verdict, said plainly.
+    """
+    if not path.is_file():
+        return {}
+    try:
+        config = json.loads(_text(path))
+    except json.JSONDecodeError as problem:
+        raise _UnreadableError(
+            f"{_shown(path)}: not JSON — {problem.msg}, line {problem.lineno}"
+        ) from problem
+    if not isinstance(config, dict):
+        raise _UnreadableError(
+            f"{_shown(path)}: not an object — a configuration names keys, "
+            f"and this one holds {json.dumps(config)[:40]}"
+        )
+    return config
+
+
 FILENAME = re.compile(r"^(\d{4})-[a-z0-9-]+\.md$", re.IGNORECASE)
 # The record names this scanner prints all came through that pattern, so they are
 # ASCII by construction: unlike its siblings, this one never renders a name it read
@@ -176,7 +202,7 @@ def _adr_dir(root: pathlib.Path) -> tuple[pathlib.Path | None, int]:
     # broken configuration, reported as a finding — an outside audit on
     # 2026-08-29 planted a `scaffold.json` pointing at a Dockerfile that did not
     # exist beside a dirty one that did, and the answer was "nothing to check".
-    config = json.loads(_text(config_path)) if config_path.is_file() else {}
+    config = _config(config_path)
     named, wrong = _configured_path(config, "adr_path", "docs/adr")
     if named is None:
         print(f"adr-index-complete: {wrong}")
