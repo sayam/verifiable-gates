@@ -321,3 +321,22 @@ def test_a_report_that_cannot_be_written_is_a_misuse(
 
     assert run(root, "--output", str(somewhere)) == 2
     assert "cannot write the report" in capsys.readouterr().err
+
+
+def test_notes_that_cannot_be_decoded_are_left_alone_and_do_not_change_the_verdict(
+    tmp_path: pathlib.Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """Round 5 gave the notes a guard for a file that cannot be *written*; a file that
+    cannot be *decoded* went straight past it and ended a passing round with a raw
+    `UnicodeDecodeError` and exit 1 (self-audit round 12, 2026-09-01). The notes are
+    left exactly as they were — overwriting a file this reader could not read would
+    destroy whatever it held — and the round is numbered 0, "not noted"."""
+    root = a_project(tmp_path, PASSING)
+    log = root / harness.ROUND_LOG
+    log.write_bytes(b"notes somebody saved as cp1252: caf\xe9\n")
+
+    assert run(root) == 0
+    printed = capsys.readouterr()
+    assert "could not read the round notes: not UTF-8" in printed.err
+    assert "round 0: 1 pass · 0 fail" in printed.out
+    assert log.read_bytes() == b"notes somebody saved as cp1252: caf\xe9\n"

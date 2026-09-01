@@ -498,3 +498,66 @@ def test_execute_runs_a_step_in_the_narrowed_environment(
     out = capsys.readouterr().out
     assert "lent from your shell" in out
     assert "PREFLIGHT_SECRET" in out
+
+
+@pytest.mark.parametrize(
+    ("name", "content", "says"),
+    [
+        ("ci.yml", b"jobs:\n  lint:\n    name: caf\xe9\n", "not UTF-8"),
+        ("ci.yml", b"jobs:\n  lint:\n   - [unclosed\n", "not YAML this reader can parse"),
+    ],
+    ids=["not-utf-8", "not-yaml"],
+)
+def test_a_workflow_this_walk_cannot_read_is_a_misuse_not_a_failed_job(
+    tmp_path: pathlib.Path,
+    capsys: pytest.CaptureFixture[str],
+    name: str,
+    content: bytes,
+    says: str,
+) -> None:
+    """A workflow a Windows editor saved as cp1252 ended the walk with a raw
+    `UnicodeDecodeError` and exit 1 — the code that means *a job failed*, sending the
+    developer to look for a broken job (self-audit round 12, 2026-09-01). This reader
+    already answers 2 for a job it cannot find; a file it cannot read is the same kind
+    of answer."""
+    path = tmp_path / ".github" / "workflows" / name
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_bytes(content)
+
+    assert preflight.main(["--root", str(tmp_path), "--only", "lint"]) == 2
+    printed = capsys.readouterr().err
+    assert f"cannot read {name}" in printed
+    assert says in printed
+
+
+def test_a_workflow_this_walk_may_not_open_is_a_misuse_too(
+    tmp_path: pathlib.Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """The glob finds the name, not a readable file: a directory called `ci.yml` — or one
+    whose permissions say no — reaches the same reader and must reach the same answer."""
+    (tmp_path / ".github" / "workflows" / "ci.yml").mkdir(parents=True)
+
+    assert preflight.main(["--root", str(tmp_path), "--only", "lint"]) == 2
+    assert "cannot read ci.yml" in capsys.readouterr().err
+
+
+@pytest.mark.parametrize(
+    ("content", "says"),
+    [
+        (b'{"preflight_jobs": ["caf\xe9"]}\n', "not UTF-8"),
+        (b"{not json at all\n", "Expecting property name"),
+    ],
+    ids=["not-utf-8", "not-json"],
+)
+def test_a_config_this_walk_cannot_read_is_a_misuse_too(
+    tmp_path: pathlib.Path, capsys: pytest.CaptureFixture[str], content: bytes, says: str
+) -> None:
+    """`scaffold.json` chooses which jobs to walk, so a file this reader cannot parse
+    silently changed *what ran* — and did it with a traceback."""
+    write(tmp_path, "ci.yml", "jobs:\n  lint:\n    steps:\n      - run: 'true'\n")
+    (tmp_path / preflight.CONFIG).write_bytes(content)
+
+    assert preflight.main(["--root", str(tmp_path)]) == 2
+    printed = capsys.readouterr().err
+    assert preflight.CONFIG in printed
+    assert says in printed

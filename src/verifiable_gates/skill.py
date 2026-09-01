@@ -151,8 +151,14 @@ def main(argv: list[str] | None = None) -> int:
 
     try:
         preamble = pathlib.Path(args.preamble).read_text(encoding="utf-8")
-    except OSError as problem:
-        print(f"cannot read the preamble: {args.preamble}: {problem}", file=sys.stderr)
+    except (OSError, UnicodeDecodeError) as problem:
+        # One route, because the caller's answer is the same either way: the preamble is
+        # prose a person wrote, so another encoding is the ordinary case and it reached
+        # here as a raw traceback with exit 1 (self-audit round 12, 2026-09-01).
+        why = (
+            f"not UTF-8 ({problem.reason})" if isinstance(problem, UnicodeDecodeError) else problem
+        )
+        print(f"cannot read the preamble: {args.preamble}: {why}", file=sys.stderr)
         return 2
     fresh = render(rules, preamble, args.layer, args.language, labels)
 

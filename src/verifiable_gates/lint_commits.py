@@ -167,6 +167,10 @@ def main(argv: list[str] | None = None) -> int:
     if args.msg_file:
         try:
             message = pathlib.Path(args.msg_file).read_text(encoding="utf-8")
+        except UnicodeDecodeError as unreadable:
+            where = f"not UTF-8 ({unreadable.reason})"
+            print(f"cannot read the message file: {args.msg_file}: {where}", file=sys.stderr)
+            return 2
         except OSError as unreadable:
             print(f"cannot read the message file: {args.msg_file}: {unreadable}", file=sys.stderr)
             return 2

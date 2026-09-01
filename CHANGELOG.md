@@ -6,6 +6,26 @@ Notable changes to this project. The format follows
 
 ## [Unreleased]
 
+### Fixed
+
+- **The third answer reaches six more readers — and this time the sweep was
+  counted.** v0.1.11 says three separate times that *an input the instruments
+  cannot read is exit 2 everywhere*; every one of those sweeps was aimed at the
+  nine shipped scanners, and six readers outside them still died of a raw
+  `UnicodeDecodeError` with exit 1, the code that means *findings*
+  (self-audit round 12, 2026-09-01). `preflight` on a workflow a Windows editor
+  saved as cp1252 — and on a `scaffold.json` that chooses which jobs run;
+  `lint_commits --msg-file`, handed the message file by git, where another
+  encoding is the ordinary case rather than the exotic one; `skill --preamble`,
+  which is prose a person wrote; `history.load`, and through it
+  `rerun_census --input` and `red_streak_census --input`, two censuses whose own
+  words are *"this must never become a silent skip"*. Each now answers 2 with the
+  reason named. The harness is the seventh and answers differently on purpose: a
+  `.gate-rounds.jsonl` it cannot decode leaves the round numbered `0` — "not
+  noted" — the notes **untouched**, and the gates' verdict alone, because
+  overwriting a file this reader could not read would destroy whatever it held.
+  Proved by mutation: five guards removed one at a time, five tests red.
+
 ## [0.1.11] - 2026-09-01
 
 Eleven rounds of the project auditing itself, each asking one question of the
