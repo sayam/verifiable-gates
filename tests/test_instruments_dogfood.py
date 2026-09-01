@@ -700,25 +700,31 @@ def test_every_check_switched_off_in_pyproject_carries_a_reason() -> None:
 # `CLA.md` carries English above and Thai below; the example belongs in both.
 BILINGUAL_HALVES = 2
 
-HELPERS = [
-    "check_names",
-    "advertised",
-    "registry",
-    "rules",
-    "history",
-    "asvs_probe",
-    "measure",
-]
+
+def helpers() -> list[str]:
+    """Every module in the package with no `main` of its own — read, not remembered.
+
+    Round 11 gave this guard to a list of seven written by hand, and the list was seven
+    short: `asvs_worksheet`, `gates_crosswalk`, `gh`, `manifest`, `ratchets`,
+    `scan_coverage` and `workflows` all imported cleanly and exited **0** when run as
+    commands (self-audit round 12, 2026-09-01). A list of names is a thing that goes
+    stale; asking the package cannot.
+    """
+    package = pathlib.Path(preflight.__file__).parent
+    return sorted(
+        ".".join(path.relative_to(package).with_suffix("").parts)
+        for path in package.rglob("*.py")
+        if path.name != "__init__.py" and "\ndef main(" not in path.read_text(encoding="utf-8")
+    )
 
 
-@pytest.mark.parametrize("helper", HELPERS)
+@pytest.mark.parametrize("helper", helpers())
 def test_a_helper_run_as_a_command_says_so(helper: str, capsys: pytest.CaptureFixture[str]) -> None:
-    """These seven have no entry point of their own. Run as commands they imported
-    cleanly and exited 0 having done nothing — a wrong call that looked like a pass,
-    which this repository's own register forbids in as many words ("A misuse must exit 2,
-    never 0") and which `gates_doctor` had already decided once, by accepting `--root` as
-    the spelling an operator reaches for (self-audit round 2, owner decision B6,
-    2026-09-01).
+    """A helper has no entry point of its own. Run as a command they imported cleanly and
+    exited 0 having done nothing — a wrong call that looked like a pass, which this
+    repository's own register forbids in as many words ("A misuse must exit 2, never 0")
+    and which `gates_doctor` had already decided once, by accepting `--root` as the
+    spelling an operator reaches for (self-audit round 2, owner decision B6, 2026-09-01).
 
     Run through `runpy` rather than a subprocess: `run_name="__main__"` is what `python -m`
     does, and it needs no `subprocess` call and so no suppression — the count of those is

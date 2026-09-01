@@ -45,6 +45,7 @@ from __future__ import annotations
 
 import dataclasses
 import math
+import sys
 
 __all__ = [
     "CEILING",
@@ -186,3 +187,16 @@ def problems(
             continue
         found.extend(_floor_problems(ratchet, declared[name], measured[name], text))
     return found
+
+
+if __name__ == "__main__":
+    # A helper is not a command. Run as one, these modules imported cleanly and exited 0
+    # with nothing done — a wrong call that looked like a pass, which `gates.yaml` forbids
+    # in as many words ("A misuse must exit 2, never 0"). Round 11 gave seven modules this
+    # guard from a list written by hand, and the list was seven short (self-audit round 12,
+    # 2026-09-01); the test now reads the package instead of remembering it.
+    sys.stderr.write(
+        "verifiable_gates.ratchets is a helper, not a command — it has no entry point of\n"
+        "its own; the readers that answer for themselves are listed in CONTRIBUTING.\n"
+    )
+    sys.exit(2)

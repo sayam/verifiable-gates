@@ -25,6 +25,7 @@ Role: helper — shared machinery. Its evidence is its callers and their tests.
 from __future__ import annotations
 
 import pathlib  # noqa: TC003 — used at run time by workflow_dir, not only as a type
+import sys
 from typing import Any
 
 import yaml
@@ -109,3 +110,16 @@ def jobs(workflow: Workflow) -> dict[str, Workflow]:
     """Every job in this workflow."""
     found: dict[str, Workflow] = workflow.get("jobs") or {}
     return found
+
+
+if __name__ == "__main__":
+    # A helper is not a command. Run as one, these modules imported cleanly and exited 0
+    # with nothing done — a wrong call that looked like a pass, which `gates.yaml` forbids
+    # in as many words ("A misuse must exit 2, never 0"). Round 11 gave seven modules this
+    # guard from a list written by hand, and the list was seven short (self-audit round 12,
+    # 2026-09-01); the test now reads the package instead of remembering it.
+    sys.stderr.write(
+        "verifiable_gates.workflows is a helper, not a command — it has no entry point of\n"
+        "its own; the readers that answer for themselves are listed in CONTRIBUTING.\n"
+    )
+    sys.exit(2)
