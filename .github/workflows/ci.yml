@@ -136,9 +136,23 @@ jobs:
       - name: the pull request accepts CLA.md v1, with a name and an address
         env:
           PR_BODY: ${{ github.event.pull_request.body }}
+          PR_AUTHOR: ${{ github.event.pull_request.user.login }}
+          OWNER: ${{ github.repository_owner }}
         run: |
           set -euo pipefail
           CLA='^I have read and agree to CLA\.md v1\. — [^<>[:space:]][^<>]* <[^<>@[:space:]]+@[^<>[:space:]]+>[[:space:]]*$'
+          # The owner signs with the address the commits carry. A private address
+          # pasted from somewhere else attributes the acceptance to an identity that
+          # has nothing to do with this work — and correcting the body does not take
+          # it back, because GitHub keeps the body's edit history (on 2026-09-01 four
+          # merged pull requests carried one, and a fifth kept it in its history).
+          # Outside contributors are untouched: the CLA wants a real identity from
+          # them, and only the owner's own address is fixed by this repository.
+          OWN="^I have read and agree to CLA\\.md v1\\. — [^<>]+ <[0-9]+\\+${OWNER}@users\\.noreply\\.github\\.com>[[:space:]]*$"
+          if [ "$PR_AUTHOR" = "$OWNER" ] && ! printf '%s\n' "$PR_BODY" | grep -qE "$OWN"; then
+            echo "FAIL: the owner's CLA line must carry the noreply address the commits are signed with, <id>+${OWNER}@users.noreply.github.com — a private address here is not the signer of this work, and editing the body afterwards leaves it in the edit history"
+            exit 1
+          fi
           if printf '%s\n' "$PR_BODY" | grep -qE "$CLA"; then
             echo "CLA.md v1 accepted"
           else

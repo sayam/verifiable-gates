@@ -9,6 +9,7 @@ had been proved on fixtures and never asked about this tree.
 from __future__ import annotations
 
 import json
+import os
 import pathlib
 import re
 import runpy
@@ -21,6 +22,7 @@ import yaml
 
 from verifiable_gates import check_issue_handoff, harness, measure, preflight, workflows
 
+OWNER = "sayam"
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 
 # ---------------------------------------------------------------- preflight and the harness
@@ -115,6 +117,50 @@ def test_the_cla_job_skips_by_the_pull_requests_author_not_the_runs_actor() -> N
     assert "github.event_name == 'pull_request'" in condition
 
 
+def run_the_jobs_shell(script: str, *args: str, env: dict[str, str] | None = None) -> int:
+    """Run a block lifted out of the workflow, so a test judges the job's own shell.
+
+    One place holds the suppression, because a second copy of it is a second thing
+    somebody has to justify, and the ceiling in this file only falls.
+    """
+    call = ["bash", "-c", script, "-", *args]
+    return subprocess.run(call, env=env, check=False).returncode  # noqa: S603 — a block from this repository’s own CI, on fixed strings
+
+
+def test_the_owners_own_cla_line_must_carry_the_address_the_commits_carry() -> None:
+    """A signature by an identity with nothing to do with the work is false evidence.
+
+    The generic check accepts any address, which is right for a contributor: the CLA
+    wants a real identity from them. It is wrong for the owner, whose address is fixed
+    by this repository and appears on every commit. On 2026-09-01 four merged pull
+    requests were signed with a private address pasted out of an editor's context, and
+    correcting a body does not take it back — GitHub keeps the body's edit history, and
+    a fifth pull request kept it there after the visible text was fixed.
+
+    Both directions are run against the job's own condition, because a check that only
+    accepts is a check nobody has seen refuse.
+    """
+    block = next(s for s in preflight.jobs_on_disk(ROOT)["cla"]["steps"] if "OWN=" in s["run"])
+    assert set(block["env"]) == {"PR_BODY", "PR_AUTHOR", "OWNER"}, block["env"]
+    lines = block["run"].splitlines()
+    start = next(i for i, line in enumerate(lines) if line.strip().startswith("OWN="))
+    end = next(i for i in range(start, len(lines)) if lines[i].strip() == "fi")
+    condition = "\n".join(line.strip() for line in lines[start : end + 1])
+
+    def verdict(author: str, line: str) -> int:
+        script = f"set -euo pipefail\n{condition}"
+
+        env = {"PATH": os.environ["PATH"], "PR_AUTHOR": author, "OWNER": OWNER, "PR_BODY": line}
+        return run_the_jobs_shell(script, env=env)
+
+    signed = "I have read and agree to CLA.md v1. — A Name "
+    noreply = f"<976721+{OWNER}@users.noreply.github.com>"
+    assert verdict(OWNER, signed + noreply) == 0, "the owner's own address is refused"
+    assert verdict(OWNER, signed + "<someone@example.org>") == 1, "a private address passes"
+    assert verdict(OWNER, signed + "<1+x@users.noreply.github.com>") == 1, "anyone's noreply passes"
+    assert verdict("a-contributor", signed + "<x@example.org>") == 0, "a contributor is blocked"
+
+
 def test_the_example_line_contributing_shows_is_one_the_job_accepts() -> None:
     """A document's example that the gate refuses teaches the wrong shape — and the
     template `<name> <email>` reads as two placeholders when the brackets are literal."""
@@ -127,8 +173,7 @@ def test_the_example_line_contributing_shows_is_one_the_job_accepts() -> None:
     assert "<" in example.group(1), example.group(1)
     assert ">" in example.group(1), example.group(1)
     script = f'{definition}\nprintf \'%s\\n\' "$1" | grep -qE "$CLA"'
-    accepted = subprocess.run(["bash", "-c", script, "-", example.group(1)], check=False)  # noqa: S603, S607 — the job's own grep, on a fixed string
-    assert accepted.returncode == 0, example.group(1)
+    assert run_the_jobs_shell(script, example.group(1)) == 0, example.group(1)
     assert example.group(1) in block["run"], "the job's FAIL message should show the same example"
     # And the file the line names. `CLA.md` showed only `— <your name> <your email>`,
     # where the brackets mean a placeholder in one half and literal syntax in the other,
@@ -150,7 +195,10 @@ def test_the_example_line_contributing_shows_is_one_the_job_accepts() -> None:
         check=False,
         capture_output=True,
         text=True,
-        env={"PR_BODY": ""},
+        # Every variable the step declares: the block runs under `set -u`, on purpose,
+        # so a workflow that stopped passing one goes red instead of skipping a check.
+        # A contributor's login, because the owner's stricter branch is proved separately.
+        env={"PR_BODY": "", "PR_AUTHOR": "a-contributor", "OWNER": OWNER},
     )
     assert failing.returncode == 1
     assert example.group(1) in failing.stdout, (failing.stdout, failing.stderr)
