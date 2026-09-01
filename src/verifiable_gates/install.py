@@ -118,20 +118,25 @@ def _left_behind(dest: pathlib.Path, written: list[pathlib.Path]) -> list[str]:
     (self-audit round 9, 2026-09-01). Said out loud, and not deleted: files in somebody
     else's repository are theirs to remove.
     """
+    now = {str(path.relative_to(dest)) for path in written}
+    return sorted(set(_recorded_files(dest)) - now)
+
+
+def _recorded_files(dest: pathlib.Path) -> dict[str, str]:
+    """What the record in this destination names, or nothing when there is no reading it."""
     record = dest / RECORD
     if not record.is_file():
-        return []
+        return {}
     try:
-        before = set(json.loads(record.read_text(encoding="utf-8"))["files"])
+        files: dict[str, str] = json.loads(record.read_text(encoding="utf-8"))["files"]
     except (OSError, ValueError, KeyError, TypeError):
-        return []
-    now = {str(path.relative_to(dest)) for path in written}
-    return sorted(before - now)
+        return {}
+    return files
 
 
-def _record(dest: pathlib.Path, written: list[pathlib.Path]) -> None:
+def _record(dest: pathlib.Path, written: list[pathlib.Path], *, finished: bool = True) -> None:
     """Write down what this install put here, so the doctor can say whether it is still
-    what arrived.
+    what arrived — and **whether it finished**.
 
     `--installed` said "the bundle arrived intact" while checking only that each file is
     present and compiles: a scanner whose body had been replaced with `return 0` passed
@@ -140,14 +145,57 @@ def _record(dest: pathlib.Path, written: list[pathlib.Path]) -> None:
     the project's own `gates.yaml`, `scaffold.json` and workflow are its decisions to
     edit, and a record of them would be a check against the project rather than the
     bundle.
+
+    An install that stops partway used to write no record at all, so the record went on
+    describing the *previous* install while half the files on disk were the new one — and
+    the doctor turned that into "its contents have changed", the sentence it uses for a
+    bundle somebody edited. A tree the installer itself left in that state was reported as
+    tampering (self-audit round 16, 2026-09-01).
     """
-    record = {
-        "version": __version__,
-        "files": {str(path.relative_to(dest)): digest(path) for path in sorted(written)},
-    }
+    # An install that stopped partway keeps what the last one recorded for the files it did
+    # not reach: those are still the previous version and still worth verifying. A finished
+    # install records what it wrote and nothing else.
+    files = {} if finished else dict(_recorded_files(dest))
+    files |= {str(path.relative_to(dest)): digest(path) for path in sorted(written)}
+    record = {"version": __version__, "files": files, "finished": finished}
     target = dest / RECORD
     target.parent.mkdir(parents=True, exist_ok=True)
     target.write_text(json.dumps(record, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+
+
+UNRECORDED = {
+    False: "** and the record of what did land could not be written: {problem}",
+    True: (
+        "** the bundle landed but the record of it could not be written: {problem} — "
+        "the doctor cannot check this install until it can be"
+    ),
+}
+
+
+def _note_what_landed(dest: pathlib.Path, written: list[pathlib.Path], *, finished: bool) -> None:
+    """Write the record of what this install put here, or say why it could not be written.
+
+    Both halves were missing. An install that **stopped** wrote no record at all, so the
+    record went on describing the previous install; and an install that **finished** wrote
+    its record with no guard, so a `tools/installed.json` nobody may write ended a
+    complete, correct install in a raw `PermissionError` — the shape round 5 closed for
+    every other writer here (self-audit round 16, 2026-09-01).
+
+    Nothing is recorded when nothing landed: the tree is exactly as it was, and
+    overwriting the record then would throw away a true account of the install before it.
+    A record that cannot be written is `SystemExit(1)`: the files may be there, but an
+    install the doctor cannot check is not one this installer will call finished.
+    """
+    if not written:
+        return
+    try:
+        _record(dest, written, finished=finished)
+    except OSError as unwritable:
+        # `SystemExit` rather than a returned code: both callers answer 1 to this, and a
+        # branch at each call site would put `install` over the complexity ceiling for a
+        # decision that is the same on both roads.
+        print(UNRECORDED[finished].format(problem=unwritable), file=sys.stderr)
+        raise SystemExit(1) from unwritable
 
 
 def install(
@@ -196,13 +244,14 @@ def install(
                 written.append(target)
     except OSError as error:
         print(f"** could not write to {dest}: {error} — the install is incomplete", file=sys.stderr)
+        _note_what_landed(dest, written, finished=False)
         return 1
 
     for name in _left_behind(dest, written):
         print(
             f"left behind: {name} — this bundle no longer ships it; delete it or keep it on purpose"
         )
-    _record(dest, written)
+    _note_what_landed(dest, written, finished=True)
 
     if kept_registry and not _registry_names_the_job(dest):
         print(
