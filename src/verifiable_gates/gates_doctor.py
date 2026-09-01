@@ -170,7 +170,17 @@ def run_scans(root: pathlib.Path, manifest: dict[str, Any], bundle: pathlib.Path
         sys.stderr.flush()
         crashed = "Traceback (most recent call last)" in result.stderr
         if result.returncode == 0:
-            print(f"[{'NA' if result.stdout.startswith('NA:') else 'pass':>5}] {gid}")
+            # A scan that answers NA names **what it looked for** — "no docs/adr", "no
+            # Python under app". The doctor printed the bare word and threw the reason
+            # away, so five different NA lines read identically and an operator could not
+            # tell "there is no such directory" from "a directory this scanner cannot
+            # read" — which is the distinction the scanners were changed to make
+            # (self-audit round 14, 2026-09-01).
+            said = result.stdout.strip().splitlines()
+            if said and said[0].startswith("NA:"):
+                print(f"[   NA] {gid} — {said[0].removeprefix('NA:').strip()}")
+            else:
+                print(f"[ pass] {gid}")
         elif result.returncode == 1 and result.stdout.strip() and not crashed:
             print(f"[found] {gid}")
             sys.stdout.write(result.stdout)
