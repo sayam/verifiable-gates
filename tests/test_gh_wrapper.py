@@ -226,6 +226,81 @@ def test_a_page_borrows_the_token_only_when_one_is_named(monkeypatch: pytest.Mon
     assert lent == [None, ALERTS_ENV]
 
 
+# ------------------------------------------- a page that is not a page of rows
+#
+# `rows.extend(...)` takes anything that iterates, and `api` is honestly typed `Any`, so
+# nothing in the loop could tell rows from not-rows. An object answered where a list was
+# expected extended the result with its **keys**, a string with its **characters**, and
+# since neither is ever empty the loop asked for the next page for ever — one `gh api`
+# subprocess per page, unbounded (self-audit round 18, 2026-09-02). Every caller of this
+# wrapper publishes a count.
+
+NOT_A_PAGE_OF_ROWS = [
+    pytest.param({"message": "Not Found"}, None, "list of rows", id="an-object-not-a-list"),
+    pytest.param("not found", None, "list of rows", id="a-string"),
+    pytest.param(5, None, "list of rows", id="a-number"),
+    pytest.param(None, None, "list of rows", id="null"),
+    pytest.param([], "workflow_runs", "carrying 'workflow_runs'", id="a-list-where-wrapped"),
+    pytest.param({"total_count": 0}, "workflow_runs", "carrying 'workflow_runs'", id="key-missing"),
+    pytest.param({"workflow_runs": {}}, "workflow_runs", "list of rows", id="key-holds-an-object"),
+]
+
+
+@pytest.mark.parametrize(("answer", "key", "says"), NOT_A_PAGE_OF_ROWS)
+def test_a_page_that_is_not_rows_is_refused_rather_than_counted(
+    monkeypatch: pytest.MonkeyPatch, answer: object, key: str | None, says: str
+) -> None:
+    """The third answer, in the words the timeout already uses: `RuntimeError` is what
+    every caller of this module routes to "the platform could not be asked", exit 2."""
+    monkeypatch.setattr(gh, "api", lambda _path, **_kwargs: answer)
+    path = "repos/x/y/actions/runs" if key else "repos/x/y/code-scanning/alerts"
+
+    with pytest.raises(RuntimeError) as refused:
+        gh.api_pages(path, key=key)
+
+    assert says in str(refused.value), refused.value
+    assert "could not be read" in str(refused.value)
+
+
+def test_a_page_that_is_not_rows_stops_the_paging_rather_than_going_on_for_ever(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The count is the point: this asked 2000 pages and was still going, one subprocess
+    each, because a non-empty answer never satisfies the `if not batch` that ends the loop."""
+    asked: list[str] = []
+
+    def fake_api(path: str, **_kwargs: object) -> dict[str, str]:
+        asked.append(path)
+        assert len(asked) <= 3, f"kept paging past a page it could not read: {len(asked)}"
+        return {"message": "Not Found", "documentation_url": "https://docs.github.com/rest"}
+
+    monkeypatch.setattr(gh, "api", fake_api)
+
+    with pytest.raises(RuntimeError):
+        gh.api_pages("repos/x/y/releases")
+
+    assert len(asked) == 1, "asked for a second page after an answer it could not read"
+
+
+def test_a_missing_key_is_not_read_as_an_empty_page(monkeypatch: pytest.MonkeyPatch) -> None:
+    """The platform sends `{"workflow_runs": []}` for "none", so an answer without the key
+    is a platform this reader does not understand — and reading it as zero is how a silent
+    nothing becomes a green claim in a census that publishes the number."""
+    monkeypatch.setattr(gh, "api", lambda _path, **_kwargs: {"total_count": 0})
+
+    with pytest.raises(RuntimeError):
+        gh.api_pages("repos/x/y/actions/runs", key="workflow_runs")
+
+
+def test_an_empty_wrapped_page_is_still_the_end_of_the_history(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The other side of it: the key present and empty is `no more rows`, not a refusal."""
+    monkeypatch.setattr(gh, "api", lambda _path, **_kwargs: {"workflow_runs": []})
+
+    assert gh.api_pages("repos/x/y/actions/runs", key="workflow_runs") == []
+
+
 def test_a_fake_that_takes_one_argument_is_still_honoured(monkeypatch: pytest.MonkeyPatch) -> None:
     """The census tests replace `api` with `def fake_api(path)` — that contract must hold."""
     monkeypatch.setattr(gh, "api", lambda _path: [])

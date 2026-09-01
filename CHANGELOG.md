@@ -71,6 +71,27 @@ Notable changes to this project. The format follows
 
 ### Fixed
 
+- **The paging wrapper could not tell rows from not-rows, and never stopped asking.**
+  `gh.api_pages` promises `list[Any]` and built it with `rows.extend(...)`, which takes
+  anything that iterates, over an answer `gh.api` is honestly typed `Any` — so an endpoint
+  that answered with an **object** where a list was expected extended the result with its
+  **keys**, one with a **string** extended it with its **characters**, and because neither
+  is ever empty the `if not batch` that ends the loop was never reached: the wrapper asked
+  for page 2, 3, … 2001 and was still going, one `gh api` subprocess per page, with nothing
+  to stop it (self-audit round 18, 2026-09-02). Three of its callers pass no `limit` at
+  all. A wrapped endpoint whose answer was a **list** raised a raw `AttributeError`, and
+  one whose answer was an object **missing the named key** counted as an empty page — a
+  silent zero, in readers that publish the number. Every page is now checked before it is
+  believed: a page that is not a page of rows raises `RuntimeError`, which is what a
+  timeout here already raises and what **all eight callers already route** to "the platform
+  could not be asked", exit 2 — verified caller by caller, not assumed. A named key the
+  answer does not carry goes the same way rather than counting as zero: the platform sends
+  `{"workflow_runs": []}` for *none*, so a missing key is a platform this reader does not
+  understand. `SUPPRESSED_LINES` moves 111 → 112 for the one `TRY004` this needs, with the
+  reason on the line: the platform is what is wrong here, not the program. Proved by
+  mutation, including one that puts the unbounded loop back and is caught by the suite
+  failing to finish.
+
 - **A `scaffold.json` nobody can read as a configuration was a traceback, not an answer.**
   Round 3 taught seven scanners to refuse this file when its *bytes* cannot be decoded —
   `cannot read the tree`, exit 2 — and the guard stopped one line short of the parse
