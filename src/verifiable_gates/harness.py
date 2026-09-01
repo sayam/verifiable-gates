@@ -47,6 +47,20 @@ CAUSE_LINES = 12  # enough to point at the failure without carrying the whole lo
 RAN = re.compile(r"(?<![\w.])(\d+) (?:passed|failed)(?![\w.])")
 
 
+def _printable(text: str) -> str:
+    """`text`, with anything this stdout cannot encode escaped instead of raised.
+
+    The harness prints two things it did not write: the `hint`, which is the registry's
+    prose, and its own summary's `·`. `print` encodes with the terminal's encoding and
+    `errors="strict"`, so on a machine whose stdout is not UTF-8 a run in which **every
+    gate passed** printed nothing at all, ended in `UnicodeEncodeError` and exited 1 —
+    the verdict destroyed by the act of reporting it (self-audit round 15, 2026-09-01).
+    A character the terminal cannot show is still shown, escaped, and the verdict stands.
+    """
+    encoding = sys.stdout.encoding or "utf-8"
+    return text.encode(encoding, "backslashreplace").decode(encoding, "replace")
+
+
 def _ran_or_not(output: str, seconds: float) -> dict[str, Any]:
     """A pass, or the third answer when pytest ran nothing it collected.
 
@@ -136,6 +150,11 @@ def _note_the_round(
     `0` — "not noted". Overwriting a file this reader could not read would destroy
     whatever it actually held, and inventing a round number would claim a note that
     was never written (self-audit round 12, 2026-09-01).
+
+    The write names its encoding because the read above does. Nothing in a record can be
+    outside ASCII today — a round number, three counts, and gate ids the registry holds
+    to `[a-z0-9-]` — so this is the contract stated, not a defect fixed; the sibling
+    write in `_write_report` carries the registry's prose and was one (round 15).
     """
     log_path = root / ROUND_LOG
     try:
@@ -151,7 +170,10 @@ def _note_the_round(
         previous = []
     record = {"round": len(previous) + 1, "counts": counts, "failed": [r["gate"] for r in failed]}
     try:
-        log_path.write_text("\n".join([*previous, json.dumps(record, ensure_ascii=False)]) + "\n")
+        log_path.write_text(
+            "\n".join([*previous, json.dumps(record, ensure_ascii=False)]) + "\n",
+            encoding="utf-8",
+        )
     except OSError as problem:
         print(f"could not write the round notes: {problem}", file=sys.stderr)
     return record
@@ -165,7 +187,8 @@ def _write_report(output: pathlib.Path, round_number: int, results: list[dict[st
     """
     try:
         output.write_text(
-            json.dumps({"round": round_number, "results": results}, ensure_ascii=False, indent=1)
+            json.dumps({"round": round_number, "results": results}, ensure_ascii=False, indent=1),
+            encoding="utf-8",
         )
     except OSError as problem:
         print(f"cannot write the report: {output}: {problem}", file=sys.stderr)
@@ -207,9 +230,9 @@ def main(argv: list[str] | None = None) -> int:
     failed = [r for r in results if r["status"] == "fail"]
     for entry in failed:
         print(f"[FAIL] {entry['gate']}")
-        print("   " + entry["cause"].replace("\n", "\n   "))
+        print(_printable("   " + entry["cause"].replace("\n", "\n   ")))
         if entry.get("hint"):
-            print(f"   hint: {entry['hint']}")
+            print(_printable(f"   hint: {entry['hint']}"))
 
     record = _note_the_round(root, counts, failed)
 
@@ -217,7 +240,7 @@ def main(argv: list[str] | None = None) -> int:
         return 2
 
     summary = f"{counts['pass']} pass · {counts['fail']} fail · {counts['skip']} skip"
-    print(f"round {record['round']}: {summary}")
+    print(_printable(f"round {record['round']}: {summary}"))
     return 1 if failed else 0
 
 

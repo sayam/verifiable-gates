@@ -620,7 +620,10 @@ def test_a_body_edit_reruns_the_checks_that_read_the_body() -> None:
 # 108 → 109 on 2026-09-01: one `S603` in `tests/test_scan_coverage.py`, for the git
 # call that has to run with `core.quotePath=false` — the configuration under which
 # `git ls-files` stops quoting a name that is not UTF-8 (round 15).
-SUPPRESSED_LINES = 109  # every one with a reason; a new one moves this number, visibly
+# 109 → 110 on 2026-09-01: one `S603` in `tests/test_harness.py`, for the run that has
+# to happen in a subprocess — the encoding `write_text` picks with no `encoding=` is the
+# interpreter's at startup, so no in-process test can reach that question (round 15).
+SUPPRESSED_LINES = 110  # every one with a reason; a new one moves this number, visibly
 
 
 def test_every_job_in_our_own_workflows_declares_a_time_budget() -> None:

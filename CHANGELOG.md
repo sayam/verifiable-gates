@@ -8,6 +8,22 @@ Notable changes to this project. The format follows
 
 ### Fixed
 
+- **The harness reported in whatever bytes the machine happened to use.** Every
+  file this package reads names `encoding="utf-8"`; the two files the harness
+  *writes* named nothing, so they went to disk in the machine's locale encoding and
+  were read back as UTF-8 — agreement by luck, on a Windows default (cp1252) a file
+  written one way and misread the other. Worse on the terminal: the harness prints
+  the `hint`, which is the registry's prose, and its own summary's `·`, both
+  through a `print` that encodes strictly. On a machine whose stdout is not UTF-8, a
+  round in which **every gate was skipped and nothing failed** printed nothing at
+  all, ended in `UnicodeEncodeError` and exited 1 — the verdict destroyed by the act
+  of reporting it (self-audit round 15, 2026-09-01). The report the caller asked for
+  by name is now written as UTF-8, and anything the terminal cannot encode is shown
+  escaped instead of raised. Proved by mutation: the report's encoding dropped, and
+  the escape removed — three cases red across the two. The round notes name their
+  encoding too, but nothing in a record can be outside ASCII, so that one is the
+  contract stated rather than a defect fixed, and the code says so.
+
 - **git's bytes are not text, and the road that meets a stranger's commits had
   no answer for them.** A commit message is stored as the bytes the author's
   client sent; a client that was not speaking UTF-8 leaves bytes no decoder can
