@@ -21,7 +21,8 @@ if TYPE_CHECKING:
 
 from verifiable_gates import advertised
 
-PLACE = advertised.Place("README.md", r"(\d+) machine-checked gates")
+GATES = r"(\d+) machine-checked gates"
+PLACE = advertised.Place("README.md", GATES)
 
 
 def write(root: pathlib.Path, name: str, body: str) -> pathlib.Path:
@@ -118,6 +119,52 @@ def test_writing_leaves_a_place_it_could_not_find_alone(tmp_path: pathlib.Path) 
     advertised.write(tmp_path, advertised.drift(tmp_path, {"gates": [PLACE]}, {"gates": "114"}))
 
     assert path.read_text(encoding="utf-8") == before
+
+
+def test_a_write_that_stops_partway_carries_the_places_that_landed(
+    tmp_path: pathlib.Path,
+) -> None:
+    """A correction that stopped halfway has to be able to say what it already changed.
+
+    This synchroniser rewrites the claims a repository publishes, one file at a time. A
+    place that cannot be written after two others already have leaves a checkout that is
+    neither what it was nor what it should be, and the caller could only say "cannot
+    write the fix" — which reads as *nothing was written* (self-audit round 16,
+    2026-09-01). Nothing here is atomic and nothing needs to be: every place is a tracked
+    file, so the bytes are recoverable from the history. Being told is what was missing.
+    """
+    first = write(tmp_path, "README.md", "It has 112 machine-checked gates.\n")
+    second = write(tmp_path, "CITATION.cff", "It has 112 machine-checked gates.\n")
+    places = [advertised.Place("README.md", GATES), advertised.Place("CITATION.cff", GATES)]
+    second.chmod(0o444)
+    try:
+        drifting = advertised.drift(tmp_path, {"gates": places}, {"gates": "114"})
+
+        with pytest.raises(advertised.PartialWriteError) as stopped:
+            advertised.write(tmp_path, drifting)
+    finally:
+        second.chmod(0o644)
+
+    assert [item.place.path for item in stopped.value.written] == ["README.md"], (
+        "the places that landed were not carried out with the failure"
+    )
+    assert isinstance(stopped.value.problem, OSError)
+    assert "114" in first.read_text(encoding="utf-8"), "the first place was not written after all"
+
+
+def test_a_write_with_nothing_written_yet_still_names_the_failure(tmp_path: pathlib.Path) -> None:
+    """The control: when the **first** place cannot be written, nothing landed and the
+    error says so with an empty list — a caller must be able to tell the two apart."""
+    only = write(tmp_path, "README.md", "It has 112 machine-checked gates.\n")
+    drifting = advertised.drift(tmp_path, {"gates": [PLACE]}, {"gates": "114"})
+    only.chmod(0o444)
+    try:
+        with pytest.raises(advertised.PartialWriteError) as stopped:
+            advertised.write(tmp_path, drifting)
+    finally:
+        only.chmod(0o644)
+
+    assert stopped.value.written == []
 
 
 def test_every_place_of_every_fact_is_visited(tmp_path: pathlib.Path) -> None:

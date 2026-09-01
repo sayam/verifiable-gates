@@ -46,6 +46,7 @@ if TYPE_CHECKING:
 __all__ = [
     "Drift",
     "Expectation",
+    "PartialWriteError",
     "Place",
     "drift",
     "field_drift",
@@ -132,8 +133,24 @@ def drift(
     return found
 
 
-def write(root: pathlib.Path, items: list[Drift]) -> None:
-    """Fix each place, touching nothing else.
+class PartialWriteError(Exception):
+    """A place could not be written **after** others already had been.
+
+    The caller has to be able to say what it managed to change: a correction that
+    stopped halfway leaves a tree that is neither what it was nor what it should be,
+    and "cannot write the fix" alone reads as *nothing was written* — so the operator
+    cannot tell an untouched checkout from a half-corrected one (self-audit round 16,
+    2026-09-01).
+    """
+
+    def __init__(self, written: list[Drift], problem: OSError) -> None:
+        super().__init__(str(problem))
+        self.written = written
+        self.problem = problem
+
+
+def write(root: pathlib.Path, items: list[Drift]) -> list[Drift]:
+    """Fix each place, touching nothing else, and return the places that landed.
 
     A diff wider than it needs to be is a diff nobody reads, and a synchroniser
     whose changes nobody reads is one nobody will trust to run unattended.
@@ -144,11 +161,24 @@ def write(root: pathlib.Path, items: list[Drift]) -> None:
     already no change at all. A branch nothing can observe is a branch that will
     be believed to do something it does not, so it is gone: `drift` is what
     reports the miss, and this only types.
+
+    Nothing here is atomic and nothing here needs to be: every place is a file the
+    repository tracks, so a write the machine stops halfway is recoverable from the
+    history. What is **not** recoverable is not being told it happened, which is why a
+    place that fails takes the ones already written with it, in `PartialWriteError`.
     """
+    written: list[Drift] = []
     for item in items:
         path = root / item.place.path
-        body = path.read_text(encoding="utf-8")
-        path.write_text(replace_group_one(body, item.place.pattern, item.want), encoding="utf-8")
+        try:
+            body = path.read_text(encoding="utf-8")
+            path.write_text(
+                replace_group_one(body, item.place.pattern, item.want), encoding="utf-8"
+            )
+        except OSError as problem:
+            raise PartialWriteError(written, problem) from problem
+        written.append(item)
+    return written
 
 
 def field_drift(text: str, expectations: list[Expectation]) -> list[tuple[str, str, str]]:
