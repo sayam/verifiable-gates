@@ -8,6 +8,18 @@ Notable changes to this project. The format follows
 
 ### Fixed
 
+- **A declared shape that stopped one level short.** `rerun_census --input` names
+  the fields its records must carry — `fields={"id": …, "failures": (list,), …}` —
+  and that check holds `failures` to being a list while saying nothing about what
+  is in it. A hand-written offline file whose failures are plain job names,
+  `"failures": ["lint"]`, is the shape anyone would write first; it passed the
+  shape check and then met `.get` on a `str` inside the census, a raw
+  `AttributeError` with exit 1 — the code that means *findings* — from a reader
+  whose own words are *"this must never become a silent skip"* (self-audit round
+  14, 2026-09-01). Each entry is now held to being a mapping, on the same route
+  every other unreadable input takes: exit 2, naming the record and what it needs.
+  `red_streak_census` and `schedule_census` were measured on the same question and
+  answer correctly already. Proved by mutation: the guard removed, four cases red.
 - **The doctor threw away the reason every `NA` was required to give.** The
   scanners were changed so that `NA` **names what it looked for** — `no docs/adr`,
   `no Python under app`, `only the bundle's own starting workflow, untouched` —

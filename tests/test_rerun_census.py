@@ -878,3 +878,39 @@ def test_a_record_of_the_wrong_kinds_is_unreadable_not_a_broken_promise(
     records = a_records_file(tmp_path, [record])
     assert census.main(["--root", str(tmp_path), "--input", str(records)]) == 2
     assert "cannot read the run history" in capsys.readouterr().err
+
+
+@pytest.mark.parametrize(
+    "failures",
+    [["lint"], [{"job": "lint"}, "test"], [None], [["lint"]]],
+    ids=["all-strings", "one-string-among-mappings", "null", "nested-list"],
+)
+def test_a_failure_that_is_not_a_mapping_is_unreadable_not_a_traceback(
+    tmp_path: pathlib.Path, capsys: pytest.CaptureFixture[str], failures: list[Any]
+) -> None:
+    """The declared shape holds `failures` to being a list and says nothing about what is
+    in it. A hand-written offline file whose failures are plain job names — the shape
+    anyone would write first — passed that check and then met `.get` on a `str` inside the
+    census: a raw `AttributeError` with exit 1, the code that means *findings*, from a
+    reader whose own words are "this must never become a silent skip" (self-audit round 14,
+    2026-09-01). A shape declared one level short is not a shape."""
+    a_workflow(tmp_path / ".github" / "workflows", "ci.yml", "jobs:\n  lint:\n    steps: []\n")
+    records = a_records_file(tmp_path, [{"id": 1, "attempt": 1, "failures": failures}])
+
+    assert census.main(["--root", str(tmp_path), "--input", str(records)]) == 2
+    err = capsys.readouterr().err
+    assert "cannot read the run history" in err
+    assert "not a mapping" in err, "the reader does not say what is wrong with the record"
+
+
+def test_failures_that_are_mappings_still_read(
+    tmp_path: pathlib.Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """The control: the guard must refuse the wrong shape and nothing else."""
+    a_workflow(tmp_path / ".github" / "workflows", "ci.yml", "jobs:\n  lint:\n    steps: []\n")
+    records = a_records_file(
+        tmp_path, [{"id": 1, "attempt": 1, "failures": [{"job": "lint", "attempt": 1}]}]
+    )
+
+    assert census.main(["--root", str(tmp_path), "--input", str(records)]) == 0
+    assert "examined 1 runs" in capsys.readouterr().out
