@@ -22,5 +22,16 @@ pip-compile --allow-unsafe --generate-hashes --strip-extras \
   --output-file=pins/dev/requirements.txt pins/dev/requirements.in
 ```
 
+**Run it from the repository root, as written.** The `# via -r pins/dev/requirements.in`
+annotation in the compiled file carries the path pip-compile was given, and
+`test_the_compiled_pins_are_compiled_from_the_source_beside_them` reads exactly that string
+to check that the source and the lockfile are one list twice. Compiling from inside
+`pins/dev/` writes `# via -r requirements.in` instead, the test finds no roots at all, and
+the gate goes red with nothing wrong with the pins themselves.
+
+**Dependabot does compile from inside the directory**, so every bump it opens rewrites those
+annotations. Restore them in the same pull request — the version and the hashes it computed
+are correct, only the path is not (measured on #201, ruff 0.16.4 → 0.16.5, 2026-09-01).
+
 **A pin nobody moves is a vulnerability kept on ice** — worse than no pin at all.
 Every directory here is watched by Dependabot in `.github/dependabot.yml`.
