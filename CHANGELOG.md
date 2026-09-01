@@ -29,6 +29,16 @@ Notable changes to this project. The format follows
   keeping a list, because a list somebody typed was the whole of round 12's
   second finding.
 
+- **The DOI badge never rendered, and the fetch that decides was never the one
+  measured.** GitHub proxies every README image through **camo**, so fetching
+  `zenodo.org/badge/DOI/<doi>.svg` from a laptop — 200, most of the time —
+  answers a question nobody asked. Through camo the badge answered **504 on all
+  three fetches**: Zenodo rate-limits the proxy, which the reference
+  implementation had already diagnosed on 2026-08-23 after blaming the URL shape
+  twice. The image now comes from shields.io (200 · 200 · 200 through camo); the
+  link still points at the concept DOI, so nothing about the citation changed.
+  A test pins the one thing that outlives the measurement: a badge image host is
+  a decision recorded with its reason, not markdown copied off a web page.
 - **A list of helpers written by hand was seven short.** Round 11 gave seven
   modules a guard so that running a helper as a command says so and exits 2,
   because run as one they imported cleanly and exited **0** having done nothing —

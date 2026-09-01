@@ -45,6 +45,13 @@ TAG = re.compile(r"<[^>]+>")
 # A Zenodo concept DOI: the prefix is fixed, the record number is not.
 DOI = re.compile(r"10\.5281/zenodo\.\d+")
 
+# Hosts whose badge images GitHub's camo proxy was **measured** to fetch, with
+# the reason each one earned its place. See the test at the end of this file.
+BADGE_HOSTS = {
+    "https://img.shields.io/": "every badge in use: 200 on all three fetches",
+}
+IMAGE = re.compile(r"!\[[^\]]*\]\((https?://[^)\s]+)\)")
+
 
 def citation() -> dict[str, Any]:
     loaded: dict[str, Any] = yaml.safe_load(CITATION.read_text(encoding="utf-8"))
@@ -174,4 +181,38 @@ def test_every_doi_printed_in_the_readme_is_the_one_on_the_card() -> None:
     assert found == {declared}, (
         f"the README prints {sorted(found)} while the citation card says {declared!r} — "
         "one of them is pointing at a different record"
+    )
+
+
+def test_every_badge_image_comes_from_a_host_camo_was_measured_to_fetch() -> None:
+    """A badge is not fetched from where the markup says, and that is the whole trap.
+
+    GitHub does not embed a README image from its origin: it proxies every one
+    through **camo**, so "I fetched the URL and got 200" answers a question
+    nobody asked. The reference implementation misdiagnosed this twice — first
+    blaming a deprecated URL shape, then adopting the shape Zenodo's own settings
+    page hands out — and the badge went on flickering both times, because the
+    fetch that decides is camo's::
+
+        HTTP/2 502 · Invalid upstream response (429)
+
+    Zenodo rate-limits camo. Measured here on 2026-09-01, three fetches per URL:
+    this repository's Zenodo badge answered **504 · 504 · 504** through camo
+    while answering 200 from a laptop, and shields.io answered 200 · 200 · 200.
+    A 200 through camo is only evidence when the response is not a cache hit.
+
+    This test does not touch the network — a gate that needs the network is a
+    gate that goes red when the network does. It enforces the one thing that
+    outlives the measurement: **a new host is a decision somebody signs**, with
+    its reason recorded in ``BADGE_HOSTS``, not markdown copied off a web page.
+    """
+    images = IMAGE.findall(README.read_text(encoding="utf-8"))
+    assert images, "the README shows no badge at all — if that is deliberate, delete this test"
+
+    strangers = sorted(
+        {url for url in images if not any(url.startswith(host) for host in BADGE_HOSTS)}
+    )
+    assert not strangers, (
+        f"badge images from unmeasured hosts: {strangers} — fetch each one through "
+        "GitHub's camo proxy several times, then record it in BADGE_HOSTS with the reason"
     )

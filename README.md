@@ -1,6 +1,6 @@
 # verifiable-gates
 
-[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.22103110.svg)](https://doi.org/10.5281/zenodo.22103110)
+[![DOI 10.5281/zenodo.22103110](https://img.shields.io/badge/DOI-10.5281%2Fzenodo.22103110-blue)](https://doi.org/10.5281/zenodo.22103110)
 
 A gate registry that is enforced two ways against the tests and CI jobs behind
 it, gates that must carry evidence of having gone red on a real defect, and a
