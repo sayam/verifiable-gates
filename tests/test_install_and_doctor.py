@@ -945,3 +945,26 @@ def test_a_record_it_cannot_read_says_nothing_about_leftovers(
     assert json.loads((project / "tools" / "installed.json").read_text(encoding="utf-8"))[
         "files"
     ], "the install rewrites the record it could not read"
+
+
+def test_every_na_line_says_what_the_scan_looked_for(
+    tmp_path: pathlib.Path, bundle_copy: pathlib.Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """The scanners were changed so that NA **names what it looked for** — "no docs/adr",
+    "no Python under app" — because a rule the tool cannot check must not look like a rule
+    it checked. The doctor, which is the thing an operator actually runs, printed the bare
+    word and threw the reason away: five different answers read identically, and nobody
+    could tell "there is no such directory" from "a directory this scanner cannot read"
+    (self-audit round 14, 2026-09-01)."""
+    project = tmp_path / "project"
+    assert do_install(project, bundle_copy) == 0
+    capsys.readouterr()
+
+    done = run_doctor(project)
+    assert done.returncode == 0, done.stdout + done.stderr
+    na = [line for line in done.stdout.splitlines() if line.startswith("[   NA]")]
+    assert na, "an empty project should be all not-applicable"
+    for line in na:
+        assert " — " in line, f"this NA gives no reason: {line!r}"
+    reasons = {line.split(" — ", 1)[1] for line in na}
+    assert len(reasons) > 1, "every NA gave the same reason — the scans' own words are gone"

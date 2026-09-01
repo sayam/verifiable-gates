@@ -8,6 +8,17 @@ Notable changes to this project. The format follows
 
 ### Fixed
 
+- **The doctor threw away the reason every `NA` was required to give.** The
+  scanners were changed so that `NA` **names what it looked for** — `no docs/adr`,
+  `no Python under app`, `only the bundle's own starting workflow, untouched` —
+  because a rule the tool cannot check must not look like a rule it checked. The
+  doctor, which is the thing an operator actually runs and the line the installer
+  prints at the end, showed the bare word: on a fresh install eight gates read
+  `[   NA]` and nothing else, so five different answers were indistinguishable and
+  nobody could tell *there is no such directory* from *a directory this scanner
+  cannot read* (self-audit round 14, 2026-09-01). Each `NA` line now carries the
+  scan's own words. Proved by mutation: the reason dropped again, the test red.
+
 - **A checker pointed out of the tree judged files the project does not own.**
   The installer was taught in an earlier round that a path leading outside the
   destination is a refusal — fourteen files had landed outside it through a
