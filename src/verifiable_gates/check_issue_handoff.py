@@ -151,6 +151,17 @@ def main(argv: list[str] | None = None) -> int:
         # censuses, so a platform hiccup is never read as "no issue closed".
         print(f"cannot ask the platform: {problem}", file=sys.stderr)
         return 2
+    except (ValueError, TypeError, KeyError) as problem:
+        # The guard above covered *asking* and stopped short of *reading the answer*.
+        # An answer that is not JSON, or that does not carry the fields this reads, was
+        # a raw traceback and exit 1 — the code that means "this pull request's handoff
+        # is wrong" — when the truth is that the platform could not be read (self-audit
+        # round 18, 2026-09-02).
+        print(
+            f"cannot read the platform's answer: {type(problem).__name__}: {problem}",
+            file=sys.stderr,
+        )
+        return 2
     if not closing:
         print("this pull request closes no issue")
         return 0

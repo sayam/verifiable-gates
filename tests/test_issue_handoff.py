@@ -314,6 +314,34 @@ def test_a_failure_carries_gh_s_own_message(monkeypatch: pytest.MonkeyPatch) -> 
         handoff._gh("pr", "view", "9")  # noqa: SLF001 — the shipped call is the subject
 
 
+# The guard above covers *asking*. Reading the answer sat outside it: five shapes of reply
+# each left a raw traceback and exit 1 — the code that means "this pull request's handoff is
+# wrong" — when the truth was that the platform could not be read (self-audit round 18,
+# 2026-09-02). This module's own docstring already said which answer that is.
+
+UNREADABLE_ANSWERS = [
+    pytest.param('{"data": {}}', id="the-key-is-missing"),
+    pytest.param("[]", id="the-answer-is-a-list"),
+    pytest.param("gh: could not resolve to a PullRequest", id="the-answer-is-not-json"),
+    pytest.param('{"closingIssuesReferences": "none"}', id="references-is-a-string"),
+    pytest.param('{"closingIssuesReferences": [{"title": "x"}]}', id="a-reference-has-no-number"),
+]
+
+
+@pytest.mark.parametrize("answer", UNREADABLE_ANSWERS)
+def test_an_answer_the_gate_cannot_read_is_the_third_answer_too(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str], answer: str
+) -> None:
+    """Exit 2 and a sentence naming what came back — never exit 1, which this gate spends
+    on "the handoff is wrong", and never a stack."""
+    monkeypatch.setattr(handoff, "_gh", lambda *_args: answer)
+
+    assert handoff.main(["--pr", "9", "--body", "Closes #1"]) == 2
+    printed = capsys.readouterr().err
+    assert "cannot read the platform's answer" in printed
+    assert "Traceback" not in printed
+
+
 def test_a_platform_the_gate_cannot_ask_is_the_third_answer(
     monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
 ) -> None:
