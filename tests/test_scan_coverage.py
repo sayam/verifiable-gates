@@ -137,6 +137,29 @@ def test_the_expected_set_comes_from_what_is_tracked(repo: pathlib.Path) -> None
     assert found == {"app/a.py", "tests/test_a.py", "migrations/m.py"}
 
 
+def test_a_tracked_name_that_is_not_utf8_is_read_rather_than_refused(
+    repo: pathlib.Path,
+) -> None:
+    """git quotes such a name by default — so this pipe was ASCII by git's configuration.
+
+    A project that has set `core.quotePath=false` gets the raw bytes instead, and
+    `subprocess(text=True)` decodes them with the machine's locale and refuses anything
+    else: a `UnicodeDecodeError` from a reader whose whole job is to say what is tracked
+    (self-audit round 15, 2026-09-01). The name is carried through, not escaped, because
+    these names are compared rather than printed.
+    """
+    binary = shutil.which("git")
+    assert binary, "these tests ask git what is tracked"
+    name = "app/caf\udce9.py"
+    (repo / name).write_text("x\n", encoding="utf-8")
+    for args in (["config", "core.quotePath", "false"], ["add", "-A"]):
+        subprocess.run(  # noqa: S603 — git from shutil.which, args are test literals
+            [binary, *args], cwd=repo, check=True, capture_output=True, timeout=60
+        )
+
+    assert name in scan_coverage.tracked_files(repo, "*.py")
+
+
 def test_a_declared_skip_is_taken_out_of_the_expected_set(repo: pathlib.Path) -> None:
     found = scan_coverage.expected_files(repo, "*.py", ["migrations"])
 

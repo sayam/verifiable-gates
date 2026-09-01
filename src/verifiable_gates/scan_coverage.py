@@ -99,7 +99,16 @@ def tracked_files(root: pathlib.Path, pattern: str) -> set[str]:
         [binary, "ls-files", pattern],
         cwd=root,
         capture_output=True,
-        text=True,
+        # A file name is bytes. git quotes the ones outside ASCII by default — this pipe
+        # is ASCII by *git's* configuration, not by ours — but a project that has set
+        # `core.quotePath=false` gets the raw bytes, and `text=True` decodes them with
+        # the machine's locale and refuses anything else: a `UnicodeDecodeError` where
+        # this reader has an answer for everything else (self-audit round 15,
+        # 2026-09-01). The names are compared, never printed, so the bytes are carried
+        # through rather than escaped: a name that does not survive the trip would
+        # silently stop matching, which is the reading this reader exists to prevent.
+        encoding="utf-8",
+        errors="surrogateescape",
         check=True,
         timeout=GIT_TIMEOUT_SECONDS,
     )

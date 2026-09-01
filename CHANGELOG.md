@@ -22,9 +22,13 @@ Notable changes to this project. The format follows
   through and gives the hook's answer, naming every commit it could not read.
   `removals` reads commit subjects through the same kind of pipe and lost a whole
   page of removals to one such byte; being a reader rather than a decider, it now
-  shows the byte **escaped** and prints the page. Proved by mutation: the pipe
-  decoding strictly again, and the guard left in place but never firing — both
-  red.
+  shows the byte **escaped** and prints the page. The third git pipe, `scan_coverage`
+  asking `git ls-files` what is tracked, was ASCII by **git's** configuration and not
+  by ours — git quotes a name outside ASCII by default, and a project that has set
+  `core.quotePath=false` handed the reader raw bytes and the same traceback; those
+  names are compared rather than printed, so they are carried through intact.
+  Proved by mutation: each pipe decoding strictly again, and the guard left in place
+  but never firing — all red.
 
 - **A violation could hide behind a file name nobody can decode.** A file name
   here is bytes, not characters, and one that is not UTF-8 — a file out of an
