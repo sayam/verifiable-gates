@@ -2502,3 +2502,142 @@ def test_a_configured_path_that_leaves_the_project_is_a_finding(
     out = capsys.readouterr().out
     assert "leads outside the project" in out, "the finding does not say what is wrong"
     assert case.key in out, "the finding does not name the configuration key"
+
+
+# --------------------------------------------------- a name that is not UTF-8
+#
+# A file name on this platform is **bytes**, not characters — a file out of an archive
+# written by a machine that was not speaking UTF-8 keeps the bytes it was given. Such a
+# name arrives from the directory listing with those bytes carried in surrogates, and
+# *printing* it raises `UnicodeEncodeError`. Four scanners answered a tree holding one
+# with a traceback and **exit 1** — the code that means *findings* — throwing away every
+# finding they had already collected, and the doctor could only say "the scan did not
+# answer" (self-audit round 15, 2026-09-01).
+
+UNDECODABLE = "\udce9"  # the byte 0xe9, as `surrogateescape` hands it to a reader
+ESCAPED = "\\xe9"  # and as it has to reach the report
+
+
+@pytest.fixture
+def a_tree_that_can_hold_the_name(tmp_path: pathlib.Path) -> pathlib.Path:
+    """`tmp_path`, once this filesystem is known to store a name that is not UTF-8.
+
+    POSIX filesystems keep a name as bytes; some others hold it as text and refuse this
+    one outright. The refusal is the platform's answer, not a failure of the scanner.
+    """
+    try:
+        (tmp_path / f"probe{UNDECODABLE}").touch()
+    except (OSError, UnicodeError) as refused:
+        pytest.skip(f"this filesystem stores names as text: {refused}")
+    (tmp_path / f"probe{UNDECODABLE}").unlink()
+    return tmp_path
+
+
+BADLY_NAMED = [
+    pytest.param(
+        Case(
+            scan_workflow_pinning,
+            {f".github/workflows/ci{UNDECODABLE}.yml": FLOATING_ACTION},
+            {},
+            None,
+            "actions-sha-pinned",
+        ),
+        id="workflow-pinning",
+    ),
+    pytest.param(
+        Case(
+            scan_install_pinning,
+            {f".github/workflows/ci{UNDECODABLE}.yml": FLOATING_INSTALL},
+            {},
+            None,
+            "ci-tools-hash-pinned",
+        ),
+        id="install-pinning",
+    ),
+    pytest.param(
+        Case(
+            scan_dockerfile_digest,
+            {f"Dockerfile{UNDECODABLE}": "FROM python:3.13-slim\n", **MOVER},
+            {},
+            None,
+            "image-digest-pinned",
+        ),
+        id="dockerfile-digest",
+    ),
+    pytest.param(
+        Case(
+            scan_service_layer,
+            {f"app/services/todos{UNDECODABLE}.py": "from flask import request\n"},
+            {},
+            {"services_path": "app/services"},
+            "logic-knows-no-http",
+        ),
+        id="service-layer",
+    ),
+    pytest.param(
+        Case(
+            scan_templates_inline,
+            {f"app/templates/x{UNDECODABLE}.html": '<button onclick="go()">go</button>\n'},
+            {},
+            {"templates_path": "app/templates"},
+            "csp-no-inline",
+        ),
+        id="templates-inline",
+    ),
+    pytest.param(
+        Case(
+            scan_write_discipline,
+            {f"app/routes{UNDECODABLE}.py": "db.session.delete(row)\n"},
+            {},
+            {"src_path": "app"},
+            "delete-means-soft-delete",
+        ),
+        id="write-discipline",
+    ),
+    pytest.param(
+        Case(
+            scan_gates_registry,
+            {
+                f"tests/test_a{UNDECODABLE}.py": "def test_x() -> None:\n    pass\n",
+                "gates.yaml": "version: 1\ngates: []\n",
+            },
+            {},
+            None,
+            "gates-registry-total",
+        ),
+        id="gates-registry",
+    ),
+]
+
+
+@pytest.mark.parametrize("case", BADLY_NAMED)
+def test_a_finding_in_a_file_nobody_can_name_is_still_reported(
+    a_tree_that_can_hold_the_name: pathlib.Path,
+    capsys: pytest.CaptureFixture[str],
+    case: Case,
+) -> None:
+    """The verdict stands and the name is escaped — a violation must not hide in a name.
+
+    The exit code is what is asserted, not the traceback: before this, these scanners
+    exited 1 *as well*, but by dying, so every other finding in the tree was lost and
+    the line an operator reads said only "the scan did not answer".
+    """
+    root = build(a_tree_that_can_hold_the_name, case.dirty, case.config)
+
+    assert case.module.main(root) == 1, "the violation in a badly named file went unreported"
+    out = capsys.readouterr().out
+    assert case.gate in out, "the finding does not name its gate"
+    assert ESCAPED in out, f"the name did not reach the report escaped: {out!r}"
+
+
+@pytest.mark.parametrize("name", bundle.scanner_ids(), ids=lambda n: n)
+def test_a_scanner_can_name_a_root_it_cannot_decode(
+    a_tree_that_can_hold_the_name: pathlib.Path,
+    capsys: pytest.CaptureFixture[str],
+    name: str,
+) -> None:
+    """Every scanner, not only the seven that walk: the root comes in on argv as bytes."""
+    module = importlib.import_module(f"verifiable_gates.checks.{name.removesuffix('.py')}")
+
+    assert module.main(a_tree_that_can_hold_the_name / f"missing{UNDECODABLE}") == 2
+    assert ESCAPED in capsys.readouterr().err, "refused a root it could not name without naming it"

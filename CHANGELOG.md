@@ -8,6 +8,23 @@ Notable changes to this project. The format follows
 
 ### Fixed
 
+- **A violation could hide behind a file name nobody can decode.** A file name
+  here is bytes, not characters, and one that is not UTF-8 — a file out of an
+  archive written by a machine that was not speaking it — arrives from the
+  directory listing with those bytes carried in surrogates. *Printing* such a name
+  raises `UnicodeEncodeError`, so four shipped scanners answered a tree holding one
+  with a raw traceback and **exit 1**, the code that means *findings*: every
+  finding they had already collected was thrown away, and the doctor could say
+  only `[error] … the scan did not answer` for four gates at once (self-audit
+  round 15, 2026-09-01). All nine scanners now print every path through one
+  function that can always print one — the bytes escaped, the verdict standing —
+  and the same tree reports seven gates' findings by name. `scan_adr_index` is the
+  exception written down rather than guessed: the record names it prints all came
+  through its `FILENAME` pattern and are ASCII by construction, so only the root it
+  was handed needed the escape. Proved by mutation: the escape removed from all
+  nine, sixteen cases red. The xenon average ceiling moves from B to A in the same
+  change, as its ratchet requires.
+
 - **A declared shape that stopped one level short.** `rerun_census --input` names
   the fields its records must carry — `fields={"id": …, "failures": (list,), …}` —
   and that check holds `failures` to being a list while saying nothing about what

@@ -27,10 +27,24 @@ from __future__ import annotations
 import fnmatch
 import io
 import json
+import os
 import pathlib
 import re
 import sys
 import tokenize
+
+
+def _shown(path: str | pathlib.Path) -> str:
+    """A path as text that can always be printed.
+
+    A file name here is bytes, not characters. One that is not UTF-8 arrives from the
+    directory listing carrying surrogates, and printing it raises `UnicodeEncodeError`:
+    a traceback and exit 1 — the code that means *findings* — from a scanner that had a
+    verdict to give, losing every finding it had already collected (self-audit round 15,
+    2026-09-01). A name nobody can decode is still a name; it is shown with its bytes
+    escaped, and the verdict stands.
+    """
+    return os.fsencode(str(path)).decode("utf-8", "backslashreplace")
 
 
 class _UnreadableError(Exception):
@@ -51,7 +65,7 @@ def _text(path: pathlib.Path) -> str:
         # a directory between the glob and the read, was still a raw traceback after the
         # decode guard landed — the guard was written for the exception in hand rather
         # than for the question (self-audit round 5, 2026-09-01).
-        message = f"{path}: {problem}"
+        message = f"{_shown(path)}: {problem}"
         raise _UnreadableError(message) from problem
 
 
@@ -132,7 +146,7 @@ def _judge(root: pathlib.Path) -> int:
         # NA means "this project has nothing of that kind"; a root that is not
         # there has no project to say it about, and answering the second with
         # the first is a green over nothing (self-audit round 2, 2026-08-31).
-        print(f"cannot read the tree: {root} is not a directory", file=sys.stderr)
+        print(f"cannot read the tree: {_shown(root)} is not a directory", file=sys.stderr)
         return 2
     config_path = root / "scaffold.json"
     # A project that has not configured the bundle is not a misuse — the paths
@@ -167,7 +181,7 @@ def _judge(root: pathlib.Path) -> int:
         for lineno, line in enumerate(_code_lines(text), 1):
             if DELETE_CALL.search(line):
                 findings.append(
-                    f"{path.relative_to(root)}:{lineno} {shown[lineno - 1].strip()[:70]}"
+                    f"{_shown(path.relative_to(root))}:{lineno} {shown[lineno - 1].strip()[:70]}"
                 )
 
     for finding in findings:

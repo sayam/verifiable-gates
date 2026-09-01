@@ -47,10 +47,25 @@ standalone file; its evidence is a planted violation and a clean tree in
 
 from __future__ import annotations
 
+import os
 import pathlib
 import re
 import shlex
 import sys
+
+
+def _shown(path: str | pathlib.Path) -> str:
+    """A path as text that can always be printed.
+
+    A file name here is bytes, not characters. One that is not UTF-8 arrives from the
+    directory listing carrying surrogates, and printing it raises `UnicodeEncodeError`:
+    a traceback and exit 1 — the code that means *findings* — from a scanner that had a
+    verdict to give, losing every finding it had already collected (self-audit round 15,
+    2026-09-01). A name nobody can decode is still a name; it is shown with its bytes
+    escaped, and the verdict stands.
+    """
+    return os.fsencode(str(path)).decode("utf-8", "backslashreplace")
+
 
 # `pip` takes global options *before* the subcommand — `pip --python <interpreter>
 # install`, `pip -q install` — and this repository's own release job used the
@@ -178,7 +193,7 @@ def _text(path: pathlib.Path) -> str:
         # a directory between the glob and the read, was still a raw traceback after the
         # decode guard landed — the guard was written for the exception in hand rather
         # than for the question (self-audit round 5, 2026-09-01).
-        message = f"{path}: {problem}"
+        message = f"{_shown(path)}: {problem}"
         raise _UnreadableError(message) from problem
 
 
@@ -672,8 +687,12 @@ def _pip_requires_hashes(command: str, where: pathlib.Path) -> bool:
     return _requirements_all_hashed(after, where)
 
 
-def _line_findings(where: pathlib.Path, line: str, stands_in: pathlib.Path) -> list[str]:
-    """Everything one command does that reaches an index unpinned."""
+def _line_findings(where: str, line: str, stands_in: pathlib.Path) -> list[str]:
+    """Everything one command does that reaches an index unpinned.
+
+    `where` is the file as it will be **printed**, not a path to open — a name that is
+    not UTF-8 has to reach the report escaped (self-audit round 15, 2026-09-01).
+    """
     found: list[str] = []
     while KEYWORD.match(line):
         line = KEYWORD.sub("", line, count=1)
@@ -705,7 +724,7 @@ def _judge(root: pathlib.Path) -> int:
         # NA means "this project has nothing of that kind"; a root that is not
         # there has no project to say it about, and answering the second with
         # the first is a green over nothing (self-audit round 2, 2026-08-31).
-        print(f"cannot read the tree: {root} is not a directory", file=sys.stderr)
+        print(f"cannot read the tree: {_shown(root)} is not a directory", file=sys.stderr)
         return 2
     targets = _files_read(root)
     if not targets:
@@ -724,7 +743,7 @@ def _judge(root: pathlib.Path) -> int:
                 if moved := CD.match(line):
                     stands_in = stands_in / moved.group("dir")
                     continue
-                findings += _line_findings(path.relative_to(root), line, stands_in)
+                findings += _line_findings(_shown(path.relative_to(root)), line, stands_in)
 
     for finding in findings:
         print(f"ci-tools-hash-pinned: {finding}")
