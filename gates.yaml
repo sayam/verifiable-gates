@@ -680,24 +680,23 @@ gates:
     pillar: devx
     portable: false
     born_from: >-
-      This decider blocks every commit on a developer's machine and every pull
-      request in CI, so both directions are expensive: a false red teaches people
-      to reach for `--no-verify`, and a false green lets malformed history in
-      permanently. The reference implementation learned three separate lessons
-      into it — a required check that gets skipped leaves a pull request BLOCKED
-      with nothing red to see, so it runs on what the branch actually adds; a
-      merge commit's message is the platform's rather than a person's, so those
-      are excluded or the "Update branch" button turns the gate red with nobody
-      having typed anything wrong; and the sign-off is the one thing a project
-      cannot add retroactively on somebody's behalf.
+      This decider blocks every commit on a developer's machine and every pull request in
+      CI, so both directions are expensive: a false red teaches people to reach for `--no-
+      verify`, and a false green lets malformed history in permanently. The reference
+      implementation learned three separate lessons into it — a required check that gets
+      skipped leaves a pull request BLOCKED with nothing red to see, so it runs on what the
+      branch actually adds; a merge commit's message is the platform's rather than a
+      person's, so those are excluded or the "Update branch" button turns the gate red with
+      nobody having typed anything wrong; and the sign-off is the one thing a project cannot
+      add retroactively on somebody's behalf. On 2026-09-01 the pull request that had
+      carried this row's first proof was deleted, with eight others, so that GitHub could
+      garbage-collect commits whose metadata held a private address by mistake (support
+      ticket 4717542): the address had to become unreachable, and a pull request referencing
+      those commits is a reference. What that first proof caught is kept here, where it
+      needs no link. On 2026-08-25, running in this repository's own CI, it refused commit
+      3a08fd10c — a subject of 73 characters, one over the limit — and held the pull request
+      until it was rewritten.
     proved_by:
-      - kind: ci-red
-        ref: pr/7
-        date: 2026-08-25
-        caught: >-
-          Running in this repository's own CI it refused commit 3a08fd10c — a
-          subject of 73 characters, one over the limit — and held the pull request
-          until it was rewritten.
       - kind: mutation
         ref: pr/15
         date: 2026-08-26
@@ -1693,49 +1692,48 @@ gates:
     pillar: devx
     portable: false
     born_from: >-
-      This repository is written in English because it is meant to be picked up by
-      people who do not read Thai, while the reference implementation it was
-      extracted from is in Thai throughout. Stages 2 to 5 move code across that
-      boundary repeatedly, so Thai arrives here quietly and by accident rather
-      than by decision. The exception — README and CLA, English first and Thai
-      below — exists because a document that binds someone has to be understood by
-      the person bound, and the maintainer's first language is Thai. The registry
-      handover added a second kind of exception with a different shape: the rule
-      catalogue keeps each rule's original wording beside the published English,
-      because a translation of an incident report is a retelling and the retelling
-      is not the record. That Thai is data, so it is not excused by file — it is
-      excused only by position, in a `*_th` value, in a cited step name, or inside
-      a string literal in the code that renders those fields. A Thai comment, key
-      or identifier stays forbidden in every file, which is the leak this check
-      was built for. The check
-      runs both ways: Thai outside the allowlist fails, and so does an allowlisted
-      file with no Thai left in it, because an exception that no longer excuses
-      anything is a hole with a label on it.
-
-      The comparison reports added a third kind, the same principle one level up —
-      at whole files rather than fields. A research report is *thought* in one
-      language and *published* in another, so the original is kept beside the
-      published English, and that allowance is held three ways because each rots
-      differently: an original translated in place stops being an original · an
-      original with no active counterpart is a document with no owner · and an
-      allowance widened from one directory to a whole tree changes nothing the day
-      it is written while silently admitting everything written under that tree
-      afterwards.
+      This repository is written in English because it is meant to be picked up by people
+      who do not read Thai, while the reference implementation it was extracted from is in
+      Thai throughout. Stages 2 to 5 move code across that boundary repeatedly, so Thai
+      arrives here quietly and by accident rather than by decision. The exception — README
+      and CLA, English first and Thai below — exists because a document that binds someone
+      has to be understood by the person bound, and the maintainer's first language is Thai.
+      The registry handover added a second kind of exception with a different shape: the
+      rule catalogue keeps each rule's original wording beside the published English,
+      because a translation of an incident report is a retelling and the retelling is not
+      the record. That Thai is data, so it is not excused by file — it is excused only by
+      position, in a `*_th` value, in a cited step name, or inside a string literal in the
+      code that renders those fields. A Thai comment, key or identifier stays forbidden in
+      every file, which is the leak this check was built for. The check runs both ways: Thai
+      outside the allowlist fails, and so does an allowlisted file with no Thai left in it,
+      because an exception that no longer excuses anything is a hole with a label on it. The
+      comparison reports added a third kind, the same principle one level up — at whole
+      files rather than fields. A research report is *thought* in one language and
+      *published* in another, so the original is kept beside the published English, and that
+      allowance is held three ways because each rots differently: an original translated in
+      place stops being an original · an original with no active counterpart is a document
+      with no owner · and an allowance widened from one directory to a whole tree changes
+      nothing the day it is written while silently admitting everything written under that
+      tree afterwards. On 2026-09-01 the pull request that had carried this row's first
+      proof was deleted, with eight others, so that GitHub could garbage-collect commits
+      whose metadata held a private address by mistake (support ticket 4717542): the address
+      had to become unreachable, and a pull request referencing those commits is a
+      reference. What that first proof caught is kept here, where it needs no link. On
+      2026-08-25 it was red in all three directions — a Thai comment added to a source file,
+      the Thai half stripped from CLA.md, and the allowlist pointed at a file that does not
+      exist. It also caught two defects in itself: walking the filesystem picked up
+      verifiable_gates.egg-info/PKG- INFO, a build artefact embedding the bilingual README
+      that exists only where the package was installed in editable mode.
     proved_by:
       - kind: mutation
-        ref: pr/3
+        ref: pr/8
         date: 2026-08-25
         caught: >-
-          Red in all three directions — a Thai comment added to a source file, the
-          Thai half stripped from CLA.md, and the allowlist pointed at a file that
-          does not exist. It also caught two defects in itself. Walking the
-          filesystem picked up verifiable_gates.egg-info/PKG-INFO, a build artefact
-          embedding the bilingual README that exists only where the package was
-          installed in editable mode. Then reading only *tracked* files let a new
-          file pass locally and fail in CI, which happened for real in stage 2e —
-          it now reads tracked plus untracked-not-ignored, the set a developer is
-          one `git add` away from committing.
-
+          Reading only *tracked* files let a new file pass locally and fail in CI, which
+          happened for real in stage 2e — the fix in this pull request reads tracked plus
+          untracked-not-ignored, the set a developer is one `git add` away from committing.
+          A language check that cannot see the file being added is one that answers about
+          yesterday's tree.
   - id: checks-stay-standalone
     title: Every scanner survives being copied out of this package on its own
     kind: test
@@ -1745,24 +1743,30 @@ gates:
     pillar: devx
     portable: false
     born_from: >-
-      A scanner is shipped as a single file into a project that has installed
-      nothing, and run there with a bare python3. That works only while each file
-      imports stdlib only and nothing from this package — a property invisible in
-      normal use, because the tests here import the modules. It is also exactly
-      the shape a well-meaning refactor breaks: three scanners repeat six lines of
-      argv handling, someone lifts them into a shared helper, the suite stays
-      green, and every copied file breaks in a repository nobody here can see.
+      A scanner is shipped as a single file into a project that has installed nothing, and
+      run there with a bare python3. That works only while each file imports stdlib only and
+      nothing from this package — a property invisible in normal use, because the tests here
+      import the modules. It is also exactly the shape a well-meaning refactor breaks: three
+      scanners repeat six lines of argv handling, someone lifts them into a shared helper,
+      the suite stays green, and every copied file breaks in a repository nobody here can
+      see. On 2026-09-01 the pull request that had carried this row's first proof was
+      deleted, with eight others, so that GitHub could garbage-collect commits whose
+      metadata held a private address by mistake (support ticket 4717542): the address had
+      to become unreachable, and a pull request referencing those commits is a reference.
+      What that first proof caught is kept here, where it needs no link. On 2026-08-25: the
+      AST checks and the subprocess runs disagree usefully — the AST pass catches a shared
+      import before it ships, and copying each scanner into a directory where the package
+      cannot be imported catches anything the AST pass would have missed. A misuse must exit
+      2, never 0, so a wrong call is never filed as a clean run.
     proved_by:
       - kind: mutation
-        ref: pr/4
-        date: 2026-08-25
+        ref: pr/208
+        date: 2026-09-01
         caught: >-
-          The AST checks and the subprocess runs disagree usefully: the AST pass
-          catches a shared import before it ships, and copying each scanner to a
-          directory where the package cannot be imported catches anything the AST
-          pass would have missed. A misuse must exit 2, never 0, so a wrong call
-          is never filed as a clean run.
-
+          Re-proved on the tree as it stands: `from verifiable_gates import registry`
+          appended to `checks/scan_adr_index.py` — a shared import a copied file cannot
+          resolve — turned `test_a_shipped_file_imports_stdlib_only[scan_adr_index.py]` red,
+          and green again when it was removed.
   - id: scanners-tell-their-two-answers-apart
     title: Every scanner is shown a tree that violates it and one that does not
     kind: test
@@ -1772,21 +1776,20 @@ gates:
     pillar: devx
     portable: false
     born_from: >-
-      A scanner that returns 0 for everything is indistinguishable from a clean
-      project: CI stays green and the report says there is nothing to report. The
-      pair — one tree that breaks the rule, one that keeps it — is the only thing
-      that tells those two apart. The third case is the not-applicable one, which
-      has to announce itself, because silence would file "we never looked" under
-      "we looked and it was fine".
+      A scanner that returns 0 for everything is indistinguishable from a clean project: CI
+      stays green and the report says there is nothing to report. The pair — one tree that
+      breaks the rule, one that keeps it — is the only thing that tells those two apart. The
+      third case is the not-applicable one, which has to announce itself, because silence
+      would file "we never looked" under "we looked and it was fine". On 2026-09-01 the pull
+      request that had carried this row's first proof was deleted, with eight others, so
+      that GitHub could garbage-collect commits whose metadata held a private address by
+      mistake (support ticket 4717542): the address had to become unreachable, and a pull
+      request referencing those commits is a reference. What that first proof caught is kept
+      here, where it needs no link. On 2026-08-25 it was nine mutations, one per scanner,
+      each making it too generous — red every time; coverage then found three behaviours the
+      pairs never reached, the purge- path exemption, the npm branch, and module-level
+      session imports.
     proved_by:
-      - kind: mutation
-        ref: pr/4
-        date: 2026-08-25
-        caught: >-
-          Nine mutations, one per scanner, each making it too generous — red every
-          time. Coverage then found three behaviours the pairs never reached: the
-          purge-path exemption, the npm branch, and module-level session imports.
-          Each is the part a reader assumes works.
       - kind: mutation
         ref: pr/57
         date: 2026-08-29
@@ -2132,25 +2135,31 @@ gates:
     pillar: devx
     portable: false
     born_from: >-
-      Governance audit round 23 of the reference implementation measured the gap
-      between the rules a project exports and the rules it keeps, and the answer
-      was 2.7%. The cheapest defence is to point every scanner that can apply here
-      at here, from the day it lands. The test also refuses a not-applicable
-      result: a scanner that finds nothing to check here is not dogfooding
-      anything, and would otherwise sit in the list looking like a pass.
+      Governance audit round 23 of the reference implementation measured the gap between the
+      rules a project exports and the rules it keeps, and the answer was 2.7%. The cheapest
+      defence is to point every scanner that can apply here at here, from the day it lands.
+      The test also refuses a not-applicable result: a scanner that finds nothing to check
+      here is not dogfooding anything, and would otherwise sit in the list looking like a
+      pass. On 2026-09-01 the pull request that had carried this row's first proof was
+      deleted, with eight others, so that GitHub could garbage-collect commits whose
+      metadata held a private address by mistake (support ticket 4717542): the address had
+      to become unreachable, and a pull request referencing those commits is a reference.
+      What that first proof caught is kept here, where it needs no link. On 2026-08-25 it
+      was a red on its first run for a real reason: `pip install --no-deps -e .` installs
+      the checkout itself and resolves nothing from an index, so there is no hash to pin —
+      and the scanner flagged it anyway. The scanner was fixed rather than the repository,
+      and the exemption now needs both halves, with a test for each: `--no-deps` on its own
+      still reaches the index, and `-e .` on its own drags the whole dependency tree in
+      unpinned.
     proved_by:
-      - kind: ci-red
-        ref: pr/4
-        date: 2026-08-25
+      - kind: mutation
+        ref: pr/208
+        date: 2026-09-01
         caught: >-
-          It failed on its first run, on this repository, for a real reason:
-          `pip install --no-deps -e .` installs the checkout itself and resolves
-          nothing from an index, so there is no hash to pin — and the scanner
-          flagged it anyway. The scanner was fixed rather than the repository, and
-          the exemption now needs both halves, with a test for each: `--no-deps`
-          on its own still reaches the index, and `-e .` on its own drags the
-          whole dependency tree in unpinned.
-
+          Re-proved on the tree as it stands: three shipped scanners made to answer `NA` on
+          every tree — the shape a hand-kept list of "what applies here" decays into — took
+          the count of scanners that found real work below `APPLICABLE_FLOOR` and turned
+          `test_enough_scanners_actually_find_something_here` red.
   - id: a-bundle-installs-and-answers
     title: A fresh install gives a project something that runs, and never overwrites its decisions
     kind: test
@@ -2160,23 +2169,22 @@ gates:
     pillar: manageability
     portable: false
     born_from: >-
-      Testing the installer and the doctor apart leaves the only claim that
-      matters proven by nobody: that they fit together in a directory where no
-      package is present. The second property is the one that decays quietly —
-      scaffold.json, gates.yaml and the workflow hold decisions somebody made, and
-      an install that clobbered them would destroy exactly the work the bundle
-      exists to protect while its output still read as success.
+      Testing the installer and the doctor apart leaves the only claim that matters proven
+      by nobody: that they fit together in a directory where no package is present. The
+      second property is the one that decays quietly — scaffold.json, gates.yaml and the
+      workflow hold decisions somebody made, and an install that clobbered them would
+      destroy exactly the work the bundle exists to protect while its output still read as
+      success. On 2026-09-01 the pull request that had carried this row's first proof was
+      deleted, with eight others, so that GitHub could garbage-collect commits whose
+      metadata held a private address by mistake (support ticket 4717542): the address had
+      to become unreachable, and a pull request referencing those commits is a reference.
+      What that first proof caught is kept here, where it needs no link. On 2026-08-25 it
+      went red on all of it — overwriting the files that carry decisions, letting an
+      incomplete bundle install anyway, reporting NA as pass, and dropping the count of
+      suite gates still waiting; coverage then found a scan that exists but does not
+      compile, and the clean run returning 0, which had only ever been exercised through a
+      subprocess where a wrong exit code is easy to lose.
     proved_by:
-      - kind: mutation
-        ref: pr/5
-        date: 2026-08-25
-        caught: >-
-          Red on all of it — overwriting the files that carry decisions, letting an
-          incomplete bundle install anyway, reporting NA as pass, and dropping the
-          count of suite gates still waiting. Coverage then found two branches no
-          test reached: a scan that exists but does not compile, and the clean run
-          returning 0, which had only ever been exercised through a subprocess
-          where a wrong exit code is easy to lose among captured output.
       - kind: mutation
         ref: pr/95
         date: 2026-08-30
@@ -2286,23 +2294,22 @@ gates:
     pillar: devx
     portable: false
     born_from: >-
-      The reference implementation's doctor read overlay.json from the directory
-      beside it, which is right while one tool serves one registry and wrong the
-      moment the tool is a package several projects install. Passing the path in is
-      the seam that lets one doctor answer for many catalogues. The subtle rule the
-      schema enforces is that a gate of kind suite may not carry a script: a suite
-      gate is by definition one this bundle cannot decide, and a script would let it
-      run, pass, and be counted — turning "the project still has to write this test"
-      into "checked".
+      The reference implementation's doctor read overlay.json from the directory beside it,
+      which is right while one tool serves one registry and wrong the moment the tool is a
+      package several projects install. Passing the path in is the seam that lets one doctor
+      answer for many catalogues. The subtle rule the schema enforces is that a gate of kind
+      suite may not carry a script: a suite gate is by definition one this bundle cannot
+      decide, and a script would let it run, pass, and be counted — turning "the project
+      still has to write this test" into "checked". On 2026-09-01 the pull request that had
+      carried this row's first proof was deleted, with eight others, so that GitHub could
+      garbage-collect commits whose metadata held a private address by mistake (support
+      ticket 4717542): the address had to become unreachable, and a pull request referencing
+      those commits is a reference. What that first proof caught is kept here, where it
+      needs no link. On 2026-08-25: counting suite entries as scans, and allowing a suite
+      entry to carry a script, both went red — every schema rule has a case that breaks it
+      alone, because a validator that only ever sees valid input is one nobody has watched
+      work.
     proved_by:
-      - kind: mutation
-        ref: pr/5
-        date: 2026-08-25
-        caught: >-
-          Counting suite entries as scans, and allowing a suite entry to carry a
-          script, both went red. Every schema rule has a case that breaks it alone,
-          because a validator that only ever sees valid input is one nobody has
-          watched work.
       - kind: mutation
         ref: pr/111
         date: 2026-08-30
@@ -2335,26 +2342,25 @@ gates:
     pillar: devx
     portable: false
     born_from: >-
-      The shipped registry scanner cannot use PyYAML — it runs in projects that
-      have installed nothing — so it carries a hand-written subset reader. That
-      makes it the riskiest code in the bundle: a reader more forgiving than the
-      real one reports green on files it did not understand, and nothing about
-      that looks wrong. Two defences: anything outside the subset raises, and on
-      this repository's own files the two readers must agree value for value. The
-      one accepted divergence, block scalar bodies, is measured rather than waved
-      through — the count of blanked values must equal the count of block scalars.
+      The shipped registry scanner cannot use PyYAML — it runs in projects that have
+      installed nothing — so it carries a hand-written subset reader. That makes it the
+      riskiest code in the bundle: a reader more forgiving than the real one reports green
+      on files it did not understand, and nothing about that looks wrong. Two defences:
+      anything outside the subset raises, and on this repository's own files the two readers
+      must agree value for value. The one accepted divergence, block scalar bodies, is
+      measured rather than waved through — the count of blanked values must equal the count
+      of block scalars. On 2026-09-01 the pull request that had carried this row's first
+      proof was deleted, with eight others, so that GitHub could garbage-collect commits
+      whose metadata held a private address by mistake (support ticket 4717542): the address
+      had to become unreachable, and a pull request referencing those commits is a
+      reference. What that first proof caught is kept here, where it needs no link. Writing
+      the test on 2026-08-25 found two real defects on its first run: an anchor or an
+      unclosed quote in *value* position was read as ordinary text, because the guard only
+      looked at the start of a line — the reader was quietly more permissive than YAML — and
+      `portable: false` came back as the string "false", which is truthy, so any rule that
+      read a boolean would have read it backwards. Both were fixed in the reader, and nine
+      further mutations went red.
     proved_by:
-      - kind: mutation
-        ref: pr/6
-        date: 2026-08-25
-        caught: >-
-          Writing the test found two real defects on the first run. An anchor or
-          an unclosed quote in *value* position was read as ordinary text, because
-          the guard only looked at the start of a line — the reader was quietly
-          more permissive than YAML. And `portable: false` came back as the string
-          "false", which is truthy: any rule that ever read a boolean would have
-          read it backwards, silently. Both fixed in the reader. Nine further
-          mutations across the four directions and the reader went red.
       - kind: mutation
         ref: pr/57
         date: 2026-08-29
@@ -2407,22 +2413,29 @@ gates:
     pillar: manageability
     portable: false
     born_from: >-
-      Most rules in this bundle end with "register it in your gates.yaml". If the
-      box does not contain that file, already true about itself, the instruction
-      is prose — governance audit round 23 of the reference implementation is where
-      that gap was first measured. The second half matters as much: the check must
-      not report N/A, or an absent index would look like a satisfied one.
+      Most rules in this bundle end with "register it in your gates.yaml". If the box does
+      not contain that file, already true about itself, the instruction is prose —
+      governance audit round 23 of the reference implementation is where that gap was first
+      measured. The second half matters as much: the check must not report N/A, or an absent
+      index would look like a satisfied one. On 2026-09-01 the pull request that had carried
+      this row's first proof was deleted, with eight others, so that GitHub could garbage-
+      collect commits whose metadata held a private address by mistake (support ticket
+      4717542): the address had to become unreachable, and a pull request referencing those
+      commits is a reference. What that first proof caught is kept here, where it needs no
+      link. On 2026-08-25 it was red on its first run: the shipped starting registry
+      declared its rows as `kind: step` naming steps that the shipped starting workflow does
+      not have, so a project that installed the bundle and changed nothing would have failed
+      its own registry check immediately. The defaults were wrong together and only
+      disagreed once something ran both.
     proved_by:
-      - kind: ci-red
-        ref: pr/6
-        date: 2026-08-25
+      - kind: mutation
+        ref: pr/208
+        date: 2026-09-01
         caught: >-
-          Red on its first run. The shipped starting registry declared its rows as
-          `kind: step` naming steps that the shipped starting workflow does not
-          have, so a project that installed the bundle and changed nothing would
-          have failed its own registry check immediately. The defaults were wrong
-          together and only disagreed once something ran both.
-
+          Re-proved by planting that same defect again: one row of `gates.yaml.default`
+          rewritten to `kind: step` naming a step the shipped workflow has not, and
+          `test_a_fresh_install_starts_with_a_registry_that_is_already_true` went red — the
+          starting registry failing its own check on a project that has done nothing yet.
   - id: a-shipped-file-declares-what-it-needs
     title: Shipped files are stdlib-only, or declare their dependency in the manifest — both ways
     kind: test
@@ -2432,24 +2445,30 @@ gates:
     pillar: manageability
     portable: false
     born_from: >-
-      The scans and the doctor run on a bare CI runner, so they may import nothing
-      but the standard library. preflight is the exception: it reads whole workflow
-      files, which the narrow subset reader in the scans cannot do, and it runs on
-      a developer's machine rather than a runner. The reference implementation
-      shipped it with that dependency undeclared, which means a target project
-      learns the requirement from a traceback in its own CI. The rule here is not
-      "no dependencies" but "no silent ones", and it is checked in both
-      directions: an undeclared import is a surprise for someone else, and a
-      declaration nothing imports is a requirement every project carries forever
-      for a reason that expired.
+      The scans and the doctor run on a bare CI runner, so they may import nothing but the
+      standard library. preflight is the exception: it reads whole workflow files, which the
+      narrow subset reader in the scans cannot do, and it runs on a developer's machine
+      rather than a runner. The reference implementation shipped it with that dependency
+      undeclared, which means a target project learns the requirement from a traceback in
+      its own CI. The rule here is not "no dependencies" but "no silent ones", and it is
+      checked in both directions: an undeclared import is a surprise for someone else, and a
+      declaration nothing imports is a requirement every project carries forever for a
+      reason that expired. On 2026-09-01 the pull request that had carried this row's first
+      proof was deleted, with eight others, so that GitHub could garbage-collect commits
+      whose metadata held a private address by mistake (support ticket 4717542): the address
+      had to become unreachable, and a pull request referencing those commits is a
+      reference. What that first proof caught is kept here, where it needs no link. On
+      2026-08-25: the list of Python files to check is derived from the manifest, so a new
+      shipped file that joins neither tier fails rather than being skipped.
     proved_by:
       - kind: mutation
-        ref: pr/7
-        date: 2026-08-25
+        ref: pr/208
+        date: 2026-09-01
         caught: >-
-          The list of Python files to check is derived from the manifest, so a new
-          shipped file that joins neither tier fails rather than being skipped.
-
+          Re-proved on the tree as it stands: `import requests` appended to `preflight.py`,
+          a shipped file, turned
+          `test_a_shipped_file_declares_anything_it_needs[preflight.py]` red — a dependency
+          that no manifest declares would reach a target project as an ImportError.
   - id: preflight-loses-no-step
     title: Every workflow step reaches the plan exactly once, run or skipped with a reason
     kind: test
@@ -2459,22 +2478,21 @@ gates:
     pillar: devx
     portable: false
     born_from: >-
-      The value of reading commands out of the workflow is that no second copy
-      exists to drift. That holds only while every step ends up in the plan: one
-      dropped silently gives the same false confidence as a harness reporting green
-      while the tests are red. A step's env travels with it for the same reason —
-      running the same command in a different environment answers a different
-      question from the one CI asked, which is how a coverage step once overwrote
-      the wrong file on a developer's machine.
+      The value of reading commands out of the workflow is that no second copy exists to
+      drift. That holds only while every step ends up in the plan: one dropped silently
+      gives the same false confidence as a harness reporting green while the tests are red.
+      A step's env travels with it for the same reason — running the same command in a
+      different environment answers a different question from the one CI asked, which is how
+      a coverage step once overwrote the wrong file on a developer's machine. On 2026-09-01
+      the pull request that had carried this row's first proof was deleted, with eight
+      others, so that GitHub could garbage-collect commits whose metadata held a private
+      address by mistake (support ticket 4717542): the address had to become unreachable,
+      and a pull request referencing those commits is a reference. What that first proof
+      caught is kept here, where it needs no link. On 2026-08-25 it was six mutations red:
+      dropping an unrunnable step instead of skipping it aloud, discarding a step's env,
+      letting the config beat --only, reading jobs from one workflow file instead of all,
+      hiding an uninstalled hook, and returning 0 after a step failed.
     proved_by:
-      - kind: mutation
-        ref: pr/7
-        date: 2026-08-25
-        caught: >-
-          Six mutations red: dropping an unrunnable step instead of skipping it
-          aloud, discarding a step's env, letting the config beat --only, reading
-          jobs from one workflow file instead of all, hiding an uninstalled hook,
-          and returning 0 after a step failed.
       - kind: mutation
         ref: pr/39
         date: 2026-08-29
@@ -2766,21 +2784,27 @@ gates:
     pillar: devx
     portable: false
     born_from: >-
-      The reference implementation learned both halves the hard way. A required
-      check that gets skipped leaves a pull request BLOCKED forever with nothing red
-      to see, so the job runs on what the branch actually adds rather than on the
-      whole history. And the sign-off is the one thing a project cannot add
-      retroactively: it is a statement by the person who wrote the commit, at the
-      time they wrote it, and it was the single unmet item of OSPS Baseline level 2
-      there.
+      The reference implementation learned both halves the hard way. A required check that
+      gets skipped leaves a pull request BLOCKED forever with nothing red to see, so the job
+      runs on what the branch actually adds rather than on the whole history. And the sign-
+      off is the one thing a project cannot add retroactively: it is a statement by the
+      person who wrote the commit, at the time they wrote it, and it was the single unmet
+      item of OSPS Baseline level 2 there. On 2026-09-01 the pull request that had carried
+      this row's first proof was deleted, with eight others, so that GitHub could garbage-
+      collect commits whose metadata held a private address by mistake (support ticket
+      4717542): the address had to become unreachable, and a pull request referencing those
+      commits is a reference. What that first proof caught is kept here, where it needs no
+      link. On 2026-08-25 it was a live red: it refused commit 3a08fd10c — a subject of 73
+      characters, one over the limit — and held the pull request until it was rewritten.
     proved_by:
       - kind: ci-red
-        ref: pr/7
-        date: 2026-08-25
+        ref: run/33367065649
+        date: 2026-08-31
         caught: >-
-          It refused commit 3a08fd10c — a subject of 73 characters, one over the
-          limit — and held the pull request until it was rewritten.
-
+          The same catch, later and still readable: on the branch `fix/yaml-shapes-read` the
+          job printed `FAIL 0c57d127c: subject is 73 characters (over 72)` and held the pull
+          request until the subject was rewritten. A one-character overrun is the whole
+          class — the limit either binds at 73 or it is decoration.
   - id: the-static-battery-runs-on-every-push
     title: Lint, formatting and types are decided by CI, not by whoever remembered to run them
     kind: job
@@ -2824,24 +2848,31 @@ gates:
     pillar: devx
     portable: false
     born_from: >-
-      The reference implementation's first worksheet generator did not cut the
-      head of the document before reading rows — and the preamble held a backlog
-      table whose rows begin with the very same requirement ids. It rewrote those
-      rows in the assessment table's shape, silently, because the result was
-      still a valid markdown table. The generator's whole contract is that a
-      refresh is not a reset: every status and evidence a person wrote survives,
-      a requirement the standard dropped leaves, a new one arrives *unassessed*
-      rather than passed. The crosswalk is the same contract from the other
-      side — it is derived one way from the rows' evidence through the registry's
-      partition, so a mapping written by hand (a third place to drift) never
-      exists, and a row nothing runs for is listed as such rather than folded in.
+      The reference implementation's first worksheet generator did not cut the head of the
+      document before reading rows — and the preamble held a backlog table whose rows begin
+      with the very same requirement ids. It rewrote those rows in the assessment table's
+      shape, silently, because the result was still a valid markdown table. The generator's
+      whole contract is that a refresh is not a reset: every status and evidence a person
+      wrote survives, a requirement the standard dropped leaves, a new one arrives
+      *unassessed* rather than passed. The crosswalk is the same contract from the other
+      side — it is derived one way from the rows' evidence through the registry's partition,
+      so a mapping written by hand (a third place to drift) never exists, and a row nothing
+      runs for is listed as such rather than folded in. On 2026-09-01 the pull request that
+      had carried this row's first proof was deleted, with eight others, so that GitHub
+      could garbage-collect commits whose metadata held a private address by mistake
+      (support ticket 4717542): the address had to become unreachable, and a pull request
+      referencing those commits is a reference. What that first proof caught is kept here,
+      where it needs no link. On 2026-08-28 it was five mutations red — a rebuild that drops
+      existing verdicts, a reader that does not cut the preamble above the marker (the
+      original bug), a crosswalk that stops mapping `ci:job` evidence, a render that ignores
+      the levels in scope, and a passed-rows reader that answers empty instead of loud when
+      nothing passes.
     proved_by:
       - kind: mutation
-        ref: pr/32
-        date: 2026-08-28
+        ref: pr/208
+        date: 2026-09-01
         caught: >-
-          Five mutations red — a rebuild that drops existing verdicts, a reader
-          that does not cut the preamble above the marker (the original bug), a
-          crosswalk that stops mapping `ci:job` evidence, a render that ignores
-          the levels in scope, and a passed-rows reader that answers empty
-          instead of loud when nothing passes.
+          Re-proved on the tree as it stands: `existing_verdicts` made to return nothing — a
+          rebuild that forgets what a person wrote — turned three tests red, among them
+          `test_a_rebuild_keeps_every_verdict_a_person_wrote_and_the_preamble` and
+          `test_a_requirement_the_standard_dropped_leaves_the_table`.

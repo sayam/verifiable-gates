@@ -19,6 +19,25 @@ Notable changes to this project. The format follows
   create exactly the unreachable commits that ticket exists to purge. The procedure sits in
   `pins/README.md`, where somebody handling a bump is already reading.
 
+### Changed
+
+- **Thirteen proofs repointed, so the register survives a purge it asked for.** Nine
+  pull requests (#2–#7, #32–#34) are to be deleted by GitHub Support: each one's merge
+  commit is one of the twenty-two unreachable commits whose metadata carries a private
+  address added by a misconfigured local tool, and a pull request referencing those
+  commits is a reference that stops garbage collection. Thirteen `proved_by` refs across
+  thirteen of the fifty-four gates pointed at six of them, and **seven rows would have
+  been left with no resolvable proof at all** — against this project's own rule that a
+  ref nobody can look up is not evidence. So the refs move first and the deletion follows,
+  not the other way round. Six rows keep other live proofs and simply drop the dead ref.
+  The seven were re-proved rather than re-cited: `english-except-where-it-binds` now
+  points at pr/8, the pull request that actually contains the fix its sentence describes;
+  `every-commit-is-shaped-and-signed` at run/33367065649, a commit-lint red on 2026-08-31
+  refusing a 73-character subject — the same catch as the proof it replaces; and five
+  gates carry a mutation planted and watched today. **No sentence was thrown away**: what
+  each deleted proof caught is kept in its row's `born_from`, where it needs no link, with
+  the date and the reason it lost one.
+
 ### Fixed
 
 - **An install that stopped partway was reported as tampering, and one that
