@@ -126,6 +126,9 @@ HELD = {
     "decisions-have-one-owner": "",
     "a-rule-title-is-the-rule-not-the-scanner": "",
     "proved-by-is-history-not-a-warranty": "",
+    # 2026-09-01: merging #201 as Dependabot opened it added the bot to the contributors
+    # index, in the week a support ticket was open about that panel.
+    "bumps-land-as-the-owners-commit": "",
 }
 
 # The rows whose `expires when` is `Never` — an expiry rewritten to "Never" was

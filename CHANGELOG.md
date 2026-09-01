@@ -6,6 +6,19 @@ Notable changes to this project. The format follows
 
 ## [Unreleased]
 
+### Added
+
+- **A dependency bump lands as a commit the owner authored.** `bumps-land-as-the-owners-commit`
+  in `DECISIONS.md`: the author field is what the platform counts as a contributor and it
+  survives a rebase merge — only the committer becomes the merger — so merging #201 exactly as
+  Dependabot opened it took `GET /contributors` from one contributor to two, in the week a
+  support ticket was open about that panel naming people who did not write this repository. The
+  rule this project publishes refuses `Co-authored-by:` for the same reason: the entry belongs
+  to whoever signed the work. From the next bump the change is taken as the owner's own commit,
+  with the bot credited in the body; `bdd36a5` is **not** rewritten, because rewriting it would
+  create exactly the unreachable commits that ticket exists to purge. The procedure sits in
+  `pins/README.md`, where somebody handling a bump is already reading.
+
 ### Fixed
 
 - **An install that stopped partway was reported as tampering, and one that
