@@ -527,6 +527,26 @@ MISCONFIGURED = (
 )
 
 
+MISSHAPEN = (
+    "scaffold.json gives {key} {value}, which is not {want} — a configured value of the "
+    "wrong shape is a broken configuration, not a value"
+)
+
+
+def _configured_path(config: dict[str, object], key: str, default: str) -> tuple[str | None, str]:
+    """The path configured under `key`, or `None` and the finding saying it is not a path.
+
+    `scaffold.json.default` ships the shape of every key it declares and nothing held a
+    project to it. A path written as a list, a number or `null` reached `root / value`
+    and left a raw `TypeError` and exit 1 — the code that means *findings* — out of a
+    scanner that had judged nothing (self-audit round 17, 2026-09-01).
+    """
+    value = config.get(key, default)
+    if isinstance(value, str):
+        return value, ""
+    return None, MISSHAPEN.format(key=key, value=json.dumps(value)[:40], want="a string")
+
+
 def _config_text(path: pathlib.Path) -> str:
     """`scaffold.json`'s text, or the third answer. Every scanner routes the files it
     judges around undecodable bytes; the configuration beside them was still read bare
@@ -538,6 +558,29 @@ def _config_text(path: pathlib.Path) -> str:
         raise SystemExit(2) from problem
 
 
+def _index(root: pathlib.Path) -> tuple[tuple[pathlib.Path, dict[str, object]] | None, int]:
+    """The index to read and the configuration beside it, or why there is nothing to read."""
+    config_path = root / "scaffold.json"
+    config = json.loads(_config_text(config_path)) if config_path.is_file() else {}
+    declared, wrong = _configured_path(config, "gates_path", "gates.yaml")
+    if declared is None:
+        print(f"gates-registry-total: {wrong}")
+        return None, 1
+    registry = root / declared
+    if not _inside(root, registry):
+        print("gates-registry-total: " + OUTSIDE.format(key="gates_path", path=declared))
+        return None, 1
+    if registry.is_file():
+        return (registry, config), 0
+    # An index the project named and does not have is a broken configuration,
+    # not "no index yet" — the same two answers every scaffold path gives.
+    if "gates_path" in config:
+        print("gates-registry-total: " + MISCONFIGURED.format(key="gates_path", path=declared))
+        return None, 1
+    print(f"NA: no {declared} — there is no index to check yet")
+    return None, 0
+
+
 def main(root: pathlib.Path) -> int:
     if not root.is_dir():
         # NA means "this project has nothing of that kind"; a root that is not
@@ -545,21 +588,10 @@ def main(root: pathlib.Path) -> int:
         # the first is a green over nothing (self-audit round 2, 2026-08-31).
         print(f"cannot read the tree: {_shown(root)} is not a directory", file=sys.stderr)
         return 2
-    config_path = root / "scaffold.json"
-    config = json.loads(_config_text(config_path)) if config_path.is_file() else {}
-    declared = config.get("gates_path", "gates.yaml")
-    registry = root / declared
-    if not _inside(root, registry):
-        print("gates-registry-total: " + OUTSIDE.format(key="gates_path", path=declared))
-        return 1
-    if not registry.is_file():
-        # An index the project named and does not have is a broken configuration,
-        # not "no index yet" — the same two answers every scaffold path gives.
-        if "gates_path" in config:
-            print("gates-registry-total: " + MISCONFIGURED.format(key="gates_path", path=declared))
-            return 1
-        print(f"NA: no {declared} — there is no index to check yet")
-        return 0
+    found, code = _index(root)
+    if found is None:
+        return code
+    registry, config = found
 
     findings, rows = _read_registry(registry)
     if not findings:
@@ -592,11 +624,14 @@ def main(root: pathlib.Path) -> int:
             f"job with no gate in the index: {job} — give it one"
             for job in sorted(set(jobs) - covered)
         ]
-        tests_dir = root / config.get("tests_path", "tests")
-        if _inside(root, tests_dir):
+        named, wrong = _configured_path(config, "tests_path", "tests")
+        tests_dir = root / (named or "")
+        if named is None:
+            findings.append(wrong)
+        elif _inside(root, tests_dir):
             findings += _partition(gates, root, tests_dir)
         else:
-            findings.append(OUTSIDE.format(key="tests_path", path=config["tests_path"]))
+            findings.append(OUTSIDE.format(key="tests_path", path=named))
 
     for finding in findings:
         print(f"gates-registry-total: {finding}")

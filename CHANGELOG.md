@@ -71,6 +71,31 @@ Notable changes to this project. The format follows
 
 ### Fixed
 
+- **A `scaffold.json` value of the wrong type turned one gate green and six others into
+  tracebacks.** The bundle ships the shape of every key it declares — three lists of names,
+  six single paths — in the `scaffold.json.default` it installs, and nothing held a project
+  to it, in a bundle whose registry scanner checks every level of the shape of the project's
+  own `gates.yaml` (self-audit round 17, 2026-09-01). Written as a **list**, a path reached
+  `root / value` and left a raw `TypeError` and exit 1 — the code that means *findings* —
+  out of a scanner that had judged nothing: `adr_path`, `templates_path`, `services_path`,
+  `gates_path`, `tests_path`. Written as a **string**, a list of names was iterated one
+  character at a time: for `dockerfiles` and `entrypoints` that is one nonsense finding per
+  letter, and for `purge_paths` — the list of *exemptions*, documented as taking globs, so a
+  single glob is the natural way to write it wrong — the `*` among those letters matched
+  every path in the tree, every file was exempted, and `gates_doctor` printed
+  `[ pass] delete-means-soft-delete` and exited **0** over a project holding a real
+  `session.delete(`. `preflight` walked `"preflight_jobs": "test"` as four jobs named `t`,
+  `e`, `s` and `t`, and answered a number with a traceback and exit 1, the code that means a
+  job failed. Every configured value now goes through one of two checked readers, and a
+  value of the wrong shape is a **finding that names the key** — round 13's answer for a
+  configured path that is missing, which this is a kind of. `purge_paths` is read before the
+  source directory is resolved, so a project whose `app/` does not exist yet is still told
+  its exemptions are unreadable rather than answered `NA`. Proved by mutation: dropping the
+  shape check in any of the seven scanners, dropping it in `preflight`, or reading the
+  exemptions after the source directory again, each turns the suite red. The test that
+  decides which keys to try reads them out of the scanners with `ast` — it was looking for
+  `config.get(...)`, now looks for the two readers, and a guard fails if it ever finds none.
+
 - **An install that stopped partway was reported as tampering, and one that
   finished could still end in a traceback.** The installer records what it wrote so
   `gates_doctor --installed` can say whether the bundle is still what arrived — and

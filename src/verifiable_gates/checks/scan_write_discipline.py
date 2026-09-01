@@ -121,13 +121,52 @@ MISCONFIGURED = (
 )
 
 
+MISSHAPEN = (
+    "scaffold.json gives {key} {value}, which is not {want} — a configured value of the "
+    "wrong shape is a broken configuration, not a value"
+)
+
+
+def _configured_path(config: dict[str, object], key: str, default: str) -> tuple[str | None, str]:
+    """The path configured under `key`, or `None` and the finding saying it is not a path.
+
+    `scaffold.json.default` ships the shape of every key it declares and nothing held a
+    project to it. A path written as a list, a number or `null` reached `root / value`
+    and left a raw `TypeError` and exit 1 — the code that means *findings* — out of a
+    scanner that had judged nothing (self-audit round 17, 2026-09-01).
+    """
+    value = config.get(key, default)
+    if isinstance(value, str):
+        return value, ""
+    return None, MISSHAPEN.format(key=key, value=json.dumps(value)[:40], want="a string")
+
+
+def _configured_list(
+    config: dict[str, object], key: str, default: list[str]
+) -> tuple[list[str] | None, str]:
+    """The names configured under `key`, or `None` and the finding saying they are not names.
+
+    A list written as a single string was iterated **one character at a time**, so the
+    project's configuration was read as a set of one-letter names: nonsense findings at
+    best, and where the list is a set of exemptions, the `*` among those letters matched
+    every path there is and the gate answered `pass` over a tree with a real violation in
+    it (self-audit round 17, 2026-09-01).
+    """
+    value = config.get(key, default)
+    if isinstance(value, list) and all(isinstance(item, str) for item in value):
+        return value, ""
+    return None, MISSHAPEN.format(key=key, value=json.dumps(value)[:40], want="a list of strings")
+
+
 def _src_dir(root: pathlib.Path, config: dict[str, object]) -> tuple[pathlib.Path | None, int]:
     """Where to look, or why there is nothing to look at — with the exit code for that."""
-    src = root / str(config.get("src_path", "app"))
+    named, wrong = _configured_path(config, "src_path", "app")
+    if named is None:
+        print(f"delete-means-soft-delete: {wrong}")
+        return None, 1
+    src = root / named
     if not _inside(root, src):
-        print(
-            "delete-means-soft-delete: " + OUTSIDE.format(key="src_path", path=config["src_path"])
-        )
+        print("delete-means-soft-delete: " + OUTSIDE.format(key="src_path", path=named))
         return None, 1
     if not src.is_dir():
         if "src_path" in config:
@@ -156,10 +195,16 @@ def _judge(root: pathlib.Path) -> int:
     # 2026-08-29 planted a `scaffold.json` pointing at a Dockerfile that did not
     # exist beside a dirty one that did, and the answer was "nothing to check".
     config = json.loads(_text(config_path)) if config_path.is_file() else {}
+    # Read before `src_path` is resolved, so that a project whose source directory is
+    # not there yet is still told its exemptions are unreadable — an NA over a broken
+    # configuration is the shape round 13 refused everywhere else.
+    patterns, wrong = _configured_list(config, "purge_paths", ["app/purge.py"])
+    if patterns is None:
+        print(f"delete-means-soft-delete: {wrong}")
+        return 1
     src, code = _src_dir(root, config)
     if src is None:
         return code
-    patterns = config.get("purge_paths", ["app/purge.py"])
 
     readable = sorted(src.rglob("*.py"))
     # A directory that is there and holds nothing this scanner reads is not a

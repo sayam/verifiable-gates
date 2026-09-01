@@ -131,6 +131,26 @@ MISCONFIGURED = (
 )
 
 
+MISSHAPEN = (
+    "scaffold.json gives {key} {value}, which is not {want} — a configured value of the "
+    "wrong shape is a broken configuration, not a value"
+)
+
+
+def _configured_path(config: dict[str, object], key: str, default: str) -> tuple[str | None, str]:
+    """The path configured under `key`, or `None` and the finding saying it is not a path.
+
+    `scaffold.json.default` ships the shape of every key it declares and nothing held a
+    project to it. A path written as a list, a number or `null` reached `root / value`
+    and left a raw `TypeError` and exit 1 — the code that means *findings* — out of a
+    scanner that had judged nothing (self-audit round 17, 2026-09-01).
+    """
+    value = config.get(key, default)
+    if isinstance(value, str):
+        return value, ""
+    return None, MISSHAPEN.format(key=key, value=json.dumps(value)[:40], want="a string")
+
+
 def _services_dir(root: pathlib.Path) -> tuple[pathlib.Path | None, int]:
     """Where to look, or why there is nothing to look at — with the exit code for that."""
     config_path = root / "scaffold.json"
@@ -141,12 +161,13 @@ def _services_dir(root: pathlib.Path) -> tuple[pathlib.Path | None, int]:
     # 2026-08-29 planted a `scaffold.json` pointing at a Dockerfile that did not
     # exist beside a dirty one that did, and the answer was "nothing to check".
     config = json.loads(_config_text(config_path)) if config_path.is_file() else {}
-    services = root / config.get("services_path", "app/services")
+    named, wrong = _configured_path(config, "services_path", "app/services")
+    if named is None:
+        print(f"logic-knows-no-http: {wrong}")
+        return None, 1
+    services = root / named
     if not _inside(root, services):
-        print(
-            "logic-knows-no-http: "
-            + OUTSIDE.format(key="services_path", path=config["services_path"])
-        )
+        print("logic-knows-no-http: " + OUTSIDE.format(key="services_path", path=named))
         return None, 1
     if services.is_dir():
         return services, 0
