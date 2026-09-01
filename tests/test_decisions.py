@@ -129,6 +129,8 @@ HELD = {
     # 2026-09-01: merging #201 as Dependabot opened it added the bot to the contributors
     # index, in the week a support ticket was open about that panel.
     "bumps-land-as-the-owners-commit": "",
+    # 2026-09-01, later the same day: the owner turned the machine off altogether.
+    "dependabot-runs-nowhere-here": "2026-11-30",
 }
 
 # The rows whose `expires when` is `Never` — an expiry rewritten to "Never" was

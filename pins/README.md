@@ -29,14 +29,24 @@ to check that the source and the lockfile are one list twice. Compiling from ins
 `pins/dev/` writes `# via -r requirements.in` instead, the test finds no roots at all, and
 the gate goes red with nothing wrong with the pins themselves.
 
-**Dependabot does compile from inside the directory**, so every bump it opens rewrites those
-annotations. Restore them in the same pull request — the version and the hashes it computed
-are correct, only the path is not (measured on #201, ruff 0.16.4 → 0.16.5, 2026-09-01).
+`pins/bump.sh` does exactly that, from the right directory, and checks afterwards that the
+annotations still carry the path:
 
-Since the change is partly ours by then anyway, **the bump lands as a commit the owner
-authored**, crediting Dependabot in the body rather than in the author field: the author is
-what the platform counts as a contributor, and it survives a rebase merge. The decision, and
-what would end it, is `bumps-land-as-the-owners-commit` in `DECISIONS.md`.
+```bash
+bash pins/bump.sh --check    # what would move, writing nothing
+bash pins/bump.sh            # move it, check it, print the commit to make
+```
 
-**A pin nobody moves is a vulnerability kept on ice** — worse than no pin at all.
-Every directory here is watched by Dependabot in `.github/dependabot.yml`.
+It finds the directories rather than listing them, so a new `pins/<name>/requirements.in` is
+covered the day it arrives, and `tests/test_instruments_dogfood.py` asks the script itself
+what it moves and what commit subject it writes — the two facts that have to be true before a
+bump can land.
+
+**Nothing here is moved by a machine.** Dependabot opened pull requests against these files
+until 2026-09-01; it does not any more — `DECISIONS.md` `dependabot-runs-nowhere-here` says
+why, and what would bring it back. Dependabot **alerts** stay on: being told about a
+vulnerability costs nobody an authorship line, and the `advisories` job audits these pins on
+every run besides.
+
+**A pin nobody moves is a vulnerability kept on ice** — worse than no pin at all. The mover
+is `pins/bump.sh`, and the person who runs it is the one watching.

@@ -171,10 +171,26 @@ def _walk(value: object, path: str = "") -> dict[str, object]:
     return {path: None if value is None else str(value)}
 
 
-@pytest.mark.parametrize(
-    "name",
-    ["gates.yaml", ".github/workflows/ci.yml", ".github/dependabot.yml"],
-)
+def our_own_yaml() -> list[str]:
+    """Every YAML file this repository keeps — found, not listed.
+
+    The list used to be three names typed here, and one of them (`.github/dependabot.yml`)
+    stopped existing when the machine that read it was turned off. A list somebody typed
+    decays exactly like every other hand-kept list, which is a thing this project has
+    already had to learn twice.
+
+    **What the shipped reader is pointed at**, and nothing else: a gate registry and the
+    workflow files, here and in the copies the bundle ships. `rules.yaml` is deliberately
+    not among them — it uses a YAML anchor, and the subset reader refuses anchors out loud
+    rather than guessing at them, which is the reader working, not drifting.
+    """
+    bundle = ROOT / "src" / "verifiable_gates"
+    found = [ROOT / "gates.yaml", *(ROOT / ".github" / "workflows").glob("*.y*ml")]
+    found += [bundle / "ci-template.yml", bundle / "gates.yaml.default"]
+    return sorted(str(path.relative_to(ROOT)) for path in found)
+
+
+@pytest.mark.parametrize("name", our_own_yaml())
 def test_the_shipped_reader_agrees_with_pyyaml_on_our_own_files(name: str) -> None:
     """The guard that keeps a hand-written parser honest.
 
