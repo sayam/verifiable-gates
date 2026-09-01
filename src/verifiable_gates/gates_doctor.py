@@ -26,8 +26,8 @@ tests. They are never folded into the pass count, because a rule this bundle
 cannot decide must not look like one it decided. `NA` is reported separately from
 `pass` for the same reason: a scan with nothing to look at has not agreed with you.
 
-A scan that exits without a verdict — a traceback on a broken `scaffold.json`,
-exit 2 — is `[error]`, not `[found]`: its stderr is passed through and it is
+A scan that exits without a verdict — a `scaffold.json` it cannot read as a
+configuration, exit 2 — is `[error]`, not `[found]`: its stderr is passed through and it is
 counted apart from the findings, because a tool that crashed has judged nothing
 (an outside audit on 2026-08-30 fed a malformed config and the doctor answered
 `[found]` seven times with the tracebacks swallowed). It is still red. The same

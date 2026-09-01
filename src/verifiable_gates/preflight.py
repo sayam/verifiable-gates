@@ -193,11 +193,21 @@ def wanted_jobs(root: pathlib.Path, chosen: list[str]) -> tuple[str, ...]:
     config = root / CONFIG
     if config.is_file():
         try:
-            declared = json.loads(config.read_text(encoding="utf-8")).get("preflight_jobs")
+            document = json.loads(config.read_text(encoding="utf-8"))
         except UnicodeDecodeError as problem:
             raise ValueError(f"{CONFIG}: not UTF-8 ({problem.reason})") from problem
         except (OSError, json.JSONDecodeError) as problem:
             raise ValueError(f"{CONFIG}: {problem}") from problem
+        # The parse was guarded and the shape of the document was not: a `scaffold.json`
+        # holding a list, a string or `null` reached `.get` and left a raw `AttributeError`
+        # and exit 1 — the code that means *a job failed* (self-audit round 17,
+        # 2026-09-01).
+        if not isinstance(document, dict):
+            raise ValueError(
+                f"{CONFIG}: not an object — a configuration names keys, "
+                f"and this one holds {json.dumps(document)[:40]}"
+            )
+        declared = document.get("preflight_jobs")
         # `scaffold.json.default` declares this key as a list of job names and nothing
         # held a project to it: `"preflight_jobs": "test"` was walked one character at a
         # time — `no job ['t', 'e', 's', 't']` — and a number left a raw `TypeError` and

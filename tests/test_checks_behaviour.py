@@ -2595,6 +2595,67 @@ def test_an_exemption_list_written_as_one_glob_does_not_exempt_the_whole_tree(
     assert "app/models.py" not in out, "a broken configuration is not a verdict about the code"
 
 
+# ------------------------------------ a configuration nobody can read as one
+#
+# Round 3 wrapped the *read* of `scaffold.json` — a file in another encoding is the third
+# answer — and stopped one line short of the parse beneath it. A configuration that is
+# malformed, empty, or saved with a byte-order mark, and one that parses to a list, a
+# string or `null` rather than an object, went on ending in a raw traceback and **exit 1**,
+# the code that means *findings*, out of a scanner that had judged nothing (self-audit
+# round 17, 2026-09-01). The guard was written for the exception in hand rather than for
+# the question: *can this file be read as a configuration at all?*
+
+
+def scanners_that_read_the_configuration() -> list[str]:
+    """Every shipped scanner that reads `scaffold.json`, read from the scanners.
+
+    Derived, not typed: round 12's second finding was a hand-written list that had gone
+    seven modules stale, and a scanner that starts reading the configuration has to arrive
+    inside this test rather than beside it.
+    """
+    return sorted({case.scanner for case in configured_keys()})
+
+
+def test_some_scanner_reads_the_configuration() -> None:
+    """A guard on the guard: an empty list would make the test below vacuous."""
+    assert scanners_that_read_the_configuration(), "no scanner reads scaffold.json any more"
+
+
+UNREADABLE_CONFIGS = [
+    pytest.param("{bad", "not JSON", id="malformed"),
+    pytest.param("", "not JSON", id="empty"),
+    pytest.param("\ufeff{}", "not JSON", id="byte-order-mark"),
+    pytest.param("[]", "not an object", id="a-list"),
+    pytest.param('"app"', "not an object", id="a-string"),
+    pytest.param("5", "not an object", id="a-number"),
+    pytest.param("null", "not an object", id="null"),
+    pytest.param("true", "not an object", id="a-boolean"),
+]
+
+
+@pytest.mark.parametrize(("body", "reason"), UNREADABLE_CONFIGS)
+@pytest.mark.parametrize("scanner", scanners_that_read_the_configuration())
+def test_a_scaffold_that_is_not_a_configuration_is_the_third_answer(
+    tmp_path: pathlib.Path,
+    capsys: pytest.CaptureFixture[str],
+    scanner: str,
+    body: str,
+    reason: str,
+) -> None:
+    """An empty file is what round 16 found a write that stopped leaves behind, and a
+    byte-order mark is what an editor puts in front of a perfectly good object. Neither is
+    a verdict about the project's code, and neither may reach a project as a stack."""
+    module = importlib.import_module(f"verifiable_gates.checks.{scanner}")
+    (tmp_path / "scaffold.json").write_text(body, encoding="utf-8")
+
+    assert answer(module, tmp_path) == 2, "a file that is not a configuration got a verdict"
+    printed = capsys.readouterr()
+    assert "cannot read the tree" in printed.err, "the refusal does not say it is a refusal"
+    assert "scaffold.json" in printed.err, "the refusal does not name the file"
+    assert reason in printed.err, "the refusal does not say what is wrong with the file"
+    assert not printed.out, "a scanner that read no configuration said something about the code"
+
+
 # --------------------------------------------------- a name that is not UTF-8
 #
 # A file name on this platform is **bytes**, not characters — a file out of an archive

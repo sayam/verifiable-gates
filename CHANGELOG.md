@@ -71,6 +71,22 @@ Notable changes to this project. The format follows
 
 ### Fixed
 
+- **A `scaffold.json` nobody can read as a configuration was a traceback, not an answer.**
+  Round 3 taught seven scanners to refuse this file when its *bytes* cannot be decoded —
+  `cannot read the tree`, exit 2 — and the guard stopped one line short of the parse
+  beneath it. A configuration that is malformed, **empty** (which is what round 16 found a
+  write that stops leaves behind), or saved with a **byte-order mark** by an editor, and
+  one that parses to a list, a string, a number or `null` rather than an object, went on
+  ending in a raw `JSONDecodeError` or `AttributeError` and **exit 1** — the code that
+  means *findings* — out of a scanner that had judged nothing (self-audit round 17,
+  2026-09-01). The same file in another encoding answered correctly, one line earlier, in
+  the same function. `preflight` had the mirror image: it caught the parse and reached
+  `.get` on whatever came back. All eight readers now answer a file they cannot read as a
+  configuration with the third answer and a sentence naming the file and the reason. The
+  doctor's own description of this case said `exit 2` all along; it is now true, and the
+  paragraph stops calling it a traceback. Proved by mutation: removing the parse guard or
+  the object check in any of the seven scanners, or in `preflight`, turns the suite red.
+
 - **A `scaffold.json` value of the wrong type turned one gate green and six others into
   tracebacks.** The bundle ships the shape of every key it declares — three lists of names,
   six single paths — in the `scaffold.json.default` it installs, and nothing held a project
