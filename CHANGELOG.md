@@ -20,6 +20,23 @@ Notable changes to this project. The format follows
 
 ### Changed
 
+- **Dependabot opens no pull requests here any more; `pins/bump.sh` moves the pins.**
+  `.github/dependabot.yml` is deleted (its automated security fixes were already off), and
+  Dependabot **alerts** stay on — being told about a vulnerability costs nobody an
+  authorship line. The owner's reason is in `DECISIONS.md` `dependabot-runs-nowhere-here`:
+  the one bump it ever opened recompiled from inside `pins/dev` and rewrote every
+  `# via -r` annotation, turning the pins gate red for a reason unrelated to the
+  dependency, and merging it as it arrived put `dependabot[bot]` in the contributors index,
+  which then cost a rewrite of `main` to take out. A machine whose pull requests each need
+  a hand-fix before they are true is not saving the hand. **What it was for is kept**: a
+  pin nobody moves is a vulnerability kept on ice, so `pins/bump.sh` finds every
+  `pins/*/requirements.in` — never a list — compiles it from the repository root, checks
+  afterwards that the annotations still carry the path, and prints the commit to make. The
+  two facts that used to be read out of the bot's configuration are now **asked of the
+  script**: that every pins directory has a mover, and that the subject it writes is one
+  `commit-lint` accepts. The cross-reader YAML check stops naming files by hand too — it
+  had one of them typed, and that file has just stopped existing.
+
 - **The bot is out of the history as well as out of the rule.** The decision above first
   let the one bot-authored commit stand, because re-authoring it rewrites `main` and
   manufactures the unreachable commits that support ticket 4717542 exists to purge. The

@@ -20,7 +20,14 @@ import tomllib
 import pytest
 import yaml
 
-from verifiable_gates import check_issue_handoff, harness, measure, preflight, workflows
+from verifiable_gates import (
+    check_issue_handoff,
+    harness,
+    lint_commits,
+    measure,
+    preflight,
+    workflows,
+)
 
 OWNER = "sayam"
 ROOT = pathlib.Path(__file__).resolve().parent.parent
@@ -387,14 +394,47 @@ def test_the_wheels_dependencies_are_the_runtime_pins_and_the_backend_is_in_the_
     assert _names(project["build-system"]["requires"]) <= dev, (dev,)
 
 
-def test_every_pins_directory_is_moved_by_dependabot() -> None:
-    """A pin nobody moves is a vulnerability kept on ice — both ways: every
-    `pins/*/requirements.txt` has a Dependabot entry, and every pip entry points at one."""
-    config = yaml.safe_load((ROOT / ".github" / "dependabot.yml").read_text(encoding="utf-8"))
-    watched = {u["directory"] for u in config["updates"] if u["package-ecosystem"] == "pip"}
-    on_disk = {"/" + str(p.parent.relative_to(ROOT)) for p in ROOT.glob("pins/*/requirements.txt")}
+def _bump_script(*args: str) -> str:
+    """What `pins/bump.sh` answers about itself — asked, never read off the page.
 
-    assert watched == on_disk, (watched, on_disk)
+    Both facts below used to be read out of `.github/dependabot.yml`. The machine that
+    file drove is gone (DECISIONS.md `dependabot-runs-nowhere-here`) and the mover is now a
+    script a person runs; the guarantees are the same two, so they are still checked, by
+    asking the new mover the same questions. Its `--list` and `--subject` modes touch
+    nothing and reach nowhere, which is what lets them run inside the suite.
+    """
+    binary = shutil.which("bash")
+    assert binary, "the mover is a shell script and this machine has no shell"
+    done = subprocess.run(  # noqa: S603 — bash from shutil.which, arguments are literals here
+        [binary, str(ROOT / "pins" / "bump.sh"), *args],
+        check=True,
+        capture_output=True,
+        text=True,
+        timeout=60,
+    )
+    return done.stdout
+
+
+def test_every_pins_directory_is_moved_by_the_script() -> None:
+    """A pin nobody moves is a vulnerability kept on ice — both ways: every
+    `pins/*/requirements.txt` is a directory the mover moves, and the mover moves no other."""
+    moved = {line for line in _bump_script("--list").split() if line}
+    on_disk = {str(p.parent.relative_to(ROOT)) for p in ROOT.glob("pins/*/requirements.txt")}
+
+    assert moved == on_disk, (moved, on_disk)
+
+
+def test_the_movers_commit_subject_is_one_the_gate_accepts() -> None:
+    """The script writes the subject; the commit gate reads it. The two must agree in advance.
+
+    Dependabot's default subject ("Bump x from a to b") is not a Conventional Commit, so
+    every bump it opened would have been red — found on 2026-08-29 before the first one
+    opened, and fixed by a prefix in its configuration. A script a person runs can be wrong
+    in exactly the same way, and the person would find out at the commit hook instead.
+    """
+    subject = _bump_script("--subject").strip()
+
+    assert lint_commits.check_title(subject) == [], subject
 
 
 # ---------------------------------------------------------------- the step gates
@@ -623,7 +663,10 @@ def test_a_body_edit_reruns_the_checks_that_read_the_body() -> None:
 # 109 → 110 on 2026-09-01: one `S603` in `tests/test_harness.py`, for the run that has
 # to happen in a subprocess — the encoding `write_text` picks with no `encoding=` is the
 # interpreter's at startup, so no in-process test can reach that question (round 15).
-SUPPRESSED_LINES = 110  # every one with a reason; a new one moves this number, visibly
+# 110 → 111 on 2026-09-01: one `S603` for the subprocess that asks `pins/bump.sh` what it
+# moves and what subject it writes — the two facts that used to be read out of
+# `.github/dependabot.yml`, now asked of the mover that replaced it.
+SUPPRESSED_LINES = 111  # every one with a reason; a new one moves this number, visibly
 
 
 def test_every_job_in_our_own_workflows_declares_a_time_budget() -> None:
