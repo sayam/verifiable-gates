@@ -15,11 +15,25 @@ Notable changes to this project. The format follows
   support ticket was open about that panel naming people who did not write this repository. The
   rule this project publishes refuses `Co-authored-by:` for the same reason: the entry belongs
   to whoever signed the work. From the next bump the change is taken as the owner's own commit,
-  with the bot credited in the body; `bdd36a5` is **not** rewritten, because rewriting it would
-  create exactly the unreachable commits that ticket exists to purge. The procedure sits in
-  `pins/README.md`, where somebody handling a bump is already reading.
+  with the bot credited in the body. The procedure sits in `pins/README.md`, where somebody
+  handling a bump is already reading.
 
 ### Changed
+
+- **The bot is out of the history as well as out of the rule.** The decision above first
+  let the one bot-authored commit stand, because re-authoring it rewrites `main` and
+  manufactures the unreachable commits that support ticket 4717542 exists to purge. The
+  owner decided the other way, on the ground the ticket itself rests on: what this
+  repository publishes about who wrote it has to be true. On 2026-09-01 the six commits
+  after `v0.1.11` were re-written — `bdd36a5` became `6e94c9d`, authored and signed by the
+  owner, with Dependabot credited in its body — and `GET /contributors` returned to one
+  name. **The tree is byte-identical** to what it replaced, every tag is untouched (no tag
+  contains any rewritten commit, so no DOI-archived state moved), and the suite, CI,
+  security and posture all passed on the result. The cost is on the record: those six
+  commits are unreachable and still served by SHA — they hold no address, only the bot's
+  authorship — and pull requests #201 and #205–#208 now list commits that are not on
+  `main`, their pages, diffs and refs still resolving, which matters because five gates
+  cite pr/208.
 
 - **Thirteen proofs repointed, so the register survives a purge it asked for.** Nine
   pull requests (#2–#7, #32–#34) are to be deleted by GitHub Support: each one's merge
