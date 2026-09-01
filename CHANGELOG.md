@@ -91,6 +91,30 @@ Notable changes to this project. The format follows
   reason on the line: the platform is what is wrong here, not the program. Proved by
   mutation, including one that puts the unbounded loop back and is caught by the suite
   failing to finish.
+- **Four readers caught the exception they were written for and stopped one line short of
+  the shape.** Each reads an answer it did not write, and each answered a shape it did not
+  expect with a traceback instead of the sentence it already had for exactly that case
+  (self-audit round 18, 2026-09-02). `gates_doctor.check_installed_record` catches what the
+  parse and the subscript raise, then calls `files.items()`: a record whose `files` holds a
+  string, a list or `null` answered *"is this bundle still what arrived?"* with a raw
+  `AttributeError`, and a record with a digest that is not a digest would have been
+  reported as a file whose **contents have changed** — round 4's sentence for a bundle
+  somebody edited. `load_manifest` checked that `gates` was *present* while `scan_entries`
+  calls `manifest["gates"].items()` on the next line. `install`'s reader of the same record
+  declared its value `dict[str, str]` — an annotation on a value from `json.loads`, which
+  the checker **believes** rather than verifies — so a record holding a string became a set
+  of **characters** and the installer named single letters as files a previous install had
+  left behind. And `check_issue_handoff`, whose own comment says *"Neither pass nor fail:
+  the gate could not look. Exit 2 … so a platform hiccup is never read as 'no issue
+  closed'"*, wrapped only the **asking**: five shapes of reply — no key, a list, not JSON, a
+  string where rows go, a row with no `number` — were each a traceback and **exit 1**, the
+  code that gate spends on *"this pull request's handoff is wrong"*. `measure_apps`, whose
+  entire output is a number, took `json.loads(stdout)["results"]` from a scanner whose
+  format is not ours to hold still. All five now answer with the third answer, in the words
+  each already used. Proved by mutation. One guard was **removed again** rather than
+  shipped: checking the record's entries inside the installer changes nothing it does — it
+  uses the names, and JSON has no other kind of key — and a guard nothing can observe makes
+  the suite claim more than it holds.
 
 - **A `scaffold.json` nobody can read as a configuration was a traceback, not an answer.**
   Round 3 taught seven scanners to refuse this file when its *bytes* cannot be decoded —

@@ -131,7 +131,16 @@ def run_scanner(app: pathlib.Path, binary: pathlib.Path | None, configs: list[st
     )
     if done.returncode not in (0, 1):
         raise SystemExit(f"the scanner failed at {app}: {done.stderr[-300:]}")
-    found: list[object] = json.loads(done.stdout)["results"]
+    # A number is the whole output of this function, so a report it cannot read must not
+    # become one. The scanner's format is not ours to hold still (self-audit round 18,
+    # 2026-09-02).
+    try:
+        report = json.loads(done.stdout)
+        found = report["results"]
+    except (ValueError, TypeError, KeyError) as problem:
+        raise SystemExit(f"the scanner's report at {app} could not be read: {problem}") from problem
+    if not isinstance(found, list):
+        raise SystemExit(f"the scanner's report at {app} has a 'results' that is not a list")
     return len(found)
 
 

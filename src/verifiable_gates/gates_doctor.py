@@ -51,13 +51,23 @@ import pathlib
 import py_compile
 import subprocess
 import sys
-from typing import Any
+from typing import Any, TypeGuard
+
+
+def _is_manifest(raw: object) -> TypeGuard[dict[str, Any]]:
+    """An object with a `gates` **object** in it, which is what `scan_entries` walks.
+
+    The key being *present* was the whole check, and `scan_entries` calls
+    `manifest["gates"].items()` on the next line — a manifest whose `gates` is a list got
+    past here and died one function later (self-audit round 18, 2026-09-02).
+    """
+    return isinstance(raw, dict) and isinstance(raw.get("gates"), dict)
 
 
 def load_manifest(path: pathlib.Path) -> dict[str, Any]:
     raw = json.loads(path.read_text(encoding="utf-8"))
-    if not isinstance(raw, dict) or "gates" not in raw:
-        message = f"{path}: not a manifest — no 'gates'"
+    if not _is_manifest(raw):
+        message = f"{path}: not a manifest — no 'gates' object"
         raise ValueError(message)
     return raw
 
@@ -72,6 +82,19 @@ def scan_entries(manifest: dict[str, Any]) -> list[tuple[str, str]]:
 
 def suite_count(manifest: dict[str, Any]) -> int:
     return sum(1 for entry in manifest["gates"].values() if entry.get("kind") == "suite")
+
+
+def _is_record_of_files(files: object) -> TypeGuard[dict[str, str]]:
+    """The name-to-digest object the installer writes, checked to the entries.
+
+    Every name is joined to the root and every digest compared to one; a name that is not
+    a name, or a digest that is not a digest, would be reported as a file whose contents
+    have changed — round 4's sentence for a bundle somebody edited (self-audit round 18,
+    2026-09-02).
+    """
+    return isinstance(files, dict) and all(
+        isinstance(name, str) and isinstance(recorded, str) for name, recorded in files.items()
+    )
 
 
 def check_installed_record(root: pathlib.Path) -> list[str]:
@@ -101,6 +124,18 @@ def check_installed_record(root: pathlib.Path) -> list[str]:
         files = written["files"]
     except (OSError, ValueError, KeyError, TypeError) as problem:
         return [f"tools/installed.json cannot be read: {problem}"]
+    # The guard above was written for the exceptions the parse and the subscript raise,
+    # and stopped one line short of `files.items()`: a record whose `files` holds a
+    # string, a list or `null` answered the question "is this bundle still intact?" with
+    # a raw `AttributeError` (self-audit round 18, 2026-09-02). A record this reader
+    # cannot use is one it says it cannot use.
+    if not _is_record_of_files(files):
+        held = json.dumps(files)[:40]
+        wrong = (
+            f"tools/installed.json cannot be read: 'files' holds {held}, not the "
+            "name-to-digest object the installer writes"
+        )
+        return [wrong]
     found = []
     # An install that stopped partway leaves a tree that is half one bundle and half the
     # one before it. Until the installer said so, the record went on describing the

@@ -128,9 +128,22 @@ def _recorded_files(dest: pathlib.Path) -> dict[str, str]:
     if not record.is_file():
         return {}
     try:
-        files: dict[str, str] = json.loads(record.read_text(encoding="utf-8"))["files"]
+        written = json.loads(record.read_text(encoding="utf-8"))["files"]
     except (OSError, ValueError, KeyError, TypeError):
         return {}
+    # Declaring this `dict[str, str]` did not make it one: the value comes from
+    # `json.loads`, which is `Any`, and an annotation on an `Any` is a type the checker
+    # *believes* rather than one it verifies. What actually arrived could be a string —
+    # and `set(...)` over a string reported single letters as files left behind, while
+    # `dict(...)` on the stopped-install path raised a bare `ValueError` (self-audit
+    # round 18, 2026-09-02).
+    # Only the object itself is checked here, not its entries: this reader uses the
+    # **names**, and JSON has no other kind of key. The doctor, which compares the
+    # digests, does check them — a guard nothing can observe is a guard that makes the
+    # suite say something untrue about how much is held (L-0078).
+    if not isinstance(written, dict):
+        return {}
+    files: dict[str, str] = written
     return files
 
 

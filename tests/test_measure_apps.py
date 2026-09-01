@@ -277,6 +277,26 @@ def test_a_scanner_path_that_is_a_directory_is_loud(tmp_path: pathlib.Path) -> N
         measure_apps.run_scanner(tmp_path, tmp_path, [])
 
 
+@pytest.mark.parametrize(
+    "printed",
+    ["[]", '{"findings": []}', '{"results": {}}', "not json at all", '{"results": null}'],
+    ids=["a-list", "another-key", "results-is-an-object", "not-json", "results-is-null"],
+)
+def test_a_report_the_measurer_cannot_read_does_not_become_a_number(
+    tmp_path: pathlib.Path, printed: str
+) -> None:
+    """A number is this function's whole output, so a report it cannot read must not turn
+    into one. The scanner's output format is not ours to hold still, and
+    `json.loads(...)["results"]` was a raw `TypeError` or `KeyError` when it moved
+    (self-audit round 18, 2026-09-02)."""
+    fake = tmp_path / "scanner"
+    fake.write_text(f"#!/bin/sh\nprintf '%s' {printed!r}\n", encoding="utf-8")
+    fake.chmod(0o755)
+
+    with pytest.raises(SystemExit, match=r"could not be read|not a list"):
+        measure_apps.run_scanner(tmp_path, fake, [])
+
+
 def test_the_command_walks_every_arm_and_every_app(
     tmp_path: pathlib.Path, capsys: pytest.CaptureFixture[str], monkeypatch: pytest.MonkeyPatch
 ) -> None:

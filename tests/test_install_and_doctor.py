@@ -579,6 +579,75 @@ def test_a_manifest_without_gates_is_refused(tmp_path: pathlib.Path) -> None:
         gates_doctor.load_manifest(path)
 
 
+@pytest.mark.parametrize(
+    "body",
+    ['{"gates": []}', '{"gates": "scan_x.py"}', '{"gates": null}', "[]", '"overlay"'],
+    ids=["a-list", "a-string", "null", "not-an-object", "a-bare-string"],
+)
+def test_a_manifest_whose_gates_is_not_an_object_is_refused_here_not_later(
+    tmp_path: pathlib.Path, body: str
+) -> None:
+    """The key being present was the whole check, and `scan_entries` calls
+    `manifest["gates"].items()` on the next line (self-audit round 18, 2026-09-02)."""
+    path = tmp_path / "overlay.json"
+    path.write_text(body, encoding="utf-8")
+    with pytest.raises(ValueError, match="not a manifest"):
+        gates_doctor.load_manifest(path)
+
+
+# A record whose `files` is not the object the installer writes. Round 16's guard was
+# written for the exceptions the parse and the subscript raise and stopped one line short
+# of `files.items()`, so the question "is this bundle still what arrived?" was answered
+# with a raw `AttributeError` (self-audit round 18, 2026-09-02). A corrupt record is not
+# hypothetical: round 16 is the round that established a write can stop halfway.
+
+MISSHAPEN_RECORDS = [
+    pytest.param('{"files": "tools/gates_doctor.py"}', id="files-is-a-string"),
+    pytest.param('{"files": ["tools/gates_doctor.py"]}', id="files-is-a-list"),
+    pytest.param('{"files": null}', id="files-is-null"),
+    pytest.param('{"files": 7}', id="files-is-a-number"),
+    pytest.param('{"files": {"tools/gates_doctor.py": 7}}', id="a-digest-that-is-a-number"),
+    pytest.param('{"files": {"tools/gates_doctor.py": ["a"]}}', id="a-digest-that-is-a-list"),
+]
+
+
+@pytest.mark.parametrize("body", MISSHAPEN_RECORDS)
+def test_a_record_whose_files_is_not_an_object_is_said_out_loud(
+    tmp_path: pathlib.Path, body: str
+) -> None:
+    """Said, not raised: the doctor's answer for a record it cannot use already exists."""
+    (tmp_path / "tools").mkdir()
+    (tmp_path / "tools" / "installed.json").write_text(body, encoding="utf-8")
+
+    problems = gates_doctor.check_installed_record(tmp_path)
+
+    assert len(problems) == 1, problems
+    assert "installed.json cannot be read" in problems[0]
+    assert "not the name-to-digest object" in problems[0]
+
+
+@pytest.mark.parametrize("body", MISSHAPEN_RECORDS)
+def test_an_install_over_a_misshapen_record_names_no_letters_as_files(
+    tmp_path: pathlib.Path,
+    bundle_copy: pathlib.Path,
+    capsys: pytest.CaptureFixture[str],
+    body: str,
+) -> None:
+    """Declaring the record's `files` as `dict[str, str]` did not make it one: the value
+    comes from `json.loads`, and an annotation on an `Any` is a type the checker believes
+    rather than verifies. Over the string that actually arrived, `set(...)` made a set of
+    **characters**, and the installer reported single letters as files a previous install
+    had left behind (self-audit round 18, 2026-09-02)."""
+    project = tmp_path / "project"
+    assert do_install(project, bundle_copy) == 0
+    (project / "tools" / "installed.json").write_text(body, encoding="utf-8")
+    capsys.readouterr()
+
+    assert do_install(project, bundle_copy) == 0
+    left = [line for line in capsys.readouterr().out.splitlines() if line.startswith("left behind")]
+    assert not left, left
+
+
 def test_the_installer_can_be_driven_from_the_command_line(
     tmp_path: pathlib.Path, bundle_copy: pathlib.Path, capsys: pytest.CaptureFixture[str]
 ) -> None:
