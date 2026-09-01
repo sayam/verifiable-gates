@@ -13,16 +13,19 @@ from a report nobody can use.
 
 from __future__ import annotations
 
+import functools
 import os
 import re
 import shutil
 import subprocess
-from typing import TYPE_CHECKING
+import time
+from typing import TYPE_CHECKING, Any
 
 import pytest
 
 if TYPE_CHECKING:
     import pathlib
+    from collections.abc import Callable
 
 from verifiable_gates import removals
 
@@ -63,6 +66,64 @@ def commit(root: pathlib.Path, subject: str, files: dict[str, str], when: str = 
 
 def rows(*ids: str) -> str:
     return "gates:\n" + "".join(f"  - id: {name}\n    title: something\n" for name in ids)
+
+
+def plant_a_message_that_is_not_utf8(root: pathlib.Path, message: bytes) -> str:
+    """Rewrite HEAD with a message git itself refuses to write, and return its sha.
+
+    `git commit` transliterates bytes that are not UTF-8 before it stores them, so a
+    commit that really holds them has to be written as an object. That is not an
+    exotic construction: it is what a repository contains after a client that was not
+    speaking UTF-8 pushed to it, which is most of what a fork sends.
+    """
+    binary = shutil.which("git")
+    assert binary, "these tests read a real history and need git"
+    # Annotated because `subprocess.run` with neither `text` nor `encoding` returns
+    # bytes, which is the whole point here, and the overload mypy picks says otherwise.
+    git: Callable[..., subprocess.CompletedProcess[Any]] = functools.partial(
+        subprocess.run, cwd=root, check=True, capture_output=True, timeout=60
+    )
+
+    def out(*args: str) -> bytes:
+        stdout: bytes = git([binary, *args]).stdout
+        return stdout.strip()
+
+    who = f"Nobody <nobody@example.invalid> {int(time.time())} +0000".encode()
+    obj = (
+        b"tree " + out("rev-parse", "HEAD^{tree}") + b"\n"
+        b"parent " + out("rev-parse", "HEAD^") + b"\n"
+        b"author " + who + b"\ncommitter " + who + b"\n\n" + message
+    )
+    written = (
+        git([binary, "hash-object", "-w", "-t", "commit", "--stdin"], input=obj)
+        .stdout.decode()
+        .strip()
+    )
+    run(root, "reset", "--hard", "-q", written)
+    return str(written)
+
+
+def test_a_commit_subject_that_is_not_utf8_does_not_end_the_page(repo: pathlib.Path) -> None:
+    """One byte no decoder can read must not take thirty removals down with it.
+
+    git keeps a commit message as the bytes it was given. This reader took them through
+    `subprocess(text=True)`, which decodes with the machine's locale and refuses
+    anything else, so a single old subject from a client that was not speaking UTF-8
+    ended the whole report in a `UnicodeDecodeError` (self-audit round 15, 2026-09-01).
+    A reader that prints shows the byte escaped and keeps the page.
+    """
+    commit(repo, "feat: a file to lose", {"kept.py": "x = 1\n", "gone.py": "y = 2\n"})
+    (repo / "gone.py").unlink()
+    run(repo, "add", "-A")
+    run(repo, "commit", "-q", "-m", "chore: remove it")
+    plant_a_message_that_is_not_utf8(repo, b"chore: remove caf\xe9\n")
+
+    found = removals.deleted_files(repo, ".", "5.years")
+
+    assert [name for _sha, _subject, name in found] == ["gone.py"], (
+        "the removal was lost with the byte that could not be decoded"
+    )
+    assert "caf\\xe9" in found[0][1], f"the byte was not shown escaped: {found[0][1]!r}"
 
 
 # ----------------------------------------------------------- what really left

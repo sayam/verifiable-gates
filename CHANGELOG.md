@@ -8,6 +8,24 @@ Notable changes to this project. The format follows
 
 ### Fixed
 
+- **git's bytes are not text, and the road that meets a stranger's commits had
+  no answer for them.** A commit message is stored as the bytes the author's
+  client sent; a client that was not speaking UTF-8 leaves bytes no decoder can
+  turn into text. `lint_commits --msg-file` — the hook, reading the message from
+  a file — has always answered those with exit 2 and the words *not UTF-8*.
+  `lint_commits --range` — the CI road, which exists precisely because it runs on
+  forks, where the commits were written by tools this project does not choose —
+  took the same bytes through `subprocess(text=True)`, which decodes with the
+  machine's locale and refuses anything else, and answered with a raw
+  `UnicodeDecodeError` and **exit 1**: the code that means *these commit messages
+  break the rules* (self-audit round 15, 2026-09-01). It now carries the bytes
+  through and gives the hook's answer, naming every commit it could not read.
+  `removals` reads commit subjects through the same kind of pipe and lost a whole
+  page of removals to one such byte; being a reader rather than a decider, it now
+  shows the byte **escaped** and prints the page. Proved by mutation: the pipe
+  decoding strictly again, and the guard left in place but never firing — both
+  red.
+
 - **A violation could hide behind a file name nobody can decode.** A file name
   here is bytes, not characters, and one that is not UTF-8 — a file out of an
   archive written by a machine that was not speaking it — arrives from the

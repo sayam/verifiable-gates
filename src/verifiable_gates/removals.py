@@ -97,11 +97,17 @@ def _git(root: pathlib.Path, *args: str) -> str:
         [binary, *args],
         cwd=root,
         capture_output=True,
-        text=True,
         check=False,
         timeout=GIT_TIMEOUT_SECONDS,
     )
-    return done.stdout
+    # **A commit subject is bytes**, kept as the author's client sent them. `text=True`
+    # decoded them with the machine's locale and `errors="strict"`, so one old subject
+    # that was not UTF-8 ended the whole page in a raw `UnicodeDecodeError` — a reader
+    # that prints thirty removals losing all of them to one byte (self-audit round 15,
+    # 2026-09-01). This one prints rather than decides, so the byte is **shown
+    # escaped** and the page survives; the decider on the same bytes, `lint_commits`,
+    # refuses instead, because a verdict on a message nobody can read is not a verdict.
+    return done.stdout.decode("utf-8", "backslashreplace")
 
 
 def deleted_files(root: pathlib.Path, path: str, since: str) -> list[tuple[str, str, str]]:
