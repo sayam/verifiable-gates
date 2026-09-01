@@ -25,11 +25,17 @@ that you reviewed it and take responsibility for it as your own submission.
 **No other obligations.** No warranty, no support, no obligation on either side
 beyond what is written here. This agreement is governed by the laws of Thailand.
 
-**How to sign.** Add one line to your pull request description:
+**How to sign.** Add one line to your pull request description — for example
+`I have read and agree to CLA.md v1. — Ada Lovelace <ada@example.org>`, with your own
+name and address in Ada's place:
 
 ```
-I have read and agree to CLA.md v1. — <your name> <your email>
+I have read and agree to CLA.md v1. — NAME <EMAIL>
 ```
+
+The angle brackets around the address are part of the line, and the name carries none.
+Written out rather than as `<name> <email>`, where the same brackets would mean a
+placeholder in one half and literal syntax in the other.
 
 Every commit must also carry a `Signed-off-by:` line (DCO 1.1) — that attests
 authorship; this document grants rights. Both are needed.
@@ -49,5 +55,5 @@ authorship; this document grants rights. Both are needed.
 **สิ่งที่คุณรับรอง** — มีสิทธิ์ให้ · งานเป็นของคุณ (หรือระบุส่วนที่ไม่ใช่) · นายจ้าง
 อนุญาตถ้าเกี่ยว · ส่วนที่ AI สร้าง คุณตรวจและรับผิดชอบ ·
 **ไม่มีภาระอื่น** · กฎหมายไทย ·
-**ลงนาม** — บรรทัด `I have read and agree to CLA.md v1. — <ชื่อ> <อีเมล>` ในคำอธิบาย PR
+**ลงนาม** — บรรทัด `I have read and agree to CLA.md v1. — Ada Lovelace <ada@example.org>` ในคำอธิบาย PR โดยแทนชื่อและอีเมลเป็นของคุณ · **วงเล็บมุมรอบอีเมลเป็นส่วนหนึ่งของบรรทัด ไม่ใช่ที่ว่างให้แทน** และรอบชื่อไม่มีวงเล็บ
 และทุก commit ต้องมี `Signed-off-by:` (DCO)
