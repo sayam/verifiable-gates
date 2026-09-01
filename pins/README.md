@@ -33,5 +33,10 @@ the gate goes red with nothing wrong with the pins themselves.
 annotations. Restore them in the same pull request — the version and the hashes it computed
 are correct, only the path is not (measured on #201, ruff 0.16.4 → 0.16.5, 2026-09-01).
 
+Since the change is partly ours by then anyway, **the bump lands as a commit the owner
+authored**, crediting Dependabot in the body rather than in the author field: the author is
+what the platform counts as a contributor, and it survives a rebase merge. The decision, and
+what would end it, is `bumps-land-as-the-owners-commit` in `DECISIONS.md`.
+
 **A pin nobody moves is a vulnerability kept on ice** — worse than no pin at all.
 Every directory here is watched by Dependabot in `.github/dependabot.yml`.
