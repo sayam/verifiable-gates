@@ -1742,20 +1742,52 @@ def test_the_mode_of_a_rewritten_file_is_kept_and_a_new_file_gets_the_default(
     files.write_text_atomically(scanner, "new\n")
     assert stat.S_IMODE(scanner.stat().st_mode) == 0o755
 
-    # Under the usual umask of 022 a file created 0o666 and one created 0o644 both end
-    # up 0o644, so the umask is taken out of the way: what is held is the mode the
-    # writer asks for, and it must not be one anyone can write to. The sibling exists
-    # under its own name for the length of the write, so this is its mode too (CodeQL
-    # `py/overly-permissive-file` on the first push of this change).
+    # A file that did not exist gets what `write_text` gave it: 0o666 narrowed by the
+    # umask, not a mode of this writer's choosing.
     fresh = tmp_path / "fresh.txt"
-    was = os.umask(0)
-    try:
-        files.write_text_atomically(fresh, "new\n")
-    finally:
-        os.umask(was)
+    files.write_text_atomically(fresh, "new\n")
+    assert stat.S_IMODE(fresh.stat().st_mode) == files.DEFAULT_MODE
+    assert not files.DEFAULT_MODE & stat.S_IWOTH, "the default would be world-writable"
 
-    assert stat.S_IMODE(fresh.stat().st_mode) == 0o644, "not the mode a new file is given"
-    assert not stat.S_IMODE(fresh.stat().st_mode) & (stat.S_IWOTH | stat.S_IWGRP)
+
+def _temp_modes(directory: pathlib.Path) -> set[int]:
+    """The mode of every sibling being written in this directory, right now."""
+    found = set()
+    for path in directory.glob(".*.tmp"):
+        # Renamed away between the glob and the stat, which is the writer working.
+        with contextlib.suppress(FileNotFoundError):
+            found.add(stat.S_IMODE(path.stat().st_mode))
+    return found
+
+
+def test_the_file_being_written_is_private_until_it_is_renamed(
+    tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The sibling exists under its own name for the length of the write, and for that
+    moment nobody else has business reading it — code scanning said so of the first two
+    pushes of this change (`py/overly-permissive-file`) and was right both times.
+
+    Caught at a seam rather than by racing a writer: `fsync` runs with the sibling on
+    disk and still being written, which is the middle of the window. Watching for the
+    file from a reader loop found it most of the time and not always, and a test that
+    holds a property four times in five holds nothing (L-0115).
+    """
+    path = tmp_path / "target.txt"
+    path.write_text("old\n", encoding="utf-8")
+    path.chmod(0o644)
+    seen: list[set[int]] = []
+    flush = os.fsync
+
+    def watch(handle: int) -> None:
+        seen.append(_temp_modes(tmp_path))
+        flush(handle)
+
+    monkeypatch.setattr(os, "fsync", watch)
+    files.write_text_atomically(path, "new\n")
+
+    assert seen == [{0o600}], [[oct(mode) for mode in sorted(s)] for s in seen]
+    assert stat.S_IMODE(path.stat().st_mode) == 0o644, "the file did not end at its own mode"
+    assert path.read_text(encoding="utf-8") == "new\n"
 
 
 def test_a_write_that_fails_leaves_the_old_file_and_no_temp_beside_it(
@@ -1817,6 +1849,38 @@ def test_a_reinstall_never_leaves_a_scanner_half_written(
 
     assert all(read == whole for read in seen), sorted({len(read) for read in seen})
     assert not list((project / "tools").rglob(".*.tmp")), "a temp file was left behind"
+
+
+def test_the_sarif_is_written_privately_and_ends_at_the_files_own_mode(
+    installed: pathlib.Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The doctor is shipped standalone and cannot import the package's writer, so it
+    carries the same rules in its own lines — and a copy is only as good as the test
+    that holds it. The mode mutations against this copy were **green** until this test
+    existed, while the same mutations against `files.py` were red (self-audit round 20,
+    2026-09-03)."""
+    manifest = gates_doctor.load_manifest(installed / "tools" / "overlay.json")
+    out = installed / "gates.sarif"
+    out.write_text("{}\n", encoding="utf-8")
+    out.chmod(0o640)
+    seen: list[set[int]] = []
+    flush = os.fsync
+
+    def watch(handle: int) -> None:
+        seen.append(_temp_modes(installed))
+        flush(handle)
+
+    monkeypatch.setattr(os, "fsync", watch)
+    assert gates_doctor.write_sarif(out, installed, manifest, [])
+
+    assert seen == [{0o600}], [[oct(mode) for mode in sorted(s)] for s in seen]
+    assert stat.S_IMODE(out.stat().st_mode) == 0o640, "the log did not end at the file's own mode"
+
+    fresh = installed / "fresh.sarif"
+    assert gates_doctor.write_sarif(fresh, installed, manifest, [])
+    assert stat.S_IMODE(fresh.stat().st_mode) == files.DEFAULT_MODE, (
+        "a log that did not exist got a mode of the doctor's choosing, not the umask's"
+    )
 
 
 def test_the_sarif_is_written_whole(installed: pathlib.Path) -> None:
