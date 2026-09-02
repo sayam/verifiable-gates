@@ -125,6 +125,49 @@ Notable changes to this project. The format follows
   way a consumer's CI arrives there — and a directory that is not a repository were both
   `CalledProcessError` tracebacks under `check=True`. Nine mutations, nine red.
 
+- **A ceiling on time is not a ceiling on the answer, and nothing here had one in bytes.**
+  `urlopen(timeout=N)` bounds the gap between packets, not the download: a server that
+  sends a little and often never trips it. Measured against one writing 1KB every 0.5s with
+  the ceiling set to **1 second**, the reader was held for **12.0 seconds** — twelve times
+  the ceiling — and it ended because the server stopped, not because the ceiling fired,
+  while `json.load(response)` accumulated every byte with nothing to cap it (self-audit
+  round 19, 2026-09-02). That is the failure the ceilings in this package exist to prevent,
+  in `gh.py`'s own words: a job's whole budget eaten while nothing happens, then reported as
+  "the job timed out". Both network readers — `zenodo`, which runs on the cron, and the
+  worksheet's — now read in chunks against **two** ceilings of their own: how large the
+  answer may be, and by when it must have arrived. The worksheet also stopped believing the
+  shape of what comes back, which was a `KeyError` waiting on somebody else's server.
+
+- **A scanner's memory was a multiple of the largest file it was handed, with no ceiling
+  anywhere.** Measured on one 16 MB Python file: `list(tokenize.generate_tokens(...))` took
+  8.7s and **1,010 MB** over 2.7 million tokens, and `ast.parse` of the same file **1,457
+  MB** — **×64 and ×90** (self-audit round 19, 2026-09-02). A standard runner has 7 GB, so
+  one generated file of about 100 MB — a `_pb2.py`, a migration, a fixture — ends the job by
+  being killed, and CI reports that as *the gate failed*: the project blamed for a file the
+  tool could not hold. Every scanner now declares `MAX_FILE_CHARS` (8 MiB) and **reads up to
+  it and no further**, so the refusal costs the ceiling rather than the file: the same tree
+  that took 12.8s and 1,064 MB now answers in 0.0s at 29 MB, naming the file and giving no
+  verdict — the answer a file nobody can decode already gets. A file above the ceiling is a
+  rule the tool could not check, and the manifest forbids that looking like a rule it
+  checked.
+
+- **A ceiling on the size of a file bounds the memory, not the work: four scanners read
+  blank lines quadratically.** `^\s*` under `re.MULTILINE` looks like "any indentation" and
+  is not: `\s` crosses newlines, so the engine starts at **every** line and scans forward
+  through all the whitespace that follows before failing. Measured on the Dockerfile
+  scanner's `FROM` pattern alone (self-audit round 19, 2026-09-02): 15.6 KB of blank lines
+  **3.1s**, 31 KB **14.6s**, 62.5 KB **52.6s** — and 62.5 KB is a *thousandth* of the file
+  ceiling in the entry above, so the ceiling would not have caught it. A Dockerfile of
+  600 KB is a job that never ends, reported as the gate failing. **Every** pattern compiled
+  with `MULTILINE` in the scanners was then measured one at a time against 64,000 blank
+  lines, and the six that were quadratic — three in `scan_dockerfile_digest`, three in
+  `scan_adr_index` — are now anchored to **horizontal** space (`[ \t]`), which is what
+  indentation means on a line: the same 62.5 KB takes **8.6 ms**, and 250 KB takes 34 ms.
+  The ones that measured fast were **left alone**: `STEP` in the two pinning scanners ran in
+  0.72 ms as it was, and anchoring it made it *slower*; `uses:` is matched line by line, so
+  its flag is decorative. Both changes were made, measured, seen to be unprovable, and taken
+  back out. Held by a test whose assertion is the clock, because the defect is time.
+
 - **The paging wrapper could not tell rows from not-rows, and never stopped asking.**
   `gh.api_pages` promises `list[Any]` and built it with `rows.extend(...)`, which takes
   anything that iterates, over an answer `gh.api` is honestly typed `Any` — so an endpoint

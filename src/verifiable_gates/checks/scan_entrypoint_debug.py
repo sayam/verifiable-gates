@@ -148,6 +148,27 @@ def _configured_list(
     return None, MISSHAPEN.format(key=key, value=json.dumps(value)[:40], want="a list of strings")
 
 
+# **A ceiling on what one file may be.** Nothing here declared one, and the memory this
+# scanner uses is a multiple of the largest file it is handed: measured on one 16 MB Python
+# file, `ast.parse` took 7.4s and **1,457 MB** — ×90 — with `ast.walk` over its three
+# million nodes on top (self-audit round 19, 2026-09-02). A standard runner has 7 GB, so one
+# generated file of about 100 MB ends the job by being killed, which CI reports as *the gate
+# failed* — blaming the project for a file the tool could not hold. A file above the ceiling
+# is named and gets no verdict, on the route this scanner already has for a file it cannot
+# parse; it is read up to the ceiling and no further.
+MAX_FILE_CHARS = 8 * 1024 * 1024
+
+
+def _source(path: pathlib.Path) -> str:
+    """The file's text, or `ValueError` when it is larger than this scanner reads whole."""
+    with path.open(encoding="utf-8") as handle:
+        text = handle.read(MAX_FILE_CHARS + 1)
+    if len(text) > MAX_FILE_CHARS:
+        message = f"larger than the {MAX_FILE_CHARS // 1024 // 1024} MiB this scanner reads whole"
+        raise ValueError(message)
+    return text
+
+
 def _config_text(path: pathlib.Path) -> str:
     """`scaffold.json`'s text, or the third answer. Every scanner routes the files it
     judges around undecodable bytes; the configuration beside them was still read bare
@@ -236,7 +257,7 @@ def main(root: pathlib.Path) -> int:
     findings: list[str] = []
     for path in present:
         try:
-            tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
+            tree = ast.parse(_source(path), filename=str(path))
         except (SyntaxError, ValueError, OSError) as error:
             # A file Python cannot parse is not a verdict either way — said plainly,
             # exit 2, the way every other unreadable input is refused (self-audit,
