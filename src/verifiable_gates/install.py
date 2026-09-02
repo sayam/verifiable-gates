@@ -278,6 +278,13 @@ def install(
         f"installed into {dest} — {len(manifest['gates'])} gates ({scans} scan) · "
         "check with: python3 tools/gates_doctor.py"
     )
+    # The rules are read off the installed manifest, never copied into a file: a copy is
+    # something this installer would never overwrite, and an agent reading yesterday's copy
+    # while the scanner enforces today's is a skew nobody would see (2026-09-02).
+    print(
+        "for the instruction file your agents read (AGENTS.md, CLAUDE.md), add one line:"
+        " `run python3 tools/gates_doctor.py --rules before editing`"
+    )
     return 0
 
 

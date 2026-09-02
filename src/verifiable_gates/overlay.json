@@ -23,47 +23,65 @@
     "actions-sha-pinned": {
       "kind": "scan",
       "script": "checks/scan_workflow_pinning.py",
-      "title": "Every action is pinned to a commit SHA with the version in a comment"
+      "title": "Every action is pinned to a commit SHA with the version in a comment",
+      "layer": "baseline",
+      "born_from": "Tags move, commits do not — upload-artifact once sat on @v4 at a single call site for ten days with CI green throughout."
     },
     "adr-index-complete": {
       "kind": "scan",
       "script": "checks/scan_adr_index.py",
-      "title": "The ADR index covers every record, numbered without repeats or gaps · and supersessions are recorded in both directions"
+      "title": "The ADR index covers every record, numbered without repeats or gaps · and supersessions are recorded in both directions",
+      "layer": "baseline",
+      "born_from": "The index once stopped at 0026 while the files ran to 0033 — seven records from the phase that decided the biggest questions, invisible · audit round 14 added the second direction: ADR 0035 had superseded item 1 of 0032 since 2026-08-12, but 0032's own page did not know for seven days, while the module docstring at the head of app/audit.py still pointed at 0032 as the current mechanism, which CLAUDE.md explicitly forbids returning to."
     },
     "ci-tools-hash-pinned": {
       "kind": "scan",
       "script": "checks/scan_install_pinning.py",
-      "title": "Tools CI installs for itself are pinned by hash, on both the Python and the Node side"
+      "title": "Tools CI installs for itself are pinned by hash, on both the Python and the Node side",
+      "layer": "baseline",
+      "born_from": "An unpinned install command takes whatever is newest at the second the job runs, and it runs with our workflow's privileges · pinning one package at a time pins only that package while the rest of the tree still floats."
     },
     "csp-no-inline": {
       "kind": "scan",
       "script": "checks/scan_templates_inline.py",
-      "title": "CSP is pure self — no inline script, style, or handler anywhere"
+      "title": "CSP is pure self — no inline script, style, or handler anywhere",
+      "layer": "baseline",
+      "born_from": "ADR 0010 — the browser blocks inline content silently with no server-side error, so the gate has to read the template files directly rather than wait for symptoms."
     },
     "delete-means-soft-delete": {
       "kind": "scan",
       "script": "checks/scan_write_discipline.py",
-      "title": "Delete means hide (soft delete) — only purge removes rows for real"
+      "title": "Delete means hide (soft delete) — only purge removes rows for real",
+      "layer": "business",
+      "born_from": "ADR 0014 — a `--dry-run` implemented as a rollback once deleted real data, because purge committed before the savepoint closed · so there must be exactly one place that can delete."
     },
     "gates-registry-total": {
       "kind": "scan",
       "script": "checks/scan_gates_registry.py",
-      "title": "The gate index matches reality in both directions, and every test file is accounted for"
+      "title": "The gate index matches reality in both directions, and every test file is accounted for",
+      "layer": "baseline",
+      "born_from": "semgrep was scanning only 71 of 136 files because its scope was declared in two places — an index nothing holds to reality is an index that quietly reports things that are not true · audit round 7 added another field (`guards:` — ADR 0062): a gate that is expensive and has never caught anything has to be able to say *which path* it earns its keep on, or the question \"is it still worth it\" is answered by feel every time."
     },
     "image-digest-pinned": {
       "kind": "scan",
       "script": "checks/scan_dockerfile_digest.py",
-      "title": "The base image is pinned to a manifest-index digest and Dependabot moves it"
+      "title": "The base image is pinned to a manifest-index digest and Dependabot moves it",
+      "layer": "baseline",
+      "born_from": "Pinning with nobody to move it freezes the vulnerabilities in place — the two must always arrive together, and the test enforces that the pair is not separated."
     },
     "logic-knows-no-http": {
       "kind": "scan",
       "script": "checks/scan_service_layer.py",
-      "title": "All logic lives in the service layer and knows nothing about HTTP"
+      "title": "All logic lives in the service layer and knows nothing about HTTP",
+      "layer": "baseline",
+      "born_from": "Phase 3 — logic buried in routes makes the HTML and the API diverge the instant a second adapter exists · an AST scan forbids services importing anything from the request side."
     },
     "no-debug-entrypoint": {
       "kind": "scan",
       "script": "checks/scan_entrypoint_debug.py",
-      "title": "No entrypoint file can open a debug console, even when the wrong one is run"
+      "title": "No entrypoint file can open a debug console, even when the wrong one is run",
+      "layer": "baseline",
+      "born_from": "The first SAST round pointed at an entrypoint that could enable debug and was being copied into the image — run the wrong one and you have a debug console that executes code from a web page."
     }
   },
   "requires": {

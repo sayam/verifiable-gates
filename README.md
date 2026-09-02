@@ -101,7 +101,12 @@ gate whose job cannot turn the build red — a workflow with no trigger, `if: fa
 nothing else. And the bundle keeps a record of what it installed: `gates_doctor
 --installed` holds every file it wrote to the contents it wrote, not merely to being
 present, and an upgrade names what this version no longer ships and leaves it in place,
-because a file in your repository is yours to remove.
+because a file in your repository is yours to remove. And `gates_doctor --rules` prints the
+rules the bundle decides — each with where it came from and which scanner reads it — for
+the instruction file a project keeps for its agents (`AGENTS.md`, `CLAUDE.md`) to point at:
+read at run time from the installed manifest, so an upgrade cannot leave an agent on
+yesterday's rule, and only the rules a scanner here can decide, so no instruction stands
+without a gate behind it.
 
 **What the two pinning checkers read.** `ci-tools-hash-pinned` and
 `actions-sha-pinned` read every workflow, every composite action a workflow names
@@ -227,7 +232,10 @@ repo นี้เผยแพร่ ส่วน `gates.yaml` คือสิ่
 ทำให้ build แดงไม่ได้ — workflow ที่ไม่มี trigger, `if: false`, หรือ `continue-on-error: true` — เป็น finding
 เพราะแถวที่ไม่มีอะไรทำให้ล้มได้คือแถวเปล่า ๆ · และบันเดิลจดสิ่งที่มันติดตั้งไว้: `gates_doctor --installed`
 ถือทุกไฟล์ที่มันเขียนไว้กับ *เนื้อ* ที่มันเขียน ไม่ใช่แค่ว่ามีไฟล์อยู่ · และตอนอัปเกรด มันบอกว่ารุ่นนี้เลิกส่งอะไร
-แล้วปล่อยไฟล์นั้นไว้ เพราะไฟล์ในรีโปของคุณเป็นสิทธิ์ของคุณที่จะลบ · ตัวตรวจ pin อ่าน workflow ทุกไฟล์
+แล้วปล่อยไฟล์นั้นไว้ เพราะไฟล์ในรีโปของคุณเป็นสิทธิ์ของคุณที่จะลบ · และ `gates_doctor --rules` พิมพ์กฎที่บันเดิล
+ตัดสินได้ — แต่ละข้อพร้อมที่มาและตัวสแกนที่อ่านมัน — ให้ไฟล์คำสั่งที่โปรเจกต์เก็บไว้ให้ agent (`AGENTS.md`, `CLAUDE.md`)
+ชี้มาหา: อ่านตอนรันจาก manifest ที่ติดตั้งอยู่ การอัปเกรดจึงทิ้ง agent ไว้กับกฎเมื่อวานไม่ได้ และมีเฉพาะกฎที่ตัวสแกน
+ตรงนี้ตัดสินได้ จึงไม่มีคำสั่งข้อไหนยืนอยู่โดยไม่มีด่านหนุนหลัง · ตัวตรวจ pin อ่าน workflow ทุกไฟล์
 composite action ที่ `uses: ./<path>` ชี้ไม่ว่าอยู่ที่ไหนหรือพับบรรทัดอย่างไร และเชลล์สคริปต์ที่ `run:`
 เรียกต่อ ไม่ว่าจะรู้จากชื่อ `.sh` หรือจาก shebang ใส่เครื่องหมายคำพูดหรือไม่ก็ตาม จากที่ที่เชลล์ยืนอยู่ (`cd dir &&` ก่อนหน้า หรือ `working-directory:` ของ step) โดยตัดคอมเมนต์ก่อน — `#` ที่อยู่ในคำ (`$#`, `${#PKGS}`, `\#`) ไม่ใช่คอมเมนต์ · ใน workflow ตัดสินเฉพาะสิ่งที่
 `run:` รันจริง (`name:` หรือ `env:` ที่ยกคำสั่งมาพูดถึงเป็นแค่ข้อความ) และ `--require-hashes` นับเมื่อเป็น

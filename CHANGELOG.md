@@ -8,6 +8,25 @@ Notable changes to this project. The format follows
 
 ### Added
 
+- **The rules an agent reads are the ones the installed scanners decide, printed by the
+  doctor.** `tools/gates_doctor.py --rules` lists every `scan` gate in the installed
+  `overlay.json` — the rule, where it came from, and which scanner reads it — for the
+  instruction file a project keeps for its agents (`AGENTS.md`, `CLAUDE.md`) to point at,
+  and the installer now ends by saying which one line to add; it never writes that file. A
+  shipped rules *file* was measured against three things first (self-audit, 2026-09-02) and
+  failed all of them: the installer never overwrites what it wrote, so a copy would go stale
+  the way `ci-template.yml` already does — an agent on yesterday's rule beside a scanner on
+  today's; the catalogue names 92 rules and the shipped scanners decide 9, so a copy of the
+  sheet would be 83 instructions with no gate behind them; and the sheet's *Enforced in the
+  reference* lines cite this repository's tests and the reference implementation's CI steps,
+  eleven of them in Thai. Read off the manifest at run time, all three vanish. For that the
+  overlay's scan entries now carry `layer` and `born_from` beside `title`, and the test that
+  held overlay and catalogue to be one register in two files holds all three fields two-way.
+  The precedence the doctor prints is the overlay's own: an instruction elsewhere does not
+  switch a scanner off, and a `business` rule is decided differently in the project's
+  registry, never by working around the scan. Recorded in `DECISIONS.md`
+  `rules-are-read-off-the-installed-bundle`.
+
 - **A dependency bump lands as a commit the owner authored.** `bumps-land-as-the-owners-commit`
   in `DECISIONS.md`: the author field is what the platform counts as a contributor and it
   survives a rebase merge — only the committer becomes the merger — so merging #201 exactly as
