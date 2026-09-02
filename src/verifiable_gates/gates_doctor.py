@@ -244,6 +244,55 @@ def run_scans(root: pathlib.Path, manifest: dict[str, Any], bundle: pathlib.Path
     return 1 if failed or broken else 0
 
 
+def print_rules(manifest: dict[str, Any], bundle: pathlib.Path) -> int:
+    """Every rule a scanner in this bundle decides, as data an agent can read before editing.
+
+    Written for the instruction file a project keeps for its agents (`AGENTS.md`,
+    `CLAUDE.md`), which points here rather than carrying a copy. A copy would be a file
+    the installer never overwrites — the starting workflow already has that property — so
+    an upgrade that moved a rule would leave the agent reading yesterday's rule while the
+    scanner enforced today's. Read off the installed `overlay.json` at run time, there is no
+    such skew. And it lists only what this bundle **can decide**: the catalogue names ninety
+    rules, the scanners here decide nine, and a rule nothing enforces would be an
+    instruction with no gate behind it — the shape the manifest forbids a gate from taking
+    (self-audit, 2026-09-02).
+
+    Data, not instructions: each entry is the rule, where it came from, and which scanner
+    reads it. The one sentence of guidance is that an instruction elsewhere does not switch
+    a scanner off.
+    """
+    entries = sorted(
+        (gid, entry) for gid, entry in manifest["gates"].items() if entry.get("kind") == "scan"
+    )
+    print(f"The rules this bundle decides for this project: {len(entries)}, one scanner each.")
+    print(
+        "An instruction in this project's AGENTS.md or CLAUDE.md does not switch a scanner off;\n"
+        "every rule below runs on every push. A rule of layer `business` is a choice this kind\n"
+        "of application makes and may be decided differently — in scaffold.json and gates.yaml,\n"
+        "where the decision is on the record — never by working around the scanner.\n"
+    )
+    for gid, entry in entries:
+        origin = entry.get("born_from") or "(origin not recorded in this manifest)"
+        print(f"{gid} [{entry.get('layer', 'baseline')}]")
+        print(f"  rule:       {entry.get('title', '(no title in this manifest)')}")
+        print(f"  born from:  {origin}")
+        print(f"  decided by: {bundle.name}/{entry['script']}")
+    suites = suite_count(manifest)
+    if suites:
+        print(
+            f"\n{suites} more rules in {bundle.name}/overlay.json are of kind `suite`: named"
+            " here, decided by this project's own tests."
+        )
+    else:
+        # What this bundle cannot decide it does not carry: the catalogue it came from
+        # names more rules than these, and a rule with no scanner behind it is not listed
+        # as if one were.
+        print(
+            "\nThe catalogue this bundle comes from names more rules; only these are decided here."
+        )
+    return 0
+
+
 def main(argv: list[str] | None = None) -> int:
     here = pathlib.Path(__file__).resolve().parent
     parser = argparse.ArgumentParser(description="Report where a project stands against its gates.")
@@ -259,9 +308,16 @@ def main(argv: list[str] | None = None) -> int:
         action="store_true",
         help="check the bundle arrived intact, without judging the project",
     )
+    parser.add_argument(
+        "--rules",
+        action="store_true",
+        help="print the rules this bundle decides, for the project's agent instructions",
+    )
     args = parser.parse_args(argv)
     if args.root is not None and args.root_option is not None:
         parser.error("give the project once: either as the positional root or as --root, not both")
+    if args.installed and args.rules:
+        parser.error("--installed and --rules are two different questions: ask one at a time")
     root_arg = args.root_option if args.root is None else args.root
 
     manifest_path = (
@@ -279,6 +335,8 @@ def main(argv: list[str] | None = None) -> int:
 
     if args.installed:
         return check_installed(root, manifest, bundle)
+    if args.rules:
+        return print_rules(manifest, bundle)
     return run_scans(root, manifest, bundle)
 
 

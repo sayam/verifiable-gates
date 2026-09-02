@@ -131,6 +131,8 @@ HELD = {
     "bumps-land-as-the-owners-commit": "",
     # 2026-09-01, later the same day: the owner turned the machine off altogether.
     "dependabot-runs-nowhere-here": "2026-11-30",
+    # 2026-09-02: the rules an agent reads are the ones the installed scanners decide.
+    "rules-are-read-off-the-installed-bundle": "",
 }
 
 # The rows whose `expires when` is `Never` — an expiry rewritten to "Never" was

@@ -1184,3 +1184,118 @@ def test_every_na_line_says_what_the_scan_looked_for(
         assert " — " in line, f"this NA gives no reason: {line!r}"
     reasons = {line.split(" — ", 1)[1] for line in na}
     assert len(reasons) > 1, "every NA gave the same reason — the scans' own words are gone"
+
+
+# ---------------------------------------------------------------- the rules, read off the bundle
+
+
+def test_the_doctor_prints_every_rule_a_scanner_here_decides(
+    tmp_path: pathlib.Path, bundle_copy: pathlib.Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """`--rules` is what a project's agent instructions point at instead of carrying a copy:
+    read off the installed manifest at run time, so an upgrade cannot leave an agent on
+    yesterday's rule, and only the rules a scanner here decides, so no instruction stands
+    without a gate behind it (self-audit, 2026-09-02)."""
+    project = tmp_path / "project"
+    assert do_install(project, bundle_copy) == 0
+    capsys.readouterr()
+    manifest = json.loads((project / "tools" / "overlay.json").read_text(encoding="utf-8"))
+    scans = {gid: e for gid, e in manifest["gates"].items() if e.get("kind") == "scan"}
+
+    assert (
+        gates_doctor.main(
+            [str(project), "--manifest", str(project / "tools" / "overlay.json"), "--rules"]
+        )
+        == 0
+    )
+    out = capsys.readouterr().out
+
+    assert f"decides for this project: {len(scans)}," in out
+    for gid, entry in scans.items():
+        assert f"{gid} [{entry['layer']}]" in out, f"{gid} is missing or unlabelled"
+        assert entry["born_from"] in out, f"{gid} lost its origin"
+        assert f"decided by: tools/{entry['script']}" in out, f"{gid} does not name its scanner"
+    assert "does not switch a scanner off" in out, "the one sentence of guidance is missing"
+    assert "only these are decided here" in out, "what the bundle cannot decide is not said"
+
+
+def test_the_rules_name_the_suite_gates_a_manifest_carries(
+    tmp_path: pathlib.Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """A manifest that ships `suite` gates says how many, and whose they are to decide."""
+    bundle = tmp_path / "tools"
+    bundle.mkdir()
+    (bundle / "overlay.json").write_text(
+        json.dumps(
+            {
+                "bundle": "x",
+                "ship": [],
+                "gates": {
+                    "a-rule": {"kind": "scan", "script": "checks/scan_a.py", "title": "A"},
+                    "b-rule": {"kind": "suite", "title": "B"},
+                    "c-rule": {"kind": "suite", "title": "C"},
+                },
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    assert (
+        gates_doctor.main([str(tmp_path), "--manifest", str(bundle / "overlay.json"), "--rules"])
+        == 0
+    )
+    out = capsys.readouterr().out
+    assert "2 more rules in tools/overlay.json are of kind `suite`" in out
+    assert "b-rule" not in out, "a suite gate is counted, not listed as if a scanner decided it"
+
+
+def test_a_rule_whose_origin_the_manifest_lost_says_so(
+    tmp_path: pathlib.Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """A manifest from before origins travelled with titles still answers — with the
+    missing field named, not with a traceback and not with an invented sentence."""
+    bundle = tmp_path / "tools"
+    bundle.mkdir()
+    (bundle / "overlay.json").write_text(
+        json.dumps(
+            {
+                "bundle": "x",
+                "ship": [],
+                "gates": {"a-rule": {"kind": "scan", "script": "checks/scan_a.py", "title": "A"}},
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    assert (
+        gates_doctor.main([str(tmp_path), "--manifest", str(bundle / "overlay.json"), "--rules"])
+        == 0
+    )
+    out = capsys.readouterr().out
+    assert "a-rule [baseline]" in out
+    assert "(origin not recorded in this manifest)" in out
+
+
+def test_the_doctor_refuses_two_questions_at_once(
+    tmp_path: pathlib.Path, bundle_copy: pathlib.Path
+) -> None:
+    project = tmp_path / "project"
+    assert do_install(project, bundle_copy) == 0
+    manifest = str(project / "tools" / "overlay.json")
+
+    with pytest.raises(SystemExit) as refused:
+        gates_doctor.main([str(project), "--manifest", manifest, "--installed", "--rules"])
+    assert refused.value.code == 2
+
+
+def test_the_installer_points_the_agents_at_the_rules(
+    tmp_path: pathlib.Path, bundle_copy: pathlib.Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """The adoption cost is one line in the project's own instruction file, and the
+    installer says which line — it never writes into that file itself."""
+    project = tmp_path / "project"
+    assert do_install(project, bundle_copy) == 0
+    out = capsys.readouterr().out
+
+    assert "gates_doctor.py --rules" in out
+    assert not (project / "AGENTS.md").exists(), "the installer must not write the project's file"

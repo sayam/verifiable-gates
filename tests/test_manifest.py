@@ -153,16 +153,24 @@ def test_an_unusable_manifest_raises_rather_than_reports(
 def test_the_overlay_says_of_each_rule_exactly_what_the_catalogue_says() -> None:
     """The shipped overlay's scan gates and `rules.yaml` are one register in two files:
     same ids, same titles, two-way. All nine titles had drifted, and a test held only
-    that a title was non-empty (outside audit, 2026-08-31)."""
+    that a title was non-empty (outside audit, 2026-08-31). The layer and the origin
+    travel with the title since 2026-09-02: `gates_doctor.py --rules` reads them off the
+    installed overlay, so a sentence that drifted there would be the one an agent reads."""
     overlay = json.loads((ROOT / "src" / "verifiable_gates" / "overlay.json").read_text("utf-8"))
     rules = yaml.safe_load((ROOT / "rules.yaml").read_text("utf-8"))["rules"]
-    scripted = {rule["id"]: rule["title"] for rule in rules if "script" in rule}
+    scripted = {
+        rule["id"]: (rule["title"], rule["layer"], rule["born_from"])
+        for rule in rules
+        if "script" in rule
+    }
     shipped = {
-        gid: entry["title"]
+        gid: (entry["title"], entry["layer"], entry["born_from"])
         for gid, entry in overlay["gates"].items()
         if entry.get("kind") == "scan"
     }
-    assert shipped == scripted, "an id or a title differs between overlay.json and rules.yaml"
+    assert shipped == scripted, (
+        "an id, a title, a layer or a born_from differs between overlay.json and rules.yaml"
+    )
 
 
 def test_the_default_registry_says_of_each_rule_exactly_what_the_catalogue_says() -> None:
