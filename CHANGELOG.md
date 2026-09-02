@@ -102,6 +102,29 @@ Notable changes to this project. The format follows
   project**, which is what the rule always meant, and keeps the refusal above honest at the
   same time: a directory nobody judges cannot refuse the verdict either.
 
+- **Nine commands declared a ceiling and had no answer at the ceiling.** Every module that
+  fires a command outward carries the same sentence about why the ceiling is there — and of
+  the fourteen `timeout=` sites in thirteen modules, **five** answered when one was
+  reached. `gh.run` is the one that was fixed, on 2026-08-30, after exactly this traceback
+  in a census; the fix stayed in that file. Measured with a real `git log` and the ceiling
+  moved to 0.001s: `lint_commits` ends in a `subprocess.TimeoutExpired` traceback and
+  **exit 1**, which out of a commit-message gate reads as *these commit messages are bad*
+  from a reader that read none of them — and that ceiling is reached by **quantity**, a
+  range wide enough over a history long enough. `preflight` did the same at its step loop,
+  losing the result of every step it had already run, which is the whole of what the
+  command is for (self-audit round 19, 2026-09-02). Declaring a ceiling only converts an
+  unbounded wait into an exception; left uncaught, an exception is exit 1, the code that
+  means *findings* — so the ceiling does not prevent the wrong answer, it manufactures one.
+  Each now answers in its own idiom: `lint_commits` exits 2 saying the history could not be
+  read; `preflight` prints `XX [job] label (no answer in 3600s)` and walks on to the next
+  step; `measure`, `removals` and `scan_coverage` raise the `RuntimeError` they already
+  document ("every reader raises `RuntimeError` when it cannot answer, and never guesses");
+  `measure_apps` stops with a sentence naming the scanner and the ceiling, rather than
+  publishing a table with a hole in it. **A command that fails goes the same way**: a range
+  git will not resolve — a shallow clone whose base ref was never fetched is the ordinary
+  way a consumer's CI arrives there — and a directory that is not a repository were both
+  `CalledProcessError` tracebacks under `check=True`. Nine mutations, nine red.
+
 - **The paging wrapper could not tell rows from not-rows, and never stopped asking.**
   `gh.api_pages` promises `list[Any]` and built it with `rows.extend(...)`, which takes
   anything that iterates, over an answer `gh.api` is honestly typed `Any` — so an endpoint

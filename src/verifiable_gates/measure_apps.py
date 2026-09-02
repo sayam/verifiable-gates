@@ -84,13 +84,25 @@ def run_scans(app: pathlib.Path, bundle: pathlib.Path = BUNDLE) -> dict[str, Any
     shutil.copy2(bundle / "scaffold.json.default", app / "scaffold.json")
     status: dict[str, Any] = {}
     for checker in checkers(bundle):
-        done = subprocess.run(  # noqa: S603 — the bundle's own scanner, a path the caller gave
-            [sys.executable, str(checker), str(app)],
-            timeout=CHECKER_TIMEOUT_SECONDS,
-            capture_output=True,
-            text=True,
-            check=False,
-        )
+        try:
+            done = subprocess.run(  # noqa: S603 — the bundle's own scanner, a path the caller gave
+                [sys.executable, str(checker), str(app)],
+                timeout=CHECKER_TIMEOUT_SECONDS,
+                capture_output=True,
+                text=True,
+                check=False,
+            )
+        except subprocess.TimeoutExpired as expired:
+            # The ceiling is ours, so the answer at the ceiling has to be ours too. This
+            # function produces the evidence a published table is built from, and a
+            # `TimeoutExpired` nobody routes took the whole table with it — while a fourth
+            # answer in the dictionary would be a hole in a table that reads as complete.
+            # It stops, saying which scanner and which ceiling (round 19, 2026-09-02).
+            message = (
+                f"{checker.name} did not answer within {CHECKER_TIMEOUT_SECONDS} seconds"
+                f" at {app} — this measurement has no number to publish"
+            )
+            raise SystemExit(message) from expired
         gate = checker.stem.removeprefix("scan_")
         lines = [line for line in done.stdout.splitlines() if line.strip()]
         if any(line.startswith("NA:") for line in lines):
@@ -114,21 +126,27 @@ def run_scanner(app: pathlib.Path, binary: pathlib.Path | None, configs: list[st
     resolved = binary.resolve(strict=True)
     if not resolved.is_file():
         raise SystemExit(f"not a file: {resolved}")
-    done = subprocess.run(  # noqa: S603 — a path the caller gave, resolved and checked above
-        [
-            str(resolved),
-            "scan",
-            *[part for config in configs for part in ("--config", config)],
-            "--metrics=off",
-            "--json",
-            "--quiet",
-        ],
-        cwd=app,
-        timeout=SCANNER_TIMEOUT_SECONDS,
-        capture_output=True,
-        text=True,
-        check=False,
-    )
+    try:
+        done = subprocess.run(  # noqa: S603 — a path the caller gave, resolved and checked above
+            [
+                str(resolved),
+                "scan",
+                *[part for config in configs for part in ("--config", config)],
+                "--metrics=off",
+                "--json",
+                "--quiet",
+            ],
+            cwd=app,
+            timeout=SCANNER_TIMEOUT_SECONDS,
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+    except subprocess.TimeoutExpired as expired:
+        # The same answer this function already gives a scanner that fails: a number is
+        # the whole of what it returns, and there is none to return (round 19, 2026-09-02).
+        message = f"the scanner did not answer within {SCANNER_TIMEOUT_SECONDS} seconds at {app}"
+        raise SystemExit(message) from expired
     if done.returncode not in (0, 1):
         raise SystemExit(f"the scanner failed at {app}: {done.stderr[-300:]}")
     # A number is the whole output of this function, so a report it cannot read must not

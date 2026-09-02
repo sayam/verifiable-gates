@@ -364,3 +364,20 @@ def test_the_reader_actually_reaches_a_real_process(
     monkeypatch.setattr(shutil, "which", lambda _name: str(stub))
 
     assert measure.coverage_total(tmp_path) == pytest.approx(97.18)
+
+
+def test_a_tool_that_does_not_answer_in_time_is_said_so(
+    tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """This module's contract is "raises `RuntimeError` when it cannot answer, and never
+    guesses" — and `TOOL_TIMEOUT_SECONDS` was raising a `TimeoutExpired` nobody routes,
+    out of the readers whose numbers this repository publishes about itself (self-audit
+    round 19, 2026-09-02). A real process against a real ceiling, not a replaced `run`."""
+    stub = tmp_path / "stub-coverage"
+    stub.write_text("#!/bin/sh\nsleep 30\n", encoding="utf-8")
+    stub.chmod(0o755)
+    monkeypatch.setattr(shutil, "which", lambda _name: str(stub))
+    monkeypatch.setattr(measure, "TOOL_TIMEOUT_SECONDS", 0.3)
+
+    with pytest.raises(RuntimeError, match=r"did not answer within 0\.3 seconds"):
+        measure.coverage_total(tmp_path)

@@ -584,3 +584,26 @@ def test_a_config_this_walk_cannot_read_is_a_misuse_too(
     printed = capsys.readouterr().err
     assert preflight.CONFIG in printed
     assert says in printed
+
+
+def test_a_step_that_does_not_answer_is_reported_and_the_walk_goes_on(
+    tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """The ceiling is ours, so the answer at the ceiling has to be ours too.
+
+    `STEP_TIMEOUT_SECONDS` turned a step that never ends into a `TimeoutExpired` — and
+    nothing caught it, so it walked out of `execute`, out of `main`, and took every step
+    already run with it: a traceback and exit 1 where the whole point of this command is
+    to run the steps in order and show what happened (self-audit round 19, 2026-09-02).
+    The real bash and a real ceiling here, not a replaced `subprocess.run`.
+    """
+    monkeypatch.setattr(preflight, "STEP_TIMEOUT_SECONDS", 0.3)
+    entries = [
+        {"job": "j", "label": "hangs", "run": "sleep 30", "env": {}},
+        {"job": "j", "label": "after", "run": "true", "env": {}},
+    ]
+
+    assert preflight.execute(entries, tmp_path) == 1, "the step that never answered was counted"
+    out = capsys.readouterr().out
+    assert "XX  [j] hangs  (no answer in 0.3s)" in out, out
+    assert "OK  [j] after" in out, "the step after the hung one was never reached"

@@ -334,3 +334,37 @@ def test_the_command_writes_nothing_when_not_asked_to(
     assert measure_apps.main([str(root)]) == 0
     assert capsys.readouterr().out.count("| ctrl |") == 1
     assert not list(tmp_path.glob("*.json"))
+
+
+def test_a_scanner_that_does_not_answer_stops_the_measurement(
+    tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """This is where the published table's numbers come from, so a `TimeoutExpired` nobody
+    routes took the whole table with it (self-audit round 19, 2026-09-02). A fourth answer
+    in the dictionary would be a hole in a table that reads as complete, so the
+    measurement stops instead, saying which scanner and which ceiling."""
+    app = plant(tmp_path / "app1", APP)
+
+    def timed_out(*_args: object, **_kwargs: object) -> None:
+        raise subprocess.TimeoutExpired(cmd="scan", timeout=300)
+
+    monkeypatch.setattr(subprocess, "run", timed_out)
+
+    with pytest.raises(SystemExit, match="did not answer within 300 seconds"):
+        measure_apps.run_scans(app)
+
+
+def test_an_outside_scanner_that_does_not_answer_is_loud_rather_than_zero(
+    tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A number is the whole of what this function returns, and there is none to return —
+    the same answer it already gives a scanner that broke. A real ceiling, really reached:
+    `SCANNER_TIMEOUT_SECONDS` is half an hour, so it is moved for the test."""
+    stub = tmp_path / "stub"
+    stub.write_text("#!/bin/sh\nsleep 30\n", encoding="utf-8")
+    stub.chmod(0o755)
+    app = plant(tmp_path / "app1", APP)
+    monkeypatch.setattr(measure_apps, "SCANNER_TIMEOUT_SECONDS", 0.3)
+
+    with pytest.raises(SystemExit, match=r"did not answer within 0\.3 seconds"):
+        measure_apps.run_scanner(app, stub, [])

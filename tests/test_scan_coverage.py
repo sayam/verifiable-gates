@@ -234,3 +234,26 @@ def test_the_wording_is_an_input() -> None:
     )
 
     assert only(found) == "3 not read"
+
+
+def test_a_git_that_does_not_answer_in_time_is_said_so(
+    tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """This reader's contract is `RuntimeError` when it cannot answer — it says so for a
+    git that is not on the machine, and said nothing at all for one that does not finish:
+    `TimeoutExpired` walked out as a traceback (self-audit round 19, 2026-09-02)."""
+
+    def timed_out(*_args: object, **_kwargs: object) -> None:
+        raise subprocess.TimeoutExpired(cmd="git ls-files", timeout=60)
+
+    monkeypatch.setattr(subprocess, "run", timed_out)
+
+    with pytest.raises(RuntimeError, match="did not answer within 60 seconds"):
+        scan_coverage.tracked_files(tmp_path, "*.py")
+
+
+def test_a_directory_that_is_not_a_repository_is_said_so(tmp_path: pathlib.Path) -> None:
+    """`check=True` makes a git that fails a `CalledProcessError`, which is the same kind
+    of answer and was the same traceback. The real git, on a directory with no history."""
+    with pytest.raises(RuntimeError, match="failed:"):
+        scan_coverage.tracked_files(tmp_path, "*.py")

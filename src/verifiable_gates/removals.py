@@ -93,13 +93,24 @@ def _git(root: pathlib.Path, *args: str) -> str:
         raise RuntimeError(
             "git is not on this machine — this reader reads the history and nothing else"
         )
-    done = subprocess.run(  # noqa: S603 — a fixed command, its path from shutil.which
-        [binary, *args],
-        cwd=root,
-        capture_output=True,
-        check=False,
-        timeout=GIT_TIMEOUT_SECONDS,
-    )
+    try:
+        done = subprocess.run(  # noqa: S603 — a fixed command, its path from shutil.which
+            [binary, *args],
+            cwd=root,
+            capture_output=True,
+            check=False,
+            timeout=GIT_TIMEOUT_SECONDS,
+        )
+    except subprocess.TimeoutExpired as expired:
+        # The ceiling is ours, so the answer at the ceiling is ours too: the same
+        # `RuntimeError` this reader already raises when git is not on the machine at all
+        # (self-audit round 19, 2026-09-02). The ceiling is reached by **quantity** — a
+        # `--since` wide enough over a history long enough.
+        message = (
+            f"`git {' '.join(args)}` did not answer within {GIT_TIMEOUT_SECONDS} seconds"
+            " — the history could not be read"
+        )
+        raise RuntimeError(message) from expired
     # **A commit subject is bytes**, kept as the author's client sent them. `text=True`
     # decoded them with the machine's locale and `errors="strict"`, so one old subject
     # that was not UTF-8 ended the whole page in a raw `UnicodeDecodeError` — a reader

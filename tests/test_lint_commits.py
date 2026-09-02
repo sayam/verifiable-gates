@@ -525,3 +525,34 @@ def test_a_message_file_this_hook_cannot_decode_is_a_misuse(
     printed = capsys.readouterr().err
     assert "cannot read the message file" in printed
     assert "not UTF-8" in printed
+
+
+# ---------------------------------------------------------------- the answer at the ceiling
+
+
+def test_a_history_that_does_not_answer_in_time_is_not_a_verdict(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """`LOCAL_TIMEOUT_SECONDS` turned a `git log` that never returns into a
+    `TimeoutExpired`, and nothing caught it: an unhandled exception is **exit 1**, which
+    from this gate reads as *these commit messages are bad* out of a reader that read
+    none of them (self-audit round 19, 2026-09-02). The ceiling is reached by quantity —
+    a range wide enough over a history long enough."""
+
+    def timed_out(*_args: object, **_kwargs: object) -> None:
+        raise subprocess.TimeoutExpired(cmd="git log", timeout=60)
+
+    monkeypatch.setattr(subprocess, "run", timed_out)
+
+    assert lint_commits.main(["--range", "HEAD~1..HEAD"]) == 2
+    assert "did not answer within 60 seconds" in capsys.readouterr().err
+
+
+def test_a_range_git_will_not_resolve_is_not_a_verdict(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """The other way the same command does not answer, with the real git: a shallow clone
+    whose base ref was never fetched is how a consumer's CI arrives here, and it too was a
+    traceback and exit 1 — a reading of commits nobody had read."""
+    assert lint_commits.main(["--range", "no-such-ref-here..HEAD"]) == 2
+    assert "unknown revision" in capsys.readouterr().err

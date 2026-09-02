@@ -357,3 +357,20 @@ def test_the_command_declares_a_time_budget(
     removals.deleted_files(repo, "tests/", "1.year")
 
     assert budget["timeout"] == removals.GIT_TIMEOUT_SECONDS
+
+
+def test_a_git_that_does_not_answer_in_time_is_said_so(
+    tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The ceiling is reached by quantity — a `--since` wide enough over a history long
+    enough — and what came out of it was a `TimeoutExpired` nobody routes, from a reader
+    that already says `RuntimeError` when git is not on the machine at all (self-audit
+    round 19, 2026-09-02). A real process against a real ceiling."""
+    stub = tmp_path / "stub-git"
+    stub.write_text("#!/bin/sh\nsleep 30\n", encoding="utf-8")
+    stub.chmod(0o755)
+    monkeypatch.setattr(shutil, "which", lambda _name: str(stub))
+    monkeypatch.setattr(removals, "GIT_TIMEOUT_SECONDS", 0.3)
+
+    with pytest.raises(RuntimeError, match=r"did not answer within 0\.3 seconds"):
+        removals.deleted_files(tmp_path, "app", "30.days")
