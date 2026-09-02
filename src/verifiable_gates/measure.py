@@ -149,12 +149,29 @@ def suppression_counts(
     }
     total = bare = 0
     for path in sorted(seen):
-        for line in path.read_text(encoding="utf-8").splitlines():
+        for line in _lines_of(path):
             found, with_reason = classify_suppression(line)
             if found:
                 total += 1
                 bare += not with_reason
     return {"suppressions": total, "suppressions_without_reason": bare}
+
+
+def _lines_of(path: pathlib.Path) -> list[str]:
+    """A file's lines, or `RuntimeError` — the contract at the top of this module.
+
+    `glob` names a file, and reading it is a second question with a gap after the
+    first. A file the walk saw and nobody may open, a name whose target is gone (a
+    symlink left dangling), and a source file that is not UTF-8 were each a raw
+    traceback out of the reader that feeds `SUPPRESSED_LINES` — from a module whose
+    first paragraph promises it never does that (self-audit round 20, 2026-09-03).
+    """
+    try:
+        return path.read_text(encoding="utf-8").splitlines()
+    except OSError as problem:
+        raise RuntimeError(f"cannot read {path}: {problem.strerror or problem}") from problem
+    except UnicodeDecodeError as problem:
+        raise RuntimeError(f"cannot read {path}: not UTF-8 ({problem.reason})") from problem
 
 
 def coverage_total(root: pathlib.Path) -> float:

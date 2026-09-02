@@ -118,6 +118,29 @@ Notable changes to this project. The format follows
 
 ### Fixed
 
+- **Two readers promised never to guess, and each died of a traceback on a file it
+  could not open.** `measure.suppression_counts` — the reader that feeds
+  `SUPPRESSED_LINES` — and `workflows.load`, under `posture --settings`, the rerun
+  census, the schedule census and the red-streak census, both asked the walk for a
+  name and then read it, and a file the walk saw and nobody may open, a symlink whose
+  target was gone, a file that is not UTF-8, and (for workflows) YAML the parser
+  rejects were each a raw `PermissionError`, `FileNotFoundError`, `UnicodeDecodeError`
+  or `ParserError` — exit 1 from tools whose exit 1 means *findings*, from a module
+  whose first paragraph says every reader raises `RuntimeError` when it cannot answer
+  (self-audit round 20, 2026-09-03). Both now read first and answer the exception
+  with the `RuntimeError` promised — *cannot read <file>: Permission denied* — which
+  every caller already turns into *cannot read …* and exit 2. Four callers needed a
+  guard or a wider one: `posture --settings` and the rerun census read the workflows
+  outside any `try`; the schedule census caught only the one shape round 3 had met;
+  the red-streak census caught what the bare read used to raise, and now also reads
+  the blocking paths beside the first read of the same files rather than after the
+  history, one window for the tree to change in instead of two. Proved by mutation,
+  eight planted defects each red on its own: the `OSError` road and the not-UTF-8
+  road removed from the counter, the workflow reader put back to a bare read, YAML
+  errors left out of it, the guard removed from posture and from the rerun census,
+  the schedule census put back to round 3's guard, and the reader's exception left
+  out of the red-streak guard.
+
 - **Two harness rounds noted at once were one number, and one of them was lost; a
   writer killed mid-note left the notes empty.** `harness` kept its per-machine round
   log by reading the whole file, counting the lines, and writing the whole file back.

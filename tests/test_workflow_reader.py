@@ -22,6 +22,7 @@ from verifiable_gates import workflows
 
 if TYPE_CHECKING:
     import pathlib
+    from collections.abc import Callable
 
 
 def parsed(text: str) -> workflows.Workflow:
@@ -141,6 +142,46 @@ def test_a_directory_is_read_by_name_in_order(tmp_path: pathlib.Path) -> None:
 
     assert list(found) == ["a.yaml", "b.yml", "c.yml"], "both extensions, sorted"
     assert "notes.md" not in found
+
+
+# A workflow this reader cannot read is `RuntimeError`, which every caller already
+# answers with "cannot read" and exit 2. It was whatever the read raised, and one
+# workflow nobody could open ended `posture --settings` and the rerun census in a
+# traceback with exit 1 — the code that means findings (self-audit round 20, 2026-09-03).
+
+
+def test_a_workflow_nobody_can_read_is_a_sentence_not_a_traceback(
+    tmp_path: pathlib.Path,
+) -> None:
+    (tmp_path / "ci.yml").write_text("on: push\n", encoding="utf-8")
+    locked = tmp_path / "locked.yml"
+    locked.write_text("on: push\n", encoding="utf-8")
+    locked.chmod(0o000)
+    try:
+        with pytest.raises(RuntimeError, match=r"cannot read the workflow locked\.yml: Permission"):
+            workflows.all_workflows(tmp_path)
+    finally:
+        locked.chmod(0o644)
+    assert list(workflows.all_workflows(tmp_path)) == ["ci.yml", "locked.yml"], "the control"
+
+
+@pytest.mark.parametrize(
+    ("plant", "reason"),
+    [
+        (lambda p: p.symlink_to(p.parent / "gone.yml"), "No such file"),
+        (lambda p: p.write_bytes(b"name: caf\xe9\n"), "not UTF-8|invalid"),
+        (lambda p: p.write_text("on: [\n", encoding="utf-8"), "while parsing"),
+    ],
+    ids=["a symlink whose target is gone", "not UTF-8", "YAML the parser rejects"],
+)
+def test_every_way_a_workflow_cannot_be_read_is_the_same_sentence(
+    tmp_path: pathlib.Path, plant: Callable[[pathlib.Path], None], reason: str
+) -> None:
+    path = tmp_path / "w.yml"
+    plant(path)
+
+    with pytest.raises(RuntimeError, match=rf"cannot read the workflow w\.yml: .*({reason})"):
+        workflows.load(path)
 
 
 def test_the_directory_is_an_input_not_a_constant(tmp_path: pathlib.Path) -> None:

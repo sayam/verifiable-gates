@@ -579,3 +579,22 @@ def test_a_workflow_that_is_not_utf_8_is_a_misuse(
 
     assert refused.value.code == 2
     assert "cannot read the workflows" in capsys.readouterr().err
+
+
+def test_a_workflow_nobody_can_read_is_a_misuse_too(
+    tmp_path: pathlib.Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """Round 3's guard was written for the one shape it met, not UTF-8; a workflow
+    nobody may open went past it as a traceback (self-audit round 20, 2026-09-03)."""
+    flows = tmp_path / ".github" / "workflows"
+    flows.mkdir(parents=True)
+    (flows / "ci.yml").write_text("on: push\n", encoding="utf-8")
+    (flows / "ci.yml").chmod(0o000)
+    try:
+        with pytest.raises(SystemExit) as refused:
+            census.main(["--root", str(tmp_path)])
+    finally:
+        (flows / "ci.yml").chmod(0o644)
+
+    assert refused.value.code == 2
+    assert "cannot read the workflows: cannot read the workflow ci.yml" in capsys.readouterr().err

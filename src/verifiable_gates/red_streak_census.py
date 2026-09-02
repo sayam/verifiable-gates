@@ -180,10 +180,15 @@ def main(argv: list[str] | None = None) -> int:
 
     try:
         promised = promised_days(registry, workflows.workflow_dir(root))
-    except (OSError, UnicodeDecodeError) as problem:
+        # Read here, beside the first read of the same files, rather than after the
+        # history: a second read of the tree is a second window for it to change in.
+        blocking = blocking_paths(workflows.workflow_dir(root))
+    except (OSError, UnicodeDecodeError, RuntimeError) as problem:
         # `--input` was given this answer in round 1; `--root` was not, and a root
         # that is not there was a traceback (round 2, 2026-08-31). A registry or a
-        # workflow that is not UTF-8 was still one until round 3 (2026-09-01).
+        # workflow that is not UTF-8 was still one until round 3 (2026-09-01). The
+        # workflow reader answers every file it cannot read with `RuntimeError` since
+        # round 20 (2026-09-03); `OSError` stays for the registry, read here.
         print(f"cannot read the registry or the workflows: {problem}", file=sys.stderr)
         return 2
     if not promised:
@@ -217,7 +222,6 @@ def main(argv: list[str] | None = None) -> int:
         return 2
 
     measured = longest_red_hours(runs)
-    blocking = blocking_paths(workflows.workflow_dir(root))
     found = problems(promised, measured)
     for path, hours in sorted(measured.items()):
         note, unheld = standing(path, promised, blocking)

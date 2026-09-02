@@ -123,6 +123,40 @@ def test_a_skipped_name_and_a_skipped_directory_are_both_honoured(
     assert counts["suppressions"] == 1
 
 
+# `glob` names a file, and reading it is a second question with a gap after the first.
+# A file the walk saw and nobody may open, a name whose target is gone, and a source
+# file that is not UTF-8 were each a raw traceback out of the reader that feeds
+# `SUPPRESSED_LINES` — from a module whose first paragraph promises it never does that
+# (self-audit round 20, 2026-09-03).
+
+
+def test_a_file_the_walk_saw_and_nobody_can_read_is_loud(tmp_path: pathlib.Path) -> None:
+    write(tmp_path, "a.py", f"a = 1  {HASH} noqa: F401\n")
+    locked = write(tmp_path, "b.py", "b = 2\n")
+    locked.chmod(0o000)
+    try:
+        with pytest.raises(RuntimeError, match=r"cannot read .*b\.py: Permission denied"):
+            measure.suppression_counts(tmp_path, ("*.py",))
+    finally:
+        locked.chmod(0o644)
+    assert measure.suppression_counts(tmp_path, ("*.py",))["suppressions"] == 1, "the control"
+
+
+def test_a_name_whose_target_is_gone_is_loud(tmp_path: pathlib.Path) -> None:
+    write(tmp_path, "a.py", "a = 1\n")
+    (tmp_path / "dangling.py").symlink_to(tmp_path / "gone.py")
+
+    with pytest.raises(RuntimeError, match=r"cannot read .*gone\.py: No such file"):
+        measure.suppression_counts(tmp_path, ("*.py",))
+
+
+def test_a_source_file_that_is_not_utf8_is_loud(tmp_path: pathlib.Path) -> None:
+    (tmp_path / "latin.py").write_bytes(b"x = 'caf\xe9'\n")
+
+    with pytest.raises(RuntimeError, match=r"cannot read .*latin\.py: not UTF-8"):
+        measure.suppression_counts(tmp_path, ("*.py",))
+
+
 # ------------------------------------------------------- a measurement file
 
 

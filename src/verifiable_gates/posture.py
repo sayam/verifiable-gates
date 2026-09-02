@@ -381,7 +381,13 @@ def _settings(register: pathlib.Path, root: pathlib.Path) -> int:
     except (PermissionError, RuntimeError) as problem:
         print(f"cannot read the platform's settings: {problem}", file=sys.stderr)
         return 2
-    found = workflows.all_workflows(workflows.workflow_dir(root))
+    try:
+        found = workflows.all_workflows(workflows.workflow_dir(root))
+    except RuntimeError as problem:
+        # One workflow nobody can open ended the whole settings report in a traceback
+        # and exit 1 — the code that means a switch drifted (self-audit round 20).
+        print(f"cannot read the workflows: {problem}", file=sys.stderr)
+        return 2
     # The third outcome is printed, not counted: a switch declared unreadable is
     # shown with the value it should hold so a person can check it by hand.
     by_hand = unreadable(state, wanted)

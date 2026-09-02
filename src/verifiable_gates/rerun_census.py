@@ -163,6 +163,9 @@ MESSAGES = {
         "skip** — a census that goes quiet when it cannot see reports a clean window "
         "on the day it can see nothing at all."
     ),
+    "cannot_read_workflows": (
+        "cannot read the workflows: {problem} — the census cannot name a job it cannot see"
+    ),
 }
 
 
@@ -586,7 +589,13 @@ def main(argv: list[str] | None = None, *, messages: Mapping[str, str] | None = 
         gates = yaml.safe_load(registry.read_text(encoding="utf-8"))["gates"]
         report_evidence(evidence_proposals(records, gates), messages=messages)
 
-    ids, by_name, by_path = job_identity(workflows.workflow_dir(root))
+    try:
+        ids, by_name, by_path = job_identity(workflows.workflow_dir(root))
+    except RuntimeError as problem:
+        # The history was guarded above; the workflows beside it were not, and one
+        # nobody can open was a traceback with exit 1 (self-audit round 20).
+        print(text["cannot_read_workflows"].format(problem=problem), file=sys.stderr)
+        return 2
     summary = census(records, by_name)
     if args.json:
         print(json.dumps(summary, ensure_ascii=False, indent=2))
