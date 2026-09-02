@@ -7,19 +7,28 @@ its first dependency. That constraint is why the manifest is JSON rather than
 YAML, and why the few lines of manifest reading here are not shared with
 `verifiable_gates.manifest` — the duplication is small and the property is not.
 
-    python3 gates_doctor.py [root | --root DIR] [--manifest path] [--installed]
+    python3 gates_doctor.py [root | --root DIR] [--manifest path] [--installed | --rules]
 
 The project can be named either way. Every other tool in this bundle takes
 `--root`, and an operator who reaches for the same spelling here should be
 answered, not shown a usage error. Naming it twice is a misuse (exit 2): two
 roots that differ would leave the report silently about one of them.
 
-**Two modes that measure different things, and the difference is the point:**
+**Three modes that measure different things, and the difference is the point:**
 
 - `--installed` asks whether the bundle *arrived and can run*: the config exists,
   every scan script compiles. That is a claim about the installation, not about
-  the project's code.
-- Without the flag it **runs the scans** and exits 1 if any found something.
+  the project's code. An install that stopped partway says so, rather than
+  reporting the files that did land as files somebody edited.
+- `--rules` asks what this bundle *decides*, and judges nothing: every `scan`
+  gate in the installed manifest, with where the rule came from and which
+  scanner reads it, for the instruction file a project keeps for its agents to
+  point at. It is read at run time, so an upgrade cannot leave an agent on
+  yesterday's rule.
+- Without either flag it **runs the scans** and exits 1 if any found something.
+
+Asking two of them at once is a misuse (exit 2), for the same reason two roots
+are: they are different questions, and one report cannot answer both.
 
 Gates of kind `suite` are counted and reported as waiting on the project's own
 tests. They are never folded into the pass count, because a rule this bundle
