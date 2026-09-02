@@ -33,7 +33,7 @@ from typing import Any
 
 import yaml
 
-from verifiable_gates import registry
+from verifiable_gates import files, registry
 
 __all__ = ["ROUND_LOG", "main", "run_all", "run_test_gate"]
 
@@ -230,9 +230,9 @@ def _write_report(output: pathlib.Path, round_number: int, results: list[dict[st
     could not be answered, which is exit 2 — not exit 1, which would say the gates failed.
     """
     try:
-        output.write_text(
+        files.write_text_atomically(
+            output,
             json.dumps({"round": round_number, "results": results}, ensure_ascii=False, indent=1),
-            encoding="utf-8",
         )
     except OSError as problem:
         print(f"cannot write the report: {output}: {problem}", file=sys.stderr)

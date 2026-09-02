@@ -117,9 +117,14 @@ def test_the_digest_moves_only_when_a_requirement_does() -> None:
 
 def test_pin_and_load_round_trip(tmp_path: pathlib.Path) -> None:
     target = tmp_path / "asvs.json"
+    target.write_text("{}", encoding="utf-8")
+    stale = target.stat().st_ino
 
     ws.pin(target, STANDARD, version="5.0.0", url="https://example.test/asvs.json")
     body = json.loads(target.read_text(encoding="utf-8"))
+
+    # Replaced whole, never rewritten in place (self-audit round 20, 2026-09-03).
+    assert target.stat().st_ino != stale, "the pin was rewritten in place"
 
     assert body["version"] == "5.0.0"
     assert body["source"] == "https://example.test/asvs.json"

@@ -84,6 +84,7 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import os
 import pathlib
 import py_compile
 import re
@@ -432,12 +433,35 @@ def sarif_log(
     }
 
 
+def _write_whole(out: pathlib.Path, text: str) -> None:
+    """The text as `out`, whole or not at all — a sibling file renamed over the target.
+
+    `write_text` truncates first, and a reader arriving between that and the write — the
+    upload step, an IDE watching the file — saw an empty log or part of one, 99.7% of
+    the time at this log's size; a doctor killed inside that window left 0 bytes. The
+    package has one writer for this (`files.py`); this file is shipped standalone and
+    may import nothing from it, so it carries the dozen lines (self-audit round 20,
+    2026-09-03).
+    """
+    target = out.resolve()
+    beside = target.with_name(f".{target.name}.{os.getpid()}.tmp")
+    try:
+        with os.fdopen(os.open(beside, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o666), "wb") as h:
+            h.write(text.encode("utf-8"))
+            h.flush()
+            os.fsync(h.fileno())
+        beside.replace(target)
+    except OSError:
+        beside.unlink(missing_ok=True)
+        raise
+
+
 def write_sarif(
     out: pathlib.Path, root: pathlib.Path, manifest: dict[str, Any], outcomes: list[Outcome]
 ) -> bool:
     """The log on disk, or a sentence on stderr and False — never a traceback."""
     try:
-        out.write_text(json.dumps(sarif_log(root, manifest, outcomes), indent=2) + "\n", "utf-8")
+        _write_whole(out, json.dumps(sarif_log(root, manifest, outcomes), indent=2) + "\n")
     except OSError as problem:
         sys.stdout.flush()
         print(

@@ -105,10 +105,14 @@ def test_a_pattern_that_matches_nothing_is_reported_not_skipped(
 
 def test_writing_fixes_the_value_and_nothing_around_it(tmp_path: pathlib.Path) -> None:
     path = write(tmp_path, "README.md", "It has 112 machine-checked gates, and a badge.\n")
+    stale = path.stat().st_ino
 
     advertised.write(tmp_path, advertised.drift(tmp_path, {"gates": [PLACE]}, {"gates": "114"}))
 
     assert path.read_text(encoding="utf-8") == "It has 114 machine-checked gates, and a badge.\n"
+    # Replaced whole, never rewritten in place: a reader in a loop saw an empty file 74%
+    # of the time at a changelog's size (self-audit round 20, 2026-09-03).
+    assert path.stat().st_ino != stale, "the place was rewritten in place"
 
 
 def test_writing_leaves_a_place_it_could_not_find_alone(tmp_path: pathlib.Path) -> None:
@@ -130,20 +134,21 @@ def test_a_write_that_stops_partway_carries_the_places_that_landed(
     place that cannot be written after two others already have leaves a checkout that is
     neither what it was nor what it should be, and the caller could only say "cannot
     write the fix" — which reads as *nothing was written* (self-audit round 16,
-    2026-09-01). Nothing here is atomic and nothing needs to be: every place is a tracked
-    file, so the bytes are recoverable from the history. Being told is what was missing.
+    2026-09-01). Each place is written whole since round 20, which is why the place
+    that cannot be written sits in a directory nobody may write to: a read-only file no
+    longer stops a sibling being renamed over it. Being told is still what matters.
     """
     first = write(tmp_path, "README.md", "It has 112 machine-checked gates.\n")
-    second = write(tmp_path, "CITATION.cff", "It has 112 machine-checked gates.\n")
-    places = [advertised.Place("README.md", GATES), advertised.Place("CITATION.cff", GATES)]
-    second.chmod(0o444)
+    write(tmp_path, "docs/CITATION.cff", "It has 112 machine-checked gates.\n")
+    places = [advertised.Place("README.md", GATES), advertised.Place("docs/CITATION.cff", GATES)]
+    (tmp_path / "docs").chmod(0o555)
     try:
         drifting = advertised.drift(tmp_path, {"gates": places}, {"gates": "114"})
 
         with pytest.raises(advertised.PartialWriteError) as stopped:
             advertised.write(tmp_path, drifting)
     finally:
-        second.chmod(0o644)
+        (tmp_path / "docs").chmod(0o755)
 
     assert [item.place.path for item in stopped.value.written] == ["README.md"], (
         "the places that landed were not carried out with the failure"
@@ -155,14 +160,15 @@ def test_a_write_that_stops_partway_carries_the_places_that_landed(
 def test_a_write_with_nothing_written_yet_still_names_the_failure(tmp_path: pathlib.Path) -> None:
     """The control: when the **first** place cannot be written, nothing landed and the
     error says so with an empty list — a caller must be able to tell the two apart."""
-    only = write(tmp_path, "README.md", "It has 112 machine-checked gates.\n")
-    drifting = advertised.drift(tmp_path, {"gates": [PLACE]}, {"gates": "114"})
-    only.chmod(0o444)
+    write(tmp_path, "docs/README.md", "It has 112 machine-checked gates.\n")
+    place = advertised.Place("docs/README.md", GATES)
+    drifting = advertised.drift(tmp_path, {"gates": [place]}, {"gates": "114"})
+    (tmp_path / "docs").chmod(0o555)
     try:
         with pytest.raises(advertised.PartialWriteError) as stopped:
             advertised.write(tmp_path, drifting)
     finally:
-        only.chmod(0o644)
+        (tmp_path / "docs").chmod(0o755)
 
     assert stopped.value.written == []
 

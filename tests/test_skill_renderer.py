@@ -204,6 +204,23 @@ def test_writing_and_then_checking_agree(
     assert "up to date" in capsys.readouterr().out
 
 
+def test_the_sheet_is_replaced_whole_not_rewritten_in_place(tmp_path: pathlib.Path) -> None:
+    """An agent reading the sheet while the generator runs saw an empty or half sheet
+    (self-audit round 20, 2026-09-03)."""
+    catalogue, preamble = a_project(tmp_path, CATALOGUE)
+    out = tmp_path / "SKILL.md"
+    out.write_text("stale\n", encoding="utf-8")
+    stale = out.stat().st_ino
+
+    assert (
+        skill.main(["--catalogue", str(catalogue), "--preamble", str(preamble), "--out", str(out)])
+        == 0
+    )
+
+    assert out.stat().st_ino != stale, "the sheet was rewritten in place"
+    assert not list(tmp_path.glob(".*.tmp"))
+
+
 def test_index_on_the_command_line_writes_the_front_page(
     tmp_path: pathlib.Path, capsys: pytest.CaptureFixture[str]
 ) -> None:

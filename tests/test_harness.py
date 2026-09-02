@@ -186,7 +186,12 @@ def test_a_failing_round_prints_the_gate_the_cause_and_the_hint(
 def test_the_full_report_can_be_written_for_a_machine(tmp_path: pathlib.Path) -> None:
     root = a_project(tmp_path, PASSING)
     report = tmp_path / "report.json"
+    report.write_text("{}", encoding="utf-8")
+    stale = report.stat().st_ino
     assert run(root, "--output", str(report)) == 0
+    # Replaced whole, never rewritten in place: a loop reading the report while the
+    # harness writes it saw an empty file (self-audit round 20, 2026-09-03).
+    assert report.stat().st_ino != stale, "the report was rewritten in place"
     written = json.loads(report.read_text(encoding="utf-8"))
     assert written["round"] == 1
     assert written["results"][0]["gate"] == "a-rule"

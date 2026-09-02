@@ -43,6 +43,7 @@ import re
 import sys
 from typing import Any
 
+from verifiable_gates import files
 from verifiable_gates import rules as catalogue
 
 __all__ = ["LANGUAGES", "main", "render", "render_index"]
@@ -135,7 +136,7 @@ def _write_sheet(out: pathlib.Path, text: str) -> None:
     "the file on disk differs" (self-audit round 5, 2026-09-01).
     """
     try:
-        out.write_text(text, encoding="utf-8")
+        files.write_text_atomically(out, text)
     except OSError as unwritable:
         print(f"cannot write the sheet: {out}: {unwritable}", file=sys.stderr)
         raise SystemExit(2) from unwritable

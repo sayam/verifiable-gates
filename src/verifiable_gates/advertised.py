@@ -40,6 +40,8 @@ import re
 import sys
 from typing import TYPE_CHECKING
 
+from verifiable_gates import files
+
 if TYPE_CHECKING:
     import pathlib
 
@@ -162,18 +164,21 @@ def write(root: pathlib.Path, items: list[Drift]) -> list[Drift]:
     be believed to do something it does not, so it is gone: `drift` is what
     reports the miss, and this only types.
 
-    Nothing here is atomic and nothing here needs to be: every place is a file the
-    repository tracks, so a write the machine stops halfway is recoverable from the
-    history. What is **not** recoverable is not being told it happened, which is why a
-    place that fails takes the ones already written with it, in `PartialWriteError`.
+    Every place is a file the repository tracks, and this docstring once said that
+    was why nothing here needed to be atomic. Git recovers the disk; it does not recover
+    the answer a test or an agent read off the half-written file while it was being
+    written, which a reader in a loop got 74% of the time at a changelog's size
+    (self-audit round 20, 2026-09-03) — so each place is written whole, through the one
+    writer. What is still **not** recoverable is not being told a write stopped, which is
+    why a place that fails takes the ones already written with it, in `PartialWriteError`.
     """
     written: list[Drift] = []
     for item in items:
         path = root / item.place.path
         try:
             body = path.read_text(encoding="utf-8")
-            path.write_text(
-                replace_group_one(body, item.place.pattern, item.want), encoding="utf-8"
+            files.write_text_atomically(
+                path, replace_group_one(body, item.place.pattern, item.want)
             )
         except OSError as problem:
             raise PartialWriteError(written, problem) from problem
