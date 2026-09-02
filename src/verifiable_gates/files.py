@@ -15,9 +15,11 @@ makes the rename atomic — are flushed to disk, and are renamed over the target
 `Path.replace`. A reader sees the old file or the new one and nothing between; a writer
 killed at any point leaves the old file where it was and at most a temp file beside it,
 named `.<name>.<token>.tmp` so it is recognisable. The mode of a file that already exists
-is kept, because a scanner the installer rewrites runs by its mode, and a symlink is
-written *through*, as `write_text` did, not replaced by a file. Whatever the write raises
-is raised: every caller already answers an `OSError` in a sentence of its own.
+is kept, because a scanner the installer rewrites runs by its mode; a file that did not
+exist is created `0o644` before the umask, so the sibling is never, even for the length
+of the write, a file anyone could write to. A symlink is written *through*, as
+`write_text` did, not replaced by a file. Whatever the write raises is raised: every
+caller already answers an `OSError` in a sentence of its own.
 
 `gates_doctor.py` carries a copy of the text writer in a dozen lines. That file is
 shipped standalone and imports nothing from here, for the same reason its manifest
@@ -41,6 +43,14 @@ if TYPE_CHECKING:
 
 __all__ = ["copy_atomically", "write_bytes_atomically", "write_text_atomically"]
 
+_CREATE = os.O_WRONLY | os.O_CREAT | os.O_EXCL
+# The mode a file that did not exist is created with, before the umask narrows it.
+# Not `0o666`: the sibling exists under its own name for the length of the write, and
+# for that moment a mode the umask does not narrow would be a file anyone could write
+# (CodeQL `py/overly-permissive-file`, on the first push of this change). A file that
+# already exists keeps the mode it had — see `_keep_mode`.
+_NEW_FILE = 0o644
+
 
 def write_text_atomically(path: pathlib.Path, text: str, encoding: str = "utf-8") -> None:
     """`text` as `path`, whole or not at all."""
@@ -52,7 +62,7 @@ def write_bytes_atomically(path: pathlib.Path, data: bytes) -> None:
     target = path.resolve()
     beside = _beside(target)
     try:
-        with os.fdopen(os.open(beside, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o666), "wb") as out:
+        with os.fdopen(os.open(beside, _CREATE, _NEW_FILE), "wb") as out:
             out.write(data)
             out.flush()
             os.fsync(out.fileno())

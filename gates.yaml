@@ -2312,18 +2312,23 @@ gates:
           reading a scanner while a consumer's CI reinstalled read part of one — a reader
           in a loop got an unusable copy 32% of the time at the record's size and 99.7%
           at a SARIF log's, and a writer killed inside the window left 0 bytes
-          (self-audit round 20, 2026-09-03). Seven planted defects red on their own here:
+          (self-audit round 20, 2026-09-03). Eight planted defects red on their own here:
           the one writer put back to writing in place, the mode of a rewritten file
-          dropped (a scanner runs by its mode), the temp file left behind when the write
-          fails, a symlink replaced by a file instead of written through, the installer's
-          copy back to `copy2` in place, the installer's record back to `write_text`, and
-          the doctor's own standalone copy of the writer back to `write_text`. **Two
-          existing proofs had to be re-derived**: five tests had simulated "a file nobody
-          may write" with the file's mode, which a rename over it does not need, so they
-          now lock the directory — the properties they hold are unchanged. And a mutation
-          the same length as the line it replaced, restored within the same second, left
-          the mutant's bytecode valid under the restored source and ran on: found by
-          profiling, fixed by clearing `__pycache__` before the control run.
+          dropped (a scanner runs by its mode), the creation mode of a new file widened
+          from `0o644` to `0o666`, the temp file left behind when the write fails, a
+          symlink replaced by a file instead of written through, the installer's copy
+          back to `copy2` in place, the installer's record back to `write_text`, and the
+          doctor's own standalone copy of the writer back to `write_text`. **Three things
+          in the method had to be fixed before any of that could be believed.** Five
+          tests had simulated "a file nobody may write" with the file's mode, which a
+          rename over it does not need, so they now lock the directory — the properties
+          they hold are unchanged. A mutation the same length as the line it replaced,
+          restored within the same second, left the mutant's bytecode valid under the
+          restored source and ran on: found by profiling, fixed by clearing
+          `__pycache__` before the control run. And the mode mutation **stayed green at
+          first**, because under the usual umask of 022 a file created `0o666` and one
+          created `0o644` are both `0o644` on disk: the test now takes the umask out of
+          the way, and the mode the writer asks for is what is held.
       - kind: mutation
         ref: pr/227
         date: 2026-09-03
