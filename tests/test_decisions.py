@@ -135,6 +135,7 @@ HELD = {
     "rules-are-read-off-the-installed-bundle": "",
     "the-sheets-live-under-skills": "",
     "distribution-is-two-pipes-nobody-here-owns": "",
+    "agent-instructions-point-and-do-not-copy": "",
 }
 
 # The rows whose `expires when` is `Never` — an expiry rewritten to "Never" was

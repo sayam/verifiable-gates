@@ -136,6 +136,10 @@ bump (or a manual `git submodule update --remote` opened as a pull request).
 A consumer must never pin a commit that is not on this `main` — the extraction
 period, when both moved in one day, is the exception that has ended.
 
+An agent working in this checkout reads `AGENTS.md`, which points at this file
+and the tests rather than restating them; `CLAUDE.md` imports it. Both are held
+by `tests/test_identity_cards.py` to name only things that exist.
+
 ## Releasing
 
 Every step below has a test or a CI step reading alongside it — the rule

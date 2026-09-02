@@ -14,6 +14,12 @@ marketplace and the Skills CLI read when somebody installs the skill without
 cloning — a card for the same reader in a third shape, held here to the other two
 for the same reason.
 
+A fourth, the same day: `AGENTS.md`, read by the sixty-odd coding agents that
+follow the agents.md convention, with `CLAUDE.md` importing it for the one that
+does not. It describes the repository to a reader who will act on what it says,
+so every path, module and section it names is held to exist — and it is held to
+point rather than copy, because a copied rule is the one that goes stale.
+
 All three name the work, the author, the licence and the keywords. Nothing but this
 file compares them, and the reference implementation measured what happens
 without such a check: on 2026-08-22 its two cards and its register gave **three
@@ -32,6 +38,7 @@ failure mode a cross-check between them cannot see.
 
 from __future__ import annotations
 
+import importlib.util
 import json
 import pathlib
 import re
@@ -49,6 +56,18 @@ README = ROOT / "README.md"
 PLUGIN = ROOT / ".claude-plugin" / "plugin.json"
 MARKETPLACE = ROOT / ".claude-plugin" / "marketplace.json"
 SKILL = ROOT / "skills" / "verifiable-gates" / "SKILL.md"
+AGENTS = ROOT / "AGENTS.md"
+CLAUDE_MD = ROOT / "CLAUDE.md"
+CONTRIBUTING = ROOT / "CONTRIBUTING.md"
+
+# What Claude Code documents as the size at which adherence starts to drop, and
+# the import loads at launch beside the file that imports it — so the two are
+# measured together.
+INSTRUCTION_LINES = 200
+BACKTICKED = re.compile(r"`([^`\s<>]+)`")
+FILE_LIKE = re.compile(r"/|\.(md|py|yaml|yml|json|toml|txt|cff)$")
+MODULE = re.compile(r"python -m (verifiable_gates\.[a-z_]+)")
+SECTION = re.compile(r"`CONTRIBUTING\.md`\s+§ \"([^\"]+)\"")
 
 TAG = re.compile(r"<[^>]+>")
 # A Zenodo concept DOI: the prefix is fixed, the record number is not.
@@ -294,3 +313,62 @@ def test_the_marketplace_lists_this_plugin_at_the_root_and_nothing_else() -> Non
         "install is `plugin@marketplace`; two names would be two things to remember"
     )
     assert entries[0]["description"] == plugin()["description"]
+
+
+# ---------------------------------------------------------------- the fourth card
+
+
+def agents() -> str:
+    return AGENTS.read_text(encoding="utf-8")
+
+
+def test_the_agents_file_exists_and_claude_md_imports_it_first() -> None:
+    """One file for every agent; Claude Code reads the other and is told to import."""
+    assert AGENTS.is_file(), "AGENTS.md is gone — sixty-odd agents read it"
+    first = next(
+        line for line in CLAUDE_MD.read_text(encoding="utf-8").splitlines() if line.strip()
+    )
+    assert first == "@AGENTS.md", "CLAUDE.md must begin by importing AGENTS.md, not restating it"
+
+
+def test_every_path_the_agents_file_names_exists() -> None:
+    """A pointer at nothing teaches an agent a layout the repository does not have."""
+    named = [token for token in BACKTICKED.findall(agents()) if FILE_LIKE.search(token)]
+    assert named, "the file names no path at all — it points at nothing"
+    missing = [token for token in named if not (ROOT / token.rstrip("/")).exists()]
+    assert not missing, f"AGENTS.md names paths that are not there: {missing}"
+
+
+def test_every_module_the_agents_file_names_can_be_imported() -> None:
+    named = MODULE.findall(agents())
+    assert named, "the file names no command — an agent is told how to run nothing"
+    absent = [name for name in named if importlib.util.find_spec(name) is None]
+    assert not absent, f"AGENTS.md names modules that do not exist: {absent}"
+
+
+def test_every_contributing_section_the_agents_file_cites_exists() -> None:
+    """A section title is a pointer too, and a renamed heading breaks it silently."""
+    # A title wrapped across a line break in the prose is still one title.
+    cited = [" ".join(title.split()) for title in SECTION.findall(agents())]
+    assert cited, "the file cites no CONTRIBUTING section"
+    headings = {
+        line[3:].strip()
+        for line in CONTRIBUTING.read_text(encoding="utf-8").splitlines()
+        if line.startswith("## ")
+    }
+    gone = [title for title in cited if title not in headings]
+    assert not gone, f"AGENTS.md cites CONTRIBUTING sections that are not there: {gone}"
+
+
+def test_the_agents_file_points_and_does_not_copy() -> None:
+    """A rule entry pasted here is the copy that lags the sheet."""
+    text = agents()
+    assert "### `" not in text, "a rule heading in the sheets' shape — point at the skill instead"
+    assert "**Rule:**" not in text, "a rule line pasted in — point at the skill instead"
+    assert "**Born from:**" not in text, "a lesson line pasted in — point at the skill instead"
+
+
+def test_the_two_instruction_files_together_stay_short() -> None:
+    """Both load at launch, every session; past 200 lines adherence drops."""
+    lines = len(agents().splitlines()) + len(CLAUDE_MD.read_text(encoding="utf-8").splitlines())
+    assert lines <= INSTRUCTION_LINES, f"AGENTS.md + CLAUDE.md are {lines} lines"
