@@ -52,10 +52,12 @@ def _shown(path: str | pathlib.Path) -> str:
 
 
 # `FROM [--flag=value ...] <image> [AS <stage>]` — flags are skipped, not judged.
-FROM_LINE = re.compile(r"^\s*FROM\s+(?:--\S+\s+)*(\S+)", re.MULTILINE | re.IGNORECASE)
-STAGE = re.compile(r"^\s*FROM\s+.*?\s+AS\s+(\S+)", re.MULTILINE | re.IGNORECASE)
+FROM_LINE = re.compile(r"^[ \t]*FROM[ \t]+(?:--\S+[ \t]+)*(\S+)", re.MULTILINE | re.IGNORECASE)
+STAGE = re.compile(r"^[ \t]*FROM[ \t]+.*?[ \t]+AS[ \t]+(\S+)", re.MULTILINE | re.IGNORECASE)
 # `COPY --from=<image-or-stage>` pulls an image into the build exactly as FROM does.
-COPY_FROM = re.compile(r"^\s*COPY\s+(?:--\S+\s+)*?--from=(\S+)", re.MULTILINE | re.IGNORECASE)
+COPY_FROM = re.compile(
+    r"^[ \t]*COPY[ \t]+(?:--\S+[ \t]+)*?--from=(\S+)", re.MULTILINE | re.IGNORECASE
+)
 DIGEST = re.compile(r"@sha256:[0-9a-f]{64}$")
 # `scratch` is the empty starting image — nothing is pulled, so there is nothing to pin.
 SCRATCH = "scratch"
@@ -70,15 +72,31 @@ class _UnreadableError(Exception):
     """Bytes nobody can decode, or a tree nobody can walk. No verdict — never a clean one."""
 
 
+# **A ceiling on what one file may be.** Nothing here declared one, and the memory a
+# scanner uses is a multiple of the largest file it is handed: measured on one 16 MB Python
+# file, `list(tokenize.generate_tokens(...))` took 8.7s and **1,010 MB** (2.7 million
+# tokens) and `ast.parse` of the same file **1,457 MB** — ×64 and ×90 (self-audit round 19,
+# 2026-09-02). A standard runner has 7 GB, so one generated file of about 100 MB ends the
+# job by being killed, which CI reports as *the gate failed* — blaming the project for a
+# file the tool could not hold. A file above the ceiling is named and gets no verdict, the
+# same answer as one nobody can decode; it is read up to the ceiling and no further, so the
+# refusal costs the ceiling and never the file.
+MAX_FILE_CHARS = 8 * 1024 * 1024
+
+
 def _text(path: pathlib.Path) -> str:
     """The file's text, or `_UnreadableError` naming it.
 
     A file that is not UTF-8 made every scanner but the two AST readers die of a raw
     `UnicodeDecodeError` and exit 1 — the code that means findings (self-audit round 3,
     2026-09-01). A byte sequence nobody can decode is the third answer, not a verdict.
+
+    A file **larger than the ceiling** is the same answer for the same reason: it is read up
+    to `MAX_FILE_CHARS` and no further, so the refusal costs the ceiling and never the file.
     """
     try:
-        return path.read_text(encoding="utf-8")
+        with path.open(encoding="utf-8") as handle:
+            text = handle.read(MAX_FILE_CHARS + 1)
     except (UnicodeDecodeError, OSError) as problem:
         # `OSError` too: a file the scanner is not allowed to read, or that turned into
         # a directory between the glob and the read, was still a raw traceback after the
@@ -86,6 +104,13 @@ def _text(path: pathlib.Path) -> str:
         # than for the question (self-audit round 5, 2026-09-01).
         message = f"{_shown(path)}: {problem}"
         raise _UnreadableError(message) from problem
+    if len(text) > MAX_FILE_CHARS:
+        message = (
+            f"{_shown(path)}: larger than the {MAX_FILE_CHARS // 1024 // 1024} MiB this"
+            " scanner reads whole"
+        )
+        raise _UnreadableError(message)
+    return text
 
 
 def _walk(top: pathlib.Path) -> list[pathlib.Path]:

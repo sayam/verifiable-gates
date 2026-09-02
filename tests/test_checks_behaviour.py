@@ -18,6 +18,7 @@ import ast
 import importlib
 import json
 import re
+import time
 from typing import TYPE_CHECKING, Any, NamedTuple
 
 import bundle
@@ -2895,6 +2896,111 @@ def test_a_directory_it_could_not_enter_is_not_a_clean_tree(
     assert "cannot read the tree" in capsys.readouterr().err, "it did not say what stopped it"
 
 
+# ---------------------------------------------------------------- a file too big to hold
+#
+# Nothing declared a ceiling on what one file may be, and the memory a scanner uses is a
+# multiple of the largest file it is handed. Measured on one 16 MB Python file (self-audit
+# round 19, 2026-09-02): `list(tokenize.generate_tokens(...))` 8.7s and **1,010 MB** over
+# 2.7 million tokens, `ast.parse` of the same file **1,457 MB** — ×64 and ×90. A standard
+# runner has 7 GB, so one generated file of about 100 MB ends the job by being killed, and
+# CI reports that as *the gate failed*: the project blamed for a file the tool could not
+# hold. With the ceiling, the same tree answers in 0.0s at 29 MB, naming the file.
+
+
+@pytest.mark.parametrize("case", CASES)
+def test_a_file_larger_than_the_ceiling_gets_no_verdict(
+    tmp_path: pathlib.Path,
+    capsys: pytest.CaptureFixture[str],
+    monkeypatch: pytest.MonkeyPatch,
+    case: Case,
+) -> None:
+    """The same answer as a file nobody can decode — and the file is read only as far as
+    the ceiling, so the refusal costs the ceiling and never the file."""
+    monkeypatch.setattr(case.module, "MAX_FILE_CHARS", 1024 * 1024)
+    padded = {name: text + "\n" * (1024 * 1024) for name, text in case.dirty.items()}
+    root = build(tmp_path, padded, case.config)
+
+    assert case.module.main(root) == 2, "a file it could not hold was given a verdict"
+    said = capsys.readouterr()
+    assert "larger than the 1 MiB" in said.out + said.err, said
+
+
+def test_a_record_larger_than_the_ceiling_gets_no_verdict(
+    tmp_path: pathlib.Path, capsys: pytest.CaptureFixture[str], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The ADR reader's own road: it reads each record whole to build the supersession
+    graph, and a graph built from half a file is a graph nobody checked."""
+    monkeypatch.setattr(scan_adr_index, "MAX_FILE_CHARS", 1024 * 1024)
+    root = build(tmp_path, {"docs/adr/0001-first.md": "# 1. First\n" + "\n" * (1024 * 1024)})
+
+    assert scan_adr_index.main(root) == 2
+    assert "larger than the 1 MiB" in capsys.readouterr().err
+
+
+def test_a_configuration_larger_than_the_ceiling_gets_no_verdict(
+    tmp_path: pathlib.Path, capsys: pytest.CaptureFixture[str], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The ceiling is on the reader, not on one kind of file: `scaffold.json` comes in
+    through the same door as everything else a scanner reads whole."""
+    monkeypatch.setattr(scan_adr_index, "MAX_FILE_CHARS", 1024 * 1024)
+    root = build(
+        tmp_path, {"docs/adr/0001-first.md": "# 1. First\n"}, {"_pad": "x" * (1024 * 1024)}
+    )
+
+    assert scan_adr_index.main(root) == 2
+    assert "larger than the 1 MiB" in capsys.readouterr().err
+
+
+# ------------------------------------------------------------ a file read in a straight line
+#
+# A ceiling on the size of a file bounds the memory, not the work. `^\s*` under `MULTILINE`
+# is quadratic in blank lines, because `\s` crosses newlines: the engine starts at every
+# line and scans forward through all the whitespace that follows before failing. Measured on
+# `FROM_LINE` alone (self-audit round 19, 2026-09-02): 15.6 KB of blank lines 3.1s, 31 KB
+# 14.6s, **62.5 KB 52.6 seconds** — and 8 MiB is under the file ceiling. Anchored to
+# horizontal space (`[ \t]`), which is what "indentation" means on a line, the same 62.5 KB
+# takes **8.6 ms** and 250 KB takes 34 ms.
+
+BLANK_LINES = 64_000
+STRAIGHT_LINE_SECONDS = 10
+
+QUADRATIC = [
+    pytest.param(
+        scan_dockerfile_digest,
+        {"Dockerfile": "FROM python:3.13-slim\n" + "\n" * BLANK_LINES, **MOVER},
+        {"dockerfiles": ["Dockerfile"]},
+        id="dockerfile-digest",
+    ),
+    pytest.param(
+        scan_workflow_pinning,
+        {".github/workflows/ci.yml": FLOATING_ACTION + "\n" * BLANK_LINES},
+        None,
+        id="workflow-pinning",
+    ),
+    pytest.param(
+        scan_install_pinning,
+        {".github/workflows/ci.yml": FLOATING_INSTALL + "\n" * BLANK_LINES},
+        None,
+        id="install-pinning",
+    ),
+    pytest.param(
+        scan_adr_index,
+        {"docs/adr/0001-first.md": "# 1. First\n" + "\n" * BLANK_LINES},
+        None,
+        id="adr-record",
+    ),
+    pytest.param(
+        scan_adr_index,
+        {
+            "docs/adr/0001-first.md": "# 1. First\n",
+            "docs/adr/README.md": "| 0001 | [First](0001-first.md) |\n" + "\n" * BLANK_LINES,
+        },
+        None,
+        id="adr-index",
+    ),
+]
+
+
 def test_a_project_under_a_dotted_directory_is_still_judged(
     tmp_path: pathlib.Path, capsys: pytest.CaptureFixture[str]
 ) -> None:
@@ -2957,3 +3063,25 @@ def test_a_link_that_points_nowhere_is_not_a_finding(
 
     assert scan_service_layer.main(root) == 2, "a dangling link was read as a verdict"
     assert "cannot read" in capsys.readouterr().err
+
+
+@pytest.mark.parametrize(("module", "files", "config"), QUADRATIC)
+def test_a_file_of_blank_lines_is_read_in_a_straight_line(
+    tmp_path: pathlib.Path,
+    module: ModuleType,
+    files: dict[str, str],
+    config: dict[str, Any] | None,
+) -> None:
+    """64,000 blank lines — 62 KB, a thousandth of the file ceiling. The clock is the
+    assertion here because the defect is time: the same tree took the better part of a
+    minute in one pattern alone, and a Dockerfile ten times that size is a job that never
+    ends, reported as the gate failing."""
+    root = build(tmp_path, files, config)
+
+    started = time.monotonic()
+    module.main(root)
+    spent = time.monotonic() - started
+
+    assert spent < STRAIGHT_LINE_SECONDS, (
+        f"{spent:.1f}s over {BLANK_LINES} blank lines — the reading is not linear"
+    )

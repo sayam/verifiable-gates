@@ -23,9 +23,10 @@ import json
 import pathlib
 import re
 import sys
+import time
 import urllib.error
 import urllib.request
-from typing import Any
+from typing import IO, Any
 
 from verifiable_gates import gh
 
@@ -59,10 +60,38 @@ def concept_doi(citation: pathlib.Path) -> tuple[str, str]:
 PAGE_SIZE = 25
 
 
+# **A ceiling on time is not a ceiling on the answer.** `urlopen(timeout=N)` bounds the gap
+# between packets, not the download: a server that sends a little and often never trips it.
+# Measured against a server writing 1KB every 0.5s with the ceiling set to **1 second**, the
+# reader was held for **12.0 seconds** — twelve times the ceiling — and it ended because the
+# server stopped, not because the ceiling fired; `json.load(response)` meanwhile accumulates
+# every byte with nothing to cap it (self-audit round 19, 2026-09-02). This is the failure
+# the ceilings in this package exist to prevent, said in `gh.py`'s own words: a job's whole
+# budget eaten while nothing happens, then reported as "the job timed out". So the answer
+# carries two more ceilings — how large it may be, and by when it must have arrived.
+MAX_ANSWER_BYTES = 16 * 1024 * 1024
+READ_CHUNK = 64 * 1024
+
+
+def _answer(response: IO[bytes], url: str, deadline: float) -> object:
+    """The body, parsed — or `RuntimeError` naming the ceiling it went past."""
+    body = bytearray()
+    while chunk := response.read(READ_CHUNK):
+        body += chunk
+        if len(body) > MAX_ANSWER_BYTES:
+            message = f"the answer from {url} is longer than {MAX_ANSWER_BYTES} bytes"
+            raise RuntimeError(message)
+        if time.monotonic() > deadline:
+            message = f"the answer from {url} was still arriving after the ceiling passed"
+            raise RuntimeError(message)
+    return json.loads(body)
+
+
 def _page(url: str, timeout: int) -> Any:  # noqa: ANN401 — the shape is the archive's
+    deadline = time.monotonic() + timeout
     try:
         with urllib.request.urlopen(url, timeout=timeout) as response:  # noqa: S310 — a constant https URL with a numeric id in it
-            return json.load(response)
+            return _answer(response, url, deadline)
     except (urllib.error.URLError, TimeoutError, json.JSONDecodeError) as problem:
         raise RuntimeError(f"the archive could not be asked ({url}): {problem}") from problem
 

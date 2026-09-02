@@ -27,8 +27,9 @@ import hashlib
 import json
 import re
 import sys
+import time
 import urllib.request
-from typing import TYPE_CHECKING, Any
+from typing import IO, TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
     import pathlib
@@ -76,14 +77,46 @@ def sort_key(requirement: dict[str, Any]) -> tuple[int, ...]:
     return tuple(int(part) for part in str(requirement["req_id"])[1:].split("."))
 
 
+# **A ceiling on time is not a ceiling on the answer.** `urlopen(timeout=N)` bounds the gap
+# between packets, not the download: a server that sends a little and often never trips it.
+# Measured against a server writing 1KB every 0.5s with the ceiling set to **1 second**, the
+# reader was held for **12.0 seconds** and it ended because the server stopped, not because
+# the ceiling fired; `json.load(response)` meanwhile accumulates every byte with nothing to
+# cap it (self-audit round 19, 2026-09-02). The copy of this reader in `zenodo.py` says the
+# same, because a rule that lives in one of two places is a rule the other one loses.
+MAX_ANSWER_BYTES = 16 * 1024 * 1024
+READ_CHUNK = 64 * 1024
+
+
+def _answer(response: IO[bytes], url: str, deadline: float) -> object:
+    """The body, parsed — or `RuntimeError` naming the ceiling it went past."""
+    body = bytearray()
+    while chunk := response.read(READ_CHUNK):
+        body += chunk
+        if len(body) > MAX_ANSWER_BYTES:
+            message = f"the answer from {url} is longer than {MAX_ANSWER_BYTES} bytes"
+            raise RuntimeError(message)
+        if time.monotonic() > deadline:
+            message = f"the answer from {url} was still arriving after the ceiling passed"
+            raise RuntimeError(message)
+    return json.loads(body)
+
+
 def fetch(url: str, *, timeout: int = 60) -> list[dict[str, Any]]:
     """Pull the standard from upstream, trimmed to the fields kept — by hand, never at run time.
 
     The digest is taken over these fields and nothing else, so a reformat
     upstream does not read as a changed standard.
     """
+    deadline = time.monotonic() + timeout
     with urllib.request.urlopen(url, timeout=timeout) as response:  # noqa: S310 — the caller passes a constant https URL; nothing here composes it
-        payload = json.load(response)
+        payload = _answer(response, url, deadline)
+    if not isinstance(payload, dict) or "requirements" not in payload:
+        # The standard is somebody else's document on somebody else's server, so its shape
+        # is a claim rather than a fact: a `KeyError` here would be a traceback where this
+        # reader has a sentence for everything else (round 19, 2026-09-02).
+        message = f"the answer from {url} is not the standard — no `requirements` in it"
+        raise RuntimeError(message)
     trimmed = [
         {
             "req_id": item["req_id"],

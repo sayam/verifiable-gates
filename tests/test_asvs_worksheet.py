@@ -12,12 +12,12 @@ import json
 import urllib.request
 from typing import TYPE_CHECKING, Any
 
+import pytest
+
 from verifiable_gates import asvs_worksheet as ws
 
 if TYPE_CHECKING:
     import pathlib
-
-    import pytest
 
 WORDS = ws.Words(
     marker="<!-- table starts here — everything below is generated -->",
@@ -221,3 +221,51 @@ def test_a_new_requirement_arrives_unassessed_not_passed() -> None:
     after = ws.rebuild(WORDS.marker + "\n", STANDARD, levels=("1",), words=WORDS)
 
     assert "| V1.2.10 | 1 | Ten. | unassessed | — |" in after
+
+
+def test_an_upstream_answer_longer_than_the_ceiling_is_refused(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """`urlopen(timeout=N)` bounds the gap between packets, not the download — measured at
+    twelve times the declared ceiling against a server that dripped (self-audit round 19,
+    2026-09-02) — and `json.load(response)` had no ceiling in bytes at all."""
+    monkeypatch.setattr(ws, "MAX_ANSWER_BYTES", 64)
+    monkeypatch.setattr(ws, "READ_CHUNK", 16)
+    monkeypatch.setattr(urllib.request, "urlopen", lambda *_a, **_k: io.BytesIO(b"x" * 4096))
+
+    with pytest.raises(RuntimeError, match="longer than 64 bytes"):
+        ws.fetch("https://example.test/asvs.json")
+
+
+def test_an_upstream_answer_that_is_not_the_standard_is_refused(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The standard is somebody else's document on somebody else's server, so its shape is
+    a claim: `payload["requirements"]` on an answer without it was a raw `KeyError`."""
+    monkeypatch.setattr(urllib.request, "urlopen", lambda *_a, **_k: io.BytesIO(b'{"oops": 1}'))
+
+    with pytest.raises(RuntimeError, match="no `requirements` in it"):
+        ws.fetch("https://example.test/asvs.json")
+
+
+class _Clock:
+    """A clock that jumps an hour every time it is asked — a drip feed, without the wait."""
+
+    def __init__(self) -> None:
+        self.now = 0.0
+
+    def monotonic(self) -> float:
+        self.now += 3600.0
+        return self.now
+
+
+def test_an_upstream_answer_that_never_ends_is_refused_by_the_deadline(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The ceiling that `timeout=` is not: a sender that never goes quiet never trips a
+    socket timeout, so the answer carries a deadline of its own."""
+    monkeypatch.setattr(ws, "time", _Clock())
+    monkeypatch.setattr(urllib.request, "urlopen", lambda *_a, **_k: io.BytesIO(b'{"a": 1}'))
+
+    with pytest.raises(RuntimeError, match="still arriving"):
+        ws.fetch("https://example.test/asvs.json")

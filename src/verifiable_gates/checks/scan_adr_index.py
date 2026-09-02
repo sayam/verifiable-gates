@@ -46,15 +46,31 @@ class _UnreadableError(Exception):
     """Bytes nobody can decode, or a tree nobody can walk. No verdict — never a clean one."""
 
 
+# **A ceiling on what one file may be.** Nothing here declared one, and the memory a
+# scanner uses is a multiple of the largest file it is handed: measured on one 16 MB Python
+# file, `list(tokenize.generate_tokens(...))` took 8.7s and **1,010 MB** (2.7 million
+# tokens) and `ast.parse` of the same file **1,457 MB** — ×64 and ×90 (self-audit round 19,
+# 2026-09-02). A standard runner has 7 GB, so one generated file of about 100 MB ends the
+# job by being killed, which CI reports as *the gate failed* — blaming the project for a
+# file the tool could not hold. A file above the ceiling is named and gets no verdict, the
+# same answer as one nobody can decode; it is read up to the ceiling and no further, so the
+# refusal costs the ceiling and never the file.
+MAX_FILE_CHARS = 8 * 1024 * 1024
+
+
 def _text(path: pathlib.Path) -> str:
     """The file's text, or `_UnreadableError` naming it.
 
     A file that is not UTF-8 made every scanner but the two AST readers die of a raw
     `UnicodeDecodeError` and exit 1 — the code that means findings (self-audit round 3,
     2026-09-01). A byte sequence nobody can decode is the third answer, not a verdict.
+
+    A file **larger than the ceiling** is the same answer for the same reason: it is read up
+    to `MAX_FILE_CHARS` and no further, so the refusal costs the ceiling and never the file.
     """
     try:
-        return path.read_text(encoding="utf-8")
+        with path.open(encoding="utf-8") as handle:
+            text = handle.read(MAX_FILE_CHARS + 1)
     except (UnicodeDecodeError, OSError) as problem:
         # `OSError` too: a file the scanner is not allowed to read, or that turned into
         # a directory between the glob and the read, was still a raw traceback after the
@@ -62,6 +78,13 @@ def _text(path: pathlib.Path) -> str:
         # than for the question (self-audit round 5, 2026-09-01).
         message = f"{_shown(path)}: {problem}"
         raise _UnreadableError(message) from problem
+    if len(text) > MAX_FILE_CHARS:
+        message = (
+            f"{_shown(path)}: larger than the {MAX_FILE_CHARS // 1024 // 1024} MiB this"
+            " scanner reads whole"
+        )
+        raise _UnreadableError(message)
+    return text
 
 
 def _walk(top: pathlib.Path) -> list[pathlib.Path]:
@@ -129,12 +152,14 @@ FILENAME = re.compile(r"^(\d{4})-[a-z0-9-]+\.md$", re.IGNORECASE)
 # (self-audit round 15, 2026-09-01).
 # `[0001](file)`, `[0001: Use X](file)`, or a table row `| 0001 | [Use X](file) |`.
 INDEX_LINK = re.compile(r"\[(\d{4})(?:[^\]]*)\]\(([^)]+)\)")
-INDEX_ROW = re.compile(r"^\s*\|\s*(\d{4})\s*\|[^\n]*?\[[^\]]*\]\(([^)]+)\)", re.MULTILINE)
+INDEX_ROW = re.compile(r"^[ \t]*\|[ \t]*(\d{4})[ \t]*\|[^\n]*?\[[^\]]*\]\(([^)]+)\)", re.MULTILINE)
 SUPERSEDES = re.compile(
-    r"^\s*\**supersedes\**\s*:?\s*\**\s*(?:ADR[- ]?)?(\d{4})", re.IGNORECASE | re.MULTILINE
+    r"^[ \t]*\**supersedes\**[ \t]*:?[ \t]*\**[ \t]*(?:ADR[- ]?)?(\d{4})",
+    re.IGNORECASE | re.MULTILINE,
 )
 SUPERSEDED_BY = re.compile(
-    r"^\s*\**superseded[- ]by\**\s*:?\s*\**\s*(?:ADR[- ]?)?(\d{4})", re.IGNORECASE | re.MULTILINE
+    r"^[ \t]*\**superseded[- ]by\**[ \t]*:?[ \t]*\**[ \t]*(?:ADR[- ]?)?(\d{4})",
+    re.IGNORECASE | re.MULTILINE,
 )
 
 
@@ -143,7 +168,18 @@ def _supersession_findings(adr_dir: pathlib.Path, on_disk: dict[str, str]) -> li
     supersedes: dict[str, set[str]] = {}
     superseded_by: dict[str, set[str]] = {}
     for number, name in on_disk.items():
-        text = (adr_dir / name).read_text(encoding="utf-8", errors="replace")
+        # The ceiling `_text` carries, without its strict decoding: a record with a stray
+        # byte still has its `Supersedes:` lines read (which is why `errors="replace"` is
+        # here), but a record larger than this scanner reads whole is refused rather than
+        # read in part — a graph built from half a file is a graph nobody checked.
+        with (adr_dir / name).open(encoding="utf-8", errors="replace") as handle:
+            text = handle.read(MAX_FILE_CHARS + 1)
+        if len(text) > MAX_FILE_CHARS:
+            message = (
+                f"{name}: larger than the {MAX_FILE_CHARS // 1024 // 1024} MiB this"
+                " scanner reads whole"
+            )
+            raise _UnreadableError(message)
         supersedes[number] = set(SUPERSEDES.findall(text))
         superseded_by[number] = set(SUPERSEDED_BY.findall(text))
     forward = [

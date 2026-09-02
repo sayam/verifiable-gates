@@ -278,3 +278,42 @@ def test_the_archive_is_asked_with_a_time_budget(monkeypatch: pytest.MonkeyPatch
     budgets = [k.get("timeout") for k in asked]
     assert all(isinstance(b, int) and b > 0 for b in budgets), asked
     assert asked[0]["timeout"] == gh.NETWORK_TIMEOUT_SECONDS
+
+
+# ------------------------------------------------------------ the ceiling on the answer
+
+
+class _Clock:
+    """A clock that jumps an hour every time it is asked — a drip feed, without the wait."""
+
+    def __init__(self) -> None:
+        self.now = 0.0
+
+    def monotonic(self) -> float:
+        self.now += 3600.0
+        return self.now
+
+
+def test_an_answer_that_never_ends_is_refused_by_the_deadline(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """`urlopen(timeout=N)` bounds the gap between packets, not the download: measured
+    against a server writing 1KB every 0.5s with the ceiling at **1 second**, the reader was
+    held for **12.0 seconds** and stopped because the server did, not because the ceiling
+    fired (self-audit round 19, 2026-09-02). The answer now has a deadline of its own."""
+    monkeypatch.setattr(zenodo, "time", _Clock())
+    monkeypatch.setattr(urllib.request, "urlopen", lambda *_a, **_k: _Answer(b"[" + b"0," * 100))
+
+    with pytest.raises(RuntimeError, match="still arriving"):
+        zenodo.fetch_records("22103110")
+
+
+def test_an_answer_longer_than_the_ceiling_is_refused(monkeypatch: pytest.MonkeyPatch) -> None:
+    """And the other ceiling `json.load(response)` never had: how large it may be. Without
+    one, a reader on a CI job holds whatever the other end decides to send."""
+    monkeypatch.setattr(zenodo, "MAX_ANSWER_BYTES", 64)
+    monkeypatch.setattr(zenodo, "READ_CHUNK", 16)
+    monkeypatch.setattr(urllib.request, "urlopen", lambda *_a, **_k: _Answer(b"x" * 4096))
+
+    with pytest.raises(RuntimeError, match="longer than 64 bytes"):
+        zenodo.fetch_records("22103110")
