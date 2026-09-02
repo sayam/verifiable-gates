@@ -6,6 +6,29 @@ Notable changes to this project. The format follows
 
 ## [Unreleased]
 
+## [0.1.12] - 2026-09-02
+
+Eight rounds of the project auditing itself (12 to 19), and every one of them
+found something. The thread through the last four is a **ceiling**: a tool that
+declares one and has no answer when it is reached does not prevent the wrong
+verdict, it manufactures one. Nine commands declared a timeout and five of the
+fourteen sites answered at it; two network readers bounded the silence and not
+the bytes, and one was held 12.0 seconds by a ceiling of 1; no scanner bounded
+the file it read whole, where 16 MB of Python cost 1,457 MB; and four read blank
+lines quadratically, which a ceiling in bytes cannot catch — 62.5 KB of them took
+52.6 seconds. Beside those, the same question asked of answers a reader did not
+write: a tree it could not walk was reported as a clean one, a `scaffold.json` of
+the wrong shape turned one gate green and six into tracebacks, an install that
+stopped partway was reported as tampering, a paging wrapper that could not tell
+rows from not-rows never stopped asking, and six readers outside the nine
+scanners still died of a byte they could not decode. Off the code: Dependabot
+opens no pull requests here any more and `pins/bump.sh` moves the pins, the one
+commit it authored was re-authored to the owner, thirteen proofs were repointed
+before the purge they asked for, and `gates_doctor --rules` prints the rules an
+agent is held to off the installed bundle rather than a copy that goes stale. No
+gate, rule or badge was added: the registers stand at 54 / 92 / 1 across all of
+it (#194–#220).
+
 ### Added
 
 - **The rules an agent reads are the ones the installed scanners decide, printed by the
@@ -2318,7 +2341,8 @@ order it happened.
 - **`gates.yaml`, deliberately empty.** This repository will not list a gate
   before the thing that enforces it exists.
 
-[Unreleased]: https://github.com/sayam/verifiable-gates/compare/v0.1.11...HEAD
+[Unreleased]: https://github.com/sayam/verifiable-gates/compare/v0.1.12...HEAD
+[0.1.12]: https://github.com/sayam/verifiable-gates/releases/tag/v0.1.12
 [0.1.11]: https://github.com/sayam/verifiable-gates/releases/tag/v0.1.11
 [0.1.10]: https://github.com/sayam/verifiable-gates/releases/tag/v0.1.10
 [0.1.9]: https://github.com/sayam/verifiable-gates/releases/tag/v0.1.9
