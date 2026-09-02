@@ -30,8 +30,22 @@ gates:
       fewer machines watch it — while the furthest destination is the one place it
       cannot be fixed. The licence is held against `LICENSE` rather than only
       across the two cards, because two cards agreeing with each other and both
-      being wrong is exactly what a cross-check between them cannot see.
+      being wrong is exactly what a cross-check between them cannot see. A third
+      card arrived on 2026-09-02: `.claude-plugin/plugin.json`, read by Claude
+      Code's marketplace and the Skills CLI when somebody installs the skill without
+      cloning — the same reader, a third shape, held to the other two here for the
+      same reason, and to the skill it points at, because a `skills` path is a
+      promise that a directory holds a `SKILL.md`.
     proved_by:
+      - kind: mutation
+        ref: pr/223
+        date: 2026-09-02
+        caught: >-
+          The plugin manifest became the third card. Four planted defects against
+          it, each red on its own: the keywords out of step with the other two
+          cards, the `skills` path pointing at a directory that is not there, the
+          licence switched to the code's instead of the sheets', and a second
+          entry added to the one-plugin marketplace.
       - kind: mutation
         ref: pr/13
         date: 2026-08-26
@@ -1277,6 +1291,13 @@ gates:
       and a field is patched in place rather than rebuilt, since rebuilding deletes
       whatever prose a person wrote there and nobody would see it go.
     proved_by:
+      - kind: mutation
+        ref: pr/223
+        date: 2026-09-02
+        caught: >-
+          A sixth place for the version, `.claude-plugin/plugin.json` — the field a
+          marketplace pins people to. The manifest set one release behind the
+          package: the dogfood test naming the place and both values, red.
       - kind: mutation
         ref: pr/19
         date: 2026-08-26

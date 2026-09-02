@@ -1,0 +1,21 @@
+{
+  "name": "verifiable-gates",
+  "displayName": "verifiable-gates",
+  "version": "0.1.12",
+  "description": "Production-discipline rules for a software project, each carrying the real incident that produced it — the verifiable-gates skill, rendered from rules.yaml. Nine of the rules are decided mechanically by the bundle's own scanners once a project installs it.",
+  "author": {
+    "name": "Sayam Sriphua",
+    "url": "https://github.com/sayam"
+  },
+  "homepage": "https://github.com/sayam/verifiable-gates",
+  "repository": "https://github.com/sayam/verifiable-gates",
+  "license": "CC-BY-4.0",
+  "keywords": [
+    "software governance",
+    "AI-assisted development",
+    "continuous integration",
+    "secure software development",
+    "developer experience"
+  ],
+  "skills": "./skills/"
+}

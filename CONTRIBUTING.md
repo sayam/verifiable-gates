@@ -158,7 +158,8 @@ field was one release away from proving it (2026-08-29).
    released heading (`tests/test_own_numbers.py` holds the heading to the version).
 2. `python -m verifiable_gates.own_numbers --write` — fixes every other place that
    quotes the version, the date, or a count (`pyproject.toml`, `CITATION.cff`,
-   `.zenodo.json`, the README in both languages), touching nothing else. The same
+   `.zenodo.json`, `.claude-plugin/plugin.json`, the README in both languages),
+   touching nothing else. The same
    test holds every place to its fact on every run, so a place missed here is red.
    If a place cannot be written, the report names the ones that did land before
    it names what stopped it: a half-corrected checkout is a different thing from

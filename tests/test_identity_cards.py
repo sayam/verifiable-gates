@@ -9,7 +9,12 @@ not us**:
   record under a permanent DOI, which by the definition of archiving cannot be
   corrected afterwards.
 
-Both name the work, the author, the licence and the keywords. Nothing but this
+A third arrived on 2026-09-02, `.claude-plugin/plugin.json`, which Claude Code's
+marketplace and the Skills CLI read when somebody installs the skill without
+cloning — a card for the same reader in a third shape, held here to the other two
+for the same reason.
+
+All three name the work, the author, the licence and the keywords. Nothing but this
 file compares them, and the reference implementation measured what happens
 without such a check: on 2026-08-22 its two cards and its register gave **three
 different numbers for one fact**, and the value published under the DOI was the
@@ -30,6 +35,7 @@ from __future__ import annotations
 import json
 import pathlib
 import re
+import tomllib
 from typing import Any
 
 import pytest
@@ -40,6 +46,9 @@ CITATION = ROOT / "CITATION.cff"
 ZENODO = ROOT / ".zenodo.json"
 LICENCE = ROOT / "LICENSE"
 README = ROOT / "README.md"
+PLUGIN = ROOT / ".claude-plugin" / "plugin.json"
+MARKETPLACE = ROOT / ".claude-plugin" / "marketplace.json"
+SKILL = ROOT / "skills" / "verifiable-gates" / "SKILL.md"
 
 TAG = re.compile(r"<[^>]+>")
 # A Zenodo concept DOI: the prefix is fixed, the record number is not.
@@ -60,6 +69,23 @@ def citation() -> dict[str, Any]:
 
 def zenodo() -> dict[str, Any]:
     loaded: dict[str, Any] = json.loads(ZENODO.read_text(encoding="utf-8"))
+    return loaded
+
+
+def plugin() -> dict[str, Any]:
+    loaded: dict[str, Any] = json.loads(PLUGIN.read_text(encoding="utf-8"))
+    return loaded
+
+
+def marketplace() -> dict[str, Any]:
+    loaded: dict[str, Any] = json.loads(MARKETPLACE.read_text(encoding="utf-8"))
+    return loaded
+
+
+def skill_frontmatter() -> dict[str, Any]:
+    text = SKILL.read_text(encoding="utf-8")
+    head = text[4:].partition("\n---\n")[0]
+    loaded: dict[str, Any] = yaml.safe_load(head)
     return loaded
 
 
@@ -216,3 +242,55 @@ def test_every_badge_image_comes_from_a_host_camo_was_measured_to_fetch() -> Non
         f"badge images from unmeasured hosts: {strangers} — fetch each one through "
         "GitHub's camo proxy several times, then record it in BADGE_HOSTS with the reason"
     )
+
+
+# ---------------------------------------------------------------- the third card
+
+
+def test_the_plugin_manifest_and_its_marketplace_exist() -> None:
+    """A guard on the guard, as for the other two cards."""
+    assert PLUGIN.is_file(), "plugin.json is gone — Claude Code and the Skills CLI read it"
+    assert MARKETPLACE.is_file(), "marketplace.json is gone — `plugin marketplace add` reads it"
+
+
+def test_the_plugin_is_named_after_the_package() -> None:
+    """One name on the wheel, the skill and the plugin, or three things to search for."""
+    pyproject = tomllib.loads((ROOT / "pyproject.toml").read_text(encoding="utf-8"))
+    assert plugin()["name"] == pyproject["project"]["name"]
+    assert plugin()["name"] == skill_frontmatter()["name"]
+
+
+def test_the_plugin_points_at_a_skills_directory_that_holds_the_skill() -> None:
+    """A `skills` path is a promise; the directory it names must hold a SKILL.md."""
+    declared = plugin()["skills"]
+    assert declared.startswith("./"), "the manifest wants a path relative to the plugin root"
+    where = ROOT / declared
+    assert where.is_dir(), f"{declared} is not a directory"
+    assert (where / SKILL.parent.name / "SKILL.md").is_file(), "the skill is not under it"
+
+
+def test_the_plugin_carries_the_cards_keywords() -> None:
+    assert plugin()["keywords"] == list(citation()["keywords"])
+
+
+def test_the_plugin_licence_is_the_skills_licence_and_one_the_cards_declare() -> None:
+    """The plugin ships the skill and nothing else: its licence is the sheets', not the code's."""
+    assert plugin()["license"] == skill_frontmatter()["license"]
+    assert plugin()["license"] in citation()["license"]
+
+
+def test_the_plugin_names_the_cards_repository() -> None:
+    assert plugin()["repository"] == citation()["repository-code"]
+    assert plugin()["homepage"] == citation()["url"]
+
+
+def test_the_marketplace_lists_this_plugin_at_the_root_and_nothing_else() -> None:
+    """One entry, sourced from the directory the marketplace file sits in."""
+    entries = marketplace()["plugins"]
+    assert len(entries) == 1, "this marketplace exists to list one plugin"
+    assert entries[0]["name"] == plugin()["name"]
+    assert entries[0]["source"] == "./"
+    assert marketplace()["name"] == plugin()["name"], (
+        "install is `plugin@marketplace`; two names would be two things to remember"
+    )
+    assert entries[0]["description"] == plugin()["description"]

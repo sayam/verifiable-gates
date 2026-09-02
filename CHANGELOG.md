@@ -6,6 +6,29 @@ Notable changes to this project. The format follows
 
 ## [Unreleased]
 
+### Added
+
+- **Two ways to take the skill without cloning, through pipes this repository does
+  not own.** `npx skills add sayam/verifiable-gates` — the Skills CLI, which reads the
+  `skills/` directory the previous entry created and installs into whichever of some
+  seventy agents is in use — and, in Claude Code, `claude plugin marketplace add
+  sayam/verifiable-gates` then `claude plugin install verifiable-gates@verifiable-gates`,
+  served by a one-entry marketplace in `.claude-plugin/` beside a plugin manifest. Both
+  install the same three files and nothing else: a skill is instructions, and the
+  scanners stay `pip install` + `python -m verifiable_gates.install`, because a checker
+  handed over as prose is a rule that looks enforced and is not. The manifest is a
+  **third identity card** beside `CITATION.cff` and `.zenodo.json`, read by machines
+  the owner does not run, so `tests/test_identity_cards.py` holds it to the other two —
+  name, keywords, licence, repository — and to the skill it ships; its `version` is a
+  sixth place `own_numbers --write` carries the release to, since a marketplace pins
+  people to whatever that field says. No marketplace, registry or package of this
+  project's own is built, and the reason is a row: `DECISIONS.md`
+  `distribution-is-two-pipes-nobody-here-owns`. Both pipes were exercised, not
+  assumed: `claude plugin validate --strict .` clean, and the Skills CLI listing the
+  skill off the repository. Proved by mutation against the manifest: the version
+  lagging the package, the keywords out of step, the skills path pointing at nothing,
+  the licence not the sheets', and a second marketplace entry — each red on its own.
+
 ### Changed
 
 - **The rule sheets are an agent skill now, in the layout every agent reads.** The

@@ -61,6 +61,17 @@ two sheets lived at the repository root as `SKILL.md` and `SKILL-BUSINESS.md` un
 v0.1.12; `DECISIONS.md` `the-sheets-live-under-skills` says why they moved and why
 no copy stayed.)
 
+**Two ways to take the skill without cloning**, through pipes this repository does
+not own: `npx skills add sayam/verifiable-gates` puts it into whichever agent you use
+(the Skills CLI reads the `skills/` directory), and in Claude Code
+`claude plugin marketplace add sayam/verifiable-gates` then
+`claude plugin install verifiable-gates@verifiable-gates` (the one-entry marketplace
+in `.claude-plugin/`). Both install the same three files and nothing else — a skill
+is instructions. The scanners are still `pip install verifiable-gates` and
+`python -m verifiable_gates.install`, because a checker is not something to be
+handed an agent as prose. `DECISIONS.md` `distribution-is-two-pipes-nobody-here-owns`
+says why there is no marketplace or registry of this project's own.
+
 A rule and its enforcement live in separate files, because they have separate
 lifetimes. `rules.yaml` is what this project publishes; `gates.yaml` is what this
 project is itself held to.
@@ -235,6 +246,13 @@ pip/npm/image · ขอบเขตของตัวสแกน · สำม�
 
 **กฎกับตัวบังคับอยู่คนละไฟล์โดยตั้งใจ** เพราะอายุไม่เท่ากัน — `rules.yaml` คือสิ่งที่
 repo นี้เผยแพร่ ส่วน `gates.yaml` คือสิ่งที่ repo นี้ถูกบังคับด้วยตัวเอง
+
+**แผ่นกฎเป็น Agent Skill ตาม spec แล้ว** อยู่ที่ `skills/verifiable-gates/` (หน้าแรก `SKILL.md` + entry เต็มใน `references/`)
+· ติดตั้งโดยไม่ต้อง clone ได้สองทางผ่านท่อที่ repo นี้ไม่ได้เป็นเจ้าของ: `npx skills add sayam/verifiable-gates`
+(Skills CLI ลงให้ agent ที่คุณใช้) หรือใน Claude Code `claude plugin marketplace add sayam/verifiable-gates` แล้ว
+`claude plugin install verifiable-gates@verifiable-gates` · ทั้งสองทางลงไฟล์สามไฟล์เดียวกันและไม่มีอะไรอื่น —
+skill คือคำสั่ง ส่วนตัวสแกนยังเป็น `pip install verifiable-gates` + `python -m verifiable_gates.install`
+เพราะตัวตรวจไม่ใช่ของที่จะยื่นให้ agent เป็นร้อยแก้ว
 
 **บันเดิลตัดสินได้ 9 จาก 92** — เฉพาะกฎที่มี `script:` เท่านั้นที่ doctor กับ installer
 ตัดสินให้ อีก 83 ข้อคือแผ่นกฎที่ agent ถูกบังคับด้วยการอ่าน · doctor รายงานกฎที่ตัดสินไม่ได้เป็น `NA`
