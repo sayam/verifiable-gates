@@ -74,6 +74,9 @@ PLACES: dict[str, list[advertised.Place]] = {
         advertised.Place("pyproject.toml", r'(?m)^version = "([^"]+)"'),
         advertised.Place("CITATION.cff", r"(?m)^version: (\S+)"),
         advertised.Place(".zenodo.json", r'"version": "([^"]+)"'),
+        # The plugin manifest Claude Code and the Skills CLI read (2026-09-02): a
+        # version there that lags the package is the one a marketplace pins people to.
+        advertised.Place(".claude-plugin/plugin.json", r'"version": "([^"]+)"'),
         advertised.Place("CHANGELOG.md", r"(?m)^## \[(\d[^\]]*)\] - \d{4}-\d{2}-\d{2}"),
         # The compare link at the foot: `[Unreleased]` is measured against the
         # newest release, or it shows two releases' worth of changes as pending
