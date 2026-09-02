@@ -446,7 +446,11 @@ def _write_whole(out: pathlib.Path, text: str) -> None:
     target = out.resolve()
     beside = target.with_name(f".{target.name}.{os.getpid()}.tmp")
     try:
-        with os.fdopen(os.open(beside, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o666), "wb") as h:
+        create = os.O_WRONLY | os.O_CREAT | os.O_EXCL
+        # 0o644 before the umask, not 0o666: the sibling exists under its own name for
+        # the length of the write, and a mode the umask does not narrow would be a file
+        # anyone could write for that moment.
+        with os.fdopen(os.open(beside, create, 0o644), "wb") as h:
             h.write(text.encode("utf-8"))
             h.flush()
             os.fsync(h.fileno())

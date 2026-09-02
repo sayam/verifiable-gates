@@ -130,7 +130,9 @@ Notable changes to this project. The format follows
   `files.py`: the bytes go to a sibling in the same directory, are flushed, and are
   renamed over the target, so a reader sees the old file or the new one and nothing
   between; the mode of a file that already exists is kept, because a scanner the
-  installer rewrites runs by its mode; a symlink is written through, as before. Seven
+  installer rewrites runs by its mode, and a file that did not exist is created `0o644`
+  before the umask, so the sibling is never — not even for the length of the write — a
+  file anyone could write to; a symlink is written through, as before. Seven
   writers go through it — the harness report, the skill sheet, the ASVS pin, the app
   measurements, the advertised numbers, the installer's record **and the installer's
   copy of every bundle file**, since a consumer's CI reinstalls on every run and a
@@ -141,11 +143,12 @@ Notable changes to this project. The format follows
   named `.<name>.<token>.tmp` so it is recognisable; that is the trade, and it is
   written down. A read-only *file* no longer stops a write, only a read-only directory
   does, and the five tests that simulated "cannot write" with a file's mode now lock the
-  directory instead. Proved by mutation, twelve planted defects each red on its own: the
-  writer put back in place, the mode dropped, the temp file left on failure, the symlink
-  replaced instead of written through, the copy back to `copy2` in place, the doctor's
-  own copy back to `write_text`, and each of the six package writers back to
-  `write_text` one at a time.
+  directory instead. Proved by mutation, thirteen planted defects each red on its own:
+  the writer put back in place, the mode of an existing file dropped, the creation mode
+  widened to `0o666`, the temp file left on failure, the symlink replaced instead of
+  written through, the copy back to `copy2` in place, the doctor's own copy back to
+  `write_text`, and each of the six package writers back to `write_text` one at a
+  time.
 
 - **Two readers promised never to guess, and each died of a traceback on a file it
   could not open.** `measure.suppression_counts` — the reader that feeds

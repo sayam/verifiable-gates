@@ -1742,11 +1742,20 @@ def test_the_mode_of_a_rewritten_file_is_kept_and_a_new_file_gets_the_default(
     files.write_text_atomically(scanner, "new\n")
     assert stat.S_IMODE(scanner.stat().st_mode) == 0o755
 
+    # Under the usual umask of 022 a file created 0o666 and one created 0o644 both end
+    # up 0o644, so the umask is taken out of the way: what is held is the mode the
+    # writer asks for, and it must not be one anyone can write to. The sibling exists
+    # under its own name for the length of the write, so this is its mode too (CodeQL
+    # `py/overly-permissive-file` on the first push of this change).
     fresh = tmp_path / "fresh.txt"
-    files.write_text_atomically(fresh, "new\n")
-    mask = os.umask(0)
-    os.umask(mask)
-    assert stat.S_IMODE(fresh.stat().st_mode) == 0o666 & ~mask, "not the process's default"
+    was = os.umask(0)
+    try:
+        files.write_text_atomically(fresh, "new\n")
+    finally:
+        os.umask(was)
+
+    assert stat.S_IMODE(fresh.stat().st_mode) == 0o644, "not the mode a new file is given"
+    assert not stat.S_IMODE(fresh.stat().st_mode) & (stat.S_IWOTH | stat.S_IWGRP)
 
 
 def test_a_write_that_fails_leaves_the_old_file_and_no_temp_beside_it(
