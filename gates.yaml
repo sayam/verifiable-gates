@@ -2220,6 +2220,23 @@ gates:
       subprocess where a wrong exit code is easy to lose.
     proved_by:
       - kind: mutation
+        ref: pr/226
+        date: 2026-09-03
+        caught: >-
+          The two front doors — `action.yml` and `.pre-commit-hooks.yaml` — where the
+          property to hold is that neither carries a bundle of its own, so a SHA or a
+          `rev` moving changes nothing about what a project is held to. Six planted
+          defects, each red on its own: the guard removed so a tree with no bundle ran
+          anyway, the action pointed at a doctor from its own checkout instead of the
+          project's `tools/`, a hook made `language: python` (which would install this
+          package from the pinned `rev` and run its scanners, not the project's), a hook
+          pointed at a scanner other than the one its rule id names, a scanner left with
+          no hook at all, and a `uses:` slipped inside the composite — the one thing a
+          consumer's `actions-sha-pinned` scan could not see. The first attempt at the
+          third defect **stayed green and proved nothing**: the edit landed on the
+          words `language: system` inside the file's own header comment rather than on
+          a hook, and it was re-planted on the hook line before being believed.
+      - kind: mutation
         ref: pr/225
         date: 2026-09-03
         caught: >-

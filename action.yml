@@ -1,0 +1,44 @@
+# A composite action for a project that installed the bundle. It runs the doctor **that
+# project installed** under tools/ — never a copy from this action's own checkout — so
+# pinning this action to a newer commit changes nothing about what the project is held
+# to; only `python -m verifiable_gates.install` does that, in a pull request the project
+# can read (DECISIONS.md ci-runs-the-bundle-the-project-installed). It is `run:` steps
+# only, so there is nothing inside it to pin.
+#
+#   - uses: sayam/verifiable-gates@<commit-sha>   # vX.Y.Z
+#     with:
+#       sarif: gates.sarif        # optional; upload it with a step of your own
+#
+# Exit 0 = every installed scan clean or N/A · 1 = findings, or a scan that did not
+# answer · 2 = no bundle under the root, or the doctor called wrongly.
+name: verifiable-gates
+description: Run the gates a project installed from verifiable-gates — its own tools/gates_doctor.py — and fail on a finding
+author: Sayam Sriphua
+inputs:
+  root:
+    description: The project root, the directory that holds tools/gates_doctor.py
+    required: false
+    default: .
+  sarif:
+    description: Also write the run as SARIF 2.1.0 to this path, for a code-scanning upload step of your own
+    required: false
+    default: ""
+runs:
+  using: composite
+  steps:
+    - name: the gates this project installed
+      shell: bash
+      env:
+        ROOT: ${{ inputs.root }}
+        SARIF: ${{ inputs.sarif }}
+      run: |
+        set -euo pipefail
+        if [ ! -f "$ROOT/tools/gates_doctor.py" ]; then
+          echo "verifiable-gates: no bundle installed under $ROOT — this action runs the doctor a project installed (python -m verifiable_gates.install); it carries no copy of its own" >&2
+          exit 2
+        fi
+        if [ -n "$SARIF" ]; then
+          python3 "$ROOT/tools/gates_doctor.py" --root "$ROOT" --sarif "$SARIF"
+        else
+          python3 "$ROOT/tools/gates_doctor.py" --root "$ROOT"
+        fi

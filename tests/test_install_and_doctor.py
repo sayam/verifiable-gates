@@ -21,6 +21,7 @@ Three properties, and the second is the one that decays quietly:
 from __future__ import annotations
 
 import json
+import os
 import pathlib
 import re
 import shutil
@@ -29,6 +30,7 @@ import sys
 from typing import Any
 
 import pytest
+import yaml
 from bundle import DOCTOR, do_install, run_doctor
 
 from verifiable_gates import gates_doctor
@@ -1560,3 +1562,127 @@ def test_in_process_the_misuse_and_the_unwritable_file_are_exit_two(
     code = gates_doctor.main([str(installed), "--manifest", manifest, "--sarif", str(nowhere)])
     assert code == 2
     assert "cannot write the SARIF" in capsys.readouterr().err
+
+
+# ---------------------------------------------------------------- the two front doors
+#
+# `action.yml` and `.pre-commit-hooks.yaml` are how a project that installed the bundle
+# runs it from CI and from a commit hook without writing the line itself. Both run what
+# the project installed under tools/, never a copy carried by the action or the hook
+# repository — a `rev` or a SHA bump must not change what the project is held to.
+
+ROOT_OF_REPO = pathlib.Path(__file__).resolve().parent.parent
+ACTION = ROOT_OF_REPO / "action.yml"
+HOOKS = ROOT_OF_REPO / ".pre-commit-hooks.yaml"
+
+
+def _bash(script: str, cwd: pathlib.Path, env: dict[str, str]) -> subprocess.CompletedProcess[str]:
+    """A block lifted out of the action or a hook entry, run as the runner would."""
+    return subprocess.run(  # noqa: S603 — a block from this repository's own action, on fixed strings
+        ["bash", "-c", script],  # noqa: S607 — bash from PATH, as the runner finds it
+        cwd=cwd,
+        env={"PATH": os.environ["PATH"], **env},
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+
+
+def _action_step() -> dict[str, Any]:
+    loaded: dict[str, Any] = yaml.safe_load(ACTION.read_text(encoding="utf-8"))
+    (step,) = loaded["runs"]["steps"]
+    typed: dict[str, Any] = step
+    return typed
+
+
+def test_the_action_is_a_composite_of_run_steps_with_nothing_inside_it_to_pin() -> None:
+    """An action that used another action would need pinning inside — and would be the
+    one thing a consumer's actions-sha-pinned scan cannot see."""
+    loaded = yaml.safe_load(ACTION.read_text(encoding="utf-8"))
+    assert loaded["runs"]["using"] == "composite"
+    for step in loaded["runs"]["steps"]:
+        assert "run" in step, step
+        assert "uses" not in step, "an action inside the action is one nobody can pin"
+        assert step["shell"] == "bash"
+    assert set(loaded["inputs"]) == {"root", "sarif"}
+    assert loaded["inputs"]["root"]["default"] == "."
+    step = _action_step()
+    assert set(step["env"]) == {"ROOT", "SARIF"}, "inputs reach the shell as variables"
+    assert "${{" not in step["run"], "no expression inside the shell — an injection road"
+    assert "tools/gates_doctor.py" in step["run"], "it runs the doctor the project installed"
+
+
+def test_the_action_runs_the_doctor_the_project_installed(installed: pathlib.Path) -> None:
+    run = _action_step()["run"]
+    clean = _bash(run, installed, {"ROOT": str(installed), "SARIF": ""})
+    assert clean.returncode == 0, clean.stderr
+    assert "[   NA] delete-means-soft-delete" in clean.stdout, "the installed doctor spoke"
+
+    _plant(
+        installed,
+        "scan_workflow_pinning.py",
+        "print('actions-sha-pinned: x.yml:1 floating tag')\nraise SystemExit(1)\n",
+    )
+    found = _bash(run, installed, {"ROOT": str(installed), "SARIF": ""})
+    assert found.returncode == 1, "the action fails the job on a finding"
+    assert "[found] actions-sha-pinned" in found.stdout
+
+    out = installed / "gates.sarif"
+    with_sarif = _bash(run, installed, {"ROOT": str(installed), "SARIF": str(out)})
+    assert with_sarif.returncode == 1
+    log = json.loads(out.read_text(encoding="utf-8"))
+    assert log["runs"][0]["results"][0]["ruleId"] == "actions-sha-pinned"
+
+
+def test_the_action_refuses_a_tree_with_no_bundle_in_a_sentence(tmp_path: pathlib.Path) -> None:
+    """Running a doctor of its own would judge the project by rules it never installed."""
+    empty = tmp_path / "nothing-installed"
+    empty.mkdir()
+    done = _bash(_action_step()["run"], empty, {"ROOT": str(empty), "SARIF": ""})
+    assert done.returncode == 2
+    assert "no bundle installed under" in done.stderr
+    assert "python -m verifiable_gates.install" in done.stderr, "it says what to do"
+    assert "Traceback" not in done.stderr
+
+
+def _hooks() -> list[dict[str, Any]]:
+    loaded: list[dict[str, Any]] = yaml.safe_load(HOOKS.read_text(encoding="utf-8"))
+    return loaded
+
+
+def test_the_hooks_name_the_doctor_and_every_installed_scan_and_nothing_else() -> None:
+    """One hook per scan gate, by the rule's id, plus the doctor — held to the manifest
+    both ways, so a scanner added or renamed is red here until the hook follows."""
+    manifest = json.loads(
+        (ROOT_OF_REPO / "src" / "verifiable_gates" / "overlay.json").read_text(encoding="utf-8")
+    )
+    scans = dict(gates_doctor.scan_entries(manifest))
+    hooks = {hook["id"]: hook for hook in _hooks()}
+    assert set(hooks) == {"gates-doctor", *scans}, "a hook with no scan, or a scan with no hook"
+    assert "tools/gates_doctor.py" in hooks["gates-doctor"]["entry"]
+    for gid, script in scans.items():
+        assert f"tools/{script} " in hooks[gid]["entry"], f"{gid}: the entry runs another script"
+    for hook in hooks.values():
+        assert hook["language"] == "system", (
+            f"{hook['id']}: a copy from this checkout, not the project's"
+        )
+        assert hook["pass_filenames"] is False, f"{hook['id']}: a scanner takes a root, not files"
+        assert hook["always_run"] is True, f"{hook['id']}: a scan skipped is a scan not run"
+
+
+def test_a_hook_entry_runs_the_scanner_the_project_installed(installed: pathlib.Path) -> None:
+    hooks = {hook["id"]: hook for hook in _hooks()}
+    assert _bash(hooks["gates-doctor"]["entry"], installed, {}).returncode == 0
+    assert _bash(hooks["actions-sha-pinned"]["entry"], installed, {}).returncode == 0
+    _plant(
+        installed,
+        "scan_workflow_pinning.py",
+        "print('actions-sha-pinned: x.yml:1 floating tag')\nraise SystemExit(1)\n",
+    )
+    assert _bash(hooks["actions-sha-pinned"]["entry"], installed, {}).returncode == 1
+    assert _bash(hooks["gates-doctor"]["entry"], installed, {}).returncode == 1
+    nothing = installed.parent / "nothing-installed"
+    nothing.mkdir()
+    assert _bash(hooks["actions-sha-pinned"]["entry"], nothing, {}).returncode != 0, (
+        "a hook over a tree with no bundle must not pass"
+    )
