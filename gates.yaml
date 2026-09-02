@@ -2220,6 +2220,21 @@ gates:
       subprocess where a wrong exit code is easy to lose.
     proved_by:
       - kind: mutation
+        ref: pr/227
+        date: 2026-09-03
+        caught: >-
+          A file the doctor could not read was a `PermissionError` traceback beside
+          exit 1, the code that means the installation is incomplete, from a reader
+          that had decided nothing: `--installed` asked `is_file()` and read on the
+          next line. Closing the line the audit named uncovered a second road — with no
+          record at all the same unreadable scanner reached `py_compile` and died
+          there — which the reproduction had never walked because the first road
+          failed first. Six planted defects, each red on its own: the guard removed on
+          the record road, the unreadable file reported as "its contents have changed",
+          *gone* folded into *unreadable*, the guard removed on the compile road, the
+          unreadable scan reported as missing, and an absent record folded into an
+          unopenable one (self-audit round 20, 2026-09-03).
+      - kind: mutation
         ref: pr/226
         date: 2026-09-03
         caught: >-

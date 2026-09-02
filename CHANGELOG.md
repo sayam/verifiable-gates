@@ -116,6 +116,31 @@ Notable changes to this project. The format follows
   lines, and a sentence typed into the committed sheet — six planted defects, each red
   on its own.
 
+### Fixed
+
+- **A file the doctor could not read was a traceback with the exit code that means
+  "the installation is incomplete".** `tools/gates_doctor.py --installed` asked
+  `is_file()` and read the file on the next line — two questions with a gap between
+  them. A scanner that passed the first and failed the second (`chmod 000` on one
+  file, or one removed in the gap) was a raw `PermissionError` on stderr, an empty
+  report, and exit 1: a verdict from a reader that had decided nothing, in the file
+  every project installs and runs in its own CI (self-audit round 20, 2026-09-03).
+  Closing the line the audit named uncovered a second road to the same traceback:
+  with no `installed.json` at all, the same unreadable scanner reached `py_compile`
+  and died there instead. Both roads now read first and answer the exception, one
+  road each. Unreadable is its own sentence — *cannot be read (Permission denied),
+  so whether it is still what was installed cannot be checked*, and on the scan
+  side *a scan nobody can read does not run* — kept apart from *was installed and
+  is gone* and from round 4's *its contents have changed*, which accuses somebody
+  of editing the bundle. It stays exit 1: the question `--installed` answers is
+  whether the bundle can run, and a scan nobody can read cannot. The record itself
+  is read the same way, absent and unopenable told apart by the exception rather
+  than by a question asked before the read, and the installer's reader of that
+  record too. Proved by mutation: the guard removed on the record road, the
+  unreadable file reported as edited, *gone* folded into *unreadable*, the guard
+  removed on the compile road, the unreadable scan reported as missing, and an
+  absent record folded into an unopenable one — each red on its own.
+
 ## [0.1.12] - 2026-09-02
 
 Eight rounds of the project auditing itself (12 to 19), and every one of them
