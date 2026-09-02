@@ -8,6 +8,24 @@ Notable changes to this project. The format follows
 
 ### Added
 
+- **An instruction file for every agent, which points and does not copy.**
+  `AGENTS.md` — the file some sixty coding agents read (agents.md, stewarded under
+  the Linux Foundation) — names where things are and what checks them: the skill, the
+  `CONTRIBUTING.md` sections by title, the test or module behind each convention, the
+  commands CI runs, and the line an agent must not cross on its own (a tag, a release,
+  a Zenodo record). `CLAUDE.md`, which Claude Code reads instead, is one import line
+  plus the lines only it needs. Neither carries a rule's text: a copy is a register
+  nobody holds, and the copy is the version an agent opens the day it lags — the same
+  reasoning as `rules-are-read-off-the-installed-bundle`, now a row of its own
+  (`DECISIONS.md` `agent-instructions-point-and-do-not-copy`). `AGENTS.md` is the
+  **fourth identity card**, read by machines that will act on it, so
+  `tests/test_identity_cards.py` holds it to point at things that exist — every path,
+  every `python -m` module, every cited section — to carry no entry in the sheets'
+  shape, to be imported first by `CLAUDE.md`, and, together with it, to stay under the
+  200 lines Claude Code documents as where adherence drops. Proved by mutation: a path
+  that is not there, a module that does not import, a section title that is not a
+  heading, the import dropped, and a rule entry pasted in — each red on its own.
+
 - **Two ways to take the skill without cloning, through pipes this repository does
   not own.** `npx skills add sayam/verifiable-gates` — the Skills CLI, which reads the
   `skills/` directory the previous entry created and installs into whichever of some
