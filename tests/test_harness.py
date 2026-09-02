@@ -165,8 +165,12 @@ def test_rounds_accumulate_so_a_repeat_offender_is_visible(
         json.loads(line)
         for line in (root / harness.ROUND_LOG).read_text(encoding="utf-8").splitlines()
     ]
-    assert [r["round"] for r in records] == [1, 2]
+    assert len(records) == 2
     assert records[1]["failed"] == ["a-rule"]
+    # The number is the line's position and is never written into the line — a number
+    # only ever read off the file cannot disagree with it (self-audit round 20).
+    assert all("round" not in record for record in records)
+    assert records[0]["token"] != records[1]["token"]
 
 
 def test_a_failing_round_prints_the_gate_the_cause_and_the_hint(
@@ -312,7 +316,7 @@ def test_notes_that_cannot_be_written_do_not_change_the_verdict(
     assert run(root) == 0
     printed = capsys.readouterr()
     assert "could not write the round notes" in printed.err
-    assert "1 pass · 0 fail" in printed.out
+    assert "round 0: 1 pass · 0 fail" in printed.out, "a round that was not noted is round 0"
 
 
 def test_a_report_that_cannot_be_written_is_a_misuse(
@@ -344,6 +348,122 @@ def test_notes_that_cannot_be_decoded_are_left_alone_and_do_not_change_the_verdi
     assert "could not read the round notes: not UTF-8" in printed.err
     assert "round 0: 1 pass · 0 fail" in printed.out
     assert log.read_bytes() == b"notes somebody saved as cp1252: caf\xe9\n"
+
+
+# ------------------------------------------- two rounds noted at once
+#
+# The note was read-count-write: read the whole file, count the lines, write the whole
+# file back. Two harnesses on one checkout both counted the same lines, both printed the
+# same round number, and the second write threw the first one's note away — and a writer
+# killed between the truncate and the write left the file at 0 bytes, in a file that is
+# in `.gitignore` and so cannot be recovered (self-audit round 20, 2026-09-03). The note
+# is now appended in one write and the number is read back off the file by the token
+# the note carries: two rounds at once are two numbers, and neither is lost.
+
+SEEDED = 300
+
+
+def _seeded_notes(root: pathlib.Path, rounds: int) -> pathlib.Path:
+    log = root / harness.ROUND_LOG
+    log.write_text(
+        "".join(
+            json.dumps({"token": f"{n:016x}", "counts": {}, "failed": []}) + "\n"
+            for n in range(rounds)
+        ),
+        encoding="utf-8",
+    )
+    return log
+
+
+def test_two_rounds_noted_at_once_are_two_numbers_and_neither_is_lost(
+    tmp_path: pathlib.Path,
+) -> None:
+    """Two real processes, one checkout, as two agents or two terminals would do it."""
+    root = a_project(tmp_path, PASSING)
+    log = _seeded_notes(root, SEEDED)
+    command = [
+        sys.executable,
+        "-m",
+        "verifiable_gates.harness",
+        "--registry",
+        str(root / "gates.yaml"),
+        "--root",
+        str(root),
+    ]
+    runs = [
+        subprocess.Popen(command, stdout=subprocess.PIPE, text=True)  # noqa: S603 — argv built here
+        for _ in range(2)
+    ]
+    said = [run.communicate()[0].strip().splitlines()[-1] for run in runs]
+
+    assert [run.returncode for run in runs] == [0, 0]
+    numbers = sorted(int(line.removeprefix("round ").split(":")[0]) for line in said)
+    assert numbers == [SEEDED + 1, SEEDED + 2], said
+    assert len(log.read_text(encoding="utf-8").splitlines()) == SEEDED + 2
+
+
+def test_a_note_that_lands_in_the_gap_is_kept_and_counted(
+    tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """The interleaving, made deterministic: another harness's note lands after this one
+    has looked at the file and before it writes. Counted ahead, this round would be
+    numbered as if that note were not there; rewritten whole, that note would be gone."""
+    root = a_project(tmp_path, PASSING)
+    log = _seeded_notes(root, SEEDED)
+    foreign = json.dumps({"token": "another-harness", "counts": {}, "failed": []})
+
+    def another_harness_writes_first(log_path: pathlib.Path) -> bool:
+        with log_path.open("a", encoding="utf-8") as notes:
+            notes.write(foreign + "\n")
+        return True
+
+    monkeypatch.setattr(harness, "_notes_can_be_read", another_harness_writes_first)
+
+    assert run(root) == 0
+    assert f"round {SEEDED + 2}: 1 pass" in capsys.readouterr().out
+    lines = log.read_text(encoding="utf-8").splitlines()
+    assert len(lines) == SEEDED + 2
+    assert lines[SEEDED] == foreign, "the note that landed in the gap was thrown away"
+
+
+def test_the_round_number_is_the_notes_own_line_not_the_count_after_it(
+    tmp_path: pathlib.Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """Read back after the append, the file may already hold a later note; the number is
+    where *this* note is, and a note that cannot be found is round 0 with a sentence."""
+    log = _seeded_notes(tmp_path, 3)
+    mine = json.loads(log.read_text(encoding="utf-8").splitlines()[1])
+    note = json.dumps(mine)
+
+    position_of = harness._position_of  # noqa: SLF001 — the read-back is the subject
+
+    assert position_of(log, note) == 2
+    assert position_of(log, "not in the notes") == 0
+    assert "could not find this round in the notes" in capsys.readouterr().err
+    log.unlink()
+    assert position_of(log, note) == 0
+    assert "could not read the round notes back" in capsys.readouterr().err
+
+
+def test_a_note_is_written_without_reading_the_notes_first(
+    tmp_path: pathlib.Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """Append-only means the write depends on nothing read: notes that can be written
+    and not read back still get this round's note, and the round is 0 with a sentence,
+    because a number nobody could read off the file is not a number."""
+    root = a_project(tmp_path, PASSING)
+    log = _seeded_notes(root, 3)
+    log.chmod(0o222)
+    try:
+        code = run(root)
+    finally:
+        log.chmod(0o644)
+
+    assert code == 0
+    printed = capsys.readouterr()
+    assert "round 0: 1 pass" in printed.out
+    assert "could not read the round notes back" in printed.err
+    assert len(log.read_text(encoding="utf-8").splitlines()) == 4, "the note was not appended"
 
 
 # ------------------------------------------- what the harness says, in what bytes

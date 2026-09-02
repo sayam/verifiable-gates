@@ -2693,6 +2693,30 @@ gates:
           that means a gate failed; and --output pointed somewhere
           unwritable did the same. Two cases red now (self-audit round 5,
           2026-09-01).
+      - kind: mutation
+        ref: pr/228
+        date: 2026-09-03
+        caught: >-
+          The round notes were a read-modify-write, so two harnesses on one checkout
+          both counted the same lines, both printed the same round number, and the
+          second write threw the first one's note away — three of six pairs at 200 and
+          5,000 rounds — while a writer killed between the truncate and the write left
+          the notes at 0 bytes, five of 399 kills at 3.8 MB, in a file `.gitignore`
+          keeps out of git (self-audit round 20, 2026-09-03). Six planted defects, each
+          red on its own: the old body restored whole, the append made a truncating
+          rewrite, the number taken from the count of lines after the write rather than
+          this note's own line, a note that could not be written numbered as if it had
+          been, a note not found after writing numbered by the count, and the decode
+          check dropped so undecodable notes were appended to. **Which test caught it
+          matters here**: under the old body restored, the two-real-processes test
+          stayed green in that run — the window is microseconds and a 50% race is a
+          coin, not a proof — and the red came from the test that forces the
+          interleaving through a seam. That test is the proof; the two-process one is
+          the guard that the fix holds end to end. No test can kill a writer inside its
+          window, so the truncate is held by the property that implies it — the note is
+          written without reading the notes first, so a write-only log still gets its
+          line — with the kill measurement recorded in the pull request rather than
+          pretended into the suite.
 
   - id: a-published-rule-carries-its-origin
     title: A published rule names the incident behind it, belongs to a published layer, and names no framework
