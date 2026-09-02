@@ -506,3 +506,23 @@ def test_a_registry_that_is_not_utf_8_is_a_misuse(
 
     assert census.main(["--root", str(tmp_path)]) == 2
     assert "cannot read the registry or the workflows" in capsys.readouterr().err
+
+
+def test_a_workflow_nobody_can_read_is_a_misuse_too(
+    tmp_path: pathlib.Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """The guard here caught what the read itself raised; the workflow reader answers
+    every unreadable file with `RuntimeError` now, and one nobody may open would have
+    gone past a guard written for `OSError` (self-audit round 20, 2026-09-03)."""
+    (tmp_path / "gates.yaml").write_text("gates: []\n", encoding="utf-8")
+    flows = tmp_path / ".github" / "workflows"
+    flows.mkdir(parents=True)
+    (flows / "ci.yml").write_text("on: push\n", encoding="utf-8")
+    (flows / "ci.yml").chmod(0o000)
+    try:
+        code = census.main(["--root", str(tmp_path)])
+    finally:
+        (flows / "ci.yml").chmod(0o644)
+
+    assert code == 2
+    assert "cannot read the workflow ci.yml: Permission denied" in capsys.readouterr().err

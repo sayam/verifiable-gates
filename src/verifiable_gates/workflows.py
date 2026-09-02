@@ -55,9 +55,27 @@ def workflow_dir(root: pathlib.Path) -> pathlib.Path:
 
 
 def load(path: pathlib.Path) -> Workflow:
-    """One workflow's body — an empty file is an empty dict, never None."""
-    loaded: Workflow = yaml.safe_load(path.read_text(encoding="utf-8")) or {}
+    """One workflow's body — an empty file is an empty dict, never None.
+
+    A workflow this reader cannot read is `RuntimeError`, the exception every caller of
+    it already answers with *cannot read* and exit 2. It was whatever the read raised: a
+    file `glob` named and nobody may open, a symlink whose target is gone, a file that is
+    not UTF-8, and YAML the parser rejects were each a raw traceback out of
+    `posture --settings` and the rerun census — exit 1, the code that means findings,
+    from readers that had found nothing (self-audit round 20, 2026-09-03).
+    """
+    try:
+        loaded: Workflow = yaml.safe_load(path.read_text(encoding="utf-8")) or {}
+    except (OSError, UnicodeDecodeError, yaml.YAMLError) as problem:
+        raise RuntimeError(f"cannot read the workflow {path.name}: {_why(problem)}") from problem
     return loaded
+
+
+def _why(problem: Exception) -> str:
+    """The reason in one line: the system's word for an `OSError`, the parser's for YAML."""
+    if isinstance(problem, OSError) and problem.strerror:
+        return problem.strerror
+    return " ".join(str(problem).split())
 
 
 def all_workflows(directory: pathlib.Path) -> dict[str, Workflow]:

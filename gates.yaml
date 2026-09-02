@@ -816,6 +816,20 @@ gates:
           file read as None instead of an empty mapping, reading `on: [schedule]`
           as though it carried a cron, and accepting only `.yml` so every
           `.yaml` workflow disappeared from the census.
+      - kind: mutation
+        ref: pr/229
+        date: 2026-09-03
+        caught: >-
+          The one reader read bare: a workflow nobody may open, a symlink whose target
+          was gone, a file that is not UTF-8 and YAML the parser rejects were each
+          whatever the read raised, and they reached four callers as tracebacks with
+          exit 1 — the code that means findings (self-audit round 20, 2026-09-03).
+          Every one is now the reader's own `RuntimeError`, one sentence naming the
+          file, which is what its callers already answer with "cannot read" and exit 2.
+          Two planted defects red on their own: the reader put back to a bare read, and
+          YAML the parser rejects left out of what it answers for. The first of those
+          was red in all five test files that reach this reader, which is the map of
+          who depends on it.
 
   - id: one-wrapper-for-the-github-cli
     title: There is one `gh` wrapper, and it fails loudly rather than answering empty
@@ -938,6 +952,16 @@ gates:
           module: the one clock from its config, the `event=dynamic` ask, no
           dynamic run as never, the entries printed beside the verdict, and
           the silence itself (self-audit, 2026-08-31; the endpoint read live).
+      - kind: mutation
+        ref: pr/229
+        date: 2026-09-03
+        caught: >-
+          Round 3 gave this the third answer for the one shape it had met, a workflow
+          that is not UTF-8; the reader now answers every unreadable workflow with
+          `RuntimeError`, and a guard written for that one shape let the rest through
+          as tracebacks (self-audit round 20, 2026-09-03). The guard put back to round
+          3's is red — on the new case and on round 3's own, which is the check that
+          widening it kept what it already held.
 
   - id: a-census-over-nothing-counts-nothing
     title: A run history the censuses cannot see is the third answer, never a pass
@@ -1062,6 +1086,19 @@ gates:
           given the third answer in round 1 and its --root had not, so a
           tree that is not there was a traceback (self-audit round 2,
           2026-08-31).
+      - kind: mutation
+        ref: pr/229
+        date: 2026-09-03
+        caught: >-
+          This guard caught what the bare read used to raise, `OSError`, and the reader
+          no longer raises it — so a workflow nobody may open would have gone back to
+          being a traceback with nothing here to notice. **No test covered this road**:
+          it was found by grepping the module name rather than the function the audit
+          named, after the suite had already gone green on the three callers the audit
+          did name (self-audit round 20, 2026-09-03). The reader's exception left out
+          of the guard is red. The blocking paths are now read beside the promises in
+          the same `try` instead of after the history — one window for the tree to
+          change in, where there were two.
 
   - id: a-rerun-cannot-erase-a-failure-from-the-count
     title: Failures a rerun turned green are still counted, and classified by who broke
@@ -1123,6 +1160,15 @@ gates:
           `failures` as a string, a number or null and `attempt` as a string
           each raised from inside the count, exit 1 — four cases red on the
           census as it was, each now exit 2 (self-audit, 2026-08-31).
+      - kind: mutation
+        ref: pr/229
+        date: 2026-09-03
+        caught: >-
+          The run history was guarded and the workflows read beside it were not, so one
+          nobody could open was a traceback with exit 1 — the code that means failures
+          were erased by a rerun (self-audit round 20, 2026-09-03). It answers with its
+          own sentence rather than the history's, because a census that cannot see the
+          workflows has not read a bad history. The guard removed again is red.
 
   - id: a-threshold-sits-against-reality-both-ways
     title: A ratchet's threshold is held to what is true today, in both directions
@@ -1247,6 +1293,17 @@ gates:
           zero for a register that was not there at all, not naming the binary that
           was missing, and reading interrogate's figure from anywhere in its output
           rather than from its own label.
+      - kind: mutation
+        ref: pr/229
+        date: 2026-09-03
+        caught: >-
+          The counter that feeds `SUPPRESSED_LINES` asked `glob` for a name and then
+          read it, so a file the walk saw and nobody may open, a name whose target was
+          gone, and a source file that is not UTF-8 were each a raw traceback — out of
+          the module whose first paragraph promises every reader raises `RuntimeError`
+          when it cannot answer (self-audit round 20, 2026-09-03). Two planted defects
+          red on their own: each of the two roads removed from the read, the file that
+          cannot be opened and the file that is not UTF-8.
 
   - id: what-left-is-told-from-what-was-reworded
     title: A census of removals separates what went from what was only renamed
@@ -1572,6 +1629,14 @@ gates:
           each came back a raw traceback and exit 1, the code that means
           findings, on the file this job reads every week (self-audit round
           2, 2026-08-31).
+      - kind: mutation
+        ref: pr/229
+        date: 2026-09-03
+        caught: >-
+          The platform's own settings were guarded and the workflows read beside them
+          were not, so one file nobody could open ended the whole settings report in a
+          traceback with exit 1 — the code that means a switch drifted (self-audit
+          round 20, 2026-09-03). The guard removed again is red.
 
   - id: every-advisory-has-been-judged
     title: Every finding has been decided about, and every decision still describes something

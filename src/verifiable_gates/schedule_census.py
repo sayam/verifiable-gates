@@ -304,7 +304,12 @@ def _schedules(root: pathlib.Path, directory: pathlib.Path) -> dict[str, int]:
     """
     try:
         return declared_schedules(directory) | dependabot_schedule(root)
-    except UnicodeDecodeError as problem:
+    except (RuntimeError, UnicodeDecodeError) as problem:
+        # The workflow reader answers every unreadable file with `RuntimeError` now —
+        # one nobody may open, a symlink left dangling, YAML the parser rejects — and
+        # a guard written for the one shape round 3 met let the rest through as
+        # tracebacks (self-audit round 20, 2026-09-03). `UnicodeDecodeError` stays for
+        # the Dependabot file, which is read here.
         print(f"cannot read the workflows: {problem}", file=sys.stderr)
         raise SystemExit(2) from problem
 

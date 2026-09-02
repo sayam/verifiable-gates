@@ -520,6 +520,25 @@ def test_a_clean_window_reports_and_passes(
     assert "examined 1 runs" in capsys.readouterr().out
 
 
+def test_a_workflow_nobody_can_read_is_the_third_answer_not_a_finding(
+    tmp_path: pathlib.Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """The history is guarded; the workflows beside it were not, and one nobody can open
+    was a traceback with exit 1 — the code that means failures were erased
+    (self-audit round 20, 2026-09-03)."""
+    directory = a_workflow(tmp_path / ".github" / "workflows", "ci.yml", "jobs:\n  lint: {}\n")
+    records = a_records_file(tmp_path, [{"id": 1, "attempt": 1, "failures": []}])
+    (directory / "ci.yml").chmod(0o000)
+    try:
+        code = census.main(["--root", str(tmp_path), "--input", str(records)])
+    finally:
+        (directory / "ci.yml").chmod(0o644)
+
+    assert code == 2
+    err = capsys.readouterr().err
+    assert "cannot read the workflows: cannot read the workflow ci.yml" in err
+
+
 def test_hidden_failures_over_the_ceiling_are_a_blocking_answer(
     tmp_path: pathlib.Path, capsys: pytest.CaptureFixture[str]
 ) -> None:

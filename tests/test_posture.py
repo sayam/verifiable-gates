@@ -460,6 +460,25 @@ def test_a_platform_the_token_cannot_read_is_the_third_answer(
     assert "cannot read the platform's settings" in capsys.readouterr().err
 
 
+def test_a_workflow_nobody_can_read_is_the_third_answer(
+    tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """The platform was guarded; the workflows beside it were not. One file nobody can
+    open ended the whole report in a traceback and exit 1 — the code that means a
+    switch drifted (self-audit round 20, 2026-09-03)."""
+    a_platform(monkeypatch, PROTECTION, REPO)
+    register, root = a_tree(tmp_path, SMALL)
+    locked = tmp_path / ".github" / "workflows" / "ci.yml"
+    locked.chmod(0o000)
+    try:
+        code = posture.main(["--settings", register, "--root", root])
+    finally:
+        locked.chmod(0o644)
+
+    assert code == 2
+    assert "cannot read the workflows: cannot read the workflow ci.yml" in capsys.readouterr().err
+
+
 @pytest.mark.parametrize(
     ("alerts", "value"),
     [("204", True), ("404", False), ("403", None), ("403: see /repos/x/404-org", None)],
