@@ -26,6 +26,7 @@ import re
 import shutil
 import subprocess
 import sys
+from typing import Any
 
 import pytest
 from bundle import DOCTOR, do_install, run_doctor
@@ -1299,3 +1300,263 @@ def test_the_installer_points_the_agents_at_the_rules(
 
     assert "gates_doctor.py --rules" in out
     assert not (project / "AGENTS.md").exists(), "the installer must not write the project's file"
+
+
+# ---------------------------------------------------------------- SARIF, a format
+
+
+def _sarif_after(project: pathlib.Path, *args: str) -> tuple[int, dict[str, Any], str]:
+    out = project / "gates.sarif"
+    done = run_doctor(project, "--sarif", str(out), *args)
+    return done.returncode, json.loads(out.read_text(encoding="utf-8")), done.stdout
+
+
+def _plant(project: pathlib.Path, scanner: str, body: str) -> None:
+    (project / "tools" / "checks" / scanner).write_text(body, encoding="utf-8")
+
+
+def test_a_finding_with_a_line_is_a_located_result_and_the_rules_carry_their_incident(
+    installed: pathlib.Path,
+) -> None:
+    """The reader that speaks SARIF gets the finding where the scanner saw it, and the
+    rule's incident beside it — a rule with no `born_from` is a rule nobody can retire."""
+    (installed / "x.yml").write_text("uses: actions/checkout@v4\n", encoding="utf-8")
+    _plant(
+        installed,
+        "scan_workflow_pinning.py",
+        "print('actions-sha-pinned: x.yml:1 actions/checkout@v4 is a floating tag')\n"
+        "raise SystemExit(1)\n",
+    )
+    code, log, report = _sarif_after(installed)
+    assert code == 1, "the exit code is the report's, not the format's"
+    assert "[found] actions-sha-pinned" in report, "the text report still prints"
+    assert log["version"] == "2.1.0"
+    assert log["$schema"] == gates_doctor.SARIF_SCHEMA
+    (run,) = log["runs"]
+    (result,) = run["results"]
+    assert result["ruleId"] == "actions-sha-pinned"
+    assert result["level"] == "error"
+    assert result["message"]["text"] == "x.yml:1 actions/checkout@v4 is a floating tag"
+    (location,) = result["locations"]
+    assert location["physicalLocation"]["artifactLocation"] == {
+        "uri": "x.yml",
+        "uriBaseId": "%SRCROOT%",
+    }
+    assert location["physicalLocation"]["region"] == {"startLine": 1}
+    assert run["originalUriBaseIds"]["%SRCROOT%"]["uri"] == installed.resolve().as_uri() + "/"
+    driver = run["tool"]["driver"]
+    assert driver["name"] == "verifiable-gates"
+    assert (
+        driver["version"]
+        == json.loads((installed / "tools" / "installed.json").read_text(encoding="utf-8"))[
+            "version"
+        ]
+    )
+    manifest = json.loads((installed / "tools" / "overlay.json").read_text(encoding="utf-8"))
+    scans = {gid for gid, _s in gates_doctor.scan_entries(manifest)}
+    assert {rule["id"] for rule in driver["rules"]} == scans, "every scan gate is a rule"
+    for rule in driver["rules"]:
+        gate = manifest["gates"][rule["id"]]
+        assert rule["shortDescription"]["text"] == gate["title"]
+        assert rule["help"]["text"] == gate["born_from"], "the incident travels with the rule"
+        assert rule["properties"]["layer"] == gate["layer"]
+
+
+def test_a_finding_that_names_no_file_under_the_root_is_a_result_with_no_location(
+    installed: pathlib.Path,
+) -> None:
+    """A key from scaffold.json, a sentence, a path outside: a message, never an
+    annotation on a file the reader would be sent to and could not open."""
+    _plant(
+        installed,
+        "scan_adr_index.py",
+        "print('adr-index-complete: records exist but there is no README.md index')\n"
+        "print('adr-index-complete: /etc/hostname:1 leads outside the project')\n"
+        "print('adr-index-complete: adr_path: is not one path')\n"
+        "raise SystemExit(1)\n",
+    )
+    code, log, _ = _sarif_after(installed)
+    assert code == 1
+    results = log["runs"][0]["results"]
+    assert [r["message"]["text"] for r in results] == [
+        "records exist but there is no README.md index",
+        "/etc/hostname:1 leads outside the project",
+        "adr_path: is not one path",
+    ]
+    assert all("locations" not in r for r in results), "a location nobody can open"
+
+
+def test_an_na_is_a_note_on_the_invocation_and_never_a_result(installed: pathlib.Path) -> None:
+    """The third answer survives the translation: a reader counting results sees none,
+    and a reader of the invocation sees why."""
+    code, log, _ = _sarif_after(installed)
+    assert code == 0, "a fresh install is clean or NA everywhere"
+    run = log["runs"][0]
+    assert run["results"] == []
+    (invocation,) = run["invocations"]
+    assert invocation["executionSuccessful"] is True, "NA is not a failure to run"
+    notes = invocation["toolExecutionNotifications"]
+    assert notes, "eight NA gates on a fresh install, and not one note"
+    assert {n["level"] for n in notes} == {"note"}
+    by_rule = {n["associatedRule"]["id"]: n["message"]["text"] for n in notes}
+    assert by_rule["delete-means-soft-delete"].startswith("no app"), by_rule
+
+
+def test_a_scan_that_did_not_answer_marks_the_invocation_unsuccessful(
+    installed: pathlib.Path,
+) -> None:
+    """Exit 2, a crash, a timeout: an error notification, no result, and the run says
+    it did not succeed — a clean-looking log over a scan that could not look is the
+    sentence the manifest forbids."""
+    _plant(
+        installed,
+        "scan_workflow_pinning.py",
+        "import sys\nprint('cannot read the tree: x: Permission denied', file=sys.stderr)\n"
+        "raise SystemExit(2)\n",
+    )
+    code, log, _ = _sarif_after(installed)
+    assert code == 1, "the doctor's own answer for a scan that did not answer"
+    run = log["runs"][0]
+    assert not [r for r in run["results"] if r["ruleId"] == "actions-sha-pinned"]
+    (invocation,) = run["invocations"]
+    assert invocation["executionSuccessful"] is False
+    (error,) = [n for n in invocation["toolExecutionNotifications"] if n["level"] == "error"]
+    assert error["associatedRule"] == {"id": "actions-sha-pinned"}
+    assert "did not answer (exit 2)" in error["message"]["text"]
+    assert "Permission denied" in error["message"]["text"], "the scan's own words travel"
+
+
+def test_sarif_is_a_run_of_the_scans_and_refuses_the_other_two_questions(
+    installed: pathlib.Path,
+) -> None:
+    for other in ("--installed", "--rules"):
+        done = run_doctor(installed, "--sarif", str(installed / "x.sarif"), other)
+        assert done.returncode == 2, other
+        assert "--sarif describes a run of the scans" in done.stderr
+        assert not (installed / "x.sarif").exists(), "nothing was written on a misuse"
+
+
+def test_a_sarif_that_cannot_be_written_is_a_sentence_after_the_report(
+    installed: pathlib.Path,
+) -> None:
+    """The verdict stood; the artefact asked for did not arrive — exit 2, not a
+    traceback, and not the verdict's own code, which would say the file is there."""
+    done = run_doctor(installed, "--sarif", str(installed / "no-such-dir" / "gates.sarif"))
+    assert done.returncode == 2
+    assert "[   NA] delete-means-soft-delete" in done.stdout, "the report printed first"
+    assert "cannot write the SARIF" in done.stderr
+    assert "the report above stands" in done.stderr
+    assert "Traceback" not in done.stderr
+
+
+def test_the_sarif_carries_what_code_scanning_requires(installed: pathlib.Path) -> None:
+    """The fields GitHub's upload rejects a file without, named so a reader of this
+    test knows which readers were in mind; the full schema is validated outside the
+    suite, because the suite is held not to use the network."""
+    _plant(
+        installed,
+        "scan_write_discipline.py",
+        "print('delete-means-soft-delete: app/a.py:3 session.delete(x)')\nraise SystemExit(1)\n",
+    )
+    (installed / "app").mkdir()
+    (installed / "app" / "a.py").write_text("\n\nsession.delete(x)\n", encoding="utf-8")
+    _, log, _ = _sarif_after(installed)
+    assert set(log) >= {"$schema", "version", "runs"}
+    run = log["runs"][0]
+    assert set(run) >= {"tool", "results", "invocations"}
+    assert set(run["tool"]["driver"]) >= {"name", "rules", "informationUri"}
+    (result,) = run["results"]
+    assert set(result) >= {"ruleId", "level", "message", "locations"}
+    assert result["locations"][0]["physicalLocation"]["region"] == {"startLine": 3}
+    assert all(
+        isinstance(rule["id"], str) and rule["id"] for rule in run["tool"]["driver"]["rules"]
+    )
+    assert run["invocations"][0]["executionSuccessful"] is True
+
+
+# The same roads in-process, so coverage sees them; the subprocess tests above are the
+# ones that prove the file as it ships.
+
+
+def _sarif_in_process(project: pathlib.Path, *args: str) -> tuple[int, dict[str, Any]]:
+    manifest = str(project / "tools" / "overlay.json")
+    out = project / "in-process.sarif"
+    code = gates_doctor.main([str(project), "--manifest", manifest, "--sarif", str(out), *args])
+    return code, json.loads(out.read_text(encoding="utf-8"))
+
+
+def test_in_process_a_located_and_an_unlocated_finding_share_one_log(
+    installed: pathlib.Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    (installed / "x.yml").write_text("uses: actions/checkout@v4\n", encoding="utf-8")
+    _plant(
+        installed,
+        "scan_workflow_pinning.py",
+        "print('actions-sha-pinned: x.yml:1 floating tag')\n"
+        "print('actions-sha-pinned: a sentence with no file in it')\n"
+        "print('actions-sha-pinned: x.yml: the whole file, no line')\n"
+        "print('actions-sha-pinned: :: nothing a path could be read from')\n"
+        "raise SystemExit(1)\n",
+    )
+    code, log = _sarif_in_process(installed)
+    capsys.readouterr()
+    assert code == 1
+    located, plain, whole, odd = log["runs"][0]["results"]
+    assert located["locations"][0]["physicalLocation"]["region"] == {"startLine": 1}
+    assert "locations" not in plain
+    assert "region" not in whole["locations"][0]["physicalLocation"], "no line, no region"
+    assert whole["locations"][0]["physicalLocation"]["artifactLocation"]["uri"] == "x.yml"
+    assert "locations" not in odd, "a head no path can be read from is a message only"
+
+
+def test_a_rule_without_an_incident_or_a_layer_is_still_a_rule(tmp_path: pathlib.Path) -> None:
+    """A manifest from before the overlay carried `born_from` and `layer` (#219) still
+    renders — the rule is its id and title, and the optional fields are absent, not
+    invented."""
+    manifest = {"gates": {"bare": {"kind": "scan", "script": "checks/x.py", "title": "t"}}}
+    log = gates_doctor.sarif_log(tmp_path, manifest, [])
+    (rule,) = log["runs"][0]["tool"]["driver"]["rules"]
+    assert rule == {"id": "bare", "shortDescription": {"text": "t"}}
+
+
+def test_in_process_a_record_with_no_version_leaves_the_driver_without_one(
+    installed: pathlib.Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """A version the installer did not record is not guessed at — the field is absent."""
+    (installed / "tools" / "installed.json").write_text("[]", encoding="utf-8")
+    code, log = _sarif_in_process(installed)
+    capsys.readouterr()
+    assert code == 0
+    assert "version" not in log["runs"][0]["tool"]["driver"]
+    (installed / "tools" / "installed.json").unlink()
+    code, log = _sarif_in_process(installed)
+    capsys.readouterr()
+    assert "version" not in log["runs"][0]["tool"]["driver"]
+
+
+def test_in_process_a_scan_that_hangs_is_an_error_notification(
+    installed: pathlib.Path, capsys: pytest.CaptureFixture[str], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(gates_doctor, "SCAN_TIMEOUT", 1)
+    _plant(installed, "scan_workflow_pinning.py", "import time\ntime.sleep(30)\n")
+    code, log = _sarif_in_process(installed)
+    capsys.readouterr()
+    assert code == 1
+    (invocation,) = log["runs"][0]["invocations"]
+    assert invocation["executionSuccessful"] is False
+    (error,) = [n for n in invocation["toolExecutionNotifications"] if n["level"] == "error"]
+    assert "timed out after 1s" in error["message"]["text"]
+
+
+def test_in_process_the_misuse_and_the_unwritable_file_are_exit_two(
+    installed: pathlib.Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    manifest = str(installed / "tools" / "overlay.json")
+    with pytest.raises(SystemExit) as stopped:
+        gates_doctor.main([str(installed), "--manifest", manifest, "--sarif", "x", "--rules"])
+    assert stopped.value.code == 2
+    capsys.readouterr()
+    nowhere = installed / "no-such-dir" / "gates.sarif"
+    code = gates_doctor.main([str(installed), "--manifest", manifest, "--sarif", str(nowhere)])
+    assert code == 2
+    assert "cannot write the SARIF" in capsys.readouterr().err

@@ -136,6 +136,7 @@ HELD = {
     "the-sheets-live-under-skills": "",
     "distribution-is-two-pipes-nobody-here-owns": "",
     "agent-instructions-point-and-do-not-copy": "",
+    "text-is-the-default-sarif-is-a-format": "",
 }
 
 # The rows whose `expires when` is `Never` — an expiry rewritten to "Never" was
