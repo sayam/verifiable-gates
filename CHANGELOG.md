@@ -118,6 +118,29 @@ Notable changes to this project. The format follows
 
 ### Fixed
 
+- **Two harness rounds noted at once were one number, and one of them was lost; a
+  writer killed mid-note left the notes empty.** `harness` kept its per-machine round
+  log by reading the whole file, counting the lines, and writing the whole file back.
+  Two harnesses on one checkout — two agents, two terminals — both counted the same
+  lines, both printed the same round number, and the second write threw the first
+  one's note away: measured, three of six pairs at 200 and at 5,000 rounds. And because
+  the write truncated first, a writer killed inside that window left
+  `.gate-rounds.jsonl` at **0 bytes** — five of 399 kills at 3.8 MB, one of 399 at
+  74 KB — in a file `.gitignore` keeps out of git, so what it held was gone
+  (self-audit round 20, 2026-09-03). The note is now **appended in one write**, which
+  cannot truncate and cannot interleave with another appender's line, and the round
+  number is **read back off the file** — the position of the line this run wrote,
+  found by the token it carries — never counted ahead of the write. The number is not
+  written into the line: a number only ever read off the file cannot disagree with it.
+  Re-measured with the same probes: eight of eight pairs two numbers and no note lost,
+  0 of 798 kills an empty file. A note that could not be written is now round `0`,
+  the number round 12 gave a round that was not noted, rather than the number it
+  would have had. `SUPPRESSED_LINES` moves 114 → 116, the reason on each line. Proved
+  by mutation: the old body restored, the append made a truncating rewrite, the
+  number taken from the count after rather than the note's own line, an unwritten
+  note numbered as if written, a note not found after writing numbered by the count,
+  and the decode check dropped — each red on its own.
+
 - **A file the doctor could not read was a traceback with the exit code that means
   "the installation is incomplete".** `tools/gates_doctor.py --installed` asked
   `is_file()` and read the file on the next line — two questions with a gap between

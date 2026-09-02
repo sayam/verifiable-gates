@@ -25,6 +25,7 @@ import argparse
 import json
 import pathlib
 import re
+import secrets
 import subprocess
 import sys
 import time
@@ -149,34 +150,77 @@ def _note_the_round(
     Notes we cannot **decode** are left exactly as they are and the round is numbered
     `0` — "not noted". Overwriting a file this reader could not read would destroy
     whatever it actually held, and inventing a round number would claim a note that
-    was never written (self-audit round 12, 2026-09-01).
+    was never written (self-audit round 12, 2026-09-01). A note that could not be
+    **written** is numbered `0` for the same reason: the round was not noted.
 
-    The write names its encoding because the read above does. Nothing in a record can be
-    outside ASCII today — a round number, three counts, and gate ids the registry holds
-    to `[a-z0-9-]` — so this is the contract stated, not a defect fixed; the sibling
-    write in `_write_report` carries the registry's prose and was one (round 15).
+    **The note is appended, never rewritten, and the round number is read back, never
+    counted ahead.** This was read the whole file, count the lines, write the whole file
+    back — and two harnesses on one checkout both counted the same lines, both printed
+    the same round number, and the second write threw the first one's note away
+    (measured: three of six pairs at 200 and 5,000 rounds). A writer killed between the
+    truncate and the write left the file at **0 bytes** — five of 399 kills at 3.8 MB —
+    and the file is in `.gitignore`, so what it held was gone (self-audit round 20,
+    2026-09-03). One line is appended in one write, which cannot truncate and cannot
+    interleave with another appender's line; the round number is the position of that
+    line, found again by the token it carries, so two rounds noted at once are two
+    numbers and neither is lost. The number is not written into the line: a number that
+    is only ever read off the file cannot disagree with it.
+
+    The write names its encoding because the read does. Nothing in a record can be
+    outside ASCII today — a token, three counts, and gate ids the registry holds to
+    `[a-z0-9-]` — so this is the contract stated, not a defect fixed; the sibling write
+    in `_write_report` carries the registry's prose and was one (round 15).
     """
     log_path = root / ROUND_LOG
+    unnoted = {"round": 0, "counts": counts, "failed": [r["gate"] for r in failed]}
+    if not _notes_can_be_read(log_path):
+        return unnoted
+    note = json.dumps(
+        {"token": secrets.token_hex(8), "counts": counts, "failed": unnoted["failed"]},
+        ensure_ascii=False,
+    )
     try:
-        previous = log_path.read_text(encoding="utf-8").splitlines() if log_path.exists() else []
+        with log_path.open("a", encoding="utf-8") as notes:
+            notes.write(note + "\n")
+    except OSError as problem:
+        print(f"could not write the round notes: {problem}", file=sys.stderr)
+        return unnoted
+    return unnoted | {"round": _position_of(log_path, note)}
+
+
+def _notes_can_be_read(log_path: pathlib.Path) -> bool:
+    """False only for notes that are there and cannot be decoded — those are left alone.
+
+    Notes that are not there yet are fine; notes that cannot be opened are left to the
+    write, which says so.
+    """
+    try:
+        log_path.read_text(encoding="utf-8")
     except UnicodeDecodeError as problem:
         print(
             f"could not read the round notes: not UTF-8 ({problem.reason})"
             " — leaving them as they are",
             file=sys.stderr,
         )
-        return {"round": 0, "counts": counts, "failed": [r["gate"] for r in failed]}
+        return False
     except OSError:
-        previous = []
-    record = {"round": len(previous) + 1, "counts": counts, "failed": [r["gate"] for r in failed]}
+        return True  # not there yet, or not openable — the write says which
+    return True
+
+
+def _position_of(log_path: pathlib.Path, note: str) -> int:
+    """The round number: which line of the notes this note landed on, read back after
+    the append. `0` when the notes cannot be read back or the note is not in them —
+    a number nobody can find on the file is not a number."""
     try:
-        log_path.write_text(
-            "\n".join([*previous, json.dumps(record, ensure_ascii=False)]) + "\n",
-            encoding="utf-8",
-        )
-    except OSError as problem:
-        print(f"could not write the round notes: {problem}", file=sys.stderr)
-    return record
+        lines = log_path.read_text(encoding="utf-8").splitlines()
+    except (OSError, UnicodeDecodeError) as problem:
+        print(f"could not read the round notes back: {problem}", file=sys.stderr)
+        return 0
+    if note not in lines:
+        print("could not find this round in the notes after writing it", file=sys.stderr)
+        return 0
+    return lines.index(note) + 1
 
 
 def _write_report(output: pathlib.Path, round_number: int, results: list[dict[str, Any]]) -> bool:
