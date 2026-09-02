@@ -8,6 +8,28 @@ Notable changes to this project. The format follows
 
 ### Added
 
+- **Two front doors for a project that installed the bundle, and neither carries a
+  copy.** `action.yml` — `uses: sayam/verifiable-gates@<sha>` — runs the doctor **the
+  project installed** under `tools/`, fails the job on a finding, takes an optional
+  `sarif:` path, and is `run:` steps only, so there is nothing inside it a consumer's
+  `actions-sha-pinned` scan could not see and pin. `.pre-commit-hooks.yaml` offers
+  `gates-doctor` and one hook per scanner by the id of the rule it decides, all
+  `language: system`, all `always_run`, so bumping the `rev` installs nothing and moves
+  nothing. A tree with no bundle is exit 2 and a sentence naming the installer; a hook
+  over such a tree fails the commit, and a scanner's *could not look* (exit 2) fails it
+  too, which is right. The reason both refuse to carry a doctor of their own is the rule
+  `rules-are-read-off-the-installed-bundle` applied to CI — a SHA or a `rev` moving must
+  change nothing about what a project is held to — and it is a row:
+  `DECISIONS.md` `ci-runs-the-bundle-the-project-installed`. The hooks are held to the
+  manifest both ways (a scanner added or renamed is red until the hook follows), and both
+  doors are run for real in the suite: the action's own shell block on an installed
+  project, clean, with a planted finding, with SARIF, and on an empty tree; each hook's
+  entry the same way. Proved by mutation: the action given a doctor of its own, the empty
+  tree let through, a hook pointed at the wrong scanner, a hook made `language: python`,
+  a scanner left without a hook, and a `uses:` slipped inside the action — each red on
+  its own. `SUPPRESSED_LINES` moves 112 → 114 for the shell runner the tests use, with the
+  reason on each line.
+
 - **The doctor speaks SARIF, and the third answer survives the translation.**
   `tools/gates_doctor.py --sarif FILE` writes the run as SARIF 2.1.0 beside the text
   report, so a project's gates land where GitHub code scanning (`upload-sarif`),

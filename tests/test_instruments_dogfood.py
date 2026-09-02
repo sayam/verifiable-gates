@@ -666,7 +666,7 @@ def test_a_body_edit_reruns_the_checks_that_read_the_body() -> None:
 # 110 → 111 on 2026-09-01: one `S603` for the subprocess that asks `pins/bump.sh` what it
 # moves and what subject it writes — the two facts that used to be read out of
 # `.github/dependabot.yml`, now asked of the mover that replaced it.
-SUPPRESSED_LINES = 112  # every one with a reason; a new one moves this number, visibly
+SUPPRESSED_LINES = 114  # every one with a reason; a new one moves this number, visibly
 
 
 def test_every_job_in_our_own_workflows_declares_a_time_budget() -> None:

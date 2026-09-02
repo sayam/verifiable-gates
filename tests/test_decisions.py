@@ -137,6 +137,7 @@ HELD = {
     "distribution-is-two-pipes-nobody-here-owns": "",
     "agent-instructions-point-and-do-not-copy": "",
     "text-is-the-default-sarif-is-a-format": "",
+    "ci-runs-the-bundle-the-project-installed": "",
 }
 
 # The rows whose `expires when` is `Never` — an expiry rewritten to "Never" was

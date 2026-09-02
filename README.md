@@ -72,6 +72,15 @@ is instructions. The scanners are still `pip install verifiable-gates` and
 handed an agent as prose. `DECISIONS.md` `distribution-is-two-pipes-nobody-here-owns`
 says why there is no marketplace or registry of this project's own.
 
+**Two front doors for a project that has installed the bundle.** In CI,
+`uses: sayam/verifiable-gates@<commit-sha>` runs the doctor the project installed —
+[`action.yml`](action.yml) is `run:` steps only, with nothing inside it to pin, and an
+optional `sarif:` input. With pre-commit, `repo: https://github.com/sayam/verifiable-gates`
+offers [`gates-doctor`](.pre-commit-hooks.yaml) and one hook per scanner, by the id of
+the rule it decides. Both run `tools/` as the project has it; neither carries a copy,
+so a SHA or a `rev` moving changes nothing about what the project is held to
+(`DECISIONS.md` `ci-runs-the-bundle-the-project-installed`).
+
 A rule and its enforcement live in separate files, because they have separate
 lifetimes. `rules.yaml` is what this project publishes; `gates.yaml` is what this
 project is itself held to.
@@ -257,6 +266,11 @@ repo นี้เผยแพร่ ส่วน `gates.yaml` คือสิ่
 `claude plugin install verifiable-gates@verifiable-gates` · ทั้งสองทางลงไฟล์สามไฟล์เดียวกันและไม่มีอะไรอื่น —
 skill คือคำสั่ง ส่วนตัวสแกนยังเป็น `pip install verifiable-gates` + `python -m verifiable_gates.install`
 เพราะตัวตรวจไม่ใช่ของที่จะยื่นให้ agent เป็นร้อยแก้ว
+
+**สองประตูหน้าสำหรับโปรเจกต์ที่ติดตั้ง bundle แล้ว** — ใน CI `uses: sayam/verifiable-gates@<commit-sha>` รัน doctor
+ที่โปรเจกต์ติดตั้งไว้ (`action.yml` เป็น `run:` ล้วน ไม่มีอะไรข้างในให้ pin · มี input `sarif:` ให้เลือก) · ใน pre-commit
+`repo: https://github.com/sayam/verifiable-gates` มี hook `gates-doctor` กับ hook ต่อ scanner ตาม id ของกฎ · ทั้งสองรัน `tools/`
+ตามที่โปรเจกต์มี ไม่พกสำเนา — SHA หรือ `rev` ขยับจึงไม่เปลี่ยนสิ่งที่โปรเจกต์ถูกบังคับ
 
 **บันเดิลตัดสินได้ 9 จาก 92** — เฉพาะกฎที่มี `script:` เท่านั้นที่ doctor กับ installer
 ตัดสินให้ อีก 83 ข้อคือแผ่นกฎที่ agent ถูกบังคับด้วยการอ่าน · doctor รายงานกฎที่ตัดสินไม่ได้เป็น `NA`
