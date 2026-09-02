@@ -308,9 +308,13 @@ def test_the_command_walks_every_arm_and_every_app(
         for name in ("app1", "app2"):
             plant(root / arm / name, APP)
     out = tmp_path / "rows.json"
+    out.write_text("[]", encoding="utf-8")
+    stale = out.stat().st_ino
 
     assert measure_apps.main([str(root), "--output", str(out)]) == 0
 
+    # Replaced whole, never rewritten in place (self-audit round 20, 2026-09-03).
+    assert out.stat().st_ino != stale, "the rows were rewritten in place"
     printed = capsys.readouterr().out
     assert printed.count("| ctrl |") == 2
     assert printed.count("| skill |") == 2

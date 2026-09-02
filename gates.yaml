@@ -1362,6 +1362,18 @@ gates:
       whatever prose a person wrote there and nobody would see it go.
     proved_by:
       - kind: mutation
+        ref: pr/230
+        date: 2026-09-03
+        caught: >-
+          This module had written down that nothing here needed to be atomic because
+          every place is a file git tracks. Git recovers the disk; it does not recover
+          the answer a test or an agent read off the half-written file, which a reader
+          in a loop got 74% of the time at a changelog's size (self-audit round 20,
+          2026-09-03). Each place is written whole now. The place put back to
+          `write_text` is red. The two tests that hold what a partial write reports lock
+          the directory rather than the file, because a rename over a read-only file
+          needs no permission on it — the property is the same, the fixture is not.
+      - kind: mutation
         ref: pr/223
         date: 2026-09-02
         caught: >-
@@ -1781,6 +1793,13 @@ gates:
           `ok`, one configuration reaches every app, a scanner that was not asked
           for reports skipped rather than zero, a scanner that broke is loud rather
           than zero, and an environment in the tree does not enter the line count.
+      - kind: mutation
+        ref: pr/230
+        date: 2026-09-03
+        caught: >-
+          The measurements were written in place, so a reader arriving mid-write got an
+          empty or half file where the arms' numbers should be (self-audit round 20,
+          2026-09-03). The rows put back to `write_text` are red.
 
   - id: english-except-where-it-binds
     title: Everything here is in English, except documents that bind someone legally
@@ -2285,6 +2304,27 @@ gates:
       subprocess where a wrong exit code is easy to lose.
     proved_by:
       - kind: mutation
+        ref: pr/230
+        date: 2026-09-03
+        caught: >-
+          Nothing this package wrote was written whole. The installer's record and every
+          file it copies were `write_text` and `copy2` in place, so a doctor or a hook
+          reading a scanner while a consumer's CI reinstalled read part of one — a reader
+          in a loop got an unusable copy 32% of the time at the record's size and 99.7%
+          at a SARIF log's, and a writer killed inside the window left 0 bytes
+          (self-audit round 20, 2026-09-03). Seven planted defects red on their own here:
+          the one writer put back to writing in place, the mode of a rewritten file
+          dropped (a scanner runs by its mode), the temp file left behind when the write
+          fails, a symlink replaced by a file instead of written through, the installer's
+          copy back to `copy2` in place, the installer's record back to `write_text`, and
+          the doctor's own standalone copy of the writer back to `write_text`. **Two
+          existing proofs had to be re-derived**: five tests had simulated "a file nobody
+          may write" with the file's mode, which a rename over it does not need, so they
+          now lock the directory — the properties they hold are unchanged. And a mutation
+          the same length as the line it replaced, restored within the same second, left
+          the mutant's bytecode valid under the restored source and ran on: found by
+          profiling, fixed by clearing `__pycache__` before the control run.
+      - kind: mutation
         ref: pr/227
         date: 2026-09-03
         caught: >-
@@ -2699,6 +2739,18 @@ gates:
           or one without permission, was a traceback and exit 1, the code
           this tool uses for "the file on disk differs" (self-audit round 5,
           2026-09-01).
+      - kind: mutation
+        ref: pr/230
+        date: 2026-09-03
+        caught: >-
+          The sheet was written in place, so an agent reading it while the generator ran
+          read half of one — and the sheet is the file agents read (self-audit round 20,
+          2026-09-03). The write put back in place is red. This is the mutation that
+          exposed a second defect in the *method*: it was the same length as the line it
+          replaced and was restored within the same second, so the mutant's bytecode
+          stayed valid under the restored source and every later import ran it. The file
+          on disk, `git diff` and a byte-for-byte restore check all agreed while the
+          interpreter did not.
 
   - id: the-harness-never-passes-what-it-cannot-decide
     title: The fail-fix harness answers machine-readably, and reports skips rather than hiding them
@@ -2782,6 +2834,14 @@ gates:
           written without reading the notes first, so a write-only log still gets its
           line — with the kill measurement recorded in the pull request rather than
           pretended into the suite.
+      - kind: mutation
+        ref: pr/230
+        date: 2026-09-03
+        caught: >-
+          The `--output` report was written in place, so a reader arriving mid-write got
+          an empty file or part of one. It goes through the package's one writer now, and
+          the report put back to `write_text` is red: the test holds that the file is
+          replaced, never rewritten where it stood (self-audit round 20, 2026-09-03).
 
   - id: a-published-rule-carries-its-origin
     title: A published rule names the incident behind it, belongs to a published layer, and names no framework
@@ -3057,3 +3117,10 @@ gates:
           rebuild that forgets what a person wrote — turned three tests red, among them
           `test_a_rebuild_keeps_every_verdict_a_person_wrote_and_the_preamble` and
           `test_a_requirement_the_standard_dropped_leaves_the_table`.
+      - kind: mutation
+        ref: pr/230
+        date: 2026-09-03
+        caught: >-
+          The pinned standard was written in place: a reader arriving mid-write saw an
+          empty pin, and a writer killed there left one (self-audit round 20,
+          2026-09-03). The pin put back to `write_text` is red.

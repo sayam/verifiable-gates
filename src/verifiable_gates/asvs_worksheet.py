@@ -31,6 +31,8 @@ import time
 import urllib.request
 from typing import IO, TYPE_CHECKING, Any
 
+from verifiable_gates import files
+
 if TYPE_CHECKING:
     import pathlib
 
@@ -141,7 +143,7 @@ def digest_of(requirements: list[dict[str, Any]]) -> str:
 def pin(path: pathlib.Path, requirements: list[dict[str, Any]], *, version: str, url: str) -> None:
     """Write the pinned standard the repository will read from now on."""
     body = {"version": version, "source": url, "requirements": requirements}
-    path.write_text(json.dumps(body, ensure_ascii=False, indent=1) + "\n", encoding="utf-8")
+    files.write_text_atomically(path, json.dumps(body, ensure_ascii=False, indent=1) + "\n")
 
 
 def load(path: pathlib.Path) -> list[dict[str, Any]]:

@@ -118,6 +118,35 @@ Notable changes to this project. The format follows
 
 ### Fixed
 
+- **No file this package wrote was written whole, and a reader arriving mid-write got
+  an empty one.** Every write was `write_text`, which truncates first and writes second.
+  Measured with a reader in a loop: the reader's copy was unusable **32% of the time at
+  1.5 KB** (the installer's record), **74% at 100 KB** (a changelog), **99.7% at 4.2 MB**
+  (a SARIF log); and a writer killed inside the window — a cancelled job — left the file
+  at 0 bytes. `advertised.py` had written down that nothing there needed to be atomic
+  because git tracks every file it touches, which is true of the disk and not of the
+  reader: git gives back the bytes, not the answer a test or an agent read off the
+  half-written file (self-audit round 20, 2026-09-03). There is **one writer now**,
+  `files.py`: the bytes go to a sibling in the same directory, are flushed, and are
+  renamed over the target, so a reader sees the old file or the new one and nothing
+  between; the mode of a file that already exists is kept, because a scanner the
+  installer rewrites runs by its mode; a symlink is written through, as before. Seven
+  writers go through it — the harness report, the skill sheet, the ASVS pin, the app
+  measurements, the advertised numbers, the installer's record **and the installer's
+  copy of every bundle file**, since a consumer's CI reinstalls on every run and a
+  doctor or a hook reading a scanner while it is rewritten in place read half of one —
+  and `gates_doctor.py`, shipped standalone, carries its own dozen lines of the same for
+  the SARIF log. Re-measured: 0 of 4,500 reads unusable at the three sizes, 0 of 798
+  kills an empty file. What a killed writer does leave is a temp file beside the target,
+  named `.<name>.<token>.tmp` so it is recognisable; that is the trade, and it is
+  written down. A read-only *file* no longer stops a write, only a read-only directory
+  does, and the five tests that simulated "cannot write" with a file's mode now lock the
+  directory instead. Proved by mutation, twelve planted defects each red on its own: the
+  writer put back in place, the mode dropped, the temp file left on failure, the symlink
+  replaced instead of written through, the copy back to `copy2` in place, the doctor's
+  own copy back to `write_text`, and each of the six package writers back to
+  `write_text` one at a time.
+
 - **Two readers promised never to guess, and each died of a traceback on a file it
   could not open.** `measure.suppression_counts` — the reader that feeds
   `SUPPRESSED_LINES` — and `workflows.load`, under `posture --settings`, the rerun

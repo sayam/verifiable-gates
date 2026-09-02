@@ -26,20 +26,22 @@ import os
 import pathlib
 import re
 import shutil
+import stat
 import subprocess
 import sys
+import threading
 from typing import TYPE_CHECKING, Any
 
 import pytest
 import yaml
 from bundle import DOCTOR, do_install, run_doctor
 
-from verifiable_gates import gates_doctor
+from verifiable_gates import files, gates_doctor
 from verifiable_gates import install as install_module
 from verifiable_gates import manifest as manifest_module
 
 if TYPE_CHECKING:
-    from collections.abc import Iterator
+    from collections.abc import Callable, Iterator
 
 
 def test_a_fresh_install_gives_a_project_something_that_runs(
@@ -366,12 +368,14 @@ def a_stopped_install(
         + "\n# a second bundle, so the copied files differ from the recorded ones\n",
         encoding="utf-8",
     )
-    locked = project / "tools" / "checks" / "scan_install_pinning.py"
-    locked.chmod(0o444)
+    # The directory, not a file: a file is written whole by a sibling renamed over it,
+    # which needs no permission on the file itself (self-audit round 20, 2026-09-03).
+    locked = project / "tools" / "checks"
+    locked.chmod(0o555)
     try:
         assert do_install(project, bundle_copy) == 1
     finally:
-        locked.chmod(0o644)
+        locked.chmod(0o755)
     return run_doctor(project, "--installed")
 
 
@@ -453,13 +457,13 @@ def test_an_install_that_landed_nothing_leaves_the_record_of_the_one_before_it(
     assert do_install(project, bundle_copy) == 0
     capsys.readouterr()
     before = (project / "tools" / "installed.json").read_text(encoding="utf-8")
-    # The first file the installer copies: it stops before anything has landed.
-    first = project / DOCTOR
-    first.chmod(0o444)
+    # The directory the first file lands in: it stops before anything has landed.
+    tools = project / "tools"
+    tools.chmod(0o555)
     try:
         assert do_install(project, bundle_copy) == 1
     finally:
-        first.chmod(0o644)
+        tools.chmod(0o755)
 
     assert (project / "tools" / "installed.json").read_text(encoding="utf-8") == before
 
@@ -473,13 +477,18 @@ def test_an_install_whose_record_cannot_be_written_says_so_rather_than_a_traceba
     project = tmp_path / "project"
     assert do_install(project, bundle_copy) == 0
     capsys.readouterr()
-    (project / "tools" / "installed.json").chmod(0o444)
+    # A record nobody may write, in the shape round 5 used for the round notes: a
+    # directory where the file should be. A read-only *file* no longer stops the write —
+    # the record is a sibling renamed over it (self-audit round 20, 2026-09-03).
+    record = project / "tools" / "installed.json"
+    record.unlink()
+    record.mkdir()
 
     try:
         with pytest.raises(SystemExit) as refused:
             do_install(project, bundle_copy)
     finally:
-        (project / "tools" / "installed.json").chmod(0o644)
+        record.rmdir()
 
     assert refused.value.code == 1
     said = capsys.readouterr().err
@@ -1665,6 +1674,166 @@ def test_in_process_the_misuse_and_the_unwritable_file_are_exit_two(
     code = gates_doctor.main([str(installed), "--manifest", manifest, "--sarif", str(nowhere)])
     assert code == 2
     assert "cannot write the SARIF" in capsys.readouterr().err
+
+
+# ---------------------------------------------------------------- written whole
+#
+# `write_text` truncates first and writes second, and a reader arriving between the two
+# saw an empty file or part of one: 32% of reads at the record's size, 74% at a
+# changelog's, 99.7% at a SARIF log's; a writer killed inside that window left 0 bytes
+# (self-audit round 20, 2026-09-03). The package has one writer now — `files.py`, a
+# sibling renamed over the target — and the installer is the writer whose readers are
+# other people's CI, which is why its properties are held here beside the install.
+
+
+def _reads_while(
+    path: pathlib.Path, writing: Callable[[], object], rewrites: int = 6
+) -> list[bytes]:
+    """What a reader in a loop sees while `writing` runs `rewrites` times in another thread.
+
+    Read until the writer has finished that many whole rewrites, not for a fixed number of
+    reads: a read is microseconds and a flushed write is milliseconds, so a fixed count
+    measured one or two rewrites and proved nothing (found while writing this test).
+    """
+    stop = threading.Event()
+    done = [0]
+
+    def keep_writing() -> None:
+        while not stop.is_set():
+            writing()
+            done[0] += 1
+
+    writer = threading.Thread(target=keep_writing)
+    writer.start()
+    try:
+        seen: list[bytes] = []
+        while done[0] < rewrites and len(seen) < 200_000:
+            seen.append(path.read_bytes())
+    finally:
+        stop.set()
+        writer.join()
+    assert done[0] >= rewrites, "the writer never got going, so nothing was measured"
+    return seen
+
+
+def test_a_reader_sees_the_old_file_or_the_new_and_never_half(tmp_path: pathlib.Path) -> None:
+    path = tmp_path / "big.txt"
+    one, two = "1" * 100_000, "2" * 100_000
+    path.write_text(one, encoding="utf-8")
+    turn = [0]
+
+    def rewrite() -> None:
+        turn[0] += 1
+        files.write_text_atomically(path, two if turn[0] % 2 else one)
+
+    seen = _reads_while(path, rewrite)
+
+    assert set(seen) <= {one.encode(), two.encode()}, {len(s) for s in seen}
+
+
+def test_the_mode_of_a_rewritten_file_is_kept_and_a_new_file_gets_the_default(
+    tmp_path: pathlib.Path,
+) -> None:
+    """A scanner the installer rewrites runs by its mode; a sibling file created with
+    a private mode and renamed over it would silently strip the executable bit."""
+    scanner = tmp_path / "scan.py"
+    scanner.write_text("old\n", encoding="utf-8")
+    scanner.chmod(0o755)
+    files.write_text_atomically(scanner, "new\n")
+    assert stat.S_IMODE(scanner.stat().st_mode) == 0o755
+
+    fresh = tmp_path / "fresh.txt"
+    files.write_text_atomically(fresh, "new\n")
+    mask = os.umask(0)
+    os.umask(mask)
+    assert stat.S_IMODE(fresh.stat().st_mode) == 0o666 & ~mask, "not the process's default"
+
+
+def test_a_write_that_fails_leaves_the_old_file_and_no_temp_beside_it(
+    tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    path = tmp_path / "kept.txt"
+    path.write_text("old\n", encoding="utf-8")
+
+    def refuse(_self: pathlib.Path, _target: pathlib.Path) -> None:
+        raise PermissionError("the rename was refused")
+
+    monkeypatch.setattr(pathlib.Path, "replace", refuse)
+    with pytest.raises(PermissionError, match="the rename was refused"):
+        files.write_text_atomically(path, "new\n")
+
+    assert path.read_text(encoding="utf-8") == "old\n"
+    assert [p.name for p in tmp_path.iterdir()] == ["kept.txt"], "a temp file was left beside it"
+
+
+def test_a_symlink_is_written_through_not_replaced_by_a_file(tmp_path: pathlib.Path) -> None:
+    """`write_text` followed the link; renaming a file over the link would cut it."""
+    target = tmp_path / "real.txt"
+    target.write_text("old\n", encoding="utf-8")
+    link = tmp_path / "link.txt"
+    link.symlink_to(target)
+
+    files.write_text_atomically(link, "new\n")
+
+    assert link.is_symlink(), "the link was replaced by a file"
+    assert target.read_text(encoding="utf-8") == "new\n"
+
+
+def test_a_reinstall_never_leaves_a_scanner_half_written(
+    tmp_path: pathlib.Path, bundle_copy: pathlib.Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """A consumer's CI reinstalls on every run; a doctor or a hook reading a scanner while
+    it is rewritten in place read half of one. The scanner is padded to the size at which
+    an in-place copy is caught mid-write on nearly every read."""
+    padded = bundle_copy / "checks" / "scan_adr_index.py"
+    padded.write_text(
+        padded.read_text(encoding="utf-8") + "\n# " + "x" * 2_000_000 + "\n", encoding="utf-8"
+    )
+    project = tmp_path / "project"
+    assert do_install(project, bundle_copy) == 0
+    installed_scanner = project / "tools" / "checks" / "scan_adr_index.py"
+    record = project / "tools" / "installed.json"
+    whole = padded.read_bytes()
+
+    # One reinstall: both files are replaced, never rewritten in place. Checked on a
+    # single rewrite because the sibling is created before the old file is released, so
+    # the inode has to differ — across many rewrites the number can come back round.
+    inodes = (installed_scanner.stat().st_ino, record.stat().st_ino)
+    assert do_install(project, bundle_copy) == 0
+    assert installed_scanner.stat().st_ino != inodes[0], "the scanner was rewritten in place"
+    assert record.stat().st_ino != inodes[1], "the record was rewritten in place"
+
+    seen = _reads_while(installed_scanner, lambda: do_install(project, bundle_copy), rewrites=3)
+    capsys.readouterr()
+
+    assert all(read == whole for read in seen), sorted({len(read) for read in seen})
+    assert not list((project / "tools").rglob(".*.tmp")), "a temp file was left behind"
+
+
+def test_the_sarif_is_written_whole(installed: pathlib.Path) -> None:
+    """The doctor is shipped standalone and carries its own copy of the writer; the
+    upload step or an IDE watching the file read a log that was empty or cut."""
+    manifest = gates_doctor.load_manifest(installed / "tools" / "overlay.json")
+    lines = [f"adr-index-complete: docs/adr/{n:04}.md is not in the index" for n in range(4000)]
+    outcomes_a: list[gates_doctor.Outcome] = [("adr-index-complete", "found", lines, "")]
+    outcomes_b: list[gates_doctor.Outcome] = [("adr-index-complete", "found", lines[:1], "")]
+    out = installed / "gates.sarif"
+    assert gates_doctor.write_sarif(out, installed, manifest, outcomes_a)
+    big = out.read_bytes()
+    assert gates_doctor.write_sarif(out, installed, manifest, outcomes_b)
+    small = out.read_bytes()
+    turn = [0]
+
+    def rewrite() -> None:
+        turn[0] += 1
+        gates_doctor.write_sarif(
+            out, installed, manifest, outcomes_a if turn[0] % 2 else outcomes_b
+        )
+
+    seen = _reads_while(out, rewrite)
+
+    assert set(seen) <= {big, small}, sorted({len(s) for s in seen})
+    assert not list(installed.glob(".*.tmp"))
 
 
 # ---------------------------------------------------------------- the two front doors

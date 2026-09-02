@@ -40,11 +40,11 @@ import json
 import os
 import pathlib
 import re
-import shutil
 import sys
 from typing import Any
 
 from verifiable_gates import __version__
+from verifiable_gates import files as whole
 from verifiable_gates import manifest as manifest_module
 
 __all__ = ["install", "main"]
@@ -173,7 +173,7 @@ def _record(dest: pathlib.Path, written: list[pathlib.Path], *, finished: bool =
     record = {"version": __version__, "files": files, "finished": finished}
     target = dest / RECORD
     target.parent.mkdir(parents=True, exist_ok=True)
-    target.write_text(json.dumps(record, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    whole.write_text_atomically(target, json.dumps(record, indent=2, sort_keys=True) + "\n")
 
 
 UNRECORDED = {
@@ -248,7 +248,10 @@ def install(
                 kept_registry = kept_registry or name == "gates.yaml.default"
                 continue
             target.parent.mkdir(parents=True, exist_ok=True)
-            shutil.copy2(source, target)
+            # Whole or not at all: a consumer's CI reinstalls on every run, and a doctor
+            # or a hook reading a scanner while it is rewritten in place read half of one
+            # (self-audit round 20, 2026-09-03).
+            whole.copy_atomically(source, target)
             if name not in KEEP_IF_PRESENT:
                 # The three files a project owns from the moment they land — its
                 # registry, its scaffold and its workflow — are its decisions to edit,

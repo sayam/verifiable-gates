@@ -46,6 +46,7 @@ import sys
 import tempfile
 from typing import Any
 
+from verifiable_gates import files
 from verifiable_gates.asvs_probe import CHECKS, is_ours, probe
 
 __all__ = [
@@ -265,7 +266,7 @@ def main(argv: list[str] | None = None) -> int:
 
     print(table(rows))
     if args.output:
-        args.output.write_text(json.dumps(rows, ensure_ascii=False, indent=1), encoding="utf-8")
+        files.write_text_atomically(args.output, json.dumps(rows, ensure_ascii=False, indent=1))
     return 0
 
 
