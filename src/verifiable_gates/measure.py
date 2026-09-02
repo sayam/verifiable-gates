@@ -78,14 +78,25 @@ def _run(root: pathlib.Path, command: list[str]) -> subprocess.CompletedProcess[
     binary = shutil.which(command[0])
     if not binary:
         raise RuntimeError(f"{command[0]} is not on this machine — this reader has to run it")
-    return subprocess.run(  # noqa: S603 — a fixed command, its path from shutil.which
-        [binary, *command[1:]],
-        cwd=root,
-        capture_output=True,
-        text=True,
-        check=False,
-        timeout=TOOL_TIMEOUT_SECONDS,
-    )
+    try:
+        return subprocess.run(  # noqa: S603 — a fixed command, its path from shutil.which
+            [binary, *command[1:]],
+            cwd=root,
+            capture_output=True,
+            text=True,
+            check=False,
+            timeout=TOOL_TIMEOUT_SECONDS,
+        )
+    except subprocess.TimeoutExpired as expired:
+        # The ceiling is ours, so the answer at the ceiling has to be ours too — and this
+        # module's contract is already "raises `RuntimeError` when it cannot answer, and
+        # never guesses". Left alone it was a `TimeoutExpired` nobody routes, out of a
+        # reader whose numbers this repository publishes (self-audit round 19, 2026-09-02).
+        message = (
+            f"{command[0]} did not answer within {TOOL_TIMEOUT_SECONDS} seconds"
+            " — the number it measures could not be read"
+        )
+        raise RuntimeError(message) from expired
 
 
 def _is_number(text: str) -> bool:

@@ -147,12 +147,29 @@ def commits_in_range(rev_range: str) -> list[tuple[str, str, str]]:
     linear history required will not take one onto its default branch anyway, so
     it exists only on the branch.
     """
-    out = subprocess.run(  # noqa: S603 — input comes from CI or the developer, not a user
-        ["git", "log", "--no-merges", f"--format={LOG_FORMAT}", rev_range],  # noqa: S607 — git resolved from PATH, as the developer's own shell does
-        capture_output=True,
-        check=True,
-        timeout=LOCAL_TIMEOUT_SECONDS,
-    ).stdout
+    try:
+        out = subprocess.run(  # noqa: S603 — input comes from CI or the developer, not a user
+            ["git", "log", "--no-merges", f"--format={LOG_FORMAT}", rev_range],  # noqa: S607 — git resolved from PATH, as the developer's own shell does
+            capture_output=True,
+            check=True,
+            timeout=LOCAL_TIMEOUT_SECONDS,
+        ).stdout
+    except subprocess.TimeoutExpired as expired:
+        # **The ceiling is ours, so the answer at the ceiling has to be ours too.** Left
+        # alone, `TimeoutExpired` is an unhandled exception, and an unhandled exception is
+        # exit 1 — the code that means *these commit messages are bad*, out of a gate that
+        # read none of them. The ceiling is reached by **quantity**: a range wide enough,
+        # on a history big enough (self-audit round 19, 2026-09-02).
+        message = f"`git log {rev_range}` did not answer within {LOCAL_TIMEOUT_SECONDS} seconds"
+        raise RuntimeError(message) from expired
+    except subprocess.CalledProcessError as failed:
+        # And a range git will not resolve is the same kind of answer, not a verdict on
+        # anybody's commits: a shallow clone whose base ref was never fetched is the
+        # ordinary way a consumer's CI arrives here, and it too exited 1 in a traceback.
+        message = (
+            f"`git log {rev_range}` failed: {failed.stderr.decode('utf-8', 'replace').strip()}"
+        )
+        raise RuntimeError(message) from failed
     # **A commit message is bytes.** git keeps what the author's client sent, and a
     # client that was not speaking UTF-8 leaves bytes no decoder can turn into text.
     # `text=True` decoded them with the machine's locale and `errors="strict"`, so
@@ -205,7 +222,13 @@ def main(argv: list[str] | None = None) -> int:
         failures.extend((None, title, problem) for problem in check_sign_off(message))
         failures.extend((None, title, problem) for problem in check_trailers(message))
     else:
-        commits = commits_in_range(args.rev_range)
+        try:
+            commits = commits_in_range(args.rev_range)
+        except RuntimeError as unreadable:
+            # The same answer the message-file road gives when it cannot read its input:
+            # no verdict, said out loud, naming what could not be read.
+            print(f"cannot read the history: {unreadable}", file=sys.stderr)
+            return 2
         if undecodable := not_utf8(commits):
             # The same answer the hook road gives for the same bytes: no verdict,
             # said out loud, naming what could not be read.

@@ -95,24 +95,46 @@ def tracked_files(root: pathlib.Path, pattern: str) -> set[str]:
     binary = shutil.which("git")
     if not binary:
         raise RuntimeError("git is not on this machine — this reader asks it what is tracked")
-    listed = subprocess.run(  # noqa: S603 — a fixed command, its path from shutil.which
-        [binary, "ls-files", pattern],
-        cwd=root,
-        capture_output=True,
-        # A file name is bytes. git quotes the ones outside ASCII by default — this pipe
-        # is ASCII by *git's* configuration, not by ours — but a project that has set
-        # `core.quotePath=false` gets the raw bytes, and `text=True` decodes them with
-        # the machine's locale and refuses anything else: a `UnicodeDecodeError` where
-        # this reader has an answer for everything else (self-audit round 15,
-        # 2026-09-01). The names are compared, never printed, so the bytes are carried
-        # through rather than escaped: a name that does not survive the trip would
-        # silently stop matching, which is the reading this reader exists to prevent.
-        encoding="utf-8",
-        errors="surrogateescape",
-        check=True,
-        timeout=GIT_TIMEOUT_SECONDS,
-    )
-    return set(listed.stdout.split())
+    listed = _ls_files(binary, pattern, root)
+    return set(listed.split())
+
+
+def _ls_files(binary: str, pattern: str, root: pathlib.Path) -> str:
+    """What git lists, or `RuntimeError` saying it could not be asked.
+
+    The ceiling is ours, so the answer at the ceiling has to be ours too: left alone,
+    `TimeoutExpired` — and `CalledProcessError`, which is what a directory that is not a
+    repository gives — walked out of this reader as a traceback (self-audit round 19,
+    2026-09-02). `RuntimeError` is what it already raises when git is not there at all.
+    """
+    try:
+        listed = subprocess.run(  # noqa: S603 — a fixed command, its path from shutil.which
+            [binary, "ls-files", pattern],
+            cwd=root,
+            capture_output=True,
+            # A file name is bytes. git quotes the ones outside ASCII by default — this
+            # pipe is ASCII by *git's* configuration, not by ours — but a project that has
+            # set `core.quotePath=false` gets the raw bytes, and `text=True` decodes them
+            # with the machine's locale and refuses anything else: a `UnicodeDecodeError`
+            # where this reader has an answer for everything else (self-audit round 15,
+            # 2026-09-01). The names are compared, never printed, so the bytes are carried
+            # through rather than escaped: a name that does not survive the trip would
+            # silently stop matching, which is the reading this reader exists to prevent.
+            encoding="utf-8",
+            errors="surrogateescape",
+            check=True,
+            timeout=GIT_TIMEOUT_SECONDS,
+        )
+    except subprocess.TimeoutExpired as expired:
+        message = (
+            f"`git ls-files {pattern}` did not answer within {GIT_TIMEOUT_SECONDS} seconds"
+            " — what the project tracks could not be read"
+        )
+        raise RuntimeError(message) from expired
+    except subprocess.CalledProcessError as failed:
+        message = f"`git ls-files {pattern}` failed: {failed.stderr.strip()}"
+        raise RuntimeError(message) from failed
+    return listed.stdout
 
 
 def expected_files(root: pathlib.Path, pattern: str, skipped: list[str]) -> set[str]:

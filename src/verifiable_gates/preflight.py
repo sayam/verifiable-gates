@@ -357,6 +357,28 @@ def environment(
     return {**lent, **declared}, borrowed
 
 
+def _returncode(command: list[str], root: pathlib.Path, env: dict[str, str]) -> int | None:
+    """The step's exit code, or `None` when it did not answer inside the ceiling.
+
+    **The ceiling is ours, so the answer at the ceiling has to be ours too.** Left alone,
+    `TimeoutExpired` walks out of `execute`, out of `main`, and takes with it every step
+    already run — which is the whole of what this command is for: running them in order and
+    showing what happened. Measured as a traceback and exit 1 in round 19 (2026-09-02).
+    A step that never finishes is reported as a step that never finished, and the walk goes
+    on to the next one.
+    """
+    try:
+        return subprocess.run(  # noqa: S603 — the command comes from the workflow under --root
+            command,
+            cwd=root,
+            check=False,
+            timeout=STEP_TIMEOUT_SECONDS,
+            env=env,
+        ).returncode
+    except subprocess.TimeoutExpired:
+        return None
+
+
 def execute(entries: list[dict[str, Any]], root: pathlib.Path) -> int:
     """Run the plan, printing as it goes. Returns how many steps failed.
 
@@ -383,18 +405,13 @@ def execute(entries: list[dict[str, Any]], root: pathlib.Path) -> int:
         env, borrowed = environment(entry["run"], entry.get("env", {}))
         if borrowed:
             print(f"   lent from your shell, because the step names it: {', '.join(borrowed)}")
-        result = subprocess.run(  # noqa: S603 — the command comes from the workflow under --root
-            [bash, "-e", "-c", entry["run"]],
-            cwd=root,
-            check=False,
-            timeout=STEP_TIMEOUT_SECONDS,
-            env=env,
-        )
-        if result.returncode == 0:
+        code = _returncode([bash, "-e", "-c", entry["run"]], root, env)
+        if code == 0:
             print(f"{'~~' if 'reduced' in entry else 'OK'}  {head}")
         else:
             failed += 1
-            print(f"XX  {head}  (exit {result.returncode})")
+            why = f"exit {code}" if code is not None else f"no answer in {STEP_TIMEOUT_SECONDS}s"
+            print(f"XX  {head}  ({why})")
     return failed
 
 
