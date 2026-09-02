@@ -133,6 +133,7 @@ HELD = {
     "dependabot-runs-nowhere-here": "2026-11-30",
     # 2026-09-02: the rules an agent reads are the ones the installed scanners decide.
     "rules-are-read-off-the-installed-bundle": "",
+    "the-sheets-live-under-skills": "",
 }
 
 # The rows whose `expires when` is `Never` — an expiry rewritten to "Never" was

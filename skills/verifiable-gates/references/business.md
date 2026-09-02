@@ -2,9 +2,11 @@
 
 **This file is generated. Do not edit it by hand.** Rebuild it with
 `python -m verifiable_gates.skill --preamble preambles/business.md
---out SKILL-BUSINESS.md --layer business`. The source is `rules.yaml`.
+--out skills/verifiable-gates/references/business.md --layer business`. The source is
+`rules.yaml`, and a gate compares the two on every test run.
 
-**This sheet builds on `SKILL.md`. Take the baseline first.** The agreements below
+**This is a reference sheet of the `verifiable-gates` skill, and it builds on
+[`baseline.md`](baseline.md). Take the baseline first.** The agreements below
 are written assuming the underlying practices — mutation testing, gates proved in
 both directions, ratchets, recorded decisions — are already in place.
 

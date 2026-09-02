@@ -6,6 +6,31 @@ Notable changes to this project. The format follows
 
 ## [Unreleased]
 
+### Changed
+
+- **The rule sheets are an agent skill now, in the layout every agent reads.** The
+  file this repository called `SKILL.md` was not a skill: the Agent Skills
+  specification (agentskills.io) requires YAML frontmatter with a `name` that matches
+  its directory and a `description` that says when to use it, recommends a front page
+  under 500 lines with detail behind `references/`, and by mid-2026 some forty products
+  — Claude Code, Codex, GitHub Copilot, Gemini CLI, Cursor, Windsurf and the rest — read
+  exactly that layout and nothing else. A 677-line file at the repository root with no
+  frontmatter was invisible to all of them (measured 2026-09-02). The generator now
+  renders three files under `skills/verifiable-gates/`: `SKILL.md`, the front page — the
+  frontmatter, how to read the rules, the five practices underneath them, and one line
+  per rule linking to its full entry (`python -m verifiable_gates.skill --index`); and
+  `references/baseline.md` and `references/business.md`, the two sheets as they were,
+  every entry unchanged. The root `SKILL.md` and `SKILL-BUSINESS.md` are **gone, not
+  mirrored**: a copy is a register nobody holds, and the owner chose to move and point
+  rather than keep two (`DECISIONS.md` `the-sheets-live-under-skills`). The
+  specification's limits — the name's shape, the description's presence and length, the
+  500-line front page — are held by `tests/test_sheets.py` beside the ceilings it already
+  kept, not by a validator step in CI: a named step needs a gate row and the registers
+  are paused. Proved by mutation: the `name` dropped, the name capitalised, the
+  `description` dropped, a rule left off the index, the front page pushed past 500
+  lines, and a sentence typed into the committed sheet — six planted defects, each red
+  on its own.
+
 ## [0.1.12] - 2026-09-02
 
 Eight rounds of the project auditing itself (12 to 19), and every one of them
