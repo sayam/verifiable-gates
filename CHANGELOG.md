@@ -8,6 +8,28 @@ Notable changes to this project. The format follows
 
 ### Added
 
+- **The doctor speaks SARIF, and the third answer survives the translation.**
+  `tools/gates_doctor.py --sarif FILE` writes the run as SARIF 2.1.0 beside the text
+  report, so a project's gates land where GitHub code scanning (`upload-sarif`),
+  reviewdog and the IDEs already put findings — without any of them learning this
+  bundle. The report stays on stdout and stays the default (`DECISIONS.md`
+  `text-is-the-default-sarif-is-a-format`). The nine scanners are untouched: each is
+  shipped standalone and the suite refuses them a shared helper, so the doctor — the
+  one file that already reads all nine — does the translating from their one-line
+  grammar. Every scan gate is a `rule` carrying its title, its `born_from` as help and
+  its layer; a finding is a `result` with a location only when the path the scanner
+  named exists under the root, since an annotation on a file nobody can open sends the
+  reader to the wrong place. `NA` and *the scan did not answer* are **never results**:
+  they are `toolExecutionNotifications` on the invocation, level `note` and `error`,
+  and an error marks the invocation `executionSuccessful: false` — a reader counting
+  results would otherwise see a clean run over a scan that could not look, the sentence
+  the manifest forbids. `--sarif` with `--installed` or `--rules` is a misuse, exit 2; a
+  file that cannot be written is a sentence after the report and exit 2, never a
+  traceback. The log was validated against the OASIS 2.1.0 schema outside the suite.
+  Proved by mutation: an `NA` emitted as a result, an error leaving the invocation
+  successful, a location attached to a path that is not there, a rule shipped without
+  its incident, and the misuse accepted — each red on its own.
+
 - **An instruction file for every agent, which points and does not copy.**
   `AGENTS.md` — the file some sixty coding agents read (agents.md, stewarded under
   the Linux Foundation) — names where things are and what checks them: the skill, the

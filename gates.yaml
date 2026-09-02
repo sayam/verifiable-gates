@@ -2220,6 +2220,17 @@ gates:
       subprocess where a wrong exit code is easy to lose.
     proved_by:
       - kind: mutation
+        ref: pr/225
+        date: 2026-09-03
+        caught: >-
+          The doctor learned to write SARIF, and the third answer had to survive the
+          translation. Six planted defects, each red on its own: an `NA` emitted as a
+          `result` rather than a notification, an error leaving the invocation
+          `executionSuccessful: true`, a location attached to a path that is not under
+          the root, a rule shipped without the incident that produced it, `--sarif`
+          accepted beside `--installed` or `--rules`, and the unwritable file left to
+          raise instead of answering in a sentence.
+      - kind: mutation
         ref: pr/95
         date: 2026-08-30
         caught: >-

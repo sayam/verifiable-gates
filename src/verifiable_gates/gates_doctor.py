@@ -7,7 +7,8 @@ its first dependency. That constraint is why the manifest is JSON rather than
 YAML, and why the few lines of manifest reading here are not shared with
 `verifiable_gates.manifest` — the duplication is small and the property is not.
 
-    python3 gates_doctor.py [root | --root DIR] [--manifest path] [--installed | --rules]
+    python3 gates_doctor.py [root | --root DIR] [--manifest path]
+                            [--installed | --rules] [--sarif FILE]
 
 The project can be named either way. Every other tool in this bundle takes
 `--root`, and an operator who reaches for the same spelling here should be
@@ -45,6 +46,23 @@ answer for a scan that hangs past its timeout (the doctor tracebacked with
 verdict and then crashed — a traceback on stderr beside exit 1 means the scan
 did not finish judging, however much it said first.
 
+**`--sarif FILE` writes the same run as SARIF 2.1.0 beside the report**, for the
+readers that speak it — GitHub code scanning (`upload-sarif`), reviewdog, an IDE —
+so a project's gates land where its other findings already land, without those
+readers learning anything about this bundle. The text report stays on stdout and
+stays the default; SARIF is a format, not a second opinion. The scanners are not
+touched: each is shipped standalone and speaks one line per finding, and the doctor
+already reads all nine, so the doctor translates. What the translation refuses to
+lose is the third answer. A finding is a `result`; `NA` and *the scan did not answer*
+are **not** — they are `toolExecutionNotifications` on the invocation (level `note`
+and `error`), and any error marks the invocation `executionSuccessful: false`. A
+reader that only counts results sees a clean run where a scan could not look, which
+is the sentence the manifest forbids; a reader that reads invocations sees the
+truth. A location is attached only when the path the scanner named exists under
+the root — a location nobody can open is worse than none. The SARIF file that cannot
+be written is exit 2 with a sentence, after the report has been printed: the
+verdict stood, the artefact asked for did not arrive.
+
 exit 0 = clean · 1 = findings, or an incomplete install · 2 = called wrongly
 
 Role: reader — it reports where a project stands. Its evidence is that each
@@ -58,6 +76,7 @@ import hashlib
 import json
 import pathlib
 import py_compile
+import re
 import subprocess
 import sys
 from typing import Any, TypeGuard
@@ -200,10 +219,21 @@ def check_installed(root: pathlib.Path, manifest: dict[str, Any], bundle: pathli
 SCAN_TIMEOUT = 300
 
 
-def run_scans(root: pathlib.Path, manifest: dict[str, Any], bundle: pathlib.Path) -> int:
+# One scan's outcome, kept for the SARIF writer: the gate, one of pass / na / found /
+# error, the lines the scan printed, and the sentence the doctor said about it.
+Outcome = tuple[str, str, list[str], str]
+
+
+def run_scans(
+    root: pathlib.Path,
+    manifest: dict[str, Any],
+    bundle: pathlib.Path,
+    sarif: pathlib.Path | None = None,
+) -> int:
     """Run every scan, reporting each gate rather than stopping at the first finding."""
     failed: list[str] = []
     broken: list[str] = []
+    outcomes: list[Outcome] = []
     for gid, script in scan_entries(manifest):
         try:
             result = subprocess.run(  # noqa: S603 — argv is built here, interpreter is sys.executable
@@ -214,8 +244,10 @@ def run_scans(root: pathlib.Path, manifest: dict[str, Any], bundle: pathlib.Path
                 timeout=SCAN_TIMEOUT,
             )
         except subprocess.TimeoutExpired:
-            print(f"[error] {gid} — the scan did not answer (timed out after {SCAN_TIMEOUT}s)")
+            reason = f"the scan did not answer (timed out after {SCAN_TIMEOUT}s)"
+            print(f"[error] {gid} — {reason}")
             broken.append(gid)
+            outcomes.append((gid, "error", [], reason))
             continue
         # Under a pipe — a CI log — stdout is block-buffered and stderr is not, so
         # every scan's stderr surfaced above the first gate line and a traceback
@@ -234,23 +266,148 @@ def run_scans(root: pathlib.Path, manifest: dict[str, Any], bundle: pathlib.Path
             # (self-audit round 14, 2026-09-01).
             said = result.stdout.strip().splitlines()
             if said and said[0].startswith("NA:"):
-                print(f"[   NA] {gid} — {said[0].removeprefix('NA:').strip()}")
+                reason = said[0].removeprefix("NA:").strip()
+                print(f"[   NA] {gid} — {reason}")
+                outcomes.append((gid, "na", said, reason))
             else:
                 print(f"[ pass] {gid}")
+                outcomes.append((gid, "pass", said, ""))
         elif result.returncode == 1 and result.stdout.strip() and not crashed:
             print(f"[found] {gid}")
             sys.stdout.write(result.stdout)
             failed.append(gid)
+            outcomes.append((gid, "found", result.stdout.strip().splitlines(), ""))
         else:
-            print(f"[error] {gid} — the scan did not answer (exit {result.returncode})")
+            reason = f"the scan did not answer (exit {result.returncode})"
+            print(f"[error] {gid} — {reason}")
             broken.append(gid)
+            outcomes.append((gid, "error", [], f"{reason}\n{result.stderr}".strip()))
 
     print(f"\nwaiting on this project's own tests: {suite_count(manifest)} gates")
     if failed:
         print(f"** scans found problems in {len(failed)} gates: {', '.join(failed)}")
     if broken:
         print(f"** {len(broken)} scans did not answer, which is no verdict: {', '.join(broken)}")
-    return 1 if failed or broken else 0
+    verdict = 1 if failed or broken else 0
+    if sarif is not None and not write_sarif(sarif, root, manifest, outcomes):
+        return 2
+    return verdict
+
+
+# ---------------------------------------------------------------- SARIF
+
+SARIF_SCHEMA = (
+    "https://raw.githubusercontent.com/oasis-tcs/sarif-spec/master/Schemata/sarif-schema-2.1.0.json"
+)
+INFORMATION_URI = "https://github.com/sayam/verifiable-gates"
+# `<path>:<line> …`, `<path>: …` or `<path> …` at the head of a finding line. Whether
+# it is a location is decided by the tree, not by the shape: see `_sarif_result`.
+LOCATION = re.compile(r"^(?P<path>[^\s:]+)(?::(?P<line>\d+))?:?(?:\s+|$)")
+
+
+def _installed_version(root: pathlib.Path) -> str | None:
+    """The bundle version the installer recorded, or nothing — never a guess."""
+    try:
+        written = json.loads((root / "tools" / "installed.json").read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return None
+    version = written.get("version") if isinstance(written, dict) else None
+    return version if isinstance(version, str) else None
+
+
+def _sarif_result(root: pathlib.Path, gid: str, line: str) -> dict[str, Any]:
+    """One finding line as a SARIF result, located only where the tree agrees."""
+    text = line.removeprefix(f"{gid}:").strip()
+    result: dict[str, Any] = {"ruleId": gid, "level": "error", "message": {"text": text}}
+    head = LOCATION.match(text)
+    if head is None:
+        return result
+    path = pathlib.Path(head.group("path"))
+    # A finding that names a path the reader cannot open under the root — a key from
+    # `scaffold.json`, a sentence, a path outside — gets a message and no location:
+    # an annotation on the wrong file is a reader sent to the wrong place.
+    if path.is_absolute() or not (root / path).is_file():
+        return result
+    region = {"startLine": int(head.group("line"))} if head.group("line") else {}
+    location: dict[str, Any] = {
+        "artifactLocation": {"uri": path.as_posix(), "uriBaseId": "%SRCROOT%"}
+    }
+    if region:
+        location["region"] = region
+    result["locations"] = [{"physicalLocation": location}]
+    return result
+
+
+def sarif_log(
+    root: pathlib.Path, manifest: dict[str, Any], outcomes: list[Outcome]
+) -> dict[str, Any]:
+    """The whole run as one SARIF 2.1.0 log. Pure: the same outcomes give the same log."""
+    gates = manifest["gates"]
+    rules = []
+    for gid, _script in scan_entries(manifest):
+        gate = gates[gid]
+        rule: dict[str, Any] = {
+            "id": gid,
+            "shortDescription": {"text": str(gate.get("title", gid))},
+        }
+        if isinstance(gate.get("born_from"), str):
+            rule["fullDescription"] = {"text": gate["born_from"]}
+            rule["help"] = {"text": gate["born_from"]}
+        if isinstance(gate.get("layer"), str):
+            rule["properties"] = {"layer": gate["layer"]}
+        rules.append(rule)
+    results: list[dict[str, Any]] = []
+    notes: list[dict[str, Any]] = []
+    for gid, kind, said, sentence in outcomes:
+        if kind == "found":
+            results += [_sarif_result(root, gid, line) for line in said if line.strip()]
+        elif kind in {"na", "error"}:
+            # The third answer, kept as what it is: neither a result nor silence.
+            level = "note" if kind == "na" else "error"
+            notes.append(
+                {"level": level, "message": {"text": sentence}, "associatedRule": {"id": gid}}
+            )
+    driver: dict[str, Any] = {
+        "name": "verifiable-gates",
+        "informationUri": INFORMATION_URI,
+        "rules": rules,
+    }
+    version = _installed_version(root)
+    if version is not None:
+        driver["version"] = version
+    return {
+        "$schema": SARIF_SCHEMA,
+        "version": "2.1.0",
+        "runs": [
+            {
+                "tool": {"driver": driver},
+                "originalUriBaseIds": {"%SRCROOT%": {"uri": root.as_uri() + "/"}},
+                "invocations": [
+                    {
+                        "executionSuccessful": not any(k == "error" for _g, k, _s, _t in outcomes),
+                        "toolExecutionNotifications": notes,
+                    }
+                ],
+                "results": results,
+            }
+        ],
+    }
+
+
+def write_sarif(
+    out: pathlib.Path, root: pathlib.Path, manifest: dict[str, Any], outcomes: list[Outcome]
+) -> bool:
+    """The log on disk, or a sentence on stderr and False — never a traceback."""
+    try:
+        out.write_text(json.dumps(sarif_log(root, manifest, outcomes), indent=2) + "\n", "utf-8")
+    except OSError as problem:
+        sys.stdout.flush()
+        print(
+            f"** cannot write the SARIF: {out}: {problem} — the report above stands",
+            file=sys.stderr,
+        )
+        return False
+    return True
 
 
 def print_rules(manifest: dict[str, Any], bundle: pathlib.Path) -> int:
@@ -322,7 +479,14 @@ def main(argv: list[str] | None = None) -> int:
         action="store_true",
         help="print the rules this bundle decides, for the project's agent instructions",
     )
+    parser.add_argument(
+        "--sarif",
+        metavar="FILE",
+        help="also write this run as SARIF 2.1.0, for code scanning, reviewdog or an IDE",
+    )
     args = parser.parse_args(argv)
+    if args.sarif and (args.installed or args.rules):
+        parser.error("--sarif describes a run of the scans; --installed and --rules run none")
     if args.root is not None and args.root_option is not None:
         parser.error("give the project once: either as the positional root or as --root, not both")
     if args.installed and args.rules:
@@ -346,7 +510,7 @@ def main(argv: list[str] | None = None) -> int:
         return check_installed(root, manifest, bundle)
     if args.rules:
         return print_rules(manifest, bundle)
-    return run_scans(root, manifest, bundle)
+    return run_scans(root, manifest, bundle, pathlib.Path(args.sarif) if args.sarif else None)
 
 
 if __name__ == "__main__":
