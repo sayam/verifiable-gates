@@ -56,7 +56,11 @@ CATALOGUE = "rules.yaml"
 
 # Generated from the catalogue. Any Thai in them comes from a cited step name,
 # and `test_the_only_thai_in_a_sheet_is_a_cited_step_name` holds that boundary.
-SHEETS = ("SKILL.md", "SKILL-BUSINESS.md")
+SHEETS = (
+    "skills/verifiable-gates/SKILL.md",
+    "skills/verifiable-gates/references/baseline.md",
+    "skills/verifiable-gates/references/business.md",
+)
 
 # Where an original is kept beside its published translation. A file here is
 # named `<stem>.th.md` and must have `../<stem>.md` as its active counterpart.
@@ -299,7 +303,7 @@ def test_the_only_thai_in_a_sheet_is_a_cited_step_name() -> None:
     Thai on a rule line or a lesson line means a translation was missed.
     """
     offenders = []
-    for sheet in ("SKILL.md", "SKILL-BUSINESS.md"):
+    for sheet in SHEETS:
         for number, line in enumerate((ROOT / sheet).read_text(encoding="utf-8").splitlines(), 1):
             if has_thai(line) and not line.startswith("**Enforced in the reference:**"):
                 offenders.append(f"{sheet}:{number}: {line.strip()[:60]}")

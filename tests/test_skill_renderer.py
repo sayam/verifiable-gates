@@ -43,6 +43,38 @@ def a_rule(**overrides: Any) -> dict[str, Any]:  # noqa: ANN401 — field values
     return base
 
 
+# ---------------------------------------------------------------- the index
+
+
+def test_the_index_is_one_line_per_rule_grouped_by_layer_with_a_link_to_the_entry() -> None:
+    """The front page an agent loads first: every rule, none of the text, a link to each."""
+    rules = [a_rule(), a_rule(id="business-rule", layer="business", title="An agreement")]
+    text = skill.render_index(rules, PREAMBLE)
+    assert text.startswith(PREAMBLE)
+    assert "### baseline — 1 rules · full entries in `references/baseline.md`" in text
+    assert "- [`a-rule`](references/baseline.md#a-rule) — A rule that holds" in text
+    assert "- [`business-rule`](references/business.md#business-rule) — An agreement" in text
+    assert text.index("### baseline") < text.index("### business")
+    assert "the trap that produced it" not in text, "the index carries titles, not lessons"
+
+
+def test_a_layer_with_no_rule_gets_no_heading_on_the_index() -> None:
+    """A heading over nothing would promise a reference sheet that renders empty."""
+    text = skill.render_index([a_rule()], PREAMBLE)
+    assert "### baseline" in text
+    assert "### business" not in text
+
+
+def test_the_index_reads_the_catalogues_other_language_too() -> None:
+    text = skill.render_index([a_rule()], PREAMBLE, language="th")
+    assert "— กฎที่ยังยืนอยู่" in text
+
+
+def test_the_index_is_byte_deterministic() -> None:
+    rules = [a_rule(), a_rule(id="business-rule", layer="business")]
+    assert skill.render_index(rules, PREAMBLE) == skill.render_index(rules, PREAMBLE)
+
+
 # ---------------------------------------------------------------- selection
 
 
@@ -170,6 +202,50 @@ def test_writing_and_then_checking_agree(
     assert "rewrote" in capsys.readouterr().out
     assert skill.main([*args, "--check"]) == 0
     assert "up to date" in capsys.readouterr().out
+
+
+def test_index_on_the_command_line_writes_the_front_page(
+    tmp_path: pathlib.Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    catalogue, preamble = a_project(tmp_path, CATALOGUE)
+    out = tmp_path / "SKILL.md"
+    args = [
+        "--catalogue",
+        str(catalogue),
+        "--preamble",
+        str(preamble),
+        "--out",
+        str(out),
+        "--index",
+    ]
+    assert skill.main(args) == 0
+    assert "rewrote" in capsys.readouterr().out
+    written = out.read_text(encoding="utf-8")
+    assert "](references/" in written, "the front page links to the reference sheets"
+    assert "**Born from:**" not in written, "the front page is an index, not a sheet"
+    assert skill.main([*args, "--check"]) == 0
+
+
+def test_index_with_a_layer_is_refused_as_a_misuse(
+    tmp_path: pathlib.Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """The index lists every layer by definition; naming one is a contradiction, exit 2."""
+    catalogue, preamble = a_project(tmp_path, CATALOGUE)
+    args = [
+        "--catalogue",
+        str(catalogue),
+        "--preamble",
+        str(preamble),
+        "--out",
+        str(tmp_path / "SKILL.md"),
+        "--index",
+        "--layer",
+        "baseline",
+    ]
+    with pytest.raises(SystemExit) as stopped:
+        skill.main(args)
+    assert stopped.value.code == 2
+    assert "--index lists every layer" in capsys.readouterr().err
 
 
 def test_a_second_write_reports_nothing_changed(

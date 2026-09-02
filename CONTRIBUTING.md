@@ -198,10 +198,13 @@ walks `lint` and `test` as CI would, and `python -m verifiable_gates.harness
 
 ## Ceilings and floors this repository keeps on itself
 
-- `SKILL.md` and `SKILL-BUSINESS.md` are read in full by an agent every session,
-  so each has a declared line ceiling in `tests/test_sheets.py` — two-way: the
-  sheet may not pass it, and it may not sit more than 40 lines above the sheet.
-  Raise it only in the change that adds the content.
+- The skill under `skills/verifiable-gates/` is read by an agent every session —
+  the front page when the skill activates, a reference sheet for the rule at hand —
+  so each of its three files has a declared line ceiling in `tests/test_sheets.py`,
+  two-way: the file may not pass it, and it may not sit more than 40 lines above the
+  file. Raise one only in the change that adds the content. The front page has a
+  second, fixed ceiling it cannot negotiate: the 500 lines the Agent Skills
+  specification recommends, held by the same test beside the frontmatter's shape.
 - `lint` also runs `xenon` (complexity) and `interrogate` (docstring coverage)
   at floors set where reality stood when they arrived. They move up only.
 - Every module declares a `Role:` (decider · generator · reader · helper) in

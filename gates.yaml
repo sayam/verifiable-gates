@@ -2690,8 +2690,23 @@ gates:
       one that decays quietly: the sheets have to **partition** the catalogue. A
       rule belonging to no layer's sheet is published nowhere while still counting
       as published, and nothing about either file would look wrong — the sheet is
-      shorter and the catalogue is unchanged.
+      shorter and the catalogue is unchanged. The third half arrived with the Agent
+      Skills layout (2026-09-02): the front page is read by some forty products only
+      while its frontmatter has the shape the specification names, and a `name` one
+      character off is a skill none of them can see, with nothing about the file
+      looking wrong — so the specification's limits are held here too, by the test,
+      because a validator step in CI would need a gate row while the registers are
+      paused.
     proved_by:
+      - kind: mutation
+        ref: pr/222
+        date: 2026-09-02
+        caught: >-
+          The sheets moved into the Agent Skills layout and the test took on the
+          specification. Six planted defects against the committed files, each red
+          on its own: the `name` dropped, the name capitalised, the `description`
+          dropped, a rule left off the front page's index, the front page pushed
+          past 500 lines, and a sentence typed into a reference sheet.
       - kind: mutation
         ref: pr/9
         date: 2026-08-25

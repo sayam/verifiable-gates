@@ -22,6 +22,15 @@ the reference implementation:
 Rendering is a pure function of those, so the same inputs produce the same bytes and
 a project can hold its committed file against a fresh render.
 
+**Two shapes come out of the same catalogue.** A *sheet* is one layer in full — rule,
+incident, enforcement — and lives under `references/`. The *index* is the skill's front
+page: the preamble (which carries the Agent Skills frontmatter, because `name` and
+`description` are prose a project writes about itself) followed by one line per rule,
+grouped by layer, each linking to its full entry. That split is the specification's
+progressive disclosure: an agent loads the front page when it activates the skill and a
+reference only for the rule it is about to touch, so the front page stays under the
+500 lines the specification recommends while the full sheets keep every word.
+
 Role: generator — the evidence is that the committed sheet equals the render,
 held on every run by `tests/test_sheets.py`.
 """
@@ -36,7 +45,7 @@ from typing import Any
 
 from verifiable_gates import rules as catalogue
 
-__all__ = ["LANGUAGES", "main", "render"]
+__all__ = ["LANGUAGES", "main", "render", "render_index"]
 
 EXPECTED_LABELS = 3
 
@@ -84,6 +93,30 @@ def render(
     return "\n".join(lines)
 
 
+def render_index(rules: list[dict[str, Any]], preamble: str, language: str = "en") -> str:
+    """The skill's front page: the preamble, then every rule as one line, by layer.
+
+    Each line links to the rule's full entry in `references/<layer>.md` — the file the
+    sheet renderer writes for that layer, whose headings are the rule ids. Byte-identical
+    for the same inputs, like `render`.
+    """
+    lines = [preamble]
+    for layer in sorted(catalogue.LAYERS):
+        chosen = catalogue.by_layer(rules, layer)
+        if not chosen:
+            continue
+        lines.append(
+            f"### {layer} — {len(chosen)} rules · full entries in `references/{layer}.md`\n"
+        )
+        lines.extend(
+            f"- [`{rule['id']}`](references/{layer}.md#{rule['id']}) — "
+            f"{_field(rule, 'title', language)}"
+            for rule in chosen
+        )
+        lines.append("")
+    return "\n".join(lines)
+
+
 def _catalogue(path: str) -> list[Any]:
     """The rule catalogue, or the third answer — a catalogue that is not UTF-8, or is
     not there, was a traceback and exit 1 (self-audit round 3, 2026-09-01)."""
@@ -117,6 +150,11 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--out", required=True, help="where to write the sheet")
     parser.add_argument("--layer", default=None, help="only rules of this layer")
     parser.add_argument(
+        "--index",
+        action="store_true",
+        help="render the skill's front page — one line per rule, every layer — instead of a sheet",
+    )
+    parser.add_argument(
         "--language",
         default="en",
         choices=sorted(LANGUAGES),
@@ -133,6 +171,8 @@ def main(argv: list[str] | None = None) -> int:
         help="do not write; exit 1 if the file on disk differs from a fresh render",
     )
     args = parser.parse_args(argv)
+    if args.index and args.layer is not None:
+        parser.error("--index lists every layer; --layer selects one for a full sheet")
 
     rules = _catalogue(args.catalogue)
     problems = catalogue.problems(rules)
@@ -160,7 +200,11 @@ def main(argv: list[str] | None = None) -> int:
         )
         print(f"cannot read the preamble: {args.preamble}: {why}", file=sys.stderr)
         return 2
-    fresh = render(rules, preamble, args.layer, args.language, labels)
+    fresh = (
+        render_index(rules, preamble, args.language)
+        if args.index
+        else render(rules, preamble, args.layer, args.language, labels)
+    )
 
     out = pathlib.Path(args.out)
     if args.check:

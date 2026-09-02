@@ -47,10 +47,19 @@ about the ones it cannot enforce.
 ## What is here today
 
 **[`rules.yaml`](rules.yaml) — 92 rules, each carrying the incident that produced
-it.** They are rendered into two sheets an agent can be handed:
-[`SKILL.md`](SKILL.md), the baseline layer, where deviating is a defect; and
-[`SKILL-BUSINESS.md`](SKILL-BUSINESS.md), agreements an application of a given
-kind may legitimately decide differently.
+it.** They are rendered into an agent skill in the layout of the
+[Agent Skills specification](https://agentskills.io/specification), so any of the
+products that read that layout can be handed it unchanged:
+[`skills/verifiable-gates/SKILL.md`](skills/verifiable-gates/SKILL.md) is the front
+page — how to read the rules, the five practices underneath them, and one line per
+rule — and the full entries sit beside it in
+[`references/baseline.md`](skills/verifiable-gates/references/baseline.md), the
+baseline layer, where deviating is a defect, and
+[`references/business.md`](skills/verifiable-gates/references/business.md),
+agreements an application of a given kind may legitimately decide differently. (The
+two sheets lived at the repository root as `SKILL.md` and `SKILL-BUSINESS.md` until
+v0.1.12; `DECISIONS.md` `the-sheets-live-under-skills` says why they moved and why
+no copy stayed.)
 
 A rule and its enforcement live in separate files, because they have separate
 lifetimes. `rules.yaml` is what this project publishes; `gates.yaml` is what this
