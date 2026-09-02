@@ -88,6 +88,7 @@ import os
 import pathlib
 import py_compile
 import re
+import stat
 import subprocess
 import sys
 from typing import Any, TypeGuard
@@ -433,6 +434,16 @@ def sarif_log(
     }
 
 
+def _final_mode(target: pathlib.Path) -> int:
+    """The mode the written file ends up with: the target's, or a new file's default."""
+    try:
+        return stat.S_IMODE(target.stat().st_mode)
+    except FileNotFoundError:
+        was = os.umask(0)
+        os.umask(was)
+        return 0o666 & ~was
+
+
 def _write_whole(out: pathlib.Path, text: str) -> None:
     """The text as `out`, whole or not at all — a sibling file renamed over the target.
 
@@ -447,13 +458,15 @@ def _write_whole(out: pathlib.Path, text: str) -> None:
     beside = target.with_name(f".{target.name}.{os.getpid()}.tmp")
     try:
         create = os.O_WRONLY | os.O_CREAT | os.O_EXCL
-        # 0o644 before the umask, not 0o666: the sibling exists under its own name for
-        # the length of the write, and a mode the umask does not narrow would be a file
-        # anyone could write for that moment.
-        with os.fdopen(os.open(beside, create, 0o644), "wb") as h:
+        # The sibling is written private and wears its final mode only at the end: it
+        # exists under its own name for the length of the write, and for that moment
+        # nobody else has business reading it. The final mode is the target's if it has
+        # one, else what `write_text` would have given a new file.
+        with os.fdopen(os.open(beside, create, 0o600), "wb") as h:
             h.write(text.encode("utf-8"))
             h.flush()
             os.fsync(h.fileno())
+        beside.chmod(_final_mode(target))
         beside.replace(target)
     except OSError:
         beside.unlink(missing_ok=True)
