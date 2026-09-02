@@ -20,6 +20,7 @@ Three properties, and the second is the one that decays quietly:
 
 from __future__ import annotations
 
+import contextlib
 import json
 import os
 import pathlib
@@ -27,7 +28,7 @@ import re
 import shutil
 import subprocess
 import sys
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import pytest
 import yaml
@@ -36,6 +37,9 @@ from bundle import DOCTOR, do_install, run_doctor
 from verifiable_gates import gates_doctor
 from verifiable_gates import install as install_module
 from verifiable_gates import manifest as manifest_module
+
+if TYPE_CHECKING:
+    from collections.abc import Iterator
 
 
 def test_a_fresh_install_gives_a_project_something_that_runs(
@@ -1096,6 +1100,105 @@ def test_a_record_that_cannot_be_read_says_so(
     assert done.returncode == 1
     assert "cannot be read" in done.stdout + done.stderr
     assert "cannot be read" in gates_doctor.check_installed_record(project)[0]
+
+
+# ------------------------------------------------ a file the doctor cannot read
+#
+# `check_installed_record` asked `is_file()` and then read the file on the next line —
+# two questions with a gap between them. A file that passed the first and failed the
+# second (`chmod 000`, or removed in the gap) was a `PermissionError` traceback beside
+# exit 1, the code that means *the installation is incomplete*, from a reader that had
+# decided nothing; and with no record at all the same file reached `py_compile` and
+# died there instead (self-audit round 20, 2026-09-03). Read first, answer the exception:
+# unreadable is red, in its own sentence, and it is not round 4's "its contents have
+# changed", which accuses somebody of editing the bundle.
+
+
+@contextlib.contextmanager
+def _nobody_can_read(path: pathlib.Path) -> Iterator[None]:
+    path.chmod(0o000)
+    try:
+        yield
+    finally:
+        path.chmod(0o644)
+
+
+def test_a_file_nobody_can_read_is_said_so_and_is_not_called_changed(
+    tmp_path: pathlib.Path, bundle_copy: pathlib.Path
+) -> None:
+    """The shipped doctor, run as a project's CI would run it, on a scanner it may not open."""
+    project = tmp_path / "project"
+    assert do_install(project, bundle_copy) == 0
+    assert run_doctor(project, "--installed").returncode == 0, "a fresh install is intact"
+    scanner = project / "tools" / "checks" / "scan_adr_index.py"
+
+    with _nobody_can_read(scanner):
+        done = run_doctor(project, "--installed")
+
+    assert done.returncode == 1
+    assert "Traceback" not in done.stderr, done.stderr
+    assert "tools/checks/scan_adr_index.py cannot be read (Permission denied)" in done.stdout
+    assert "contents have changed" not in done.stdout, "unreadable was reported as edited"
+    assert "is gone" not in done.stdout, "unreadable was reported as removed"
+    assert run_doctor(project, "--installed").returncode == 0, "readable again, intact again"
+
+
+def test_in_process_an_unreadable_file_is_one_sentence_and_a_gone_one_is_another(
+    installed: pathlib.Path,
+) -> None:
+    """The record's judgement, read straight out of the function: three sentences, one
+    per fact, and the unreadable one names what could not be checked."""
+    unreadable = installed / "tools" / "checks" / "scan_adr_index.py"
+    (installed / "tools" / "check_issue_handoff.py").unlink()
+
+    with _nobody_can_read(unreadable):
+        said = gates_doctor.check_installed_record(installed)
+
+    assert said == [
+        "tools/check_issue_handoff.py was installed and is gone",
+        (
+            "tools/checks/scan_adr_index.py cannot be read (Permission denied), so whether "
+            "it is still what was installed cannot be checked"
+        ),
+    ]
+
+
+def test_a_scan_nobody_can_read_does_not_run_even_when_no_record_names_it(
+    installed: pathlib.Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """The second road to the same traceback: with no record, the file was first read by
+    `py_compile`, which is not a scan that compiles and not one that is missing."""
+    (installed / "tools" / "installed.json").unlink()
+    scanner = installed / "tools" / "checks" / "scan_adr_index.py"
+    capsys.readouterr()
+
+    with _nobody_can_read(scanner):
+        code = _installed_check(installed)
+
+    out = capsys.readouterr().out
+    assert code == 1
+    assert "no tools/installed.json" in out
+    assert (
+        "adr-index-complete: checks/scan_adr_index.py cannot be read (Permission denied)"
+        " — a scan nobody can read does not run"
+    ) in out
+    assert "is missing" not in out, "unreadable was reported as absent"
+    assert "does not compile" not in out, "unreadable was reported as broken"
+
+
+def test_a_record_nobody_can_read_is_the_sentence_for_an_unreadable_record(
+    installed: pathlib.Path,
+) -> None:
+    """The record itself, on the same one road: absent is one sentence, unopenable another."""
+    record = installed / "tools" / "installed.json"
+
+    with _nobody_can_read(record):
+        said = gates_doctor.check_installed_record(installed)
+
+    assert len(said) == 1
+    assert said[0].startswith("tools/installed.json cannot be read: ")
+    assert "Permission denied" in said[0]
+    assert "no tools/installed.json" not in said[0], "unopenable was reported as absent"
 
 
 def a_bundle_without(bundle: pathlib.Path, gate: str, tmp_path: pathlib.Path) -> pathlib.Path:

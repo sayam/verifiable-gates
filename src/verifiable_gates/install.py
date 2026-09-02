@@ -124,11 +124,11 @@ def _left_behind(dest: pathlib.Path, written: list[pathlib.Path]) -> list[str]:
 
 def _recorded_files(dest: pathlib.Path) -> dict[str, str]:
     """What the record in this destination names, or nothing when there is no reading it."""
-    record = dest / RECORD
-    if not record.is_file():
-        return {}
+    # Read, and answer the exception — a record that is not there is an `OSError`
+    # like one nobody can open, and asking `is_file()` first was a second question
+    # with a gap after it (self-audit round 20, 2026-09-03).
     try:
-        written = json.loads(record.read_text(encoding="utf-8"))["files"]
+        written = json.loads((dest / RECORD).read_text(encoding="utf-8"))["files"]
     except (OSError, ValueError, KeyError, TypeError):
         return {}
     # Declaring this `dict[str, str]` did not make it one: the value comes from

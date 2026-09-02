@@ -20,7 +20,9 @@ roots that differ would leave the report silently about one of them.
 - `--installed` asks whether the bundle *arrived and can run*: the config exists,
   every scan script compiles. That is a claim about the installation, not about
   the project's code. An install that stopped partway says so, rather than
-  reporting the files that did land as files somebody edited.
+  reporting the files that did land as files somebody edited. A file this doctor
+  **cannot read** is a third sentence, apart from *gone* and *changed*: it is red,
+  because a scan nobody can read does not run, and it is not an accusation.
 - `--rules` asks what this bundle *decides*, and judges nothing: every `scan`
   gate in the installed manifest, with where the rule came from and which
   scanner reads it, for the instruction file a project keeps for its agents to
@@ -45,6 +47,14 @@ answer for a scan that hangs past its timeout (the doctor tracebacked with
 `TimeoutExpired`, outside audit 2026-08-31) and for one that printed part of a
 verdict and then crashed — a traceback on stderr beside exit 1 means the scan
 did not finish judging, however much it said first.
+
+Every file here is read first and the exception answered, never asked about and
+then read: `is_file()` followed by `read_bytes()` is two questions with a gap between
+them, and a file that passed the first and failed the second — `chmod 000`, or removed
+in the gap — was a `PermissionError` traceback beside exit 1, the code that means *the
+installation is incomplete*, from a reader that had decided nothing (self-audit round
+20, 2026-09-03). It is exit 1 still, with the sentence above: the question this mode
+answers is whether the bundle can run, and a scan that cannot be read cannot.
 
 **`--sarif FILE` writes the same run as SARIF 2.1.0 beside the report**, for the
 readers that speak it — GitHub code scanning (`upload-sarif`), reviewdog, an IDE —
@@ -140,16 +150,16 @@ def check_installed_record(root: pathlib.Path) -> list[str]:
     installer rewrites, and the pull request that shows the edit.
     """
     record = root / "tools" / "installed.json"
-    if not record.is_file():
+    try:
+        written = json.loads(record.read_text(encoding="utf-8"))
+        files = written["files"]
+    except FileNotFoundError:
         return [
             (
                 "no tools/installed.json — this bundle was installed before the installer "
                 "recorded what it wrote, so intact cannot be checked; re-run the installer"
             )
         ]
-    try:
-        written = json.loads(record.read_text(encoding="utf-8"))
-        files = written["files"]
     except (OSError, ValueError, KeyError, TypeError) as problem:
         return [f"tools/installed.json cannot be read: {problem}"]
     # The guard above was written for the exceptions the parse and the subscript raise,
@@ -177,12 +187,35 @@ def check_installed_record(root: pathlib.Path) -> list[str]:
             "still be the previous version — re-run the installer"
         )
     for name, recorded in sorted(files.items()):
-        path = root / name
-        if not path.is_file():
-            found.append(f"{name} was installed and is gone")
-        elif hashlib.sha256(path.read_bytes()).hexdigest() != recorded:
-            found.append(f"{name} is not what was installed — its contents have changed")
+        said = _held_to_the_record(root / name, name, recorded)
+        if said is not None:
+            found.append(said)
     return found
+
+
+def _held_to_the_record(path: pathlib.Path, name: str, recorded: str) -> str | None:
+    """One recorded file against the tree: gone, unreadable, changed, or nothing to say.
+
+    Read first, and answer the exception. This was `is_file()` and then `read_bytes()` on
+    the next line — two questions with a gap between them — and a file that passed the
+    first and failed the second, `chmod 000` or removed in the gap, was a `PermissionError`
+    traceback beside exit 1, the code that means *the installation is incomplete*, from a
+    reader that had decided nothing (self-audit round 20, 2026-09-03). Unreadable is its
+    own sentence: it is not round 4's "its contents have changed", which means somebody
+    edited the bundle, and a file nobody can read has not been shown to be either.
+    """
+    try:
+        actual = hashlib.sha256(path.read_bytes()).hexdigest()
+    except FileNotFoundError:
+        return f"{name} was installed and is gone"
+    except OSError as problem:
+        return (
+            f"{name} cannot be read ({problem.strerror or problem}), so whether it is still "
+            "what was installed cannot be checked"
+        )
+    if actual != recorded:
+        return f"{name} is not what was installed — its contents have changed"
+    return None
 
 
 def check_installed(root: pathlib.Path, manifest: dict[str, Any], bundle: pathlib.Path) -> int:
@@ -194,12 +227,17 @@ def check_installed(root: pathlib.Path, manifest: dict[str, Any], bundle: pathli
 
     scans = scan_entries(manifest)
     for gid, script in scans:
-        path = bundle / script
-        if not path.is_file():
-            problems.append(f"{gid}: {script} is missing")
-            continue
+        # The same one road as `_held_to_the_record`, for the scans the record may not
+        # name: a bundle with no record reached `py_compile` and died there instead.
         try:
-            py_compile.compile(str(path), doraise=True)
+            py_compile.compile(str(bundle / script), doraise=True)
+        except FileNotFoundError:
+            problems.append(f"{gid}: {script} is missing")
+        except OSError as denied:
+            problems.append(
+                f"{gid}: {script} cannot be read ({denied.strerror or denied}) — a scan "
+                "nobody can read does not run"
+            )
         except py_compile.PyCompileError as error:
             problems.append(f"{gid}: {script} does not compile: {error}")
 
