@@ -82,13 +82,18 @@ project turned it into a test. `rules.yaml` and the sheets are not installed by
 before trusting a green: the doctor reports a rule it cannot decide as `NA`, and a
 project where every rule is `NA` exits 0 — that is "nothing was measured", not "the
 project passed" (a path that `scaffold.json` *names* and the project does not have is
-never `NA`, though: that is a broken configuration, and it is a finding; and a
+never `NA`, though: that is a broken configuration, and it is a finding — and so are a
+value of the wrong shape, a list where one path goes or a string where a list of names
+goes, and a path that leads outside the project, each naming the key it came from; and a
 `Dockerfile*` the project has but never named is a finding too, not "no
 Dockerfile"; a directory that is *there* and holds no file of the kind a checker reads
 — an `app/` of Go, a templates directory of `.ejs` — is `NA` naming what it looked for,
 not a pass, because a rule the tool cannot check must not look like a rule it checked;
 and a scan that crashes, hangs past its timeout, answers half a verdict
-before crashing, or meets a file it cannot decode or may not open is `[error]` with its
+before crashing, meets a file it cannot decode, may not open, or that is larger than the
+8 MiB a scanner reads whole, cannot read `scaffold.json` as a configuration at all, or
+cannot walk the whole tree it was pointed at — a directory closed to it is *not* the
+answer a directory that is not there gets, which stays `NA` — is `[error]` with its
 stderr passed through, never `[found]` — red,
 but no verdict); and `rules.problems()` only checks that a `script:` exists when it is
 given the package directory (`package_dir=`), as the doctor does. On a fresh
@@ -101,12 +106,14 @@ gate whose job cannot turn the build red — a workflow with no trigger, `if: fa
 nothing else. And the bundle keeps a record of what it installed: `gates_doctor
 --installed` holds every file it wrote to the contents it wrote, not merely to being
 present, and an upgrade names what this version no longer ships and leaves it in place,
-because a file in your repository is yours to remove. And `gates_doctor --rules` prints the
-rules the bundle decides — each with where it came from and which scanner reads it — for
-the instruction file a project keeps for its agents (`AGENTS.md`, `CLAUDE.md`) to point at:
-read at run time from the installed manifest, so an upgrade cannot leave an agent on
-yesterday's rule, and only the rules a scanner here can decide, so no instruction stands
-without a gate behind it.
+because a file in your repository is yours to remove. An install that stopped partway is
+read as one: the doctor leads with *the last install into this tree did not finish*
+rather than reporting the files that did land as files somebody edited. And
+`gates_doctor --rules` prints the rules the bundle decides — each with where it came
+from and which scanner reads it — for the instruction file a project keeps for its
+agents (`AGENTS.md`, `CLAUDE.md`) to point at: read at run time from the installed
+manifest, so an upgrade cannot leave an agent on yesterday's rule, and only the rules a
+scanner here can decide, so no instruction stands without a gate behind it.
 
 **What the two pinning checkers read.** `ci-tools-hash-pinned` and
 `actions-sha-pinned` read every workflow, every composite action a workflow names
@@ -225,14 +232,17 @@ repo นี้เผยแพร่ ส่วน `gates.yaml` คือสิ่
 และโปรเจกต์ที่ทุกข้อเป็น `NA` ออก 0 แปลว่า "ไม่ได้วัดอะไร" ไม่ใช่ "ผ่าน" · ไดเรกทอรีที่ *มีอยู่* แต่ไม่มีไฟล์ชนิดที่ตัวตรวจอ่านเลย
 — `app/` ที่มีแต่ Go หรือไดเรกทอรี template ที่มีแต่ `.ejs` — เป็น `NA` พร้อมบอกว่าไปหาอะไร ไม่ใช่ `pass`
 เพราะกฎที่เครื่องมือตรวจไม่ได้ต้องไม่หน้าตาเหมือนกฎที่ตรวจแล้ว · สแกนที่ล่ม ค้างเกินเวลา พิมพ์คำตัดสินได้ครึ่งเดียวแล้วพัง
-หรือเจอไฟล์ที่ถอดรหัสไม่ได้หรือไม่มีสิทธิ์เปิด รายงานเป็น `[error]` พร้อมส่ง stderr ต่อ ไม่ใช่ `[found]` · หลังติดตั้งใหม่
+เจอไฟล์ที่ถอดรหัสไม่ได้ ไม่มีสิทธิ์เปิด หรือใหญ่เกิน 8 MiB ที่ตัวสแกนอ่านทั้งไฟล์ อ่าน `scaffold.json` เป็นคอนฟิกไม่ได้เลย
+หรือเดินต้นไม้ที่ถูกชี้ให้ดูไม่ทั่ว — ไดเรกทอรีที่ปิดไม่ให้เข้าไม่ใช่คำตอบเดียวกับไดเรกทอรีที่ *ไม่มีอยู่* ซึ่งยังเป็น `NA` —
+รายงานเป็น `[error]` พร้อมส่ง stderr ต่อ ไม่ใช่ `[found]` · หลังติดตั้งใหม่
 ด่านเดียวที่ `pass` คือทะเบียนที่ส่งมากับบันเดิล (`gates-registry-total`) ส่วน workflow
 ตั้งต้นที่ตัวติดตั้งเขียนให้เป็น `NA` สำหรับตัวตรวจ pin ทั้งสองจนกว่าจะมีบรรทัดถูกแก้ —
 เขียวบนไฟล์ของบันเดิลเองไม่ได้บอกอะไรเกี่ยวกับโปรเจกต์ · ตัวตรวจทะเบียนอ่านทิศของตัวเองด้วย: gate ที่งานของมัน
 ทำให้ build แดงไม่ได้ — workflow ที่ไม่มี trigger, `if: false`, หรือ `continue-on-error: true` — เป็น finding
 เพราะแถวที่ไม่มีอะไรทำให้ล้มได้คือแถวเปล่า ๆ · และบันเดิลจดสิ่งที่มันติดตั้งไว้: `gates_doctor --installed`
 ถือทุกไฟล์ที่มันเขียนไว้กับ *เนื้อ* ที่มันเขียน ไม่ใช่แค่ว่ามีไฟล์อยู่ · และตอนอัปเกรด มันบอกว่ารุ่นนี้เลิกส่งอะไร
-แล้วปล่อยไฟล์นั้นไว้ เพราะไฟล์ในรีโปของคุณเป็นสิทธิ์ของคุณที่จะลบ · และ `gates_doctor --rules` พิมพ์กฎที่บันเดิล
+แล้วปล่อยไฟล์นั้นไว้ เพราะไฟล์ในรีโปของคุณเป็นสิทธิ์ของคุณที่จะลบ · การติดตั้งที่หยุดกลางทางถูกอ่านว่าอย่างนั้น —
+doctor ขึ้นต้นด้วย *การติดตั้งครั้งล่าสุดลงในต้นไม้นี้ยังไม่จบ* แทนที่จะรายงานไฟล์ที่ลงไปแล้วว่าเป็นไฟล์ที่ถูกใครแก้ · และ `gates_doctor --rules` พิมพ์กฎที่บันเดิล
 ตัดสินได้ — แต่ละข้อพร้อมที่มาและตัวสแกนที่อ่านมัน — ให้ไฟล์คำสั่งที่โปรเจกต์เก็บไว้ให้ agent (`AGENTS.md`, `CLAUDE.md`)
 ชี้มาหา: อ่านตอนรันจาก manifest ที่ติดตั้งอยู่ การอัปเกรดจึงทิ้ง agent ไว้กับกฎเมื่อวานไม่ได้ และมีเฉพาะกฎที่ตัวสแกน
 ตรงนี้ตัดสินได้ จึงไม่มีคำสั่งข้อไหนยืนอยู่โดยไม่มีด่านหนุนหลัง · ตัวตรวจ pin อ่าน workflow ทุกไฟล์
@@ -245,7 +255,8 @@ commit SHA ที่ไม่มี comment บอกเวอร์ชันข
 `adr-index-complete` รายงานบันทึกสองฉบับที่ใช้เลขเดียวกันเช่นเดียวกับเลขที่ขาด · `csp-no-inline` อ่าน
 `ONCLICK=` `STYLE=` และ `<style>` แบบไม่สนตัวพิมพ์และไม่สนการตัดบรรทัด (รวม `=` ที่อยู่บรรทัดถัดจากชื่อ) เหมือนที่เบราว์เซอร์อ่าน
 โดยลบคอมเมนต์ก่อน (คอมเมนต์ที่ไม่ปิดกินถึงท้ายไฟล์) ถอด entity ในค่าของ attribute ก่อนอ่าน scheme (`&#106;avascript:`) และอ่าน `.htm` `.jinja` `.jinja2` `.j2` เหมือน `.html` · `Dockerfile*` ที่มีอยู่แต่ไม่ได้ตั้งชื่อไว้ใน `scaffold.json` ถือเป็น
-finding ไม่ใช่ "ไม่มี Dockerfile"
+finding ไม่ใช่ "ไม่มี Dockerfile" · ค่าใน `scaffold.json` ที่ผิดรูป — ลิสต์ในที่ที่ต้องเป็นพาธเดียว หรือสตริงในที่ที่ต้อง
+เป็นลิสต์ของชื่อ — และพาธที่พาออกไปนอกโปรเจกต์ เป็น finding ที่บอกชื่อคีย์ เช่นเดียวกับพาธที่ตั้งชื่อไว้แต่ไม่มีอยู่จริง
 
 **คลังเก็บสองภาษา**: อังกฤษเป็นข้อความที่เผยแพร่ ส่วนถ้อยคำไทยต้นฉบับอยู่ในฟิลด์
 `*_th` คู่กัน เพราะคำแปลของบันทึกเหตุการณ์คือการเล่าใหม่ และการเล่าใหม่ไม่ใช่ตัวบันทึก

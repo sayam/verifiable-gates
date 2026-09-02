@@ -38,7 +38,16 @@ style difference.
    You keep your copyright; the grant is what makes it possible to publish this
    work under a commercial licence alongside Apache-2.0 later. The `cla` job
    reads the line (name and address both, like the sign-off); Dependabot is
-   skipped, since a version bump carries no copyright.
+   skipped, since a version bump carries no copyright — and it opens nothing
+   here any more (`DECISIONS.md` `dependabot-runs-nowhere-here`). **The owner's
+   own pull requests are held to one address**, the
+   `<id>+<owner>@users.noreply.github.com` their commits are signed with: a
+   private address pasted in from an editor's context attributes the acceptance
+   to an identity that has nothing to do with this work, and correcting the body
+   afterwards does not take it back, because GitHub keeps the edit history (four
+   merged pull requests carried one, found 2026-09-01). Every other
+   contributor's line is untouched — the CLA wants a real identity from them,
+   and only the owner's address is fixed by this repository.
 
 If this is your first pull request here, its workflows do not start until a
 maintainer approves them — the repository's policy is `first_time_contributors`,
@@ -151,6 +160,9 @@ field was one release away from proving it (2026-08-29).
    quotes the version, the date, or a count (`pyproject.toml`, `CITATION.cff`,
    `.zenodo.json`, the README in both languages), touching nothing else. The same
    test holds every place to its fact on every run, so a place missed here is red.
+   If a place cannot be written, the report names the ones that did land before
+   it names what stopped it: a half-corrected checkout is a different thing from
+   an untouched one, and the operator has to be able to tell them apart.
 3. `python -m verifiable_gates.own_numbers --about --write` — patches the claims
    in the About field on GitHub in place, **before the pull request can merge**:
    CI reads that field on every run (gate `the-about-field-is-read-not-remembered`),
