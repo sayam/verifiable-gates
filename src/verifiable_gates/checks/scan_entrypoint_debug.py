@@ -237,10 +237,15 @@ def main(root: pathlib.Path) -> int:
     for path in present:
         try:
             tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
-        except (SyntaxError, ValueError) as error:
+        except (SyntaxError, ValueError, OSError) as error:
             # A file Python cannot parse is not a verdict either way — said plainly,
             # exit 2, the way every other unreadable input is refused (self-audit,
             # 2026-08-31: a traceback and exit 1, which reads as "findings").
+            # `OSError` joined them in round 19 (2026-09-02): the two AST readers are the
+            # only scanners that call `read_text` without the `_text` guard round 5 gave
+            # the others, and a symlink pointing nowhere — which the walk lists, because
+            # the name is there — was a raw `FileNotFoundError` and exit 1 out of a
+            # scanner that had judged nothing.
             print(
                 f"no-debug-entrypoint: cannot read {path.relative_to(root)} — {error}",
                 file=sys.stderr,

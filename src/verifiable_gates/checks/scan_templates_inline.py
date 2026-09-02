@@ -71,7 +71,7 @@ TEMPLATE_SUFFIXES = frozenset({".html", ".htm", ".jinja", ".jinja2", ".j2"})
 
 
 class _UnreadableError(Exception):
-    """Bytes this scanner cannot decode. No verdict — never a clean one."""
+    """Bytes nobody can decode, or a tree nobody can walk. No verdict — never a clean one."""
 
 
 def _text(path: pathlib.Path) -> str:
@@ -90,6 +90,34 @@ def _text(path: pathlib.Path) -> str:
         # than for the question (self-audit round 5, 2026-09-01).
         message = f"{_shown(path)}: {problem}"
         raise _UnreadableError(message) from problem
+
+
+def _walk(top: pathlib.Path) -> list[pathlib.Path]:
+    """Every file under `top`, sorted — or `_UnreadableError` naming what stopped the walk.
+
+    `rglob` **throws away the `OSError`s it meets on the way**: a directory this scanner
+    may not open, and any path past the system's length limit, are simply absent from the
+    result, with nothing raised and nothing printed — and the silence lands on the *pass*
+    side. Measured on one tree, changing nothing but a permission bit: readable, the
+    scanner printed the violation inside it and exited 1; with `chmod 000` on that one
+    directory it printed **nothing** and exited 0. A tree whose only source file sat 5,147
+    characters deep answered `NA: nothing to check yet` while `find` saw the file
+    (self-audit round 19, 2026-09-02). Both are the sentence the manifest forbids — "A rule
+    the tool cannot check must not look like a rule it checked" — so a walk that could not
+    see the whole tree has no verdict to give.
+    """
+    trouble: list[OSError] = []
+    found: list[pathlib.Path] = []
+    for parent, _directories, names in os.walk(top, onerror=trouble.append):
+        found += [pathlib.Path(parent) / name for name in names]
+    # A `top` that is not there is nothing to walk, which the caller reports as N/A — the
+    # answer it gave before. "Not there" and "there and closed to me" are different things.
+    blocked = [problem for problem in trouble if not isinstance(problem, FileNotFoundError)]
+    if blocked:
+        raise _UnreadableError(
+            "; ".join(f"{_shown(bad.filename)}: {bad.strerror}" for bad in blocked)
+        )
+    return sorted(found)
 
 
 def _config(path: pathlib.Path) -> dict[str, object]:
@@ -236,7 +264,7 @@ def _judge(root: pathlib.Path) -> int:
     if templates is None:
         return code
 
-    paths = sorted(p for p in templates.rglob("*") if p.suffix in TEMPLATE_SUFFIXES)
+    paths = [path for path in _walk(templates) if path.suffix in TEMPLATE_SUFFIXES]
     # A directory that is there and holds nothing this scanner reads is not a
     # clean project — it is a project this scanner cannot see, which the manifest's
     # own words forbid reporting as checked: "A rule the tool cannot check must not

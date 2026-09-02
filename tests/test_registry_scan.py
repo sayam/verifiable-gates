@@ -740,3 +740,48 @@ def test_a_registry_it_may_not_read_is_named(
         (root / "gates.yaml").chmod(0o644)
 
     assert "could not be read" in capsys.readouterr().out
+
+
+# ---------------------------------------------------------------- a walk that saw less
+
+
+def test_a_workflow_directory_it_cannot_enter_is_not_an_empty_one(
+    tmp_path: pathlib.Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """`glob` discards the `OSError`s it meets, so a directory this scanner may not open
+    came back as *no workflows* — and no workflows means no jobs, which means every gate
+    in the index names a job that is not there, or none does (self-audit round 19,
+    2026-09-02). A directory that will not open is the third answer, not an empty one."""
+    root = a_project(tmp_path, TOOTHLESS_JOB)
+    closed = root / ".github" / "workflows"
+    closed.chmod(0o000)
+
+    try:
+        code = scanner.main(root)
+    finally:
+        closed.chmod(0o755)
+
+    assert code == 2, "a directory the scanner could not open was read as an empty one"
+    assert "cannot read the tree" in capsys.readouterr().err
+
+
+def test_a_tests_directory_it_cannot_enter_is_not_an_empty_one(
+    tmp_path: pathlib.Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """The other walk: the partition holds the index against the test files on disk, and a
+    tests directory it could not enter made every claimed file look like one that is gone."""
+    registry = (
+        "version: 1\ngates:\n  - id: a-rule\n    title: t\n    kind: test\n"
+        "    enforced_by: {job: test, tests: [tests/test_a.py]}\n"
+    )
+    root = a_project(tmp_path, registry, **{"tests/test_a.py": "def test_a() -> None:\n    pass\n"})
+    closed = root / "tests"
+    closed.chmod(0o000)
+
+    try:
+        code = scanner.main(root)
+    finally:
+        closed.chmod(0o755)
+
+    assert code == 2, "a tests directory it could not enter was read as one holding nothing"
+    assert "cannot read the tree" in capsys.readouterr().err
