@@ -61,6 +61,61 @@ class SubsetError(Exception):
     """The file uses YAML outside the subset this reader accepts — say so, do not guess."""
 
 
+class _UnreadableError(Exception):
+    """Bytes nobody can decode, or a tree nobody can walk. No verdict — never a clean one."""
+
+
+def _walk(top: pathlib.Path, *, deep: bool = True) -> list[pathlib.Path]:
+    """Every file under `top`, sorted — or `_UnreadableError` naming what stopped the walk.
+
+    `rglob` **throws away the `OSError`s it meets on the way**: a directory this scanner
+    may not open, and any path past the system's length limit, are simply absent from the
+    result, with nothing raised and nothing printed — and the silence lands on the *pass*
+    side. Measured on one tree, changing nothing but a permission bit: readable, the
+    scanner printed the violation inside it and exited 1; with `chmod 000` on that one
+    directory it printed **nothing** and exited 0. A tree whose only source file sat 5,147
+    characters deep answered `NA: nothing to check yet` while `find` saw the file
+    (self-audit round 19, 2026-09-02). Both are the sentence the manifest forbids — "A rule
+    the tool cannot check must not look like a rule it checked" — so a walk that could not
+    see the whole tree has no verdict to give.
+    """
+    trouble: list[OSError] = []
+    found: list[pathlib.Path] = []
+    for parent, directories, names in os.walk(top, onerror=trouble.append):
+        if not deep:
+            directories[:] = []
+        found += [pathlib.Path(parent) / name for name in names]
+    # A `top` that is not there is nothing to walk, which the caller reports as N/A — the
+    # answer it gave before. "Not there" and "there and closed to me" are different things.
+    blocked = [problem for problem in trouble if not isinstance(problem, FileNotFoundError)]
+    if blocked:
+        raise _UnreadableError(
+            "; ".join(f"{_shown(bad.filename)}: {bad.strerror}" for bad in blocked)
+        )
+    return sorted(found)
+
+
+def _yaml_files(directory: pathlib.Path, *, deep: bool = True) -> list[pathlib.Path]:
+    """Every YAML file under `directory`, sorted — the walk above, filtered by suffix."""
+    return [path for path in _walk(directory, deep=deep) if path.suffix in {".yml", ".yaml"}]
+
+
+def _is_file(path: pathlib.Path) -> bool:
+    """Whether the file is there — or `_UnreadableError` when nobody can tell.
+
+    `is_file()` answers **False** for a file nobody may stat as readily as for one that is
+    not there, and those are different answers: the second is the project's finding, the
+    first is this scanner's blind spot. It does not even answer reliably — a file inside a
+    directory closed to us raises `PermissionError` out of `os.stat`, which reached this
+    scanner as a traceback and exit 1 (self-audit round 19, 2026-09-02). "No such file" is
+    a finding against the index, so it may only be said by a reader that could look.
+    """
+    try:
+        return path.is_file()
+    except OSError as problem:
+        raise _UnreadableError(f"{_shown(path)}: {problem.strerror}") from problem
+
+
 def _uncomment(line: str) -> str:
     """Strip a trailing comment without touching a `#` inside quotes."""
     quote = None
@@ -368,7 +423,7 @@ def workflow_jobs(
     unreadable: list[str] = []
     homes: dict[str, list[str]] = {}
     toothless: dict[str, str] = {}
-    for path in sorted((root / ".github" / "workflows").glob("*.y*ml")):
+    for path in _yaml_files(root / ".github" / "workflows", deep=False):
         workflow, why_not = _read_workflow(path, root)
         if workflow is None:
             unreadable.append(why_not)
@@ -439,7 +494,7 @@ def _forward(
                 findings += [
                     f"{gid}: no such file {name}"
                     for name in files
-                    if not (root / str(name)).is_file()
+                    if not _is_file(root / str(name))
                 ]
         if enforced.get("tests") and gate["kind"] != "test":
             # `kind` decides who runs the gate: only `test` is run by the harness,
@@ -470,8 +525,9 @@ def _partition(
     # and was in no gate's partition (self-audit, 2026-08-31).
     on_disk = {
         _shown(path.relative_to(root).as_posix())
-        for path in tests_dir.rglob("*.py")
-        if path.name.startswith("test_") or path.name.endswith("_test.py")
+        for path in _walk(tests_dir)
+        if path.suffix == ".py"
+        and (path.name.startswith("test_") or path.name.endswith("_test.py"))
     }
     findings = [
         f"no gate claims this test file: {name}" for name in sorted(on_disk - claims.keys())
@@ -612,7 +668,7 @@ def _index(root: pathlib.Path) -> tuple[tuple[pathlib.Path, dict[str, object]] |
     return None, 0
 
 
-def main(root: pathlib.Path) -> int:
+def _judge(root: pathlib.Path) -> int:
     if not root.is_dir():
         # NA means "this project has nothing of that kind"; a root that is not
         # there has no project to say it about, and answering the second with
@@ -667,6 +723,15 @@ def main(root: pathlib.Path) -> int:
     for finding in findings:
         print(f"gates-registry-total: {finding}")
     return 1 if findings else 0
+
+
+def main(root: pathlib.Path) -> int:
+    """The verdict, or the third answer when the tree cannot be read."""
+    try:
+        return _judge(root)
+    except _UnreadableError as problem:
+        print(f"cannot read the tree: {problem}", file=sys.stderr)
+        return 2
 
 
 if __name__ == "__main__":

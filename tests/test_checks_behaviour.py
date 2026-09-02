@@ -2793,3 +2793,167 @@ def test_a_scanner_can_name_a_root_it_cannot_decode(
 
     assert module.main(a_tree_that_can_hold_the_name / f"missing{UNDECODABLE}") == 2
     assert ESCAPED in capsys.readouterr().err, "refused a root it could not name without naming it"
+
+
+# ---------------------------------------------------------------- a walk that saw less
+#
+# `rglob` throws away the `OSError`s it meets on the way, so a directory a scanner may not
+# enter — and any path past the system's length limit — is simply absent from the result,
+# with nothing raised and nothing printed. Measured on 2026-09-02 (self-audit round 19):
+# one tree, changing nothing but a permission bit, answered exit 1 naming the violation
+# while `app/hidden` was readable and exit 0 with **no output at all** once it was closed;
+# a tree whose only source file sat 5,147 characters deep answered `NA: no Python under
+# app` while `find` saw the file. Both file "we could not look" under "we looked and it
+# was fine", which is the one shape the manifest forbids.
+
+
+class Walk(NamedTuple):
+    """A scanner, a tree holding a violation, and the directory in it that will not open."""
+
+    module: Any
+    files: dict[str, str]
+    config: dict[str, Any] | None
+    closed: str
+
+
+WALKS = [
+    pytest.param(
+        Walk(
+            scan_write_discipline,
+            {"app/hidden/routes.py": "db.session.delete(row)\n"},
+            {"src_path": "app", "purge_paths": ["app/purge.py"]},
+            "app/hidden",
+        ),
+        id="write-discipline",
+    ),
+    pytest.param(
+        Walk(
+            scan_service_layer,
+            {"app/services/hidden/todos.py": "from flask import request\n"},
+            {"services_path": "app/services"},
+            "app/services/hidden",
+        ),
+        id="service-layer",
+    ),
+    pytest.param(
+        Walk(
+            scan_templates_inline,
+            {"app/templates/hidden/x.html": '<button onclick="go()">go</button>\n'},
+            {"templates_path": "app/templates"},
+            "app/templates/hidden",
+        ),
+        id="templates-inline",
+    ),
+    pytest.param(
+        Walk(
+            scan_dockerfile_digest,
+            {"docker/Dockerfile.web": "FROM python:3.13-slim\n"},
+            None,
+            "docker",
+        ),
+        id="dockerfile-digest",
+    ),
+    pytest.param(
+        Walk(
+            scan_workflow_pinning,
+            {".github/workflows/ci.yml": FLOATING_ACTION},
+            None,
+            ".github/workflows",
+        ),
+        id="workflow-pinning",
+    ),
+    pytest.param(
+        Walk(
+            scan_install_pinning,
+            {".github/workflows/ci.yml": FLOATING_INSTALL},
+            None,
+            ".github/workflows",
+        ),
+        id="install-pinning",
+    ),
+    pytest.param(
+        Walk(scan_adr_index, {"docs/adr/0001-first.md": "# 1. First\n"}, None, "docs/adr"),
+        id="adr-index",
+    ),
+]
+
+
+@pytest.mark.parametrize("walk", WALKS)
+def test_a_directory_it_could_not_enter_is_not_a_clean_tree(
+    tmp_path: pathlib.Path, capsys: pytest.CaptureFixture[str], walk: Walk
+) -> None:
+    """The violation is inside the closed directory, so a pass here is a pass over it."""
+    root = build(tmp_path, walk.files, walk.config)
+    closed = root / walk.closed
+    closed.chmod(0o000)
+    try:
+        code = walk.module.main(root)
+    finally:
+        closed.chmod(0o755)
+
+    assert code == 2, "a tree the scanner could not walk was given a verdict anyway"
+    assert "cannot read the tree" in capsys.readouterr().err, "it did not say what stopped it"
+
+
+def test_a_project_under_a_dotted_directory_is_still_judged(
+    tmp_path: pathlib.Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """The sweep for unnamed Dockerfiles read the **absolute** path for its dot test.
+
+    A project checked out under `~/.local/src/app` — or on any runner whose workspace
+    carries a dotted segment — had every unnamed Dockerfile filtered away as somebody
+    else's and was told `NA: no Dockerfile` (self-audit round 19, 2026-09-02). What the
+    rule means is "not under a dotted directory **of this project**".
+    """
+    root = build(tmp_path / ".cache" / "app", {"docker/Dockerfile.web": "FROM python:3.13\n"})
+
+    assert scan_dockerfile_digest.main(root) == 1, "a dotted checkout path hid the Dockerfile"
+    assert "docker/Dockerfile.web" in capsys.readouterr().out
+
+
+# The two AST readers call `read_text` without the `_text` guard the others got in round 5,
+# so a file the walk lists and the reader cannot open was a raw traceback and exit 1 — the
+# code that means *findings* — out of a scanner that had judged nothing.
+UNREADABLE_SOURCE = [
+    pytest.param(
+        scan_service_layer,
+        "app/services/todos.py",
+        {"services_path": "app/services"},
+        id="service-layer",
+    ),
+    pytest.param(
+        scan_entrypoint_debug, "run.py", {"entrypoints": ["run.py"]}, id="entrypoint-debug"
+    ),
+]
+
+
+@pytest.mark.parametrize(("module", "where", "config"), UNREADABLE_SOURCE)
+def test_a_source_file_it_may_not_open_is_the_third_answer(
+    tmp_path: pathlib.Path,
+    capsys: pytest.CaptureFixture[str],
+    module: ModuleType,
+    where: str,
+    config: dict[str, Any],
+) -> None:
+    """Not a verdict either way, said plainly — the route a file that will not parse takes."""
+    root = build(tmp_path, {where: "x = 1\n"}, config)
+    unreadable = root / where
+    unreadable.chmod(0o000)
+    try:
+        code = module.main(root)
+    finally:
+        unreadable.chmod(0o644)
+
+    assert code == 2, "a file it could not open was answered with a verdict"
+    assert "cannot read" in capsys.readouterr().err
+
+
+def test_a_link_that_points_nowhere_is_not_a_finding(
+    tmp_path: pathlib.Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """The walk lists the name, because the name is there; opening it is what fails."""
+    root = build(tmp_path, {"app/services/real.py": "x = 1\n"}, {"services_path": "app/services"})
+    (root / "app" / "services" / "gone.py").symlink_to(root / "nowhere.py")
+
+    assert scan_service_layer.main(root) == 2, "a dangling link was read as a verdict"
+    assert "cannot read" in capsys.readouterr().err

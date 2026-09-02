@@ -60,6 +60,38 @@ FORBIDDEN_MODULES = {
 }
 
 
+class _UnreadableError(Exception):
+    """Bytes nobody can decode, or a tree nobody can walk. No verdict — never a clean one."""
+
+
+def _walk(top: pathlib.Path) -> list[pathlib.Path]:
+    """Every file under `top`, sorted — or `_UnreadableError` naming what stopped the walk.
+
+    `rglob` **throws away the `OSError`s it meets on the way**: a directory this scanner
+    may not open, and any path past the system's length limit, are simply absent from the
+    result, with nothing raised and nothing printed — and the silence lands on the *pass*
+    side. Measured on one tree, changing nothing but a permission bit: readable, the
+    scanner printed the violation inside it and exited 1; with `chmod 000` on that one
+    directory it printed **nothing** and exited 0. A tree whose only source file sat 5,147
+    characters deep answered `NA: nothing to check yet` while `find` saw the file
+    (self-audit round 19, 2026-09-02). Both are the sentence the manifest forbids — "A rule
+    the tool cannot check must not look like a rule it checked" — so a walk that could not
+    see the whole tree has no verdict to give.
+    """
+    trouble: list[OSError] = []
+    found: list[pathlib.Path] = []
+    for parent, _directories, names in os.walk(top, onerror=trouble.append):
+        found += [pathlib.Path(parent) / name for name in names]
+    # A `top` that is not there is nothing to walk, which the caller reports as N/A — the
+    # answer it gave before. "Not there" and "there and closed to me" are different things.
+    blocked = [problem for problem in trouble if not isinstance(problem, FileNotFoundError)]
+    if blocked:
+        raise _UnreadableError(
+            "; ".join(f"{_shown(bad.filename)}: {bad.strerror}" for bad in blocked)
+        )
+    return sorted(found)
+
+
 def _forbidden_module(name: str) -> str | None:
     """The forbidden module `name` is or sits under, if any."""
     return next((m for m in FORBIDDEN_MODULES if name == m or name.startswith(m + ".")), None)
@@ -223,7 +255,7 @@ def _config(path: pathlib.Path) -> dict[str, object]:
     return config
 
 
-def main(root: pathlib.Path) -> int:
+def _judge(root: pathlib.Path) -> int:
     if not root.is_dir():
         # NA means "this project has nothing of that kind"; a root that is not
         # there has no project to say it about, and answering the second with
@@ -234,7 +266,7 @@ def main(root: pathlib.Path) -> int:
     if services is None:
         return code
 
-    readable = sorted(services.rglob("*.py"))
+    readable = [path for path in _walk(services) if path.suffix == ".py"]
     # A directory that is there and holds nothing this scanner reads is not a clean
     # project — it is one this scanner cannot see, which the manifest's own words
     # forbid reporting as checked: "A rule the tool cannot check must not look like
@@ -247,10 +279,15 @@ def main(root: pathlib.Path) -> int:
     for path in readable:
         try:
             tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
-        except (SyntaxError, ValueError) as error:
+        except (SyntaxError, ValueError, OSError) as error:
             # A file Python cannot parse is not a verdict either way — said plainly,
             # exit 2, the way every other unreadable input is refused (self-audit,
             # 2026-08-31: a traceback and exit 1, which reads as "findings").
+            # `OSError` joined them in round 19 (2026-09-02): the two AST readers are the
+            # only scanners that call `read_text` without the `_text` guard round 5 gave
+            # the others, and a symlink pointing nowhere — which the walk lists, because
+            # the name is there — was a raw `FileNotFoundError` and exit 1 out of a
+            # scanner that had judged nothing.
             print(
                 f"logic-knows-no-http: cannot read {_shown(path.relative_to(root))} — {error}",
                 file=sys.stderr,
@@ -261,6 +298,15 @@ def main(root: pathlib.Path) -> int:
     for finding in findings:
         print(f"logic-knows-no-http: {finding}")
     return 1 if findings else 0
+
+
+def main(root: pathlib.Path) -> int:
+    """The verdict, or the third answer when the tree cannot be read."""
+    try:
+        return _judge(root)
+    except _UnreadableError as problem:
+        print(f"cannot read the tree: {problem}", file=sys.stderr)
+        return 2
 
 
 if __name__ == "__main__":

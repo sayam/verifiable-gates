@@ -71,6 +71,37 @@ Notable changes to this project. The format follows
 
 ### Fixed
 
+- **A tree the scanner could not walk was reported as a clean one.** `rglob` and `glob`
+  throw away the `OSError`s they meet on the way, so a directory a scanner may not open —
+  and any path past the system's length limit — is simply absent from the result, with
+  nothing raised and nothing printed, and the silence lands on the *pass* side. Measured on
+  one tree, changing nothing but a permission bit: with `app/hidden` readable
+  `delete-means-soft-delete` named the violation inside it and exited 1; with `chmod 000`
+  on that one directory the same tree printed **nothing at all** and exited 0. A tree whose
+  only Python sat 5,147 characters deep answered `NA: no Python under app — nothing to
+  check yet` while `find` saw the file (self-audit round 19, 2026-09-02). Both file "we
+  could not look" under "we looked and it was fine", which is what the manifest forbids in
+  as many words. Twenty-six walk sites in seventeen modules had no way to say it; the eight
+  in the shipped scanners now walk with `os.walk`, keep what it could not enter, and refuse
+  — `cannot read the tree: <path>: Permission denied`, exit 2 — while a directory that is
+  simply **not there** stays what it was, N/A: "not there" and "there and closed to me" are
+  different answers. Two further roads of the same class went with it. The two AST readers
+  call `read_text` without the `_text` guard round 5 gave the others, so a link pointing
+  nowhere — which the walk lists, because the name is there — was a raw `FileNotFoundError`
+  and exit 1, the code that means *findings*. And the registry scanner's `no such file`
+  finding was decided by an `is_file()` that **raises** rather than answers when the
+  directory around it is closed: a finding against the index may only be said by a reader
+  that could look. Proved by mutation, one road at a time.
+
+- **A project checked out under a dotted directory had its unnamed Dockerfiles filtered
+  away.** The sweep for Dockerfiles nobody named excludes `.git` and `.venv` copies, and it
+  did that by testing every part of the **absolute** path — so a checkout at
+  `~/.local/src/app`, or on any runner whose workspace carries a dotted segment, was told
+  `NA: no Dockerfile — nothing to check yet` over a `docker/Dockerfile.web` that was right
+  there (self-audit round 19, 2026-09-02). The walk now prunes dotted directories **of the
+  project**, which is what the rule always meant, and keeps the refusal above honest at the
+  same time: a directory nobody judges cannot refuse the verdict either.
+
 - **The paging wrapper could not tell rows from not-rows, and never stopped asking.**
   `gh.api_pages` promises `list[Any]` and built it with `rows.extend(...)`, which takes
   anything that iterates, over an answer `gh.api` is honestly typed `Any` — so an endpoint
