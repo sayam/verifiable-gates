@@ -1920,6 +1920,94 @@ def test_sarif_is_a_run_of_the_scans_and_refuses_the_other_two_questions(
         assert not (installed / "x.sarif").exists(), "nothing was written on a misuse"
 
 
+# ---------------------------------------------------- a location is a path under the root
+#
+# `is_absolute()` was the whole of "under the root", and `..` walked through it: a finding
+# naming `../outside.txt` was given that as its `uri`, because the operating system
+# resolves `root/..` happily and `is_file()` agreed (self-audit round 21, 2026-09-03). An
+# annotation there sends a reader out of the repository they are reading. Decided on the
+# path, not on what the path leads to: a symlink inside the tree keeps its location, since
+# the annotation lands on a file the repository has (owner's decision, 2026-09-04).
+
+
+def _located(project: pathlib.Path, gid: str, said: str) -> dict[str, Any] | None:
+    """What the log says about one finding line — through `sarif_log`, as a run does."""
+    manifest = gates_doctor.load_manifest(project / "tools" / "overlay.json")
+    outcomes: list[gates_doctor.Outcome] = [(gid, "found", [f"{gid}: {said}"], "")]
+    (result,) = gates_doctor.sarif_log(project, manifest, outcomes)["runs"][0]["results"]
+    assert result["message"]["text"] == said, "the finding is reported whatever its path"
+    locations = result.get("locations")
+    return None if locations is None else locations[0]["physicalLocation"]["artifactLocation"]
+
+
+@pytest.mark.parametrize(
+    ("named", "why"),
+    [
+        ("../outside.txt", "one step out of the root"),
+        ("inside/../../outside.txt", "out of the root through a directory that exists"),
+        ("../../etc/hostname", "further out, at a file that certainly exists"),
+        ("/etc/hostname", "absolute, which was the only case the old guard had"),
+    ],
+)
+def test_a_finding_that_names_a_path_outside_the_root_gets_no_location(
+    installed: pathlib.Path, tmp_path: pathlib.Path, named: str, why: str
+) -> None:
+    """The message still carries what the scanner said; only the annotation is withheld."""
+    (tmp_path / "outside.txt").write_text("a file a reader must not be sent to\n")
+    (installed / "inside").mkdir(exist_ok=True)
+
+    assert _located(installed, "adr-index-complete", f"{named}:1 said") is None, why
+
+
+def test_a_path_inside_the_root_still_gets_its_location(installed: pathlib.Path) -> None:
+    """The control for the four above: the guard refuses paths, not findings."""
+    (installed / "x.yml").write_text("uses: actions/checkout@v4\n", encoding="utf-8")
+
+    assert _located(installed, "actions-sha-pinned", "x.yml:1 floating") == {
+        "uri": "x.yml",
+        "uriBaseId": "%SRCROOT%",
+    }
+
+
+def test_a_symlink_inside_the_tree_keeps_its_location(
+    installed: pathlib.Path, tmp_path: pathlib.Path
+) -> None:
+    """Owner's decision, 2026-09-04: under the root is decided on the path, not on what the
+    path leads to. A project that keeps a vendored or shared directory as a link would
+    otherwise lose every annotation in it, and the annotation lands on a path the
+    repository really has."""
+    target = tmp_path / "elsewhere.yml"
+    target.write_text("uses: actions/checkout@v4\n", encoding="utf-8")
+    (installed / "linked.yml").symlink_to(target)
+
+    assert _located(installed, "actions-sha-pinned", "linked.yml:1 floating") == {
+        "uri": "linked.yml",
+        "uriBaseId": "%SRCROOT%",
+    }
+
+
+def test_the_climbing_path_reaches_the_log_through_a_real_run(installed: pathlib.Path) -> None:
+    """Through the shipped file, not a helper: a scanner a project replaced says a finding
+    about a path outside, and the log carries the sentence with no annotation."""
+    _plant(
+        installed,
+        "scan_adr_index.py",
+        "print('../../etc/hostname:1 a path outside the tree')\nraise SystemExit(1)\n",
+    )
+    out = installed / "gates.sarif"
+
+    done = run_doctor(installed, "--sarif", str(out))
+
+    assert done.returncode == 1
+    (result,) = [
+        r
+        for r in json.loads(out.read_text(encoding="utf-8"))["runs"][0]["results"]
+        if r["ruleId"] == "adr-index-complete"
+    ]
+    assert result["message"]["text"] == "../../etc/hostname:1 a path outside the tree"
+    assert "locations" not in result, "an annotation outside the repository being read"
+
+
 def test_a_sarif_that_cannot_be_written_is_a_sentence_after_the_report(
     installed: pathlib.Path,
 ) -> None:
