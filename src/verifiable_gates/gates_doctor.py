@@ -73,7 +73,17 @@ is the sentence the manifest forbids; a reader that reads invocations sees the
 truth. A location is attached only when the path the scanner named exists under
 the root — a location nobody can open is worse than none. The SARIF file that cannot
 be written is exit 2 with a sentence, after the report has been printed: the
-verdict stood, the artefact asked for did not arrive.
+verdict stood, the artefact asked for did not arrive. **A file already at that path
+is replaced only if it is this doctor's run over this root.** Two doctors over two
+trees given one `--sarif` path — a matrix job, a shared scratch file — left a log that
+parsed, held the later tree's run whole, and said nothing about the earlier tree's,
+whose answer was gone (self-audit round 20, 2026-09-03). The log is read back before
+the rename: another root's run, another tool's log, a file that is not a log, one that
+cannot be read or one too big to read back is left as it is, with a sentence naming
+what it holds and the same exit 2 — the verdict stood, the file asked for was not
+written. The read happens after the new log is written beside it and just before the
+rename, so the window in which two doctors finishing together both see nothing is
+the length of a read and a rename, not of a scan.
 
 exit 0 = clean · 1 = findings, or an incomplete install · 2 = called wrongly
 
@@ -93,7 +103,10 @@ import re
 import stat
 import subprocess
 import sys
-from typing import Any, TypeGuard
+from typing import TYPE_CHECKING, Any, TypeGuard
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
 
 
 def _is_manifest(raw: object) -> TypeGuard[dict[str, Any]]:
@@ -383,6 +396,10 @@ SARIF_SCHEMA = (
     "https://raw.githubusercontent.com/oasis-tcs/sarif-spec/master/Schemata/sarif-schema-2.1.0.json"
 )
 INFORMATION_URI = "https://github.com/sayam/verifiable-gates"
+# The most the doctor reads back from a file already at `--sarif`, to tell whose run
+# it is. A log of 18,000 results is under 10 MiB; a file past this is answered without
+# being read, since an input of the right kind but too large is a road round 19 walked.
+READ_BACK_CEILING = 64 * 1024 * 1024
 # `<path>:<line> …`, `<path>: …` or `<path> …` at the head of a finding line. Whether
 # it is a location is decided by the tree, not by the shape: see `_sarif_result`.
 LOCATION = re.compile(r"^(?P<path>[^\s:]+)(?::(?P<line>\d+))?:?(?:\s+|$)")
@@ -487,7 +504,11 @@ def _final_mode(target: pathlib.Path) -> int:
         return 0o666 & ~was
 
 
-def _write_whole(out: pathlib.Path, text: str) -> None:
+def _write_whole(
+    out: pathlib.Path,
+    text: str,
+    unless: Callable[[pathlib.Path], str | None] | None = None,
+) -> str | None:
     """The text as `out`, whole or not at all — a sibling file renamed over the target.
 
     `write_text` truncates first, and a reader arriving between that and the write — the
@@ -496,6 +517,12 @@ def _write_whole(out: pathlib.Path, text: str) -> None:
     package has one writer for this (`files.py`); this file is shipped standalone and
     may import nothing from it, so it carries the dozen lines (self-audit round 20,
     2026-09-03).
+
+    `unless`, given the target, answers a sentence when what is there must not be
+    replaced; it is asked after the sibling is complete and just before the rename, so
+    that what it saw is as close as a read can be to what the rename would remove. On a
+    sentence nothing is renamed, the sibling is removed, and the sentence is returned;
+    None means the text is at `out`.
     """
     target = out.resolve()
     beside = target.with_name(f".{target.name}.{os.getpid()}.tmp")
@@ -510,22 +537,79 @@ def _write_whole(out: pathlib.Path, text: str) -> None:
             h.flush()
             os.fsync(h.fileno())
         beside.chmod(_final_mode(target))
-        beside.replace(target)
+        held = unless(target) if unless is not None else None
+        if held is None:
+            beside.replace(target)
     except OSError:
         beside.unlink(missing_ok=True)
         raise
+    if held is not None:
+        beside.unlink(missing_ok=True)
+    return held
+
+
+def _not_this_run(target: pathlib.Path, root: pathlib.Path) -> str | None:
+    """A sentence when `target` holds something other than this doctor's run over `root`.
+
+    Read first, then answered — never asked about and then read. Nothing at the path is
+    the ordinary case and is None; so is this doctor's own earlier run over the same
+    root, which a re-run replaces. Everything else is named: a run over another root
+    (the answer that was being lost), another tool's log, a file that is not a log, one
+    that cannot be read — which cannot be told from another run, so it is not replaced
+    either — and one past `READ_BACK_CEILING`, answered without reading the rest.
+    """
+    try:
+        with target.open("rb") as h:
+            raw = h.read(READ_BACK_CEILING + 1)
+    except FileNotFoundError:
+        return None
+    except OSError as problem:
+        return f"cannot be read, so it cannot be told from another run: {problem}"
+    if len(raw) > READ_BACK_CEILING:
+        return f"is over {READ_BACK_CEILING} bytes, more than a log this doctor reads back"
+    return _whose_run(raw, root)
+
+
+def _whose_run(raw: bytes, root: pathlib.Path) -> str | None:
+    """A sentence unless `raw` is a log this doctor wrote over `root`."""
+    try:
+        run = json.loads(raw)["runs"][0]
+        tool = run["tool"]["driver"]["name"]
+        uri = run["originalUriBaseIds"]["%SRCROOT%"]["uri"]
+    except (ValueError, KeyError, IndexError, TypeError):
+        tool = uri = None
+    if not isinstance(tool, str) or not isinstance(uri, str):
+        return "is not a log this doctor wrote"
+    if tool != "verifiable-gates":
+        return f"is a log written by {tool}, not by this doctor"
+    if uri != root.as_uri() + "/":
+        return f"holds a run over {uri}, not over this root"
+    return None
 
 
 def write_sarif(
     out: pathlib.Path, root: pathlib.Path, manifest: dict[str, Any], outcomes: list[Outcome]
 ) -> bool:
-    """The log on disk, or a sentence on stderr and False — never a traceback."""
+    """The log on disk, or a sentence on stderr and False — never a traceback.
+
+    Two sentences, apart on purpose: a file that *cannot* be written, and one this
+    doctor *will not* write over because of what is already there.
+    """
+    text = json.dumps(sarif_log(root, manifest, outcomes), indent=2) + "\n"
     try:
-        _write_whole(out, json.dumps(sarif_log(root, manifest, outcomes), indent=2) + "\n")
+        held = _write_whole(out, text, unless=lambda target: _not_this_run(target, root))
     except OSError as problem:
         sys.stdout.flush()
         print(
             f"** cannot write the SARIF: {out}: {problem} — the report above stands",
+            file=sys.stderr,
+        )
+        return False
+    if held is not None:
+        sys.stdout.flush()
+        print(
+            f"** not writing the SARIF: {out} {held} — the report above stands;"
+            " name another file, or remove that one",
             file=sys.stderr,
         )
         return False

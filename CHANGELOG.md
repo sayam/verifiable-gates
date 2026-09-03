@@ -118,6 +118,27 @@ Notable changes to this project. The format follows
 
 ### Fixed
 
+- **A `--sarif` file that holds another tree's run is left as it is, and said so.** Two
+  doctors over two roots given the same `--sarif FILE` — a matrix job, a shared scratch
+  path — left a log that parsed, held the later tree's run whole, and said nothing about
+  the earlier tree's, whose answer was gone: the writer was already atomic (F6), so what
+  was lost was an answer, not bytes (self-audit round 20, 2026-09-03; measured at every
+  sequential pair and 30 of 30 concurrent rounds). The doctor now reads the file back
+  and replaces only **its own run over the same root**, the ordinary re-run; anything
+  else — a run over another root, another tool's log, a file that is not a log, one it
+  cannot read, one past a read-back ceiling of 64 MiB — is left where it is and named on
+  stderr, *not writing the SARIF: … holds a run over file:///…/, not over this root — the
+  report above stands; name another file, or remove that one*, exit 2 after the report,
+  the shape *cannot write the SARIF* already had. *Will not* and *cannot* are two
+  sentences on purpose. The read happens after the new log is complete beside the
+  target and just before the rename, so two doctors finishing together race over a
+  read and a rename rather than over a scan; the residual window is measured and
+  written in the pull request, not claimed closed. Proved by mutation: the read-back
+  not asked, another root's run accepted, another tool's log accepted, the read moved
+  before the write, the refused sibling left on disk, a refusal still answering
+  success, the ceiling dropped, an unreadable file treated as absent, and a non-string
+  tool name reaching the compare — each red on its own.
+
 - **An install still under way is no longer read as a bundle somebody edited.** The
   installer wrote its record last, so between the first copy and the last the tree held
   the new files under the old digests, and a `gates_doctor --installed` arriving in that
