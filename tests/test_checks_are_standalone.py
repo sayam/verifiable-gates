@@ -155,3 +155,83 @@ def test_a_copied_scanner_refuses_to_guess_its_argument(
 
     assert _run(copied).returncode == 2, "no argument should be a misuse, not a clean run"
     assert _run(copied, "a", "b").returncode == 2, "too many arguments should be a misuse"
+
+
+# ---------------------------------------------------------------- one guard, ten copies
+#
+# `_shown` and its `_ESCAPED` table are copied into every scanner and into the doctor,
+# because each is shipped alone into a project that has installed nothing and may import
+# no helper. Round 21 measured what happens when one copy is weaker than the others: a
+# file name carrying a newline turned one finding into two, and an ANSI escape erased the
+# finding printed above it. A copy is only as good as the test that holds it (L-0119), so
+# the *code* of the ten is compared here — the docstrings differ on purpose, since the
+# doctor's says why it is a second layer.
+
+GUARDED = [*SCANNERS, CHECKS.parent / "gates_doctor.py"]
+
+
+def _guard_source(path: pathlib.Path) -> tuple[str, str]:
+    """The escape table and the body of `_shown`, as AST rather than as text."""
+    tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
+    table = next(
+        node
+        for node in tree.body
+        if isinstance(node, ast.Assign)
+        and any(getattr(t, "id", "") == "_ESCAPED" for t in node.targets)
+    )
+    shown = next(
+        node for node in tree.body if isinstance(node, ast.FunctionDef) and node.name == "_shown"
+    )
+    body = [
+        n for n in shown.body if not (isinstance(n, ast.Expr) and isinstance(n.value, ast.Constant))
+    ]
+    return ast.dump(table.value), ast.dump(ast.Module(body=body, type_ignores=[]))
+
+
+def test_every_shipped_file_that_prints_a_finding_carries_the_guard() -> None:
+    """A scanner added without it would print a name straight from the tree."""
+    without = [p.name for p in GUARDED if "def _shown(" not in p.read_text(encoding="utf-8")]
+    assert without == [], f"shipped files with no _shown: {without}"
+
+
+@pytest.mark.parametrize("path", GUARDED[1:], ids=lambda p: p.name)
+def test_the_copies_of_the_guard_are_the_same_code(path: pathlib.Path) -> None:
+    """Byte-for-byte would be too strong (the docstrings differ) and "it exists" too weak:
+    what has to match is the table of escapes and the two operations `_shown` performs."""
+    assert _guard_source(path) == _guard_source(GUARDED[0]), (
+        f"{path.name}'s copy of _shown differs from {GUARDED[0].name}'s. The duplication is "
+        "deliberate — every copy changes in the same pull request, or one shipped file is "
+        "weaker than the rest (self-audit round 21, 2026-09-03)."
+    )
+
+
+@pytest.mark.parametrize("path", GUARDED, ids=lambda p: p.name)
+def test_the_guard_makes_one_line_of_whatever_it_is_given(path: pathlib.Path) -> None:
+    """Run each copy for real, not read: the property is what it returns."""
+    namespace: dict[str, object] = {}
+    exec(compile(path.read_text(encoding="utf-8"), str(path), "exec"), namespace)  # noqa: S102 — our own shipped file, read from disk
+    shown = namespace["_shown"]
+    assert callable(shown)
+
+    for raw, why in [
+        ("a\nb", "a newline forges a second finding line"),
+        ("a\rb", "a carriage return rewrites the line on a terminal"),
+        ("a\x1b[2K\x1b[Ab", "an ANSI escape erases the finding above"),
+        ("a\x00b", "a NUL truncates the line for some readers"),
+        ("a\x9bb", "a C1 byte is an escape to an 8-bit terminal"),
+        ("a\u202eb", "a bidi override reverses what is read"),
+        ("a\u200bb", "a zero-width space hides a difference"),
+    ]:
+        out = shown(raw)
+        assert "\n" not in out, why
+        assert "\r" not in out, why
+        assert out.isprintable(), f"{why}: {out!r}"
+        assert out.startswith("a"), out
+        assert out.endswith("b"), out
+
+    assert shown("docs/adr/0001-a.md") == "docs/adr/0001-a.md", "an ordinary name is untouched"
+    # Not Thai, deliberately: `tests/test_language_policy.py` keeps Thai to the two
+    # bilingual files, and a fixture is not a reason to make an exception.
+    assert shown("informe-año.md") == "informe-año.md", "an accented letter is not escaped"
+    assert shown("報告.md") == "報告.md", "letters outside Latin are not escaped either"
+    assert shown("0001-\udcff.md") == "0001-\\xff.md", "round 15's property still holds"

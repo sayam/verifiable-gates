@@ -28,18 +28,48 @@ import pathlib
 import re
 import sys
 
+# Characters a finding line may not carry, and what is printed instead. The C0 controls
+# and DEL break the line grammar or the terminal; the C1 range does the same through a
+# terminal that reads 8-bit escapes; the bidi and zero-width formats reorder or hide what
+# a reader is looking at. Anything else — every language's letters — is left alone.
+_ESCAPED = {
+    **{c: f"\\x{c:02x}" for c in (*range(0x20), 0x7F)},
+    **{
+        c: f"\\u{c:04x}"
+        for c in (
+            *range(0x80, 0xA0),
+            *range(0x200B, 0x2010),
+            *range(0x202A, 0x202F),
+            *range(0x2066, 0x206A),
+            0xFEFF,
+        )
+    },
+}
 
-def _shown(path: str | pathlib.Path) -> str:
-    """A path as text that can always be printed.
 
-    A file name here is bytes, not characters. One that is not UTF-8 arrives from the
-    directory listing carrying surrogates, and printing it raises `UnicodeEncodeError`:
-    a traceback and exit 1 — the code that means *findings* — from a scanner that had a
-    verdict to give, losing every finding it had already collected (self-audit round 15,
-    2026-09-01). A name nobody can decode is still a name; it is shown with its bytes
-    escaped, and the verdict stands.
+def _shown(text: str | pathlib.Path) -> str:
+    """Text that can always be printed, and is always **one line**.
+
+    Two properties, and the second was learnt after the first. A file name here is bytes,
+    not characters: one that is not UTF-8 arrives from the directory listing carrying
+    surrogates, and printing it raised `UnicodeEncodeError` — a traceback and exit 1, the
+    code that means *findings*, from a scanner that had a verdict to give (self-audit
+    round 15, 2026-09-01). That is the `backslashreplace` below.
+
+    The name then stood for "safe to print", which it was not. A file name on Linux may
+    carry a newline, and this scanner's caller reads one line as one finding: a file named
+    `wipe\ndelete-means-soft-delete: forged\nx.py` turned one finding into two in the
+    report, one SARIF result into three, and put a line no scanner wrote into an agent's
+    context. An ANSI escape in a name (`\x1b[2K\x1b[A`) erased the finding printed above
+    it (self-audit round 21, 2026-09-03). So a control character, a C1 byte, a bidi
+    override and a zero-width format are shown escaped as well, and what is printed is one
+    line whatever it was made of.
+
+    This function is **copied into all nine scanners and the doctor on purpose** — each is
+    shipped alone into a project that has installed nothing — and the copies are held
+    byte-identical by `tests/test_checks_are_standalone.py`.
     """
-    return os.fsencode(str(path)).decode("utf-8", "backslashreplace")
+    return os.fsencode(str(text)).decode("utf-8", "backslashreplace").translate(_ESCAPED)
 
 
 class _UnreadableError(Exception):
@@ -335,7 +365,7 @@ def _judge(root: pathlib.Path) -> int:
     findings += _supersession_findings(adr_dir, on_disk)
 
     for finding in findings:
-        print(f"adr-index-complete: {finding}")
+        print(f"adr-index-complete: {_shown(finding)}")
     return 1 if findings else 0
 
 

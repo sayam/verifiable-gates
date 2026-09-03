@@ -150,6 +150,30 @@ Notable changes to this project. The format follows
 
 ### Fixed
 
+- **A finding is one line, whatever the tree it read was named.** A file name on Linux may
+  carry a newline, and the doctor reads one line of a scanner's output as one finding: a
+  `.py` file named `wipe\ndelete-means-soft-delete: forged\nx.py` turned one finding into
+  **two** in the report, one SARIF result into **three**, and put a line no scanner wrote
+  into an agent's context through the edit hook — `ruleId` and all, since a forged line is
+  attributed to whichever gate was speaking. A name carrying `\x1b[2K\x1b[A` reached the
+  report and the SARIF `uri`, where it erases the finding printed above it in any terminal
+  (self-audit round 21, 2026-09-03). `_shown` — added in round 15 for *encoding*, and read
+  ever since as if it meant *safe to print* — now also escapes what breaks a line or moves
+  a cursor: the C0 controls and DEL, the C1 range, the bidi overrides and the zero-width
+  formats. Letters are untouched, in every language. It is applied to the whole finding
+  line now, not only to the names inside it, so a slice of file content is held to it too.
+  **The doctor carries the same guard as a second layer**, with its boundary written down:
+  a scanner that prints two lines *is* reporting two findings and the doctor cannot
+  second-guess that, so what the second layer stops is everything a line can carry
+  **inside** itself, however the scanner came by it. The nine copies and the doctor's are
+  held to the same code by `tests/test_checks_are_standalone.py`, each run for real
+  against a newline, a carriage return, an ANSI escape, a NUL, a C1 byte, a bidi override
+  and a zero-width space — a copy is only as good as the test that holds it. One
+  consequence, deliberate: a file whose name carries such a character gets a message and
+  **no** SARIF location, because the escaped name is not a path anybody can open, and the
+  rule that a location must point at a real file under the root is older than this change.
+  `SUPPRESSED_LINES` moves 117 → 118 for the `exec` that runs each shipped copy for real.
+
 - **The rules an agent is handed are read off a bundle that is still the one installed.**
   `tools/gates_doctor.py --rules` is the mode a project's `AGENTS.md` points its agents at,
   and the file it reads — `tools/overlay.json` — lives inside the project it holds to

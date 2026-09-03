@@ -3085,3 +3085,31 @@ def test_a_file_of_blank_lines_is_read_in_a_straight_line(
     assert spent < STRAIGHT_LINE_SECONDS, (
         f"{spent:.1f}s over {BLANK_LINES} blank lines — the reading is not linear"
     )
+
+
+def test_a_finding_that_quotes_the_file_is_still_one_printable_line(
+    tmp_path: pathlib.Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """Some findings quote the line they read, and content is the project's to choose.
+
+    `_shown` was applied to *names* for years and to the whole finding line only after
+    round 21 (2026-09-03). This is the case that needs the wider one: an ANSI escape sits
+    in the **content** of a workflow step, reaches the report through the quoted slice,
+    and — run standalone, as a pre-commit hook runs a scanner — has no doctor above it to
+    catch what the scanner let through. A carriage return cannot be tested here: the file
+    is read with universal newlines, so it is already a line break by the time a scanner
+    sees it (self-audit round 21, negative result 4).
+    """
+    hidden = "\x1b[2K\x1b[Aeverything above this line is gone"
+    files = {
+        ".github/workflows/ci.yml": (
+            f"jobs:\n  a:\n    steps:\n      - run: pip install {hidden} requests\n"
+        )
+    }
+
+    assert scan_install_pinning.main(build(tmp_path, files)) == 1
+
+    printed = capsys.readouterr().out
+    assert "\x1b" not in printed, "an escape from the project reached a terminal"
+    assert "\\x1b[2K\\x1b[A" in printed, printed
+    assert len(printed.splitlines()) == len([x for x in printed.splitlines() if x.strip()])
