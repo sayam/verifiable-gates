@@ -21,6 +21,7 @@ Three properties, and the second is the one that decays quietly:
 from __future__ import annotations
 
 import contextlib
+import io
 import json
 import os
 import pathlib
@@ -34,9 +35,9 @@ from typing import TYPE_CHECKING, Any
 
 import pytest
 import yaml
-from bundle import DOCTOR, do_install, run_doctor
+from bundle import DOCTOR, do_install, outside_stdlib, run_doctor
 
-from verifiable_gates import files, gates_doctor
+from verifiable_gates import edit_hook, files, gates_doctor
 from verifiable_gates import install as install_module
 from verifiable_gates import manifest as manifest_module
 
@@ -2340,12 +2341,15 @@ ACTION = ROOT_OF_REPO / "action.yml"
 HOOKS = ROOT_OF_REPO / ".pre-commit-hooks.yaml"
 
 
-def _bash(script: str, cwd: pathlib.Path, env: dict[str, str]) -> subprocess.CompletedProcess[str]:
+def _bash(
+    script: str, cwd: pathlib.Path, env: dict[str, str], stdin: str = ""
+) -> subprocess.CompletedProcess[str]:
     """A block lifted out of the action or a hook entry, run as the runner would."""
     return subprocess.run(  # noqa: S603 — a block from this repository's own action, on fixed strings
         ["bash", "-c", script],  # noqa: S607 — bash from PATH, as the runner finds it
         cwd=cwd,
         env={"PATH": os.environ["PATH"], **env},
+        input=stdin,
         capture_output=True,
         text=True,
         check=False,
@@ -2450,3 +2454,277 @@ def test_a_hook_entry_runs_the_scanner_the_project_installed(installed: pathlib.
     assert _bash(hooks["actions-sha-pinned"]["entry"], nothing, {}).returncode != 0, (
         "a hook over a tree with no bundle must not pass"
     )
+
+
+# ---------------------------------------------------------------- the third front door
+#
+# `hooks/hooks.json` is how a project that installed the bundle hears from it *at edit
+# time*, inside Claude Code, without writing the line itself: after an Edit or a Write the
+# plugin runs `src/verifiable_gates/edit_hook.py`, which runs the doctor the project
+# installed under tools/ — never a copy the plugin carries — and hands the report back to
+# the agent as feedback. Off unless VERIFIABLE_GATES_AT_EDIT=1. It fires after the edit
+# and refuses nothing: a PreToolUse hook would judge a file that does not exist yet.
+
+HOOKS_JSON = ROOT_OF_REPO / "hooks" / "hooks.json"
+EDIT_HOOK = ROOT_OF_REPO / "src" / "verifiable_gates" / "edit_hook.py"
+ON = {"VERIFIABLE_GATES_AT_EDIT": "1"}
+A_FINDING = "print('actions-sha-pinned: x.yml:1 floating tag')\nraise SystemExit(1)\n"
+
+
+def _event(cwd: pathlib.Path, path: pathlib.Path | str, tool: str = "Edit") -> str:
+    """A PostToolUse event as Claude Code writes it, by the fields the docs name."""
+    return json.dumps(
+        {
+            "session_id": "s",
+            "cwd": str(cwd),
+            "hook_event_name": "PostToolUse",
+            "tool_name": tool,
+            "tool_input": {"file_path": str(path), "old_string": "a", "new_string": "b"},
+            "tool_response": {"filePath": str(path), "success": True},
+        }
+    )
+
+
+def _hook(event: str, environ: dict[str, str]) -> tuple[int, str]:
+    err = io.StringIO()
+    code = edit_hook.main([], stdin=io.StringIO(event), stderr=err, environ=environ)
+    return code, err.getvalue()
+
+
+def _plugin_hook() -> dict[str, Any]:
+    loaded = json.loads(HOOKS_JSON.read_text(encoding="utf-8"))
+    (group,) = loaded["hooks"]["PostToolUse"]
+    (hook,) = group["hooks"]
+    typed: dict[str, Any] = {"matcher": group["matcher"], **hook}
+    return typed
+
+
+def test_the_plugin_hook_fires_after_an_edit_and_names_a_script_that_exists() -> None:
+    """After, never before: the file judged is the one on disk. The command names the
+    script through the plugin's own root and names no doctor — the script finds the
+    project's."""
+    loaded = json.loads(HOOKS_JSON.read_text(encoding="utf-8"))
+    assert set(loaded) == {"hooks"}
+    assert set(loaded["hooks"]) == {"PostToolUse"}, "after the edit has landed, never before"
+    hook = _plugin_hook()
+    assert hook["matcher"] == "Edit|Write"
+    assert hook["type"] == "command"
+    assert hook["command"].startswith('python3 "${CLAUDE_PLUGIN_ROOT}/'), hook["command"]
+    named = hook["command"].split("${CLAUDE_PLUGIN_ROOT}/", 1)[1].rstrip('"')
+    assert ROOT_OF_REPO / named == EDIT_HOOK, "the command runs another file"
+    assert EDIT_HOOK.is_file()
+    assert "tools/" not in hook["command"], "the command names no doctor; the script finds it"
+    assert hook["timeout"] > edit_hook.DOCTOR_TIMEOUT, "the hook's ceiling is above the doctor's"
+    plugin = json.loads((ROOT_OF_REPO / ".claude-plugin" / "plugin.json").read_text("utf-8"))
+    assert ROOT_OF_REPO / plugin["hooks"] == HOOKS_JSON, "the plugin manifest names this file"
+
+
+def test_the_edit_hook_runs_under_a_bare_python3() -> None:
+    """It runs under whatever `python3` the user has, in a project that installed nothing
+    of this package — like every shipped file, and for the same reason."""
+    assert outside_stdlib(EDIT_HOOK) == set()
+    assert "from verifiable_gates" not in EDIT_HOOK.read_text(encoding="utf-8")
+
+
+def test_the_hook_is_off_unless_switched_on(installed: pathlib.Path) -> None:
+    """Off is silent and claims nothing — the doctor was not run, so nothing was checked."""
+    _plant(installed, "scan_workflow_pinning.py", A_FINDING)
+    event = _event(installed, installed / "x.yml")
+    for environ in ({}, {"VERIFIABLE_GATES_AT_EDIT": "0"}, {"VERIFIABLE_GATES_AT_EDIT": ""}):
+        assert _hook(event, environ) == (0, ""), environ
+
+
+def test_a_switch_set_to_anything_else_is_said_and_not_read_as_off(installed: pathlib.Path) -> None:
+    """`yes` read as off would leave somebody believing their edits were checked."""
+    code, err = _hook(_event(installed, installed / "x.yml"), {"VERIFIABLE_GATES_AT_EDIT": "yes"})
+    assert code == 2
+    assert "verifiable-gates: VERIFIABLE_GATES_AT_EDIT='yes' is neither 1 nor 0" in err
+    assert "nothing was checked" in err
+
+
+def test_a_clean_tree_is_silent_and_a_finding_comes_back_as_the_doctors_report(
+    installed: pathlib.Path,
+) -> None:
+    event = _event(installed, installed / "x.yml")
+    assert _hook(event, ON) == (0, "")
+
+    _plant(installed, "scan_workflow_pinning.py", A_FINDING)
+    code, err = _hook(event, ON)
+
+    assert code == 2
+    assert err.startswith(
+        f"verifiable-gates: after the edit to {installed / 'x.yml'},"
+        " tools/gates_doctor.py (exit 1) says:\n"
+    )
+    assert "[found] actions-sha-pinned" in err
+    assert "actions-sha-pinned: x.yml:1 floating tag" in err
+    assert "Traceback" not in err
+
+
+def test_a_scan_that_could_not_answer_is_fed_back_as_red_too(installed: pathlib.Path) -> None:
+    """Could not look is not clean — the doctor says [error] and exits 1; the hook relays it."""
+    _plant(installed, "scan_workflow_pinning.py", "raise SystemExit(2)\n")
+    code, err = _hook(_event(installed, installed / "x.yml"), ON)
+    assert code == 2
+    assert "(exit 1) says:" in err
+    assert "[error] actions-sha-pinned" in err
+
+
+def test_a_doctor_that_cannot_answer_at_all_comes_back_with_its_own_sentence(
+    installed: pathlib.Path,
+) -> None:
+    (installed / "tools" / "overlay.json").write_text("[]\n", encoding="utf-8")
+    code, err = _hook(_event(installed, installed / "x.yml"), ON)
+    assert code == 2
+    assert "(exit 2) says:" in err
+    assert "cannot read the manifest" in err
+    assert "Traceback" not in err
+
+
+def test_an_edit_outside_the_project_is_left_alone(
+    installed: pathlib.Path, tmp_path: pathlib.Path
+) -> None:
+    """An edit elsewhere cannot have moved this project's verdict; a relative path is
+    inside; an event with no path at all is answered by the doctor, since the tree may
+    have changed."""
+    _plant(installed, "scan_workflow_pinning.py", A_FINDING)
+    assert _hook(_event(installed, tmp_path / "elsewhere" / "notes.md"), ON) == (0, "")
+    assert _hook(_event(installed, "x.yml"), ON)[0] == 2
+    bare = json.dumps({"cwd": str(installed), "tool_name": "Write", "tool_input": {}})
+    assert _hook(bare, ON)[0] == 2
+    assert _hook(json.dumps({"cwd": str(installed), "tool_input": "?"}), ON)[0] == 2
+
+
+def test_claude_codes_project_dir_wins_over_the_events_cwd(
+    installed: pathlib.Path, tmp_path: pathlib.Path
+) -> None:
+    other = tmp_path / "somewhere-else"
+    other.mkdir()
+    _plant(installed, "scan_workflow_pinning.py", A_FINDING)
+    code, err = _hook(
+        _event(other, installed / "x.yml"), {**ON, "CLAUDE_PROJECT_DIR": str(installed)}
+    )
+    assert code == 2
+    assert "[found] actions-sha-pinned" in err
+
+    for event in (
+        json.dumps({"tool_input": {"file_path": str(installed / "x.yml")}}),
+        json.dumps({"cwd": "", "tool_input": {}}),
+        json.dumps({"cwd": 7, "tool_input": {}}),
+    ):
+        code, err = _hook(event, ON)
+        assert code == 2
+        assert "neither CLAUDE_PROJECT_DIR nor the event's cwd names the project" in err
+
+
+def test_the_switch_on_with_no_bundle_is_a_sentence_naming_the_installer(
+    tmp_path: pathlib.Path,
+) -> None:
+    """Silence here would be the hook claiming a check it never made."""
+    empty = tmp_path / "nothing-installed"
+    empty.mkdir()
+    code, err = _hook(_event(empty, empty / "a.py"), ON)
+    assert code == 2
+    assert err.startswith(f"verifiable-gates: no bundle installed under {empty.resolve()}")
+    assert "python -m verifiable_gates.install" in err, "it says what to do"
+    assert "VERIFIABLE_GATES_AT_EDIT=0" in err, "and how to turn the hook off instead"
+    assert "says:" not in err, "there is no doctor here to say anything"
+    assert "Traceback" not in err
+
+
+@pytest.mark.parametrize("raw", ["", "not json", "[1, 2]", '"a string"', "7"])
+def test_something_that_is_not_a_hook_event_is_said(raw: str) -> None:
+    code, err = _hook(raw, ON)
+    assert code == 2
+    assert "verifiable-gates: stdin is not a hook event" in err
+    assert "nothing was checked" in err
+    assert "Traceback" not in err
+
+
+def test_an_argument_is_a_misuse() -> None:
+    err = io.StringIO()
+    assert edit_hook.main(["--root", "."], stdin=io.StringIO("{}"), stderr=err, environ=ON) == 2
+    assert "takes no arguments" in err.getvalue()
+
+
+def test_a_doctor_that_hangs_is_a_sentence_not_a_wait_without_end(
+    installed: pathlib.Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    _plant(installed, "scan_workflow_pinning.py", "import time\ntime.sleep(5)\n")
+    monkeypatch.setattr(edit_hook, "DOCTOR_TIMEOUT", 0.5)
+    code, err = _hook(_event(installed, installed / "x.yml"), ON)
+    assert code == 2
+    assert err == (
+        "verifiable-gates: tools/gates_doctor.py did not answer within 0.5s — nothing was decided\n"
+    )
+
+
+def test_a_doctor_that_cannot_be_started_is_a_sentence(
+    installed: pathlib.Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    def refuse(*_args: object, **_kwargs: object) -> None:
+        raise PermissionError(13, "Permission denied")
+
+    monkeypatch.setattr(subprocess, "run", refuse)
+    code, err = _hook(_event(installed, installed / "x.yml"), ON)
+    assert code == 2
+    assert err == (
+        "verifiable-gates: tools/gates_doctor.py could not be run: [Errno 13] Permission"
+        " denied — nothing was decided\n"
+    )
+    assert "says:" not in err, "the run never happened; these are the hook's own words"
+
+
+def test_a_doctor_that_is_there_but_nobody_can_read_is_a_sentence_too(
+    installed: pathlib.Path,
+) -> None:
+    """Two roads, not one: *no doctor* names the installer, a doctor nobody can **open**
+    names the reason. The hook opens the file itself before running it, because the
+    interpreter's own failure to open a script is exit 2 in the interpreter's words and
+    not the sentence a reader needs (round 20's shape, in the hook's hands)."""
+    with _nobody_can_read(installed / "tools" / "gates_doctor.py"):
+        code, err = _hook(_event(installed, installed / "x.yml"), ON)
+
+    assert code == 2
+    assert err == (
+        "verifiable-gates: tools/gates_doctor.py could not be run: [Errno 13] Permission"
+        f" denied: '{installed / 'tools' / 'gates_doctor.py'}' — nothing was decided\n"
+    )
+    assert "no bundle installed" not in err, "it is there — it cannot be read"
+    assert "says:" not in err, "the doctor never ran; these are the hook's own words"
+
+
+def test_a_report_past_the_ceiling_is_cut_with_a_sentence(
+    installed: pathlib.Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A reason of megabytes in the agent's context is round 19's shape; the cut says
+    how much is missing and where the whole report is."""
+    lines = "\n".join(f"print('actions-sha-pinned: x.yml:{n} floating tag')" for n in range(3000))
+    _plant(installed, "scan_workflow_pinning.py", lines + "\nraise SystemExit(1)\n")
+    monkeypatch.setattr(edit_hook, "REASON_CEILING", 2048)
+    code, err = _hook(_event(installed, installed / "x.yml"), ON)
+    assert code == 2
+    assert len(err.encode("utf-8")) < 2048 + 400, len(err)
+    assert "more bytes not shown — run python3 tools/gates_doctor.py --root ." in err
+    assert "x.yml:2999" not in err
+
+
+def test_the_hook_runs_for_real_as_claude_code_would_run_it(installed: pathlib.Path) -> None:
+    """The exact command from hooks.json, the plugin root substituted, the event on stdin:
+    nothing on stdout ever (Claude Code shows exit-0 stdout to nobody), the report on
+    stderr with exit 2 (which it hands to the agent), and silence when off."""
+    command = _plugin_hook()["command"]
+    plugin = {"CLAUDE_PLUGIN_ROOT": str(ROOT_OF_REPO)}
+    event = _event(installed, installed / "x.yml")
+
+    clean = _bash(command, installed, {**plugin, "CLAUDE_PROJECT_DIR": str(installed), **ON}, event)
+    assert (clean.returncode, clean.stdout, clean.stderr) == (0, "", "")
+
+    _plant(installed, "scan_workflow_pinning.py", A_FINDING)
+    found = _bash(command, installed, {**plugin, "CLAUDE_PROJECT_DIR": str(installed), **ON}, event)
+    assert found.returncode == 2
+    assert found.stdout == ""
+    assert "[found] actions-sha-pinned" in found.stderr
+
+    off = _bash(command, installed, plugin, event)
+    assert (off.returncode, off.stdout, off.stderr) == (0, "", "")

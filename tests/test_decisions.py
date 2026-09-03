@@ -138,6 +138,8 @@ HELD = {
     "agent-instructions-point-and-do-not-copy": "",
     "text-is-the-default-sarif-is-a-format": "",
     "ci-runs-the-bundle-the-project-installed": "",
+    # 2026-09-03: the third front door judges the tree after the edit, and refuses nothing.
+    "the-edit-hook-reports-and-does-not-refuse": "",
 }
 
 # The rows whose `expires when` is `Never` — an expiry rewritten to "Never" was
