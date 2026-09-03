@@ -2091,7 +2091,7 @@ def test_the_sarif_is_written_privately_and_ends_at_the_files_own_mode(
     2026-09-03)."""
     manifest = gates_doctor.load_manifest(installed / "tools" / "overlay.json")
     out = installed / "gates.sarif"
-    out.write_text("{}\n", encoding="utf-8")
+    assert gates_doctor.write_sarif(out, installed, manifest, []), "an earlier run of this root"
     out.chmod(0o640)
     seen: list[set[int]] = []
     flush = os.fsync
@@ -2137,6 +2137,195 @@ def test_the_sarif_is_written_whole(installed: pathlib.Path) -> None:
 
     assert set(seen) <= {big, small}, sorted({len(s) for s in seen})
     assert not list(installed.glob(".*.tmp"))
+
+
+# ---------------------------------------------------------------- one `--sarif` path, two trees
+#
+# Two doctors over two roots given the same `--sarif FILE` — a matrix job, a shared
+# scratch path — left a log that parsed, held the later tree's run whole, and said
+# nothing about the earlier tree's, whose answer was gone: atomic already, so what was
+# lost was an answer, not bytes (self-audit round 20, 2026-09-03; measured at 30 of 30
+# concurrent rounds and every sequential one). The doctor now reads the file back just
+# before the rename and replaces only its own run over the same root; anything else is
+# left as it is and named on stderr, exit 2 after the report — the shape "cannot write"
+# already has. The read is after the sibling is complete, so two doctors finishing
+# together race over a read and a rename, not over a scan.
+
+
+def _another_project(tmp_path: pathlib.Path, bundle_copy: pathlib.Path) -> pathlib.Path:
+    other = tmp_path / "other"
+    assert do_install(other, bundle_copy) == 0
+    return other
+
+
+def _root_uri(project: pathlib.Path) -> str:
+    return project.resolve().as_uri() + "/"
+
+
+def test_a_sarif_holding_another_roots_run_is_left_as_it_is_and_said_so(
+    installed: pathlib.Path, tmp_path: pathlib.Path, bundle_copy: pathlib.Path
+) -> None:
+    """The shipped doctor, two trees, one path: the second report is printed, the file
+    still holds the first tree's run, and exit 2 says the file asked for was not written."""
+    other = _another_project(tmp_path, bundle_copy)
+    out = tmp_path / "shared.sarif"
+    assert run_doctor(installed, "--sarif", str(out)).returncode == 0
+    before = out.read_bytes()
+
+    done = run_doctor(other, "--sarif", str(out))
+
+    assert done.returncode == 2
+    assert "[   NA] delete-means-soft-delete" in done.stdout, "the report printed first"
+    assert (
+        f"** not writing the SARIF: {out} holds a run over {_root_uri(installed)},"
+        " not over this root — the report above stands; name another file, or remove that one"
+    ) in done.stderr
+    assert "cannot write" not in done.stderr, "will not is not cannot"
+    assert "Traceback" not in done.stderr
+    assert out.read_bytes() == before, "the first tree's answer is still there"
+    assert not list(tmp_path.glob(".*.tmp")), "the refused log was removed"
+
+
+def test_a_sarif_over_the_same_root_is_replaced_and_the_verdict_is_the_exit(
+    installed: pathlib.Path,
+) -> None:
+    """A re-run over the same tree is the ordinary case: the file is replaced without a
+    word, and the exit code is the verdict's, not the writer's."""
+    out = installed / "gates.sarif"
+    assert run_doctor(installed, "--sarif", str(out)).returncode == 0
+    _plant(
+        installed,
+        "scan_workflow_pinning.py",
+        "print('actions-sha-pinned: x.yml:1 actions/checkout@v4 is a floating tag')\n"
+        "raise SystemExit(1)\n",
+    )
+    done = run_doctor(installed, "--sarif", str(out))
+    assert done.returncode == 1
+    assert "SARIF" not in done.stderr
+    log = json.loads(out.read_text(encoding="utf-8"))
+    assert len(log["runs"][0]["results"]) == 1, "the later run is the one in the file"
+
+
+@pytest.mark.parametrize(
+    ("planted", "sentence"),
+    [
+        (b"", "is not a log this doctor wrote"),
+        (b"{}\n", "is not a log this doctor wrote"),
+        (b"\x00 not json", "is not a log this doctor wrote"),
+        (b'{"runs": "not a list"}', "is not a log this doctor wrote"),
+        (b'{"runs": []}', "is not a log this doctor wrote"),
+        (
+            json.dumps(
+                {
+                    "runs": [
+                        {
+                            "tool": {"driver": {"name": 7}},
+                            "originalUriBaseIds": {"%SRCROOT%": {"uri": "file:///x/"}},
+                        }
+                    ]
+                }
+            ).encode(),
+            "is not a log this doctor wrote",
+        ),
+        (
+            json.dumps(
+                {
+                    "runs": [
+                        {
+                            "tool": {"driver": {"name": "semgrep"}},
+                            "originalUriBaseIds": {"%SRCROOT%": {"uri": "file:///x/"}},
+                        }
+                    ]
+                }
+            ).encode(),
+            "is a log written by semgrep, not by this doctor",
+        ),
+    ],
+)
+def test_a_sarif_path_holding_something_else_is_not_written_over(
+    installed: pathlib.Path, capsys: pytest.CaptureFixture[str], planted: bytes, sentence: str
+) -> None:
+    """A path that holds another tool's log, or something that is not a log at all, is
+    somebody's file; the doctor names what it found and leaves it."""
+    manifest = gates_doctor.load_manifest(installed / "tools" / "overlay.json")
+    out = installed / "gates.sarif"
+    out.write_bytes(planted)
+
+    assert not gates_doctor.write_sarif(out, installed, manifest, [])
+
+    assert f"** not writing the SARIF: {out} {sentence}" in capsys.readouterr().err
+    assert out.read_bytes() == planted
+    assert not list(installed.glob(".*.tmp"))
+
+
+def test_a_sarif_path_nobody_can_read_is_not_written_over(
+    installed: pathlib.Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """A file the doctor cannot read cannot be told from another run, so it is not
+    replaced either — read first, the exception answered, never `exists()` then read."""
+    manifest = gates_doctor.load_manifest(installed / "tools" / "overlay.json")
+    out = installed / "gates.sarif"
+    assert gates_doctor.write_sarif(out, installed, manifest, [])
+    before = out.read_bytes()
+
+    with _nobody_can_read(out):
+        assert not gates_doctor.write_sarif(out, installed, manifest, [])
+        err = capsys.readouterr().err
+
+    assert f"** not writing the SARIF: {out} cannot be read, so it cannot be told" in err
+    assert "Traceback" not in err
+    assert out.read_bytes() == before
+    assert not list(installed.glob(".*.tmp"))
+
+
+def test_a_sarif_past_the_read_back_ceiling_is_answered_without_being_read(
+    installed: pathlib.Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """An input of the right kind but too large is answered, not read (round 19's road):
+    the doctor's own run, one byte over the ceiling, is still left alone and named."""
+    manifest = gates_doctor.load_manifest(installed / "tools" / "overlay.json")
+    out = installed / "gates.sarif"
+    assert gates_doctor.write_sarif(out, installed, manifest, [])
+    before = out.read_bytes()
+    monkeypatch.setattr(gates_doctor, "READ_BACK_CEILING", len(before) - 1)
+
+    assert not gates_doctor.write_sarif(out, installed, manifest, [])
+
+    assert (
+        f"** not writing the SARIF: {out} is over {len(before) - 1} bytes, more than a log"
+        " this doctor reads back"
+    ) in capsys.readouterr().err
+    assert out.read_bytes() == before
+
+
+def test_the_read_back_happens_after_the_new_log_is_complete(
+    installed: pathlib.Path,
+    tmp_path: pathlib.Path,
+    bundle_copy: pathlib.Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """Two doctors finishing together: the one whose rename comes second must see the
+    first's file. The read is placed after the sibling is complete — here the other
+    tree's run lands at `fsync`, the last thing before the rename, and the doctor still
+    refuses. A read placed before the write would have seen nothing and renamed over it."""
+    other = _another_project(tmp_path, bundle_copy)
+    manifest = gates_doctor.load_manifest(installed / "tools" / "overlay.json")
+    out = tmp_path / "shared.sarif"
+    flush = os.fsync
+
+    def land_the_other_run(handle: int) -> None:
+        flush(handle)
+        monkeypatch.setattr(os, "fsync", flush)
+        out.write_text(json.dumps(gates_doctor.sarif_log(other, manifest, [])), encoding="utf-8")
+
+    monkeypatch.setattr(os, "fsync", land_the_other_run)
+    assert not gates_doctor.write_sarif(out, installed, manifest, [])
+
+    assert f"holds a run over {_root_uri(other)}, not over this root" in capsys.readouterr().err
+    held = json.loads(out.read_text(encoding="utf-8"))
+    assert held["runs"][0]["originalUriBaseIds"]["%SRCROOT%"]["uri"] == _root_uri(other)
+    assert not list(tmp_path.glob(".*.tmp"))
 
 
 # ---------------------------------------------------------------- the two front doors

@@ -2331,6 +2331,29 @@ gates:
       subprocess where a wrong exit code is easy to lose.
     proved_by:
       - kind: mutation
+        ref: pr/232
+        date: 2026-09-03
+        caught: >-
+          Two doctors over two trees, given one `--sarif` path, both wrote it and one
+          tree's answer was gone without a word — the writer has been atomic since the
+          round before, so what was lost was an answer, not bytes (self-audit round 20,
+          2026-09-03: every sequential pair, and 30 of 30 concurrent rounds). The file is
+          read back at the rename now, and only this doctor's own run over the same root
+          is replaced; another root's run, another tool's log, something that is not a
+          log, one that cannot be read and one past a read-back ceiling are each left
+          where they are and named. Nine planted defects red on their own here: the
+          read-back not asked for at all, another root's run accepted, another tool's log
+          accepted, the read moved to before the new log is written, the refused sibling
+          left behind on disk, a refusal still answering success so the exit code stayed
+          the verdict's, the read-back ceiling dropped, a file nobody can read treated as
+          absent and overwritten, and a non-string tool name reaching the comparison
+          instead of being said out loud. **The fourth is the one only one test could
+          find.** With the read placed before the new log is written the file still ends
+          up correct in every sequential run, and every other test passes; only the seam
+          that lands the other tree's run at `fsync` — the last moment before the rename —
+          tells a read-at-rename from a read-before-write, which is L-0124's shape a
+          second time: a fix on the writer's side leaves a window on the reader's.
+      - kind: mutation
         ref: pr/231
         date: 2026-09-03
         caught: >-

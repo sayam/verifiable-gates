@@ -148,7 +148,9 @@ scanner here can decide, so no instruction stands without a gate behind it. And
 `gates_doctor --sarif FILE` writes the same run as SARIF 2.1.0 for code scanning,
 reviewdog or an IDE — a finding is a result, while `NA` and a scan that did not answer
 are notifications on the invocation, never results, so a reader counting results cannot
-mistake "could not look" for "looked and found nothing".
+mistake "could not look" for "looked and found nothing". A file already at that path is
+replaced only if it is this doctor's run over the same root; another tree's run, or
+anything else, is left where it is and named — two trees given one path lose no answer.
 
 **What the two pinning checkers read.** `ci-tools-hash-pinned` and
 `actions-sha-pinned` read every workflow, every composite action a workflow names
@@ -294,7 +296,8 @@ doctor ขึ้นต้นด้วย *การติดตั้งคร�
 ชี้มาหา: อ่านตอนรันจาก manifest ที่ติดตั้งอยู่ การอัปเกรดจึงทิ้ง agent ไว้กับกฎเมื่อวานไม่ได้ และมีเฉพาะกฎที่ตัวสแกน
 ตรงนี้ตัดสินได้ จึงไม่มีคำสั่งข้อไหนยืนอยู่โดยไม่มีด่านหนุนหลัง · และ `gates_doctor --sarif FILE` เขียนผลรอบเดียวกันเป็น SARIF 2.1.0
 ให้ code scanning, reviewdog หรือ IDE — finding เป็น result ส่วน `NA` กับสแกนที่ตอบไม่ได้เป็น notification บน invocation ไม่ใช่ result
-คนที่นับ result จึงเข้าใจ "ดูไม่ได้" เป็น "ดูแล้วไม่เจอ" ไม่ได้ · ตัวตรวจ pin อ่าน workflow ทุกไฟล์
+คนที่นับ result จึงเข้าใจ "ดูไม่ได้" เป็น "ดูแล้วไม่เจอ" ไม่ได้ · ไฟล์ที่มีอยู่แล้วที่ path นั้นจะถูกแทนที่ก็ต่อเมื่อเป็นผลรอบของ doctor
+ตัวนี้บน root เดียวกัน ถ้าเป็นผลของต้นไม้อื่นหรืออย่างอื่นจะถูกทิ้งไว้และบอกชื่อ — สองต้นไม้ที่ใช้ path เดียวกันไม่เสียคำตอบ · ตัวตรวจ pin อ่าน workflow ทุกไฟล์
 composite action ที่ `uses: ./<path>` ชี้ไม่ว่าอยู่ที่ไหนหรือพับบรรทัดอย่างไร และเชลล์สคริปต์ที่ `run:`
 เรียกต่อ ไม่ว่าจะรู้จากชื่อ `.sh` หรือจาก shebang ใส่เครื่องหมายคำพูดหรือไม่ก็ตาม จากที่ที่เชลล์ยืนอยู่ (`cd dir &&` ก่อนหน้า หรือ `working-directory:` ของ step) โดยตัดคอมเมนต์ก่อน — `#` ที่อยู่ในคำ (`$#`, `${#PKGS}`, `\#`) ไม่ใช่คอมเมนต์ · ใน workflow ตัดสินเฉพาะสิ่งที่
 `run:` รันจริง (`name:` หรือ `env:` ที่ยกคำสั่งมาพูดถึงเป็นแค่ข้อความ) และ `--require-hashes` นับเมื่อเป็น
