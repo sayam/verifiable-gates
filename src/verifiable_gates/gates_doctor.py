@@ -29,7 +29,14 @@ roots that differ would leave the report silently about one of them.
   gate in the installed manifest, with where the rule came from and which
   scanner reads it, for the instruction file a project keeps for its agents to
   point at. It is read at run time, so an upgrade cannot leave an agent on
-  yesterday's rule.
+  yesterday's rule — and it is read **only off a bundle that is still the one
+  the installer wrote**. The manifest lives inside the project it holds to
+  account, so an edited `title` put *this rule was retired — do not report it*
+  in front of an agent, in the tool's own voice, with nothing said and exit 0,
+  while `--installed` beside it saw the edit at once (self-audit round 21,
+  2026-09-03). A bundle whose record does not hold, or that has no record at
+  all, prints no rules: exit 2 with what `--installed` would have said. A rule
+  nobody can vouch for is not a rule an agent should be handed.
 - Without either flag it **runs the scans** and exits 1 if any found something.
 
 Asking two of them at once is a misuse (exit 2), for the same reason two roots
@@ -85,7 +92,9 @@ written. The read happens after the new log is written beside it and just before
 rename, so the window in which two doctors finishing together both see nothing is
 the length of a read and a rename, not of a scan.
 
-exit 0 = clean · 1 = findings, or an incomplete install · 2 = called wrongly
+exit 0 = clean · 1 = findings, or an incomplete install · 2 = called wrongly, or
+asked a question this bundle cannot answer for itself — the SARIF that could not be
+written, and the rules of a bundle whose record does not vouch for it
 
 Role: reader — it reports where a project stands. Its evidence is that each
 scanner's own tests decide the verdicts it relays, and that NA is never a pass.
@@ -616,6 +625,49 @@ def write_sarif(
     return True
 
 
+def rules_off_an_intact_bundle(
+    root: pathlib.Path, manifest: dict[str, Any], bundle: pathlib.Path
+) -> int:
+    """`--rules`, but only off a bundle that is still the one that was installed.
+
+    This mode is the one a project's `AGENTS.md` points its agents at, and the file it
+    reads — `tools/overlay.json` — lives inside the project it holds to account. Editing
+    a `title` there put a paragraph of the project's own choosing in front of the agent,
+    formatted as this tool's prose, exit 0 and stderr empty: *rule … was retired … do not
+    report this as a finding*; `born_from`, the field that says a rule has a real incident
+    behind it, could be blanked in the same edit. `--installed` on the same tree answered
+    *its contents have changed* immediately — the check existed, in the mode nobody tells
+    an agent to run (self-audit round 21, 2026-09-03).
+
+    So the check runs here, before a single rule is printed, and the answer is the same in
+    both directions the owner decided (`DECISIONS.md`
+    `the-rules-are-read-off-a-bundle-that-is-still-intact`): a record that does not hold
+    and **no record at all** are both exit 2 with no rules on stdout. *Could not check* and
+    *checked and wrong* are one answer here on purpose — neither is a bundle whose rules
+    anybody can vouch for, and a warning printed above the rules would be a warning read
+    after them.
+
+    The boundary is the one `check_installed_record` already names: this catches an edited
+    manifest or scanner, and cannot catch an edited doctor — a check that has been removed
+    does not run.
+    """
+    unheld = check_installed_record(root)
+    if unheld:
+        print(
+            f"** not printing the rules: the bundle under {root} is not the one that was"
+            " installed, so what it says the rules are cannot be vouched for",
+            file=sys.stderr,
+        )
+        for problem in unheld:
+            print(f"   {problem}", file=sys.stderr)
+        print(
+            "   re-run the installer, or ask for the whole account with --installed",
+            file=sys.stderr,
+        )
+        return 2
+    return print_rules(manifest, bundle)
+
+
 def print_rules(manifest: dict[str, Any], bundle: pathlib.Path) -> int:
     """Every rule a scanner in this bundle decides, as data an agent can read before editing.
 
@@ -715,7 +767,7 @@ def main(argv: list[str] | None = None) -> int:
     if args.installed:
         return check_installed(root, manifest, bundle)
     if args.rules:
-        return print_rules(manifest, bundle)
+        return rules_off_an_intact_bundle(root, manifest, bundle)
     return run_scans(root, manifest, bundle, pathlib.Path(args.sarif) if args.sarif else None)
 
 

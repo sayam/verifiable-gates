@@ -140,6 +140,8 @@ HELD = {
     "ci-runs-the-bundle-the-project-installed": "",
     # 2026-09-03: the third front door judges the tree after the edit, and refuses nothing.
     "the-edit-hook-reports-and-does-not-refuse": "",
+    # 2026-09-04: the mode an agent is told to trust checks the record before it speaks.
+    "the-rules-are-read-off-a-bundle-that-is-still-intact": "",
 }
 
 # The rows whose `expires when` is `Never` — an expiry rewritten to "Never" was

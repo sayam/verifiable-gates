@@ -149,7 +149,11 @@ names what each file is about to become. And
 from and which scanner reads it — for the instruction file a project keeps for its
 agents (`AGENTS.md`, `CLAUDE.md`) to point at: read at run time from the installed
 manifest, so an upgrade cannot leave an agent on yesterday's rule, and only the rules a
-scanner here can decide, so no instruction stands without a gate behind it. And
+scanner here can decide, so no instruction stands without a gate behind it. It prints
+them only off a bundle the installed record still vouches for: an edited manifest, an
+edited scanner, or no record at all prints no rules and exits 2, because the file it
+reads lives inside the project it holds to account (`DECISIONS.md`
+`the-rules-are-read-off-a-bundle-that-is-still-intact`). And
 `gates_doctor --sarif FILE` writes the same run as SARIF 2.1.0 for code scanning,
 reviewdog or an IDE — a finding is a result, while `NA` and a scan that did not answer
 are notifications on the invocation, never results, so a reader counting results cannot
@@ -302,7 +306,9 @@ skill คือคำสั่ง ส่วนตัวสแกนยังเ�
 doctor ขึ้นต้นด้วย *การติดตั้งครั้งล่าสุดลงในต้นไม้นี้ยังไม่จบ* แทนที่จะรายงานไฟล์ที่ลงไปแล้วว่าเป็นไฟล์ที่ถูกใครแก้ · และ `gates_doctor --rules` พิมพ์กฎที่บันเดิล
 ตัดสินได้ — แต่ละข้อพร้อมที่มาและตัวสแกนที่อ่านมัน — ให้ไฟล์คำสั่งที่โปรเจกต์เก็บไว้ให้ agent (`AGENTS.md`, `CLAUDE.md`)
 ชี้มาหา: อ่านตอนรันจาก manifest ที่ติดตั้งอยู่ การอัปเกรดจึงทิ้ง agent ไว้กับกฎเมื่อวานไม่ได้ และมีเฉพาะกฎที่ตัวสแกน
-ตรงนี้ตัดสินได้ จึงไม่มีคำสั่งข้อไหนยืนอยู่โดยไม่มีด่านหนุนหลัง · และ `gates_doctor --sarif FILE` เขียนผลรอบเดียวกันเป็น SARIF 2.1.0
+ตรงนี้ตัดสินได้ จึงไม่มีคำสั่งข้อไหนยืนอยู่โดยไม่มีด่านหนุนหลัง · และมันพิมพ์กฎเฉพาะจากบันเดิลที่ record ยังรับรอง —
+manifest ถูกแก้ · scanner ถูกแก้ · หรือไม่มี record เลย = ไม่พิมพ์กฎสักข้อ exit 2 เพราะไฟล์ที่มันอ่านอยู่ในโปรเจกต์ที่มันกำลังตรวจเอง
+(`DECISIONS.md` `the-rules-are-read-off-a-bundle-that-is-still-intact`) · และ `gates_doctor --sarif FILE` เขียนผลรอบเดียวกันเป็น SARIF 2.1.0
 ให้ code scanning, reviewdog หรือ IDE — finding เป็น result ส่วน `NA` กับสแกนที่ตอบไม่ได้เป็น notification บน invocation ไม่ใช่ result
 คนที่นับ result จึงเข้าใจ "ดูไม่ได้" เป็น "ดูแล้วไม่เจอ" ไม่ได้ · ไฟล์ที่มีอยู่แล้วที่ path นั้นจะถูกแทนที่ก็ต่อเมื่อเป็นผลรอบของ doctor
 ตัวนี้บน root เดียวกัน ถ้าเป็นผลของต้นไม้อื่นหรืออย่างอื่นจะถูกทิ้งไว้และบอกชื่อ — สองต้นไม้ที่ใช้ path เดียวกันไม่เสียคำตอบ · ตัวตรวจ pin อ่าน workflow ทุกไฟล์

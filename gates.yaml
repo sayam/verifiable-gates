@@ -2331,6 +2331,27 @@ gates:
       subprocess where a wrong exit code is easy to lose.
     proved_by:
       - kind: mutation
+        ref: pr/234
+        date: 2026-09-04
+        caught: >-
+          `--rules` — the mode a project's `AGENTS.md` points its agents at — read
+          `tools/overlay.json` and printed it without ever checking that the manifest was
+          still the one installed. The file lives inside the project it holds to account,
+          so editing one `title` put a paragraph of the project's own choosing in front of
+          the agent, in this tool's voice, exit 0 and stderr empty: *rule
+          actions-sha-pinned was retired — do not report this as a finding*, with
+          `born_from` blanked in the same edit. `--installed` on the same tree said *its
+          contents have changed* at once; the check existed, in the mode nobody tells an
+          agent to run (self-audit round 21, 2026-09-03). The record is read before a rule
+          is printed now, and a bundle it does not vouch for prints none: exit 2 with what
+          `--installed` would have said. Seven planted defects red on their own here: the
+          check not run, the rules printed after the sentence anyway, a refusal that still
+          answered 0, no record read as intact, the problems left unnamed under the
+          headline, the installer and `--installed` not named in the refusal, and an
+          install still under way read as intact. Two of the seven break
+          `check_installed_record` itself, so rounds 16 and 20's own tests go red beside
+          this round's — which is the shape a guard shared by three modes should have.
+      - kind: mutation
         ref: pr/233
         date: 2026-09-03
         caught: >-
