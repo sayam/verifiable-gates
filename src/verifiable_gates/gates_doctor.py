@@ -19,8 +19,10 @@ roots that differ would leave the report silently about one of them.
 
 - `--installed` asks whether the bundle *arrived and can run*: the config exists,
   every scan script compiles. That is a claim about the installation, not about
-  the project's code. An install that stopped partway says so, rather than
-  reporting the files that did land as files somebody edited. A file this doctor
+  the project's code. An install that stopped partway says so, and so does one
+  still under way, rather than reporting the files that did land as files
+  somebody edited — and an install that begins while the doctor is reading is
+  said too, since the record is read again after the files. A file this doctor
   **cannot read** is a third sentence, apart from *gone* and *changed*: it is red,
   because a scan nobody can read does not run, and it is not an accusation.
 - `--rules` asks what this bundle *decides*, and judges nothing: every `scan`
@@ -153,7 +155,8 @@ def check_installed_record(root: pathlib.Path) -> list[str]:
     """
     record = root / "tools" / "installed.json"
     try:
-        written = json.loads(record.read_text(encoding="utf-8"))
+        text = record.read_text(encoding="utf-8")
+        written = json.loads(text)
         files = written["files"]
     except FileNotFoundError:
         return [
@@ -176,27 +179,67 @@ def check_installed_record(root: pathlib.Path) -> list[str]:
             "name-to-digest object the installer writes"
         )
         return [wrong]
+    # An install under way writes its record before its first file, naming under
+    # `arriving` the digest each file will have: a file in the window is the previous
+    # version or the new one, and only a file that is neither has been edited. With the
+    # record written last, every file that had landed read as "its contents have changed"
+    # (self-audit round 20, 2026-09-03). The key is gone from the finished record.
+    arriving = written.get("arriving", {})
+    if not _is_record_of_files(arriving):
+        held = json.dumps(arriving)[:40]
+        wrong = (
+            f"tools/installed.json cannot be read: 'arriving' holds {held}, not the "
+            "name-to-digest object the installer writes"
+        )
+        return [wrong]
     found = []
+    if arriving:
+        found.append(
+            "an install into this tree is under way, or stopped before it could record what "
+            "landed — wait for it, or re-run the installer"
+        )
     # An install that stopped partway leaves a tree that is half one bundle and half the
     # one before it. Until the installer said so, the record went on describing the
     # previous install and every file the stopped one *had* written came back as "its
     # contents have changed" — the sentence for a bundle somebody edited. A record with no
     # such key was written by an installer that did not know the question, and is read as
     # finished (self-audit round 16, 2026-09-01).
-    if written.get("finished", True) is False:
+    elif written.get("finished", True) is False:
         found.append(
             "the last install into this tree did not finish, so part of the bundle may "
             "still be the previous version — re-run the installer"
         )
     for name, recorded in sorted(files.items()):
-        said = _held_to_the_record(root / name, name, recorded)
+        said = _held_to_the_record(root / name, name, recorded, arriving.get(name))
         if said is not None:
             found.append(said)
+    # The record and the files are read at different moments, and an install that began
+    # between them rewrote the record first — so a record that is no longer the one read
+    # above means the files were held to a record that was not theirs. Measured: one read
+    # in 247 still said "changed" with the marker alone (self-audit round 20, 2026-09-03).
+    if _record_text(record) != text:
+        moved = (
+            "tools/installed.json changed while it was being checked — an install into "
+            "this tree is under way; wait for it, and run again"
+        )
+        return [moved]
     return found
 
 
-def _held_to_the_record(path: pathlib.Path, name: str, recorded: str) -> str | None:
+def _record_text(record: pathlib.Path) -> str | None:
+    """The record as it is now, or nothing when it cannot be read now."""
+    try:
+        return record.read_text(encoding="utf-8")
+    except OSError:
+        return None
+
+
+def _held_to_the_record(
+    path: pathlib.Path, name: str, recorded: str, arriving: str | None = None
+) -> str | None:
     """One recorded file against the tree: gone, unreadable, changed, or nothing to say.
+    A file that already holds what the running install is bringing (`arriving`) has
+    landed, not changed.
 
     Read first, and answer the exception. This was `is_file()` and then `read_bytes()` on
     the next line — two questions with a gap between them — and a file that passed the
@@ -215,7 +258,7 @@ def _held_to_the_record(path: pathlib.Path, name: str, recorded: str) -> str | N
             f"{name} cannot be read ({problem.strerror or problem}), so whether it is still "
             "what was installed cannot be checked"
         )
-    if actual != recorded:
+    if actual not in (recorded, arriving):
         return f"{name} is not what was installed — its contents have changed"
     return None
 

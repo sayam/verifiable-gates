@@ -1362,6 +1362,33 @@ gates:
       whatever prose a person wrote there and nobody would see it go.
     proved_by:
       - kind: mutation
+        ref: pr/231
+        date: 2026-09-03
+        caught: >-
+          An install still running was read as a bundle somebody had edited. The record
+          was the last thing written, so between the first copy and the last the tree
+          held new files under the old digests, and `--installed` in that window said
+          "its contents have changed" for every file that had landed — the sentence for
+          tampering, about the installer's own work (self-audit round 20, 2026-09-03).
+          Round 16 had closed the install that *stopped*; the one still *running* had no
+          mark. Measured with two real processes, an installer alternating two bundles
+          against a doctor reading in a loop: 19 accusations in 226 reads. The record is
+          written before the first file now, naming under `arriving` the digest each file
+          is about to have. Eight planted defects red on their own here: the marker not
+          written, the doctor ignoring `arriving`, the in-flight sentence dropped, the
+          digest compare skipped while an install is under way (which would let a real
+          edit through), `arriving` left in the finished record, a malformed `arriving`
+          reaching `.get` instead of being said out loud, a marker that cannot be written
+          not refusing the install, and the doctor's second read of the record dropped.
+          **The eighth is the one the seam tests could not have found.** With the marker
+          alone every seam test and every neighbouring road was clean, and the two-process
+          probe still accused once in 247 reads: the residual window is inside the
+          *doctor*, which reads the record and then the files, and an install beginning
+          between the two rewrites the record first. No installer-side mark closes a gap
+          lying between two reads in another process. The doctor reads the record again
+          after the files and answers "changed while it was being checked" when it moved —
+          0 in 221 reads after (L-0124).
+      - kind: mutation
         ref: pr/230
         date: 2026-09-03
         caught: >-
@@ -2303,6 +2330,33 @@ gates:
       compile, and the clean run returning 0, which had only ever been exercised through a
       subprocess where a wrong exit code is easy to lose.
     proved_by:
+      - kind: mutation
+        ref: pr/231
+        date: 2026-09-03
+        caught: >-
+          An install still running was read as a bundle somebody had edited. The record
+          was the last thing written, so between the first copy and the last the tree
+          held new files under the old digests, and `--installed` in that window said
+          "its contents have changed" for every file that had landed — the sentence for
+          tampering, about the installer's own work (self-audit round 20, 2026-09-03).
+          Round 16 had closed the install that *stopped*; the one still *running* had no
+          mark. Measured with two real processes, an installer alternating two bundles
+          against a doctor reading in a loop: 19 accusations in 226 reads. The record is
+          written before the first file now, naming under `arriving` the digest each file
+          is about to have. Eight planted defects red on their own here: the marker not
+          written, the doctor ignoring `arriving`, the in-flight sentence dropped, the
+          digest compare skipped while an install is under way (which would let a real
+          edit through), `arriving` left in the finished record, a malformed `arriving`
+          reaching `.get` instead of being said out loud, a marker that cannot be written
+          not refusing the install, and the doctor's second read of the record dropped.
+          **The eighth is the one the seam tests could not have found.** With the marker
+          alone every seam test and every neighbouring road was clean, and the two-process
+          probe still accused once in 247 reads: the residual window is inside the
+          *doctor*, which reads the record and then the files, and an install beginning
+          between the two rewrites the record first. No installer-side mark closes a gap
+          lying between two reads in another process. The doctor reads the record again
+          after the files and answers "changed while it was being checked" when it moved —
+          0 in 221 reads after (L-0124).
       - kind: mutation
         ref: pr/230
         date: 2026-09-03
