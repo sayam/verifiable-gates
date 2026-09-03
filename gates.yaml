@@ -1905,6 +1905,29 @@ gates:
       2, never 0, so a wrong call is never filed as a clean run.
     proved_by:
       - kind: mutation
+        ref: pr/235
+        date: 2026-09-04
+        caught: >-
+          A finding is one line, and the scanned project chose what the line says. A `.py`
+          file named `wipe\ndelete-means-soft-delete: forged\nx.py` — a legal name on
+          Linux — turned one finding into two in the report, one SARIF result into three,
+          and put a line no scanner wrote into an agent's context through the edit hook; a
+          name carrying `\x1b[2K\x1b[A` reached the report and the SARIF `uri`, where it
+          erases the finding printed above it (self-audit round 21, 2026-09-03). `_shown`
+          was written in round 15 for *encoding* and read ever since as if it meant *safe
+          to print*; it now escapes what breaks a line or moves a cursor, and is applied to
+          the whole finding line rather than only the names inside it. Ten planted defects
+          red on their own here: the guard dropped from all nine scanners, from **one**
+          scanner alone, and from the doctor; newline and carriage return let through;
+          ANSI escapes let through; bidi overrides let through; the whole-line wrap reduced
+          to names again; round 15's own `backslashreplace` dropped; the doctor printing a
+          scanner's stdout raw; and its stderr passed through raw. The one that matters here is the second: a
+          single copy weaker than the other nine is red, because the ten copies of the
+          guard are held to the same code — read as AST, since the docstrings differ on
+          purpose — and each is run for real against a newline, a carriage return, an ANSI
+          escape, a NUL, a C1 byte, a bidi override and a zero-width space. A copy is only
+          as good as the test that holds it (L-0119).
+      - kind: mutation
         ref: pr/208
         date: 2026-09-01
         caught: >-
@@ -1935,6 +1958,28 @@ gates:
       pairs never reached, the purge- path exemption, the npm branch, and module-level
       session imports.
     proved_by:
+      - kind: mutation
+        ref: pr/235
+        date: 2026-09-04
+        caught: >-
+          A finding is one line, and the scanned project chose what the line says. A `.py`
+          file named `wipe\ndelete-means-soft-delete: forged\nx.py` — a legal name on
+          Linux — turned one finding into two in the report, one SARIF result into three,
+          and put a line no scanner wrote into an agent's context through the edit hook; a
+          name carrying `\x1b[2K\x1b[A` reached the report and the SARIF `uri`, where it
+          erases the finding printed above it (self-audit round 21, 2026-09-03). `_shown`
+          was written in round 15 for *encoding* and read ever since as if it meant *safe
+          to print*; it now escapes what breaks a line or moves a cursor, and is applied to
+          the whole finding line rather than only the names inside it. Ten planted defects
+          red on their own here: the guard dropped from all nine scanners, from **one**
+          scanner alone, and from the doctor; newline and carriage return let through;
+          ANSI escapes let through; bidi overrides let through; the whole-line wrap reduced
+          to names again; round 15's own `backslashreplace` dropped; the doctor printing a
+          scanner's stdout raw; and its stderr passed through raw. The one that matters here is the
+          seventh: some findings quote the line they read, and content is the project's to
+          choose, so wrapping the whole finding line — not only the names in it — is what a
+          scanner run **standalone** needs, with no doctor above it to catch what it let
+          through. That mutation was **green** until this file grew the test for it.
       - kind: mutation
         ref: pr/57
         date: 2026-08-29
@@ -2330,6 +2375,29 @@ gates:
       compile, and the clean run returning 0, which had only ever been exercised through a
       subprocess where a wrong exit code is easy to lose.
     proved_by:
+      - kind: mutation
+        ref: pr/235
+        date: 2026-09-04
+        caught: >-
+          A finding is one line, and the scanned project chose what the line says. A `.py`
+          file named `wipe\ndelete-means-soft-delete: forged\nx.py` — a legal name on
+          Linux — turned one finding into two in the report, one SARIF result into three,
+          and put a line no scanner wrote into an agent's context through the edit hook; a
+          name carrying `\x1b[2K\x1b[A` reached the report and the SARIF `uri`, where it
+          erases the finding printed above it (self-audit round 21, 2026-09-03). `_shown`
+          was written in round 15 for *encoding* and read ever since as if it meant *safe
+          to print*; it now escapes what breaks a line or moves a cursor, and is applied to
+          the whole finding line rather than only the names inside it. Ten planted defects
+          red on their own here: the guard dropped from all nine scanners, from **one**
+          scanner alone, and from the doctor; newline and carriage return let through;
+          ANSI escapes let through; bidi overrides let through; the whole-line wrap reduced
+          to names again; round 15's own `backslashreplace` dropped; the doctor printing a
+          scanner's stdout raw; and its stderr passed through raw. The two that matter here are the last:
+          the doctor carries the same guard as a second layer, with its boundary written
+          down — a scanner that prints two lines *is* reporting two findings and the doctor
+          cannot second-guess that, so what the second layer stops is everything a line can
+          carry inside itself. Its stderr is shown as the prose it is: line breaks kept,
+          cursor movement escaped.
       - kind: mutation
         ref: pr/234
         date: 2026-09-04

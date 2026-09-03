@@ -669,7 +669,10 @@ def test_a_body_edit_reruns_the_checks_that_read_the_body() -> None:
 # 116 → 117 on 2026-09-03: one `S603` in `src/verifiable_gates/edit_hook.py`, for the run
 # of the doctor a project installed — the hook's whole job is that one subprocess, argv
 # built from the project root and our own interpreter (PR-F).
-SUPPRESSED_LINES = 117  # every one with a reason; a new one moves this number, visibly
+# 117 → 118 on 2026-09-04: one `S102` in `tests/test_checks_are_standalone.py`, for the
+# `exec` that runs each shipped copy of `_shown` for real — the ten copies are held by
+# what they return, not by reading them (round 21's F2/F3).
+SUPPRESSED_LINES = 118  # every one with a reason; a new one moves this number, visibly
 
 
 def test_every_job_in_our_own_workflows_declares_a_time_budget() -> None:

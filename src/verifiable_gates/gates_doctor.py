@@ -359,7 +359,7 @@ def run_scans(
         # could not be matched to its gate (self-audit, 2026-08-31). Flush what
         # was said so far, then pass the stderr through where it belongs.
         sys.stdout.flush()
-        sys.stderr.write(result.stderr)
+        sys.stderr.write(_as_prose(result.stderr) + "\n" if result.stderr else "")
         sys.stderr.flush()
         crashed = "Traceback (most recent call last)" in result.stderr
         if result.returncode == 0:
@@ -369,7 +369,7 @@ def run_scans(
             # tell "there is no such directory" from "a directory this scanner cannot
             # read" — which is the distinction the scanners were changed to make
             # (self-audit round 14, 2026-09-01).
-            said = result.stdout.strip().splitlines()
+            said = [_shown(line) for line in result.stdout.strip().splitlines()]
             if said and said[0].startswith("NA:"):
                 reason = said[0].removeprefix("NA:").strip()
                 print(f"[   NA] {gid} — {reason}")
@@ -379,14 +379,18 @@ def run_scans(
                 outcomes.append((gid, "pass", said, ""))
         elif result.returncode == 1 and result.stdout.strip() and not crashed:
             print(f"[found] {gid}")
-            sys.stdout.write(result.stdout)
+            # Every line through the guard before it is printed or counted: what the
+            # doctor writes is its own sentence about what a scanner said, and a scanner's
+            # line is one finding whatever the tree it read was named (round 21).
+            said = [_shown(line) for line in result.stdout.strip().splitlines()]
+            print("\n".join(said))
             failed.append(gid)
-            outcomes.append((gid, "found", result.stdout.strip().splitlines(), ""))
+            outcomes.append((gid, "found", said, ""))
         else:
             reason = f"the scan did not answer (exit {result.returncode})"
             print(f"[error] {gid} — {reason}")
             broken.append(gid)
-            outcomes.append((gid, "error", [], f"{reason}\n{result.stderr}".strip()))
+            outcomes.append((gid, "error", [], f"{reason}\n{_as_prose(result.stderr)}".strip()))
 
     print(f"\nwaiting on this project's own tests: {suite_count(manifest)} gates")
     if failed:
@@ -422,6 +426,51 @@ def _installed_version(root: pathlib.Path) -> str | None:
         return None
     version = written.get("version") if isinstance(written, dict) else None
     return version if isinstance(version, str) else None
+
+
+# The doctor's own copy of the scanners' guard, for the same reason it carries its own
+# whole-file writer: this file is shipped alone into a project's tools/ and may import
+# nothing from the package. Held byte-identical to the nine by
+# `tests/test_checks_are_standalone.py`.
+_ESCAPED = {
+    **{c: f"\\x{c:02x}" for c in (*range(0x20), 0x7F)},
+    **{
+        c: f"\\u{c:04x}"
+        for c in (
+            *range(0x80, 0xA0),
+            *range(0x200B, 0x2010),
+            *range(0x202A, 0x202F),
+            *range(0x2066, 0x206A),
+            0xFEFF,
+        )
+    },
+}
+
+
+def _shown(text: str | pathlib.Path) -> str:
+    """Text that can always be printed, and is always **one line**.
+
+    The scanners hold their own output to this; this is the second layer, and its boundary
+    is worth writing down. A scanner that prints two lines **is** reporting two findings —
+    the doctor reads one line as one finding and cannot second-guess that, so a rogue
+    scanner is not what this stops. What it stops is everything a line can carry *inside*
+    itself: an ANSI escape in a file name (`\x1b[2K\x1b[A`) that erases the finding printed
+    above it, a carriage return that rewrites the line, a C1 byte, a bidi override, a NUL
+    (self-audit round 21, 2026-09-03). The forging of a *line* is closed one layer up, in
+    the scanner, which is the only place that knows a file name is one value: see `_shown`
+    in each of the nine.
+    """
+    return os.fsencode(str(text)).decode("utf-8", "backslashreplace").translate(_ESCAPED)
+
+
+def _as_prose(text: str) -> str:
+    """A scanner's stderr, shown as the prose it is: line breaks kept, the rest escaped.
+
+    stdout is a grammar and every line of it becomes one finding; stderr is a traceback or
+    a sentence for a person, and escaping its newlines would make it unreadable. What must
+    not survive either way is a control character that moves a terminal's cursor.
+    """
+    return "\n".join(_shown(line) for line in text.splitlines(keepends=False))
 
 
 def _sarif_result(root: pathlib.Path, gid: str, line: str) -> dict[str, Any]:
