@@ -2331,6 +2331,27 @@ gates:
       subprocess where a wrong exit code is easy to lose.
     proved_by:
       - kind: mutation
+        ref: pr/233
+        date: 2026-09-03
+        caught: >-
+          The third front door — the plugin's hook at edit time, `hooks/hooks.json` running
+          `src/verifiable_gates/edit_hook.py` after every Edit or Write — held to the same
+          rule as the first two: it runs the doctor the project installed and carries no
+          copy, it is off unless `VERIFIABLE_GATES_AT_EDIT=1`, and it reports after the
+          edit rather than refusing before it. Ten planted defects red on their own here:
+          the switch ignored so the hook ran when off, a value like `yes` read as off
+          instead of said, a finding swallowed into silence, the doctor's *could not
+          answer* read as clean, a tree with no bundle answered with silence instead of
+          the sentence naming the installer, an edit outside the project judged, the
+          ceiling on the report dropped, a hanging doctor waited on without end, the hook
+          moved to `PreToolUse` in `hooks.json`, and its matcher narrowed to `Edit` alone —
+          the last two red in the test that runs the exact command from `hooks.json`
+          through bash with the plugin root substituted, which is how Claude Code runs it.
+          One road the tests found before the code was believed: `except
+          FileNotFoundError` around the doctor's subprocess never fires for a missing
+          doctor, since the interpreter is the one that fails to open it; the hook opens
+          the file itself first (L-0135).
+      - kind: mutation
         ref: pr/232
         date: 2026-09-03
         caught: >-

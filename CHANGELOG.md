@@ -8,6 +8,38 @@ Notable changes to this project. The format follows
 
 ### Added
 
+- **A third front door, at edit time, and it carries no bundle either.** Enabling the
+  plugin in Claude Code now brings a `PostToolUse` hook on `Edit` and `Write`
+  (`hooks/hooks.json` → `src/verifiable_gates/edit_hook.py`, stdlib only, run under the
+  user's own `python3`) that runs `tools/gates_doctor.py` **as the project installed it**
+  over the tree as it now is, and hands the report back to the agent while it is still
+  holding the file: a finding, or a scan that could not answer, is exit 2 with the
+  doctor's report on stderr — the shape Claude Code feeds back — and a clean run is
+  silence. **Off by default.** `VERIFIABLE_GATES_AT_EDIT=1` in the project's
+  `.claude/settings.json` under `env` turns it on; unset or `0` is off and silent; any
+  other value is a misuse said out loud, since a switch that read `yes` as off would leave
+  somebody believing their edits were checked when nothing looked. The switch on with no
+  bundle under the root is a sentence naming the installer, not silence. **It reports; it
+  does not refuse** — a `PreToolUse` hook would judge a file that does not exist yet from
+  its own copy of what `Edit` is about to do, round 20's shape once more, and it is a row:
+  `DECISIONS.md` `the-edit-hook-reports-and-does-not-refuse`. An edit outside the project
+  is left alone; a doctor that does not answer within 120 s, cannot be started, or is
+  there but cannot be opened, is a sentence, never a wait without end or a traceback; a
+  report past 16 KiB is cut with a sentence saying how much is missing and how to read
+  the rest. **Two voices, kept apart:** what the doctor said is relayed as the doctor's,
+  under a line naming it and its exit code, and what the hook has to say for itself is
+  its own sentence with no exit code borrowed from a reader that never ran — the first
+  draft returned both the same way and printed *tools/gates_doctor.py (exit 2) says: no
+  bundle installed*, quoting a doctor that had not run, which the coverage floor found by
+  naming the two statements no test had walked. The exact command in
+  `hooks.json` is run for real in the suite with the plugin root substituted and a
+  hand-built event on stdin — clean, with a finding, and off. Proved by mutation: the
+  switch ignored, a wrong value read as off, a finding swallowed, the doctor's *could not
+  answer* read as clean, the missing bundle silent, an edit outside the project judged,
+  the ceiling dropped, a hanging doctor waited on, and the hook moved to `PreToolUse` —
+  each red on its own. `SUPPRESSED_LINES` moves 116 → 117 for the one subprocess the hook
+  exists to run, with the reason on the line.
+
 - **Two front doors for a project that installed the bundle, and neither carries a
   copy.** `action.yml` — `uses: sayam/verifiable-gates@<sha>` — runs the doctor **the
   project installed** under `tools/`, fails the job on a finding, takes an optional
