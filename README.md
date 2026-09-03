@@ -137,7 +137,9 @@ nothing else. And the bundle keeps a record of what it installed: `gates_doctor
 present, and an upgrade names what this version no longer ships and leaves it in place,
 because a file in your repository is yours to remove. An install that stopped partway is
 read as one: the doctor leads with *the last install into this tree did not finish*
-rather than reporting the files that did land as files somebody edited. And
+rather than reporting the files that did land as files somebody edited — and one still
+under way is read as one too, because the record is written before the first file and
+names what each file is about to become. And
 `gates_doctor --rules` prints the rules the bundle decides — each with where it came
 from and which scanner reads it — for the instruction file a project keeps for its
 agents (`AGENTS.md`, `CLAUDE.md`) to point at: read at run time from the installed

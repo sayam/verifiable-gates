@@ -118,6 +118,37 @@ Notable changes to this project. The format follows
 
 ### Fixed
 
+- **An install still under way is no longer read as a bundle somebody edited.** The
+  installer wrote its record last, so between the first copy and the last the tree held
+  the new files under the old digests, and a `gates_doctor --installed` arriving in that
+  window — a consumer's CI reinstalls on every run, and two runs on one checkout overlap —
+  said *its contents have changed* for every file that had landed, the sentence round 4
+  wrote to mean tampering. Round 16 had closed the install that *stopped*, with
+  `finished: false`; the one still *running* had no mark at all. The record is now
+  written **before the first file**: it keeps what the previous install left and names,
+  under `arriving`, the digest each file is about to have, so the doctor reads a file in
+  the window as the old version or the new one and accuses only a file that is neither.
+  The doctor leads with *an install into this tree is under way, or stopped before it
+  could record what landed — wait for it, or re-run the installer*; the finished record
+  carries no `arriving`. Two consequences, both said out loud: a record that cannot be
+  written now **refuses the install before anything lands** rather than landing the
+  bundle and then saying it could not be recorded (that road remains for a record that
+  fails at the end), and an install that stops on its first copy leaves the marker, which
+  the doctor reads the same way. A record whose `arriving` is not a name-to-digest object
+  is *cannot be read*, round 18's shape for the new key. One window the installer
+  cannot close is the doctor's own: it reads the record and then the files, and an
+  install that begins between the two rewrites the record first — measured at one read
+  in 247 with the marker alone — so the doctor reads the record again after the files,
+  and a record that moved (or went) is *changed while it was being checked — an install
+  into this tree is under way*, never an accusation. Measured with two real processes,
+  an installer alternating two bundles against a doctor in a loop: 19 accusations in
+  226 reads before, one in 247 with the marker alone, none in 221 with the second read.
+  Proved by mutation: the marker not written, the
+  doctor ignoring `arriving`, the sentence dropped, the compare skipped while under way,
+  `arriving` left in the finished record, the malformed key let through, a marker that
+  cannot be written not refusing, and the second read of the record dropped — each red on
+  its own.
+
 - **No file this package wrote was written whole, and a reader arriving mid-write got
   an empty one.** Every write was `write_text`, which truncates first and writes second.
   Measured with a reader in a loop: the reader's copy was unusable **32% of the time at

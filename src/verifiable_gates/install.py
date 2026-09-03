@@ -147,9 +147,15 @@ def _recorded_files(dest: pathlib.Path) -> dict[str, str]:
     return files
 
 
-def _record(dest: pathlib.Path, written: list[pathlib.Path], *, finished: bool = True) -> None:
+def _record(
+    dest: pathlib.Path,
+    written: list[pathlib.Path],
+    *,
+    finished: bool = True,
+    arriving: dict[str, str] | None = None,
+) -> None:
     """Write down what this install put here, so the doctor can say whether it is still
-    what arrived — and **whether it finished**.
+    what arrived — **whether it finished**, and **what is on its way** while it has not.
 
     `--installed` said "the bundle arrived intact" while checking only that each file is
     present and compiles: a scanner whose body had been replaced with `return 0` passed
@@ -164,16 +170,63 @@ def _record(dest: pathlib.Path, written: list[pathlib.Path], *, finished: bool =
     the doctor turned that into "its contents have changed", the sentence it uses for a
     bundle somebody edited. A tree the installer itself left in that state was reported as
     tampering (self-audit round 16, 2026-09-01).
+
+    Round 16 closed the install that *stopped*; the one still *running* had no mark at
+    all. The record was the last thing written, so between the first copy and the last
+    the tree held new files under the old record, and a doctor arriving in that window
+    read every file that had landed as edited (self-audit round 20, 2026-09-03). Now the
+    record is written **before the first file**, carrying what the previous install left
+    and, under `arriving`, the digest of every file about to land: a file in the window
+    is one or the other, and only a file that is neither has been edited. The finished
+    record carries no `arriving` — nothing is on its way once everything has arrived.
     """
     # An install that stopped partway keeps what the last one recorded for the files it did
     # not reach: those are still the previous version and still worth verifying. A finished
     # install records what it wrote and nothing else.
     files = {} if finished else dict(_recorded_files(dest))
     files |= {str(path.relative_to(dest)): digest(path) for path in sorted(written)}
-    record = {"version": __version__, "files": files, "finished": finished}
+    record: dict[str, Any] = {"version": __version__, "files": files, "finished": finished}
+    if arriving is not None:
+        record["arriving"] = arriving
     target = dest / RECORD
     target.parent.mkdir(parents=True, exist_ok=True)
     whole.write_text_atomically(target, json.dumps(record, indent=2, sort_keys=True) + "\n")
+
+
+def _mark_the_start(
+    dest: pathlib.Path, names: list[str], bundle: pathlib.Path, manifest_path: pathlib.Path | None
+) -> None:
+    """Before the first file is touched, record what is about to land.
+
+    The doctor reads the record while this installer writes — a consumer's CI reinstalls
+    on every run, and two runs on one checkout overlap. With the record written last, a
+    doctor in the window saw the new files under the old digests and said "its contents
+    have changed", the sentence for a bundle somebody edited (self-audit round 20,
+    2026-09-03). The record is written first now, still naming what the previous install
+    left and naming under `arriving` the digest each file will have, so the doctor can
+    tell *landing* from *edited*. The digests are of the sources, which are the bytes
+    the copy writes whole.
+
+    A record that cannot be written stops the install **here**, before anything has
+    landed: an install the doctor cannot follow is not one this installer will begin.
+    `SystemExit` for the same reason `_note_what_landed` gives.
+    """
+    arriving = {
+        str(_target(dest, name).relative_to(dest)): digest(
+            manifest_path if name == "overlay.json" and manifest_path else bundle / name
+        )
+        for name in names
+        if name not in KEEP_IF_PRESENT
+    }
+    try:
+        _record(dest, [], finished=False, arriving=arriving)
+    except OSError as unwritable:
+        print(
+            f"** the record of this install cannot be written: {unwritable} — refusing to "
+            "install, since the doctor could not follow what landed",
+            file=sys.stderr,
+        )
+        raise SystemExit(1) from unwritable
 
 
 UNRECORDED = {
@@ -194,10 +247,12 @@ def _note_what_landed(dest: pathlib.Path, written: list[pathlib.Path], *, finish
     complete, correct install in a raw `PermissionError` — the shape round 5 closed for
     every other writer here (self-audit round 16, 2026-09-01).
 
-    Nothing is recorded when nothing landed: the tree is exactly as it was, and
-    overwriting the record then would throw away a true account of the install before it.
-    A record that cannot be written is `SystemExit(1)`: the files may be there, but an
-    install the doctor cannot check is not one this installer will call finished.
+    Nothing is recorded when nothing landed: the tree is exactly as it was, and the record
+    `_mark_the_start` wrote still carries the true account of the install before it — under
+    `arriving`, so the doctor says an install is under way or stopped, and re-running is
+    the answer either way. A record that cannot be written is `SystemExit(1)`: the files
+    may be there, but an install the doctor cannot check is not one this installer will
+    call finished.
     """
     if not written:
         return
@@ -237,6 +292,7 @@ def install(
     try:
         dest.mkdir(parents=True, exist_ok=True)
         (dest / "tools" / "checks").mkdir(parents=True, exist_ok=True)
+        _mark_the_start(dest, names, bundle, manifest_path)
         for name in names:
             # The manifest travels under its shipped name whatever it was called
             # where it came from — `--manifest bundle.json` used to land sixteen

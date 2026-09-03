@@ -452,37 +452,47 @@ def test_an_install_that_landed_nothing_leaves_the_record_of_the_one_before_it(
     tmp_path: pathlib.Path, bundle_copy: pathlib.Path, capsys: pytest.CaptureFixture[str]
 ) -> None:
     """Nothing landed, so nothing changed — and a true account of the install before must
-    not be overwritten with an empty one that says it stopped."""
+    not be overwritten with an empty one that says it stopped. The record is now the
+    first thing written, so a directory it cannot be written into stops the install
+    before the first file rather than after it (self-audit round 20, 2026-09-03)."""
     project = tmp_path / "project"
     assert do_install(project, bundle_copy) == 0
     capsys.readouterr()
     before = (project / "tools" / "installed.json").read_text(encoding="utf-8")
-    # The directory the first file lands in: it stops before anything has landed.
+    # The directory the record and the first file land in: it stops before either has.
     tools = project / "tools"
     tools.chmod(0o555)
     try:
-        assert do_install(project, bundle_copy) == 1
+        with pytest.raises(SystemExit) as refused:
+            do_install(project, bundle_copy)
     finally:
         tools.chmod(0o755)
 
+    assert refused.value.code == 1
+    assert "refusing to install" in capsys.readouterr().err
     assert (project / "tools" / "installed.json").read_text(encoding="utf-8") == before
 
 
-def test_an_install_whose_record_cannot_be_written_says_so_rather_than_a_traceback(
-    tmp_path: pathlib.Path, bundle_copy: pathlib.Path, capsys: pytest.CaptureFixture[str]
+def test_an_install_whose_record_cannot_be_written_refuses_before_the_first_file(
+    tmp_path: pathlib.Path,
+    bundle_copy: pathlib.Path,
+    capsys: pytest.CaptureFixture[str],
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """Every file landed and the record could not be written: round 5's shape, in the one
-    writer it had not reached. It ended a complete, correct install in a raw
-    `PermissionError` (self-audit round 16, 2026-09-01)."""
+    """The record is written before the first file, so a record nobody may write is a
+    refusal with nothing landed — not round 16's complete install with no record, and not
+    a raw `PermissionError` (self-audit round 20, 2026-09-03)."""
     project = tmp_path / "project"
     assert do_install(project, bundle_copy) == 0
     capsys.readouterr()
     # A record nobody may write, in the shape round 5 used for the round notes: a
     # directory where the file should be. A read-only *file* no longer stops the write —
-    # the record is a sibling renamed over it (self-audit round 20, 2026-09-03).
+    # the record is a sibling renamed over it.
     record = project / "tools" / "installed.json"
     record.unlink()
     record.mkdir()
+    copied: list[pathlib.Path] = []
+    monkeypatch.setattr(files, "copy_atomically", lambda _s, target: copied.append(target))
 
     try:
         with pytest.raises(SystemExit) as refused:
@@ -492,8 +502,228 @@ def test_an_install_whose_record_cannot_be_written_says_so_rather_than_a_traceba
 
     assert refused.value.code == 1
     said = capsys.readouterr().err
+    assert "the record of this install cannot be written" in said, said
+    assert "refusing to install" in said
+    assert copied == [], "files landed before the record refused"
+
+
+def test_a_bundle_that_landed_but_could_not_be_recorded_says_so_rather_than_a_traceback(
+    tmp_path: pathlib.Path,
+    bundle_copy: pathlib.Path,
+    capsys: pytest.CaptureFixture[str],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Every file landed and the finished record could not be written: round 5's shape,
+    in the one writer it had not reached. It ended a complete, correct install in a raw
+    `PermissionError` (self-audit round 16, 2026-09-01). The record before the first
+    file is written by the same writer, so the seam fails its second call only."""
+    project = tmp_path / "project"
+    real = files.write_text_atomically
+    calls = [0]
+
+    def the_second_write_fails(path: pathlib.Path, text: str) -> None:
+        calls[0] += 1
+        if calls[0] == 2:
+            raise PermissionError(13, "Permission denied", str(path))
+        real(path, text)
+
+    monkeypatch.setattr(files, "write_text_atomically", the_second_write_fails)
+
+    with pytest.raises(SystemExit) as refused:
+        do_install(project, bundle_copy)
+
+    assert refused.value.code == 1
+    assert (project / DOCTOR).is_file(), "the bundle did not land"
+    said = capsys.readouterr().err
     assert "the record of it could not be written" in said, said
     assert "the doctor cannot check this install" in said
+
+
+# ------------------------------------------------------- an install still under way
+#
+# Round 16 closed the install that *stopped*. The one still *running* had no mark: the
+# record was written last, so between the first copy and the last the tree held new files
+# under the old digests, and a doctor in that window — a consumer's CI reinstalls on every
+# run, and two runs on one checkout overlap — read every file that had landed as "its
+# contents have changed" (self-audit round 20, 2026-09-03). The record is written before
+# the first file now, naming under `arriving` what each file is about to become.
+
+
+def an_upgrade_of(project: pathlib.Path, bundle_copy: pathlib.Path) -> str:
+    """Install, then change the bundle so the next install rewrites the doctor; the
+    digest the doctor will have afterwards is returned."""
+    assert do_install(project, bundle_copy) == 0
+    source = bundle_copy / DOCTOR.removeprefix("tools/")
+    source.write_text(
+        source.read_text(encoding="utf-8") + "\n# a second bundle, so the copy differs\n",
+        encoding="utf-8",
+    )
+    return install_module.digest(source)
+
+
+def test_an_install_under_way_is_said_so_and_the_files_that_landed_are_not_accused(
+    tmp_path: pathlib.Path,
+    bundle_copy: pathlib.Path,
+    capsys: pytest.CaptureFixture[str],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The doctor is run after every single copy — each window the old installer had —
+    and never says "contents have changed"; once the install is over the record carries
+    nothing arriving and the doctor is clean. The interleaving is forced through a seam,
+    since two real processes rarely meet in a window this narrow (L-0115)."""
+    project = tmp_path / "project"
+    new_digest = an_upgrade_of(project, bundle_copy)
+    capsys.readouterr()
+    real = files.copy_atomically
+    in_the_window: list[tuple[list[str], dict[str, Any]]] = []
+
+    def copy_then_look(source: pathlib.Path, target: pathlib.Path) -> None:
+        real(source, target)
+        record = json.loads((project / "tools" / "installed.json").read_text(encoding="utf-8"))
+        in_the_window.append((gates_doctor.check_installed_record(project), record))
+
+    monkeypatch.setattr(files, "copy_atomically", copy_then_look)
+    assert do_install(project, bundle_copy) == 0
+    monkeypatch.setattr(files, "copy_atomically", real)
+
+    assert len(in_the_window) > 1, "the seam saw no copies"
+    for problems, record in in_the_window:
+        assert record["finished"] is False
+        assert record["arriving"][DOCTOR] == new_digest, record["arriving"]
+        assert any("under way" in problem for problem in problems), problems
+        assert not any("contents have changed" in problem for problem in problems), problems
+    after = json.loads((project / "tools" / "installed.json").read_text(encoding="utf-8"))
+    assert "arriving" not in after, "a finished record still says something is on its way"
+    assert after["files"][DOCTOR] == new_digest, "the control: the doctor was not rewritten"
+    assert gates_doctor.check_installed_record(project) == []
+
+
+def test_the_record_is_written_before_the_first_file(
+    tmp_path: pathlib.Path,
+    bundle_copy: pathlib.Path,
+    capsys: pytest.CaptureFixture[str],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """An install that fails on its very first copy has already said it was under way:
+    the record names what the previous install left and what was about to arrive."""
+    project = tmp_path / "project"
+    new_digest = an_upgrade_of(project, bundle_copy)
+    capsys.readouterr()
+    before = json.loads((project / "tools" / "installed.json").read_text(encoding="utf-8"))
+
+    def nothing_lands(_source: pathlib.Path, target: pathlib.Path) -> None:
+        raise PermissionError(13, "Permission denied", str(target))
+
+    monkeypatch.setattr(files, "copy_atomically", nothing_lands)
+    assert do_install(project, bundle_copy) == 1
+
+    record = json.loads((project / "tools" / "installed.json").read_text(encoding="utf-8"))
+    assert record["files"] == before["files"], "the previous account was thrown away"
+    assert record["arriving"][DOCTOR] == new_digest
+    problems = gates_doctor.check_installed_record(project)
+    assert any("under way, or stopped" in problem for problem in problems), problems
+    assert not any("contents have changed" in problem for problem in problems), problems
+
+
+def test_a_file_that_is_neither_version_while_an_install_is_under_way_is_still_an_edit(
+    tmp_path: pathlib.Path, bundle_copy: pathlib.Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """`arriving` widens what a file may hold to two digests, not to anything: the file
+    that matches what is arriving has landed, the file that matches neither was edited."""
+    project = tmp_path / "project"
+    assert do_install(project, bundle_copy) == 0
+    capsys.readouterr()
+    record = project / "tools" / "installed.json"
+    doctor = project / DOCTOR
+    landed = doctor.read_text(encoding="utf-8") + "\n# landed\n"
+    doctor.write_text(landed, encoding="utf-8")
+    written = json.loads(record.read_text(encoding="utf-8"))
+    written["arriving"] = {DOCTOR: install_module.digest(doctor)}
+    record.write_text(json.dumps(written), encoding="utf-8")
+
+    while_landing = gates_doctor.check_installed_record(project)
+    doctor.write_text(landed + "# edited\n", encoding="utf-8")
+    while_edited = gates_doctor.check_installed_record(project)
+
+    assert not any("contents have changed" in problem for problem in while_landing)
+    assert any(f"{DOCTOR} is not what was installed" in problem for problem in while_edited)
+
+
+def test_an_install_that_begins_while_the_doctor_reads_is_said_not_accused(
+    tmp_path: pathlib.Path,
+    bundle_copy: pathlib.Path,
+    capsys: pytest.CaptureFixture[str],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The last window: the doctor read the finished record, then the whole upgrade landed
+    — marker, files, new record — before it read the first file. The files are new and
+    the digests it holds are old. Measured at one read in 247 with the marker alone; the
+    record is read again after the files, and a record that moved is the answer."""
+    project = tmp_path / "project"
+    an_upgrade_of(project, bundle_copy)
+    capsys.readouterr()
+    real = pathlib.Path.read_bytes
+    fired: list[pathlib.Path] = []
+
+    def the_upgrade_lands_first(self: pathlib.Path) -> bytes:
+        if not fired and self.is_relative_to(project):
+            fired.append(self)
+            assert do_install(project, bundle_copy) == 0
+        return real(self)
+
+    monkeypatch.setattr(pathlib.Path, "read_bytes", the_upgrade_lands_first)
+    problems = gates_doctor.check_installed_record(project)
+    monkeypatch.setattr(pathlib.Path, "read_bytes", real)
+
+    assert fired, "the seam never fired, so nothing was measured"
+    assert any("changed while it was being checked" in problem for problem in problems)
+    assert not any("contents have changed" in problem for problem in problems), problems
+    assert gates_doctor.check_installed_record(project) == [], "the control: clean after"
+
+
+def test_a_record_that_vanished_while_the_files_were_checked_is_said_the_same_way(
+    tmp_path: pathlib.Path,
+    bundle_copy: pathlib.Path,
+    capsys: pytest.CaptureFixture[str],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The second read of the record answering an exception is a record that moved too:
+    a `tools/` being replaced wholesale has no record for a moment."""
+    project = tmp_path / "project"
+    assert do_install(project, bundle_copy) == 0
+    capsys.readouterr()
+    real = pathlib.Path.read_bytes
+    record = project / "tools" / "installed.json"
+
+    def the_record_goes(self: pathlib.Path) -> bytes:
+        record.unlink(missing_ok=True)
+        return real(self)
+
+    monkeypatch.setattr(pathlib.Path, "read_bytes", the_record_goes)
+    problems = gates_doctor.check_installed_record(project)
+
+    assert any("changed while it was being checked" in problem for problem in problems)
+
+
+def test_a_record_whose_arriving_is_not_an_object_is_said_out_loud(
+    tmp_path: pathlib.Path, bundle_copy: pathlib.Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """Round 18's shape for the new key: a record this reader cannot use is one it says
+    it cannot use, not an `AttributeError` from `.get`."""
+    project = tmp_path / "project"
+    assert do_install(project, bundle_copy) == 0
+    capsys.readouterr()
+    record = project / "tools" / "installed.json"
+    written = json.loads(record.read_text(encoding="utf-8")) | {"arriving": ["x"]}
+    record.write_text(json.dumps(written), encoding="utf-8")
+
+    problems = gates_doctor.check_installed_record(project)
+
+    unusable = (
+        "tools/installed.json cannot be read: 'arriving' holds [\"x\"], not the "
+        "name-to-digest object the installer writes"
+    )
+    assert problems == [unusable]
 
 
 def test_suite_gates_are_reported_as_pending_not_passed(
