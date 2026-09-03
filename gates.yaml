@@ -2376,6 +2376,27 @@ gates:
       subprocess where a wrong exit code is easy to lose.
     proved_by:
       - kind: mutation
+        ref: pr/236
+        date: 2026-09-04
+        caught: >-
+          A SARIF result carries a location only where the doctor can vouch for the path,
+          so that an annotation never sends a reader to the wrong file — and
+          `is_absolute()` was the whole of that check. `..` walked through both halves:
+          `root/..` is a directory the operating system resolves happily and `is_file()`
+          then agreed about the thing on the other side, so a finding naming
+          `../outside.txt` or `inside/../../outside.txt` was given exactly that as its
+          `uri`, pointing out of the repository being read (self-audit round 21,
+          2026-09-03). The tool's own docstring had named the case it did not handle. A
+          `..` component is refused now, before anything is opened, and "under the root"
+          is decided on the **path** rather than on what the path leads to: a symlink
+          inside the tree keeps its location, because the annotation lands on a file the
+          repository has (owner's decision, 2026-09-04). Six planted defects red on their
+          own here: the climbing guard removed, only a *leading* `..` refused rather than
+          one in the middle, the absolute guard removed, the file-must-exist check
+          removed, symlinks followed so that a linked file loses its annotation, and no
+          location attached at all. The second is the one a narrower fix would have
+          failed, and the fifth is the owner's decision held rather than assumed.
+      - kind: mutation
         ref: pr/235
         date: 2026-09-04
         caught: >-

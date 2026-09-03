@@ -484,7 +484,21 @@ def _sarif_result(root: pathlib.Path, gid: str, line: str) -> dict[str, Any]:
     # A finding that names a path the reader cannot open under the root — a key from
     # `scaffold.json`, a sentence, a path outside — gets a message and no location:
     # an annotation on the wrong file is a reader sent to the wrong place.
-    if path.is_absolute() or not (root / path).is_file():
+    #
+    # "Under the root" is decided on the **path**, not on what the path leads to.
+    # `is_absolute()` was the whole check, and `..` walked straight through it: a finding
+    # naming `../outside.txt` was given `uri: ../outside.txt`, because `(root / "..")` is
+    # a directory the operating system resolves happily and `is_file()` agreed (self-audit
+    # round 21, 2026-09-03). A `..` component is refused now, before anything is opened.
+    #
+    # Symlinks are deliberately **not** followed (owner's decision, 2026-09-04): a
+    # `app/link.py` inside the tree that points elsewhere still gets its location, because
+    # a SARIF annotation lands on the path a reader opens in the repository, and that path
+    # is a file the repository has. Following the link would drop a legitimate annotation
+    # from any project that keeps a vendored or shared directory that way. What is refused
+    # is a path that names somewhere else *as a path* — which is what a reader would have
+    # to follow out of the tree to make sense of.
+    if path.is_absolute() or ".." in path.parts or not (root / path).is_file():
         return result
     region = {"startLine": int(head.group("line"))} if head.group("line") else {}
     location: dict[str, Any] = {

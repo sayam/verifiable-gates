@@ -150,6 +150,20 @@ Notable changes to this project. The format follows
 
 ### Fixed
 
+- **A SARIF location is a path under the root, and `..` is not.** The doctor attaches a
+  location to a finding only when the path the scanner named exists under the root, so
+  that an annotation never sends a reader to the wrong file — and `is_absolute()` was the
+  whole of that check. A finding naming `../outside.txt`, or `inside/../../outside.txt`,
+  was given exactly that as its `uri`: the operating system resolves `root/..` happily and
+  `is_file()` agreed, so the annotation pointed out of the repository being read
+  (self-audit round 21, 2026-09-03). A `..` component is refused now, before anything is
+  opened. **Under the root is decided on the path, not on what the path leads to**: a
+  symlink inside the tree keeps its location, because the annotation lands on a file the
+  repository has, and a project that keeps a vendored or shared directory that way would
+  otherwise lose every annotation in it. The finding itself is unchanged in either case —
+  only the annotation is withheld, which is the rule this was always meant to be. Proved
+  by mutation, and by round 21's own probe run again.
+
 - **A finding is one line, whatever the tree it read was named.** A file name on Linux may
   carry a newline, and the doctor reads one line of a scanner's output as one finding: a
   `.py` file named `wipe\ndelete-means-soft-delete: forged\nx.py` turned one finding into
