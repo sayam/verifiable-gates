@@ -342,7 +342,19 @@ gates:
           a whole class of check relaxed, green while the suppression census
           counted lines only (self-audit, 2026-08-31); red now against the
           copy, and a group of codes needs a reason above it.
-
+      - kind: mutation
+        ref: pr/243
+        date: 2026-09-04
+        caught: >-
+          Eight planted defects red against the step that publishes to the
+          index: the publish removed, moved ahead of the two-way attestation
+          check, pinned by tag, pinned with no version comment, pointed at
+          `dist/` so the SBOM would travel to an index that refuses it,
+          `skip-existing` dropped, the staging copy widened to everything, and
+          the sentence taken out of the release checklist. The last of those
+          came back green first: the assertion read the whole of § Releasing,
+          where "PyPI" survived in the next sentence, and it now holds step 5
+          alone (L-0152).
   - id: the-security-policy-quotes-one-set-of-numbers
     title: SECURITY.md exists, quotes one set of timeframes, names no address, and points at a live channel
     kind: test
@@ -2350,6 +2362,15 @@ gates:
           every tree — the shape a hand-kept list of "what applies here" decays into — took
           the count of scanners that found real work below `APPLICABLE_FLOOR` and turned
           `test_enough_scanners_actually_find_something_here` red.
+      - kind: mutation
+        ref: pr/243
+        date: 2026-09-04
+        caught: >-
+          The new `pypa/gh-action-pypi-publish` pin, planted twice — as a tag
+          and as a bare SHA with its `# v1.14.2` comment removed — red here
+          both times: this repository's own `actions-sha-pinned` reading its
+          own workflow, and the pin count held two ways (21 uses, 7 distinct)
+          rather than trusted (2026-09-04).
   - id: a-bundle-installs-and-answers
     title: A fresh install gives a project something that runs, and never overwrites its decisions
     kind: test
