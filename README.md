@@ -72,14 +72,14 @@ is instructions. The scanners are still `pip install verifiable-gates` and
 handed an agent as prose. `DECISIONS.md` `distribution-is-two-pipes-nobody-here-owns`
 says why there is no marketplace or registry of this project's own.
 
-**Two front doors for a project that has installed the bundle.** In CI,
+**Three front doors for a project that has installed the bundle.** In CI,
 `uses: sayam/verifiable-gates@<commit-sha>` runs the doctor the project installed —
 [`action.yml`](action.yml) is `run:` steps only, with nothing inside it to pin, and an
 optional `sarif:` input. With pre-commit, `repo: https://github.com/sayam/verifiable-gates`
 offers [`gates-doctor`](.pre-commit-hooks.yaml) and one hook per scanner, by the id of
-the rule it decides. Both run `tools/` as the project has it; neither carries a copy,
-so a SHA or a `rev` moving changes nothing about what the project is held to
-(`DECISIONS.md` `ci-runs-the-bundle-the-project-installed`). A third door opens at
+the rule it decides. **All three run `tools/` as the project has it and none carries a
+copy**, so a SHA, a `rev` or a plugin update moving changes nothing about what the project
+is held to (`DECISIONS.md` `ci-runs-the-bundle-the-project-installed`). The third opens at
 edit time: with the plugin enabled in Claude Code and `VERIFIABLE_GATES_AT_EDIT=1` in
 the project's `.claude/settings.json` under `env`, a [hook](hooks/hooks.json) runs the
 installed doctor after every `Edit` or `Write` and hands a finding back to the agent
@@ -280,10 +280,10 @@ repo นี้เผยแพร่ ส่วน `gates.yaml` คือสิ่
 skill คือคำสั่ง ส่วนตัวสแกนยังเป็น `pip install verifiable-gates` + `python -m verifiable_gates.install`
 เพราะตัวตรวจไม่ใช่ของที่จะยื่นให้ agent เป็นร้อยแก้ว
 
-**สองประตูหน้าสำหรับโปรเจกต์ที่ติดตั้ง bundle แล้ว** — ใน CI `uses: sayam/verifiable-gates@<commit-sha>` รัน doctor
+**สามประตูหน้าสำหรับโปรเจกต์ที่ติดตั้ง bundle แล้ว** — ใน CI `uses: sayam/verifiable-gates@<commit-sha>` รัน doctor
 ที่โปรเจกต์ติดตั้งไว้ (`action.yml` เป็น `run:` ล้วน ไม่มีอะไรข้างในให้ pin · มี input `sarif:` ให้เลือก) · ใน pre-commit
 `repo: https://github.com/sayam/verifiable-gates` มี hook `gates-doctor` กับ hook ต่อ scanner ตาม id ของกฎ · ทั้งสองรัน `tools/`
-ตามที่โปรเจกต์มี ไม่พกสำเนา — SHA หรือ `rev` ขยับจึงไม่เปลี่ยนสิ่งที่โปรเจกต์ถูกบังคับ · ประตูที่สามเปิดตอน edit: เปิด plugin
+ตามที่โปรเจกต์มี **ทั้งสามประตูไม่พกสำเนาเลย** — SHA · `rev` · หรือ plugin ขยับ จึงไม่เปลี่ยนสิ่งที่โปรเจกต์ถูกบังคับ · ประตูที่สามเปิดตอน edit: เปิด plugin
 ใน Claude Code แล้วตั้ง `VERIFIABLE_GATES_AT_EDIT=1` ใน `.claude/settings.json` ของโปรเจกต์ใต้ `env` — hook (`hooks/hooks.json`)
 จะรัน doctor ที่ติดตั้งไว้หลังทุก `Edit`/`Write` แล้วส่ง finding กลับให้ agent ตอนที่ยังถือไฟล์อยู่ · ปิดเป็นค่าเริ่มต้น · รายงาน ไม่ปฏิเสธ
 (`DECISIONS.md` `the-edit-hook-reports-and-does-not-refuse`)
