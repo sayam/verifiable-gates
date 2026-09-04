@@ -87,6 +87,13 @@ Notable changes to this project. The format follows
 
 ### Fixed
 
+- **The README says what the two distribution pipes do on the way.** Neither pipe is this
+  repository's; the Skills CLI's own README says `npx skills add` sends repository and skill
+  identifiers as install telemetry, off with `DISABLE_TELEMETRY=1` or `DO_NOT_TRACK=1`
+  (round 23, A1). The README now says so beside the command, says the marketplace pipe is not
+  measured, and says the bundle opens no network — a test in
+  `tests/test_checks_are_standalone.py` refuses a network import in any shipped file.
+  `DECISIONS.md` `distribution-is-two-pipes-nobody-here-owns` carries the fact in its `why`.
 - **`gates_doctor --installed` leaves no bytecode in the project.** It compiled each scan
   through `py_compile`, which writes `__pycache__/*.pyc` under the project's `tools/checks/` —
   nine files a Go or Node project has no `.gitignore` for, committed by its first
