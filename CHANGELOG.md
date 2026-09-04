@@ -87,6 +87,16 @@ Notable changes to this project. The format follows
 
 ### Fixed
 
+- **The README says what the `npx` pipe fetches, pins and lands — measured.** It said both pipes
+  install "the same three files"; the pipe lands four (`references/working.md` since `2bc474f`, 2026-09-04, unreleased) and
+  nothing held the count, so `own_numbers` now writes it in both languages from the tree. Measured
+  on Skills CLI 1.5.23 (round 23, D5): the pipe fetches the default branch at the moment of the
+  command, `@<sha>` is read as a skill name, `skills-lock.json` records a hash it does not enforce
+  (a tampered hash is overwritten on `experimental_install`), and `skills update` re-fetches and
+  moves the copy to `.agents/skills/` behind a symlink. The README says so beside the command and
+  points the pinned routes at the submodule and the versioned dependency; what the marketplace pipe
+  lands is stated as not measured. `DECISIONS.md` `distribution-is-two-pipes-nobody-here-owns`
+  carries the fact.
 - **The README says what the two distribution pipes do on the way.** Neither pipe is this
   repository's; the Skills CLI's own README says `npx skills add` sends repository and skill
   identifiers as install telemetry, off with `DISABLE_TELEMETRY=1` or `DO_NOT_TRACK=1`
