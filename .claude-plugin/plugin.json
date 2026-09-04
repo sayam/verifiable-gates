@@ -17,6 +17,5 @@
     "secure software development",
     "developer experience"
   ],
-  "skills": "./skills/",
-  "hooks": "./hooks/hooks.json"
+  "skills": "./skills/"
 }

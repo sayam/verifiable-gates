@@ -87,6 +87,13 @@ Notable changes to this project. The format follows
 
 ### Fixed
 
+- **The Claude Code plugin loads again.** On Claude Code 2.1.261, `plugin.json` declaring
+  `"hooks": "./hooks/hooks.json"` — the file Claude Code loads from that path by itself — made
+  `plugin install` report *failed to load: Duplicate hooks file detected*, with neither the skill
+  nor the hook available; `plugin validate` passed. The key is gone, a test in
+  `tests/test_identity_cards.py` holds it, and the README says what the marketplace pipe lands:
+  the whole repository, as a clone plus a per-version copy, because the hook needs `src/`
+  (round 23, D3).
 - **The README says what the `npx` pipe fetches, pins and lands — measured.** It said both pipes
   install "the same three files"; the pipe lands four (`references/working.md` since `2bc474f`, 2026-09-04, unreleased) and
   nothing held the count, so `own_numbers` now writes it in both languages from the tree. Measured
