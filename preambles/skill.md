@@ -27,6 +27,11 @@ compares the two on every test run.
    agreements an application of a given kind may legitimately decide differently. Each
    entry is the rule, the incident that produced it, and how one real project enforces it.
 3. **The index below names every rule.** Skim it once to know what exists.
+4. **[`references/working.md`](references/working.md) is a different kind of sheet** and
+   optional. It is not rules — it is how the work is done: ten practices, each with the
+   ledger entry that paid for it and the pull requests it held on. Nothing there is
+   decided by a scanner, and `--rules` never prints one. Read it once, then keep your own
+   ledger; in a few months your entries will be better for your project than ours are.
 
 Every rule is **framework-agnostic**. What enforces a rule is not: enforcement is
 written in some project's own framework, and each entry's *Enforced in the reference*
@@ -58,4 +63,5 @@ the conditions that created it still hold.
 
 ## The index
 
-One line per rule, grouped by layer. The link on each is its full entry.
+One line per rule, grouped by layer, then the practices under their own heading. The link
+on each is its full entry.

@@ -58,8 +58,8 @@ repository keeps on itself").
   `CONTRIBUTING.md` § "The rules this repository holds itself to"; a register and
   its copy change in one pull request.
 - Generated, never edited by hand: everything under `skills/verifiable-gates/`
-  (`python -m verifiable_gates.skill`, source `rules.yaml`). Numbers the
-  documents quote are written by `python -m verifiable_gates.own_numbers --write`.
+  (`python -m verifiable_gates.skill`, from `rules.yaml` and `working.yaml`). Numbers
+  the documents quote are written by `python -m verifiable_gates.own_numbers --write`.
 - Stage files by name. Never `git add -A`.
 
 ## Releasing

@@ -66,8 +66,26 @@ def _field(rule: dict[str, Any], name: str, language: str) -> str:
     return re.sub(r"\s+", " ", str(value)).strip()
 
 
+def _holder(practice: dict[str, Any]) -> str:
+    """What stands behind a practice, in the words the catalogue uses for it.
+
+    A rule points at what enforces it; a practice points at what *holds* it, and the
+    honest answer is usually nobody but the reader. Saying so on every line is the point:
+    a rule the tool cannot check must never look like a rule it checked, and a practice
+    held by reading must never look like one a checker refuses (`DECISIONS.md`
+    `practices-are-held-by-what-they-name`).
+    """
+    held_by = practice["held_by"]
+    named = practice.get(held_by)
+    if named:
+        return f"`{named}` — a shipped {held_by} refuses it" if held_by == "tool" else f"`{named}`"
+    return "reading this line — nothing here refuses it for you"
+
+
 def _enforcement(rule: dict[str, Any]) -> str:
     """Point at what enforces the rule in the reference, rather than restating a command."""
+    if rule.get("layer") == catalogue.WORKING:
+        return _holder(rule)
     reference = rule["reference"]
     if reference["kind"] == "test":
         return " · ".join(f"`{name}`" for name in reference["tests"])
@@ -91,10 +109,17 @@ def render(
         lines.append(f"**{rule_label}:** {_field(rule, 'title', language)}\n")
         lines.append(f"**{born_label}:** {_field(rule, 'born_from', language)}\n")
         lines.append(f"**{enforced_label}:** {_enforcement(rule)}\n")
+        if rule.get("layer") == catalogue.WORKING:
+            lines.append(f"**Apply:** {_field(rule, 'apply', language)}\n")
     return "\n".join(lines)
 
 
-def render_index(rules: list[dict[str, Any]], preamble: str, language: str = "en") -> str:
+def render_index(
+    rules: list[dict[str, Any]],
+    preamble: str,
+    language: str = "en",
+    practices: list[dict[str, Any]] | None = None,
+) -> str:
     """The skill's front page: the preamble, then every rule as one line, by layer.
 
     Each line links to the rule's full entry in `references/<layer>.md` — the file the
@@ -115,14 +140,32 @@ def render_index(rules: list[dict[str, Any]], preamble: str, language: str = "en
             for rule in chosen
         )
         lines.append("")
+    if practices:
+        # Under its own heading, and counted as practices rather than rules: the working
+        # is a layer beneath the rules, not more of them, and a reader who mistook one for
+        # the other would think the bundle could decide it.
+        lines.append(
+            f"### working — {len(practices)} practices · full entries in `references/working.md`\n"
+        )
+        lines.append(
+            "How the work is done, not what the code must be. Each carries the lesson that"
+            " paid for it and the pull requests it held on; none is decided by a scanner,"
+            " and `gates_doctor --rules` never prints one.\n"
+        )
+        lines.extend(
+            f"- [`{practice['id']}`](references/working.md#{practice['id']}) — "
+            f"{_field(practice, 'title', language)}"
+            for practice in practices
+        )
+        lines.append("")
     return "\n".join(lines)
 
 
-def _catalogue(path: str) -> list[Any]:
+def _catalogue(path: str, key: str = "rules") -> list[Any]:
     """The rule catalogue, or the third answer — a catalogue that is not UTF-8, or is
     not there, was a traceback and exit 1 (self-audit round 3, 2026-09-01)."""
     try:
-        return catalogue.load(path)
+        return catalogue.load(path, key)
     except (OSError, UnicodeDecodeError) as unreadable:
         print(f"cannot read the catalogue: {path}: {unreadable}", file=sys.stderr)
         raise SystemExit(2) from unreadable
@@ -151,6 +194,16 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--out", required=True, help="where to write the sheet")
     parser.add_argument("--layer", default=None, help="only rules of this layer")
     parser.add_argument(
+        "--key",
+        default="rules",
+        help="the catalogue's list name — `rules`, or `practices` for working.yaml",
+    )
+    parser.add_argument(
+        "--practices",
+        default=None,
+        help="with --index: the working catalogue, listed under its own heading",
+    )
+    parser.add_argument(
         "--index",
         action="store_true",
         help="render the skill's front page — one line per rule, every layer — instead of a sheet",
@@ -175,8 +228,9 @@ def main(argv: list[str] | None = None) -> int:
     if args.index and args.layer is not None:
         parser.error("--index lists every layer; --layer selects one for a full sheet")
 
-    rules = _catalogue(args.catalogue)
-    problems = catalogue.problems(rules)
+    rules = _catalogue(args.catalogue, args.key)
+    practices = _catalogue(args.practices, "practices") if args.practices else None
+    problems = catalogue.problems(rules) + (catalogue.problems(practices) if practices else [])
     if problems:
         for problem in problems:
             print(f"catalogue: {problem}", file=sys.stderr)
@@ -202,7 +256,7 @@ def main(argv: list[str] | None = None) -> int:
         print(f"cannot read the preamble: {args.preamble}: {why}", file=sys.stderr)
         return 2
     fresh = (
-        render_index(rules, preamble, args.language)
+        render_index(rules, preamble, args.language, practices)
         if args.index
         else render(rules, preamble, args.layer, args.language, labels)
     )
