@@ -35,7 +35,7 @@ from typing import TYPE_CHECKING, Any
 
 import pytest
 import yaml
-from bundle import DOCTOR, do_install, outside_stdlib, run_doctor
+from bundle import CHECKS, DOCTOR, do_install, outside_stdlib, run_doctor
 
 from verifiable_gates import edit_hook, files, gates_doctor
 from verifiable_gates import install as install_module
@@ -3523,3 +3523,137 @@ def test_the_hook_runs_for_real_as_claude_code_would_run_it(installed: pathlib.P
 
     off = _bash(command, installed, plugin, event)
     assert (off.returncode, off.stdout, off.stderr) == (0, "", "")
+
+
+# ------------------------------------------------ a key in scaffold.json nobody reads
+
+
+def _scaffold_with(project: pathlib.Path, **extra: object) -> None:
+    """The installed `scaffold.json` with keys added — the shape a hand edit leaves."""
+    path = project / "scaffold.json"
+    config = json.loads(path.read_text(encoding="utf-8"))
+    config.update(extra)
+    path.write_text(json.dumps(config), encoding="utf-8")
+
+
+def test_a_key_no_scanner_reads_is_a_finding_that_names_the_nearest_one(
+    installed: pathlib.Path,
+) -> None:
+    """`templates_pth` for `templates_path`: measured 2026-09-05, every scanner answered
+    NA from its default and the doctor exited 0, while the same value under the right
+    key is a broken configuration and exit 1 (round 23, D4). The doctor is the one file
+    that knows every key, so it is the one that says a key is nobody's."""
+    _scaffold_with(installed, templates_pth="app/templates")
+    done = run_doctor(installed)
+    assert done.returncode == 1
+    assert "[found] scaffold.json — a key no scanner reads" in done.stdout
+    assert (
+        "scaffold.json names templates_pth, which no scanner reads — did you mean templates_path?"
+        in done.stdout
+    )
+    assert "found problems in 1 gates: scaffold.json" in done.stdout
+
+
+def test_a_key_far_from_every_name_still_lists_the_keys_the_bundle_reads(
+    installed: pathlib.Path,
+) -> None:
+    _scaffold_with(installed, colour="blue")
+    done = run_doctor(installed)
+    assert done.returncode == 1
+    (line,) = [x for x in done.stdout.splitlines() if x.startswith("scaffold.json names colour")]
+    assert "did you mean" not in line
+    for key in gates_doctor.SCAFFOLD_KEYS:
+        assert key in line, f"the line does not name {key}"
+
+
+def test_the_files_own_comments_and_the_keys_read_are_not_findings(
+    installed: pathlib.Path,
+) -> None:
+    """As installed the file holds `_comment` and `preflight_jobs`; a note of the
+    project's own under another underscore key is its business too."""
+    _scaffold_with(installed, _note="why we moved nothing")
+    done = run_doctor(installed)
+    assert "[found] scaffold.json" not in done.stdout
+    assert "no scanner reads" not in done.stdout
+
+
+def test_a_scaffold_that_is_not_a_configuration_gets_no_key_finding_on_top(
+    installed: pathlib.Path,
+) -> None:
+    """Malformed, or an object it is not: the scanners already say so with exit 2, and a
+    key finding on top would be a second sentence about the same broken file."""
+    for text in ("{bad", "[1, 2]"):
+        (installed / "scaffold.json").write_text(text, encoding="utf-8")
+        done = run_doctor(installed)
+        assert "[found] scaffold.json" not in done.stdout, text
+        assert "[error]" in done.stdout, text
+    (installed / "scaffold.json").unlink()
+    assert gates_doctor.check_scaffold_keys(installed) == []
+
+
+def test_the_key_finding_travels_into_sarif_as_a_result_with_its_rule(
+    installed: pathlib.Path, tmp_path: pathlib.Path
+) -> None:
+    _scaffold_with(installed, templates_pth="app/templates")
+    out = tmp_path / "run.sarif"
+    assert run_doctor(installed, "--sarif", str(out)).returncode == 1
+    run = json.loads(out.read_text(encoding="utf-8"))["runs"][0]
+    assert "scaffold.json" in {rule["id"] for rule in run["tool"]["driver"]["rules"]}
+    (result,) = [r for r in run["results"] if r["ruleId"] == "scaffold.json"]
+    assert "templates_pth" in result["message"]["text"]
+    (location,) = result["locations"]
+    assert location["physicalLocation"]["artifactLocation"]["uri"] == "scaffold.json"
+
+
+def test_the_keys_the_doctor_knows_are_the_keys_the_scanners_read() -> None:
+    """A register held two-way: `SCAFFOLD_KEYS` equals what the shipped files actually
+    read, found in their source, and every key is named in `scaffold.json.default`."""
+    # The accessor shape of each shipped reader: `_configured_*(config, "<key>", …)` in
+    # the scanners, `document.get("<key>")` in preflight. Each pattern is applied to its
+    # own file only — the registry scanner's `document.get("gates")` reads gates.yaml.
+    scanners = re.compile(r'config,\s*"(\w+)"')
+    preflight = re.compile(r'document\.get\("(\w+)"\)')
+    read: set[str] = set()
+    for path in sorted(CHECKS.glob("scan_*.py")):
+        read |= set(scanners.findall(path.read_text(encoding="utf-8")))
+    source = ROOT_OF_REPO / "src" / "verifiable_gates" / "preflight.py"
+    read |= set(preflight.findall(source.read_text(encoding="utf-8")))
+    assert read == set(gates_doctor.SCAFFOLD_KEYS)
+    default = ROOT_OF_REPO / "src" / "verifiable_gates" / "scaffold.json.default"
+    comment = json.loads(default.read_text(encoding="utf-8"))["_comment"]
+    for key in gates_doctor.SCAFFOLD_KEYS:
+        assert key in comment, f"scaffold.json.default's comment does not name {key}"
+
+
+def test_the_key_check_answers_in_process_for_every_shape_of_file(installed: pathlib.Path) -> None:
+    """Coverage here is collected in this process, and the doctor above ran as a child —
+    so the branches are walked once more by calling the function itself."""
+    path = installed / "scaffold.json"
+    for text in ("{bad", "[1, 2]"):
+        path.write_text(text, encoding="utf-8")
+        assert gates_doctor.check_scaffold_keys(installed) == [], text
+    path.write_text(
+        json.dumps({"_note": "ours", "templates_pth": "x", "colour": "blue", "src_path": "app"}),
+        encoding="utf-8",
+    )
+    far, near = gates_doctor.check_scaffold_keys(installed)  # sorted: colour, then templates_pth
+    assert near.startswith(
+        "scaffold.json names templates_pth, which no scanner reads — did you mean"
+    )
+    assert far.startswith("scaffold.json names colour, which no scanner reads — every scanner")
+
+
+def test_the_doctor_prints_and_carries_the_key_finding_in_process(
+    installed: pathlib.Path, tmp_path: pathlib.Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    _scaffold_with(installed, templates_pth="app/templates")
+    out = tmp_path / "run.sarif"
+    manifest = str(installed / "tools" / "overlay.json")
+    assert gates_doctor.main([str(installed), "--manifest", manifest, "--sarif", str(out)]) == 1
+    said = capsys.readouterr().out
+    assert "[found] scaffold.json — a key no scanner reads" in said
+    assert "found problems in 1 gates: scaffold.json" in said
+    run = json.loads(out.read_text(encoding="utf-8"))["runs"][0]
+    assert {"id": "scaffold.json", "shortDescription": {"text": "a key no scanner reads"}} in run[
+        "tool"
+    ]["driver"]["rules"]

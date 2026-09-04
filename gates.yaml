@@ -2464,6 +2464,18 @@ gates:
       subprocess where a wrong exit code is easy to lose.
     proved_by:
       - kind: mutation
+        ref: pr/252
+        date: 2026-09-05
+        caught: >-
+          The doctor no longer asks `scaffold.json` for keys nobody reads — red against
+          three tests: a misspelt `templates_pth` must be `[found] scaffold.json — a key
+          no scanner reads`, with `did you mean templates_path?`, at exit 1 (self-audit
+          round 23, D4: measured, every scanner answered NA from its default path and
+          the doctor exited 0, while the same value under the right key was a broken
+          configuration at exit 1). Five more plants, each red on its own: no nearest-key
+          hint, underscore keys not exempt, no SARIF rule for the finding, a key dropped
+          from `SCAFFOLD_KEYS`, and a scanner reading a key the doctor does not know.
+      - kind: mutation
         ref: pr/248
         date: 2026-09-05
         caught: >-

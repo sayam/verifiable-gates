@@ -136,6 +136,9 @@ project passed" (a path that `scaffold.json` *names* and the project does not ha
 never `NA`, though: that is a broken configuration, and it is a finding — and so are a
 value of the wrong shape, a list where one path goes or a string where a list of names
 goes, and a path that leads outside the project, each naming the key it came from; and a
+key no scanner reads — `templates_pth` for `templates_path` — is a finding that names the
+nearest key the bundle does read, because every scanner would answer from its default
+while the project pointed elsewhere; and a
 `Dockerfile*` the project has but never named is a finding too, not "no
 Dockerfile"; a directory that is *there* and holds no file of the kind a checker reads
 — an `app/` of Go, a templates directory of `.ejs` — is `NA` naming what it looked for,
@@ -358,6 +361,8 @@ commit SHA ที่ไม่มี comment บอกเวอร์ชันข
 โดยลบคอมเมนต์ก่อน (คอมเมนต์ที่ไม่ปิดกินถึงท้ายไฟล์) ถอด entity ในค่าของ attribute ก่อนอ่าน scheme (`&#106;avascript:`) และอ่าน `.htm` `.jinja` `.jinja2` `.j2` เหมือน `.html` · `Dockerfile*` ที่มีอยู่แต่ไม่ได้ตั้งชื่อไว้ใน `scaffold.json` ถือเป็น
 finding ไม่ใช่ "ไม่มี Dockerfile" · ค่าใน `scaffold.json` ที่ผิดรูป — ลิสต์ในที่ที่ต้องเป็นพาธเดียว หรือสตริงในที่ที่ต้อง
 เป็นลิสต์ของชื่อ — และพาธที่พาออกไปนอกโปรเจกต์ เป็น finding ที่บอกชื่อคีย์ เช่นเดียวกับพาธที่ตั้งชื่อไว้แต่ไม่มีอยู่จริง
+· คีย์ที่ไม่มี scanner ตัวไหนอ่าน (`templates_pth` แทน `templates_path`) เป็น finding ที่บอกคีย์ใกล้เคียงที่ bundle อ่านจริง เพราะทุก scanner
+จะตอบจากค่า default ขณะที่โปรเจกต์ชี้ไปที่อื่น
 
 **คลังเก็บสองภาษา**: อังกฤษเป็นข้อความที่เผยแพร่ ส่วนถ้อยคำไทยต้นฉบับอยู่ในฟิลด์
 `*_th` คู่กัน เพราะคำแปลของบันทึกเหตุการณ์คือการเล่าใหม่ และการเล่าใหม่ไม่ใช่ตัวบันทึก
