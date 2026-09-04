@@ -12,9 +12,10 @@
 #   file     — a shipped template carries the shape, and `file:` names it
 #   reading  — nothing but the agent reading this line
 #
-# `held_by` says what is true today, not what is planned: the two ledger templates ship
-# behind `--working` in a later change, and the practices they will carry say `reading`
-# until that change lands them and flips them in the same breath.
+# `held_by` says what is true today, not what is planned. Two of these said `reading` when
+# the file was written and became `file` in the change that shipped the templates they
+# name — the flip and the templates in one breath, which is the only way a holder can be
+# checked on the day it is claimed.
 #
 # English only, and no `pillar`: the ledger is written in English by its own rule, so a
 # Thai column here would be a retelling of a record rather than a record; and the four
@@ -35,7 +36,8 @@ practices:
       echo OK` inside a battery line let the chain continue after a failure, so a run
       reported success it had not had. Nothing recorded it, and the same shape was written
       again nineteen days later.
-    held_by: reading
+    held_by: file
+    file: local/LESSONS.md.default
     held_on: [pr/227, pr/231, pr/235, pr/237]
     apply: >-
       Keep one append-only file — id, stamp, `updates:` chain, and Context / Lesson /
@@ -65,7 +67,8 @@ practices:
       L-0126 · 2026-09-03 · Two probes written in the session's temporary directory were
       nearly lost when the context was cleared: moving them costs a turn, costs tokens,
       and is the step that gets skipped exactly when the session ends abruptly.
-    held_by: reading
+    held_by: file
+    file: local/README.md.default
     held_on: [pr/234, pr/235, pr/236, pr/237]
     apply: >-
       One directory per piece of work, created before the first file lands in it, each

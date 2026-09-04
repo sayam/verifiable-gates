@@ -48,7 +48,7 @@ not learnt yet.
 
 **Born from:** L-0001 · 2026-08-30 · The first entry was a shell guard that did not guard: `cmd && echo OK` inside a battery line let the chain continue after a failure, so a run reported success it had not had. Nothing recorded it, and the same shape was written again nineteen days later.
 
-**Held by:** reading this line — nothing here refuses it for you
+**Held by:** `local/LESSONS.md.default`
 
 **Apply:** Keep one append-only file — id, stamp, `updates:` chain, and Context / Lesson / Apply. Never edit or delete an entry: the history of having been wrong is the part that carries. Before adding one, read the ledger; if an entry covers it, say so in `updates:` rather than writing a second.
 
@@ -68,7 +68,7 @@ not learnt yet.
 
 **Born from:** L-0126 · 2026-09-03 · Two probes written in the session's temporary directory were nearly lost when the context was cleared: moving them costs a turn, costs tokens, and is the step that gets skipped exactly when the session ends abruptly.
 
-**Held by:** reading this line — nothing here refuses it for you
+**Held by:** `local/README.md.default`
 
 **Apply:** One directory per piece of work, created before the first file lands in it, each with a README saying what every file does, how to run it, and the raw numbers it measured. Scripts take their target as an argument so the next piece of work reuses them instead of copying them. The scratchpad is for what nobody will ever want again.
 

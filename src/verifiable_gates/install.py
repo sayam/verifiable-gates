@@ -11,8 +11,10 @@ What the destination ends up with:
 - `scaffold.json` — configuration, **never overwritten** if it is already there
 - `gates.yaml` — the starting registry, also never overwritten
 - `.github/workflows/gates.yml` — a starting workflow, also never overwritten
+- `.local/LESSONS.md` and `.local/README.md` — **only under `--working`**: an empty ledger
+  and a page saying what it is for. Never overwritten either, and nothing the doctor reads
 
-The three "never overwritten" cases are the ones holding decisions somebody made.
+The "never overwritten" cases are the ones holding decisions somebody made.
 Everything else is ours and is replaced, because a half-updated bundle is worse
 than an old one.
 
@@ -66,7 +68,16 @@ KEEP_IF_PRESENT = {
     "scaffold.json.default": "scaffold.json",
     "gates.yaml.default": "gates.yaml",
     "ci-template.yml": ".github/workflows/gates.yml",
+    "local/LESSONS.md.default": ".local/LESSONS.md",
+    "local/README.md.default": ".local/README.md",
 }
+
+# The two above land **only** under `--working`, and nothing else about the install
+# changes: the working is a thing a project is told about and can turn on, in that order
+# (`DECISIONS.md` `the-working-is-off-by-default`). Enabled means one thing — `.local/
+# LESSONS.md` exists — because a second place saying so would be a register nobody holds.
+WORKING_ONLY = ("local/LESSONS.md.default", "local/README.md.default")
+GITIGNORE_LINE = ".local/"
 
 
 # The job `ci-template.yml` runs the scans under; a test holds the two together.
@@ -283,10 +294,12 @@ def install(
     manifest: dict[str, Any],
     bundle: pathlib.Path,
     manifest_path: pathlib.Path | None = None,
+    *,
+    working: bool = False,
 ) -> int:
     kept_registry = False
     written: list[pathlib.Path] = []
-    names = manifest_module.shipped(manifest)
+    names = [n for n in manifest_module.shipped(manifest) if working or n not in WORKING_ONLY]
 
     # Refuse before touching the destination: the directories used to be made
     # first, so a refused install still left an empty `tools/checks/` behind
@@ -356,13 +369,44 @@ def install(
         "for the instruction file your agents read (AGENTS.md, CLAUDE.md), add one line:"
         " `run python3 tools/gates_doctor.py --rules before editing`"
     )
+    _say_about_the_working(manifest, working=working)
     return 0
+
+
+def _say_about_the_working(manifest: dict[str, Any], *, working: bool) -> None:
+    """Told about it, or told what landed — never quietly either way.
+
+    A project that did not ask hears one line saying the bundle carries the practices and
+    how to read them; a project that did asks for the `.gitignore` line rather than having
+    it written, because whether a ledger is private is that project's decision and belongs
+    where its team can see it (`DECISIONS.md` `the-working-is-off-by-default`).
+    """
+    practices = len(manifest.get("working", []))
+    if not practices:
+        return
+    if not working:
+        print(
+            f"this bundle also carries the working: {practices} practices, each with the"
+            " lesson behind it and the pull requests it held on — off here; read"
+            " `python3 tools/gates_doctor.py --working`, turn on with `install <dest> --working`"
+        )
+        return
+    print(
+        f"the working is on: {practices} practices, and `.local/` is yours from here."
+        f" Add `{GITIGNORE_LINE}` to .gitignore unless you mean to publish it —"
+        " this installer does not edit a file that carries your decisions."
+    )
 
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="Install a gate bundle into a project.")
     parser.add_argument("destination")
     parser.add_argument("--manifest", help="path to overlay.json (default: beside the package)")
+    parser.add_argument(
+        "--working",
+        action="store_true",
+        help="also land .local/LESSONS.md and .local/README.md — an empty ledger, kept if present",
+    )
     args = parser.parse_args(argv)
 
     here = pathlib.Path(__file__).resolve().parent
@@ -378,7 +422,11 @@ def main(argv: list[str] | None = None) -> int:
         print(f"** cannot read the manifest: {error}", file=sys.stderr)
         return 2
     return install(
-        pathlib.Path(args.destination).resolve(), manifest, manifest_path.parent, manifest_path
+        pathlib.Path(args.destination).resolve(),
+        manifest,
+        manifest_path.parent,
+        manifest_path,
+        working=args.working,
     )
 
 

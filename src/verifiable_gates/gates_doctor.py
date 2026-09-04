@@ -8,14 +8,14 @@ YAML, and why the few lines of manifest reading here are not shared with
 `verifiable_gates.manifest` — the duplication is small and the property is not.
 
     python3 gates_doctor.py [root | --root DIR] [--manifest path]
-                            [--installed | --rules] [--sarif FILE]
+                            [--installed | --rules | --working] [--sarif FILE]
 
 The project can be named either way. Every other tool in this bundle takes
 `--root`, and an operator who reaches for the same spelling here should be
 answered, not shown a usage error. Naming it twice is a misuse (exit 2): two
 roots that differ would leave the report silently about one of them.
 
-**Three modes that measure different things, and the difference is the point:**
+**Four modes that measure different things, and the difference is the point:**
 
 - `--installed` asks whether the bundle *arrived and can run*: the config exists,
   every scan script compiles. That is a claim about the installation, not about
@@ -37,7 +37,12 @@ roots that differ would leave the report silently about one of them.
   2026-09-03). A bundle whose record does not hold, or that has no record at
   all, prints no rules: exit 2 with what `--installed` would have said. A rule
   nobody can vouch for is not a rule an agent should be handed.
-- Without either flag it **runs the scans** and exits 1 if any found something.
+- `--working` asks what practices the bundle carries and whether this tree has turned
+  them on. It judges nothing and never fails: the working is how a project's own work
+  is done, and a doctor grading that would be a rule the tool cannot check dressed as
+  one it did. Enabled means one thing — `.local/LESSONS.md` exists — because a second
+  place saying so would be a register nobody holds.
+- Without any of them it **runs the scans** and exits 1 if any found something.
 
 Asking two of them at once is a misuse (exit 2), for the same reason two roots
 are: they are different questions, and one report cannot answer both.
@@ -731,6 +736,49 @@ def rules_off_an_intact_bundle(
     return print_rules(manifest, bundle)
 
 
+def print_working(manifest: dict[str, Any], root: pathlib.Path) -> int:
+    """The practices this bundle carries, and whether this tree has turned them on.
+
+    Read off the installed manifest, like `--rules`, so an upgrade cannot leave an agent on
+    yesterday's copy. Unlike `--rules` it is **not** held to the installed record: nothing
+    here decides anything about the project, so there is no verdict for a tampered manifest
+    to corrupt — what it prints is a reading list, and the worst a wrong one can do is
+    recommend a habit nobody adopted.
+
+    The state line is the only measurement, and it measures one thing: whether
+    `.local/LESSONS.md` is there. It is never a finding. A project that deleted its ledger
+    made a decision, and this mode says so rather than grading it (`DECISIONS.md`
+    `the-working-is-off-by-default`).
+    """
+    practices = manifest.get("working") or []
+    if not practices:
+        print("this bundle carries no working practices.")
+        return 0
+    print(f"The practices this bundle carries: {len(practices)}. None is decided by a scanner.")
+    print(
+        "They are how the work is done, not what the code must be. Each names the lesson"
+        " that paid for it and the pull requests it held on.\n"
+    )
+    for entry in practices:
+        held_by = str(entry.get("held_by", "reading"))
+        named = entry.get(held_by)
+        print(f"{entry.get('id', '(no id)')}")
+        print(f"  practice:  {entry.get('title', '(no title in this manifest)')}")
+        print(f"  born from: {entry.get('born_from', '(origin not recorded in this manifest)')}")
+        print(f"  held by:   {f'{held_by} — {named}' if named else held_by}")
+        print(f"  apply:     {entry.get('apply', '(nothing to do recorded in this manifest)')}")
+    ledger = root / ".local" / "LESSONS.md"
+    if ledger.is_file():
+        print(f"\nOn here: {ledger.relative_to(root)} exists. The entries in it are yours.")
+    else:
+        print(
+            "\nOff here: no .local/LESSONS.md. Turn it on with"
+            " `python -m verifiable_gates.install <this tree> --working`, which lands an"
+            " empty ledger and nothing else."
+        )
+    return 0
+
+
 def print_rules(manifest: dict[str, Any], bundle: pathlib.Path) -> int:
     """Every rule a scanner in this bundle decides, as data an agent can read before editing.
 
@@ -801,17 +849,25 @@ def main(argv: list[str] | None = None) -> int:
         help="print the rules this bundle decides, for the project's agent instructions",
     )
     parser.add_argument(
+        "--working",
+        action="store_true",
+        help="print the practices this bundle carries, and whether this tree turned them on",
+    )
+    parser.add_argument(
         "--sarif",
         metavar="FILE",
         help="also write this run as SARIF 2.1.0, for code scanning, reviewdog or an IDE",
     )
     args = parser.parse_args(argv)
-    if args.sarif and (args.installed or args.rules):
-        parser.error("--sarif describes a run of the scans; --installed and --rules run none")
+    if args.sarif and (args.installed or args.rules or args.working):
+        parser.error(
+            "--sarif describes a run of the scans; --installed, --rules and --working run none"
+        )
+    asked = [name for name in ("installed", "rules", "working") if getattr(args, name)]
+    if len(asked) > 1:
+        parser.error(f"--{' and --'.join(asked)} are different questions: ask one at a time")
     if args.root is not None and args.root_option is not None:
         parser.error("give the project once: either as the positional root or as --root, not both")
-    if args.installed and args.rules:
-        parser.error("--installed and --rules are two different questions: ask one at a time")
     root_arg = args.root_option if args.root is None else args.root
 
     manifest_path = (
@@ -831,6 +887,8 @@ def main(argv: list[str] | None = None) -> int:
         return check_installed(root, manifest, bundle)
     if args.rules:
         return rules_off_an_intact_bundle(root, manifest, bundle)
+    if args.working:
+        return print_working(manifest, root)
     return run_scans(root, manifest, bundle, pathlib.Path(args.sarif) if args.sarif else None)
 
 

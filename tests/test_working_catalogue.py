@@ -70,16 +70,26 @@ def test_the_published_catalogue_carries_no_practice() -> None:
 
 
 def test_held_by_says_what_is_true_today() -> None:
-    """`file` needs a shipped template, and none ships yet: the two practices about the
-    ledger say `reading` until the change that lands the templates flips them."""
+    """Every holder names something the bundle ships **on the day it is claimed**.
+
+    Two of these said `reading` when the catalogue was written and became `file` in the
+    change that shipped the templates they name — the flip and the templates in one
+    breath. That is the only way a holder is checked when it is claimed rather than
+    promised, so the check is the general one: whatever a practice says holds it, the
+    bundle has it now.
+    """
     practices = rules.load(CATALOGUE, key="practices")
     assert {p["held_by"] for p in practices} <= rules.HELD_BY
-    assert all(p["held_by"] != "file" for p in practices), (
-        "a `file` holder appeared — did the template it names ship in the same change?"
-    )
-    (tooled,) = [p for p in practices if p["held_by"] == "tool"]
-    assert tooled["tool"] == "lint_commits.py"
-    assert (PACKAGE / "lint_commits.py").is_file()
+    named = [
+        (p["id"], p["held_by"], p[p["held_by"]]) for p in practices if p["held_by"] != "reading"
+    ]
+    assert named, "no practice names a holder — the check below would be vacuous"
+    for practice_id, held_by, name in named:
+        assert (PACKAGE / name).is_file(), f"{practice_id}: {held_by} {name} is not shipped"
+    assert {p["id"] for p in practices if p["held_by"] == "file"} == {
+        "keep-a-ledger-of-the-working",
+        "work-products-live-where-they-survive",
+    }
 
 
 # ------------------------------------------------------ each defect, planted and refused

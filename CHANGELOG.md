@@ -8,6 +8,28 @@ Notable changes to this project. The format follows
 
 ### Added
 
+- **A project turns the working on with one flag, and nothing lands until it does.**
+  `python -m verifiable_gates.install <dest> --working` adds two files and nothing else:
+  `.local/LESSONS.md`, an **empty** ledger that teaches the entry shape and says the first
+  entry is usually a guard that did not guard, and `.local/README.md`, which says what the
+  directory is for — one work directory per piece of work, created before the first file
+  lands in it, each with a README carrying the raw numbers. Both are kept if present, for
+  the reason `gates.yaml` is: from the moment they land they hold the project's own history.
+  Without the flag nothing under `.local/` is written and the installer says so in one
+  line — *this bundle also carries the working: 10 practices … off here* — because a
+  project that is not told cannot ask. **Enabled means one thing**: `.local/LESSONS.md`
+  exists. No key in `scaffold.json`, no flag in the record; a second place saying so would
+  be a register nobody holds. The installer **prints** the `.gitignore` line and does not
+  write it — whether a ledger is private is the project's decision, and this installer does
+  not edit files that carry those. `gates_doctor --working` is the fourth mode: it prints
+  the practices off the installed manifest, each with its lesson, its holder and what to
+  do, then one line of state — *on here* or *off here* — and **exits 0 whatever it finds**.
+  `--installed` never looks for these files: a deleted ledger is a decision, and a doctor
+  grading it would be a rule the tool cannot check dressed as one it did (`DECISIONS.md`
+  `the-working-is-off-by-default`). Two practices moved from `held_by: reading` to
+  `held_by: file` **in this change** — the flip and the templates they name in one breath,
+  which is the only way a holder is checked when it is claimed rather than promised.
+
 - **The working sheet an agent reads, generated from the catalogue like every other.**
   `skills/verifiable-gates/references/working.md` publishes the ten practices — each with
   the ledger entry that paid for it, what holds it, and what to do — and the skill's front

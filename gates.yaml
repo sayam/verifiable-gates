@@ -2376,6 +2376,25 @@ gates:
       subprocess where a wrong exit code is easy to lose.
     proved_by:
       - kind: mutation
+        ref: pr/242
+        date: 2026-09-04
+        caught: >-
+          The working became a thing a project can turn on, and the danger is the whole
+          shape of it: a bundle that landed somebody else's ledger unasked, or a doctor
+          that graded one. Ten planted defects red on their own across the three files
+          that hold this: the two templates landing **without** `--working`; a second
+          install overwriting a ledger somebody had written in; a project that did not ask
+          never being told the practices exist; the installer **writing** the `.gitignore`
+          line instead of printing it; the doctor's state line always saying *on*;
+          `--working` made to fail when there is no ledger, turning a decision into a
+          finding; `--working` accepted beside another question; the holder dropped from
+          every printed practice; the manifest's copy of the practices drifting from
+          `working.yaml`, so the doctor would print a practice nobody wrote; and a practice
+          claiming a template the bundle does not ship. Eight of the ten are this gate's: the
+          flag, the two kept files, what is printed either way, and the fourth mode of the
+          doctor — which exits 0 whatever it finds, because a deleted ledger is a decision
+          the project made and `--installed` never looks for these files.
+      - kind: mutation
         ref: pr/237
         date: 2026-09-04
         caught: >-
@@ -3106,6 +3125,27 @@ gates:
       file says so rather than promising a template that had not shipped yet.
     proved_by:
       - kind: mutation
+        ref: pr/242
+        date: 2026-09-04
+        caught: >-
+          The working became a thing a project can turn on, and the danger is the whole
+          shape of it: a bundle that landed somebody else's ledger unasked, or a doctor
+          that graded one. Ten planted defects red on their own across the three files
+          that hold this: the two templates landing **without** `--working`; a second
+          install overwriting a ledger somebody had written in; a project that did not ask
+          never being told the practices exist; the installer **writing** the `.gitignore`
+          line instead of printing it; the doctor's state line always saying *on*;
+          `--working` made to fail when there is no ledger, turning a decision into a
+          finding; `--working` accepted beside another question; the holder dropped from
+          every printed practice; the manifest's copy of the practices drifting from
+          `working.yaml`, so the doctor would print a practice nobody wrote; and a practice
+          claiming a template the bundle does not ship. One is this gate's, and it is the
+          guard written in the change before this one doing its job on the templates this
+          one ships: two practices moved from `held_by: reading` to `held_by: file` **in
+          the same change** that landed the files they name, and a name pointed at a file
+          the manifest does not ship is refused. A holder is only checkable on the day it
+          is claimed.
+      - kind: mutation
         ref: pr/240
         date: 2026-09-04
         caught: >-
@@ -3204,6 +3244,26 @@ gates:
       because a validator step in CI would need a gate row while the registers are
       paused.
     proved_by:
+      - kind: mutation
+        ref: pr/242
+        date: 2026-09-04
+        caught: >-
+          The working became a thing a project can turn on, and the danger is the whole
+          shape of it: a bundle that landed somebody else's ledger unasked, or a doctor
+          that graded one. Ten planted defects red on their own across the three files
+          that hold this: the two templates landing **without** `--working`; a second
+          install overwriting a ledger somebody had written in; a project that did not ask
+          never being told the practices exist; the installer **writing** the `.gitignore`
+          line instead of printing it; the doctor's state line always saying *on*;
+          `--working` made to fail when there is no ledger, turning a decision into a
+          finding; `--working` accepted beside another question; the holder dropped from
+          every printed practice; the manifest's copy of the practices drifting from
+          `working.yaml`, so the doctor would print a practice nobody wrote; and a practice
+          claiming a template the bundle does not ship. Two are this gate's, and both are the
+          same property from opposite ends: the sheet and the manifest are generated from
+          `working.yaml`, so a practice renamed in the catalogue without regenerating them,
+          or a holder pointed at a template the bundle does not ship, is red here before it
+          can reach a reader.
       - kind: mutation
         ref: pr/241
         date: 2026-09-04
