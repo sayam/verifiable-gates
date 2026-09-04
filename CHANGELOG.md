@@ -77,6 +77,19 @@ Notable changes to this project. The format follows
   `DECISIONS.md`. The sheet an agent reads, and the templates a project turns on with a
   flag, follow in their own changes.
 
+### Fixed
+
+- **A scan that read files and judged nothing answers NA, not `pass`.** Self-audit round 22
+  installed the bundle into a Go project: `ci-tools-hash-pinned` answered `pass` on a workflow
+  carrying `go install …@latest`, having read the file and judged no line in it — `pass` reads
+  as "CI tools are hash-pinned". It now counts the lines a family reads (a finding or a clean
+  verdict, the lock-based forms `npm ci`, `uv sync --locked`, `poetry install` and the like
+  included) and, at zero, says *read 1 workflow and 1 Dockerfile and found no install line this
+  rule judges (pip, pipx, npm/npx/yarn/pnpm, uv/uvx/poetry/pdm/pipenv and python -m build) — an
+  installer outside that list is not read here*. `actions-sha-pinned` had the same hole on a
+  workflow of `run:` steps or local `uses: ./…` paths and answers the same way. What is not read
+  is a decision with its expiry (`go-cargo-gem-installs-are-not-judged`), not a gap.
+
 ## [0.2.0] - 2026-09-04
 
 The rules stopped being something a reader had to come here for. They are an

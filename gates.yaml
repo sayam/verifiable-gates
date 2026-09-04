@@ -593,7 +593,14 @@ gates:
           dated with the machine's own clock was "in the future" and red
           while the same date in a proof passed; four cases red now (self-
           audit round 7, 2026-09-01).
-
+      - kind: mutation
+        ref: pr/244
+        date: 2026-09-04
+        caught: >-
+          `go-cargo-gem-installs-are-not-judged` renamed in `DECISIONS.md` alone
+          — the row that says which installer families this project deliberately
+          does not judge, and what would expire that. Red against its copy, both
+          ways (2026-09-04).
   - id: the-posture-is-read-on-a-schedule
     title: Branch protection and the repository switches are read weekly and on every push, and held to the register
     kind: job
@@ -2327,7 +2334,20 @@ gates:
           a Go project's app/ of `.go` files came back passed by a scanner
           that never opened a file. Four cases red, six hold the direction
           that must not change (self-audit round 8, 2026-09-01).
-
+      - kind: mutation
+        ref: pr/244
+        date: 2026-09-04
+        caught: >-
+          Eight planted defects red against the two scanners that answered
+          `pass` over a file they had read and judged nothing in: the NA for a
+          zero count removed from each, the count itself frozen, the lock-based
+          clean forms dropped so a Node project that did everything right would
+          read as unscanned, the NA stripped of what the rule reads, prose
+          counted as a command, the Dockerfile left out of what was read, and a
+          local `uses: ./…` path counted as an action reference. Found by
+          installing the bundle into a Go project (self-audit round 22, F1),
+          where `ci-tools-hash-pinned` said `pass` on a workflow whose only
+          installer was `go install …@latest`.
   - id: rules-we-ship-we-keep
     title: Scanners that apply to this repository are run against this repository
     kind: test
@@ -2371,6 +2391,15 @@ gates:
           both times: this repository's own `actions-sha-pinned` reading its
           own workflow, and the pin count held two ways (21 uses, 7 distinct)
           rather than trusted (2026-09-04).
+      - kind: mutation
+        ref: pr/244
+        date: 2026-09-04
+        caught: >-
+          The judged-line count frozen at zero: this repository's own workflows
+          then read as NA rather than a verdict, and the applicable floor in
+          `tests/test_dogfood.py` went red — the floor `doctor-all-na-exits-zero`
+          names, doing on our own tree what it exists to do on a consumer's
+          (2026-09-04).
   - id: a-bundle-installs-and-answers
     title: A fresh install gives a project something that runs, and never overwrites its decisions
     kind: test
