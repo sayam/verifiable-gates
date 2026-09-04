@@ -892,7 +892,113 @@ def test_npm_install_is_reported_and_names_the_alternative(
         ".github/workflows/ci.yml": "jobs:\n  a:\n    steps:\n      - run: npm install pa11y\n"
     }
     assert scan_install_pinning.main(build(tmp_path, files)) == 1
-    assert "use npm ci instead" in capsys.readouterr().out, "the finding has to say what to do"
+    assert "use npm ci" in capsys.readouterr().out, "the finding has to say what to do"
+
+
+# ------------------------------------ the advice is built from the line, not the family
+# Self-audit round 22 (2026-09-04): on a Node project the finding on `npx eslint .` said
+# *use npm ci instead* — the sentence every `NPM_INSTALL` match got — and `npm ci` is not a
+# replacement for `npx`; the tree had no `package-lock.json` either, where `npm ci` exits
+# 1 before it installs anything (measured, npm 11.14.1). What replaces `npx <tool>` is the
+# tool as a devDependency the lock installs, run as `npx --no <tool>`, which refuses to
+# fetch — so that shape is read as clean, or the advice never turns the gate green.
+
+
+@pytest.mark.parametrize(
+    ("line", "said"),
+    [
+        ("npx eslint .", "npx fetches eslint to run it"),
+        ("npx eslint .", "then npx --no eslint runs that copy"),
+        ("npm exec -- prettier --check .", "npm exec fetches prettier to run it"),
+        ("npm exec -- prettier --check .", "then npx --no prettier runs that copy"),
+        ("npx eslint@9.9.0 .", "npx --no eslint runs"),
+        ("npx --yes @org/cli@1 build", "npx --no @org/cli runs"),
+        ("npx", "npx --no <tool> runs"),
+        ("pnpm dlx prettier --check .", "pnpm dlx fetches prettier to run it"),
+        ("pnpm dlx prettier --check .", "then pnpm exec prettier runs that copy"),
+        ("yarn add prettier", "use yarn install --immutable"),
+        ("pnpm add prettier", "use pnpm install --frozen-lockfile"),
+    ],
+)
+def test_a_node_finding_says_what_replaces_that_line(
+    tmp_path: pathlib.Path, capsys: pytest.CaptureFixture[str], line: str, said: str
+) -> None:
+    """`npm ci` replaces `npm install`; it does not replace `npx <tool>`, whose replacement
+    names the tool — without its `@version`, and skipping `--yes` and the `--` separator."""
+    files = {".github/workflows/ci.yml": STEP.format(line=line)}
+    assert scan_install_pinning.main(build(tmp_path, files)) == 1
+    out = capsys.readouterr().out
+    assert said in out, out
+    assert "npm ci instead" not in out, out
+
+
+@pytest.mark.parametrize(
+    ("line", "lock"),
+    [
+        ("npm install pa11y", "package-lock.json"),
+        ("npm i", "package-lock.json"),
+        ("npx eslint .", "package-lock.json"),
+        ("yarn add pa11y", "yarn.lock"),
+        ("pnpm add pa11y", "pnpm-lock.yaml"),
+        ("pnpm dlx pa11y", "pnpm-lock.yaml"),
+    ],
+)
+def test_the_advice_says_when_the_lock_it_needs_is_not_there(
+    tmp_path: pathlib.Path, capsys: pytest.CaptureFixture[str], line: str, lock: str
+) -> None:
+    """Without the lock the advice is *commit a <lock>*; with it, the lock is named as the
+    thing the install reads — because `npm ci` with no lock is a command that fails."""
+    files = {".github/workflows/ci.yml": STEP.format(line=line)}
+    root = build(tmp_path, files)
+    assert scan_install_pinning.main(root) == 1
+    out = capsys.readouterr().out
+    assert f"commit a {lock}" in out, out
+    assert "as committed" in out or "with it as a devDependency" in out, out
+    (root / lock).write_text("{}\n", encoding="utf-8")
+    assert scan_install_pinning.main(root) == 1
+    out = capsys.readouterr().out
+    assert "commit a" not in out, out
+    assert f"installs {lock} as committed" in out or "make it a devDependency" in out, out
+
+
+def test_a_shrinkwrap_is_a_lock_npm_ci_installs_from(
+    tmp_path: pathlib.Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """`npm ci` reads `npm-shrinkwrap.json` too, and the advice names the one that is there."""
+    files = {
+        ".github/workflows/ci.yml": STEP.format(line="npm install"),
+        "npm-shrinkwrap.json": "{}\n",
+    }
+    assert scan_install_pinning.main(build(tmp_path, files)) == 1
+    out = capsys.readouterr().out
+    assert "installs npm-shrinkwrap.json as committed" in out, out
+
+
+def test_the_lock_is_looked_for_where_the_command_runs(
+    tmp_path: pathlib.Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """`cd web && npm install` needs `web/package-lock.json`; one at the root does not count,
+    and one under `web/` does — the same directory the `-r` lookup of pip follows."""
+    files = {
+        ".github/workflows/ci.yml": STEP.format(line="cd web && npm install"),
+        "package-lock.json": "{}\n",
+    }
+    root = build(tmp_path, files)
+    assert scan_install_pinning.main(root) == 1
+    assert "commit a package-lock.json" in capsys.readouterr().out
+    (root / "web").mkdir()
+    (root / "web" / "package-lock.json").write_text("{}\n", encoding="utf-8")
+    assert scan_install_pinning.main(root) == 1
+    assert "installs package-lock.json as committed" in capsys.readouterr().out
+
+
+def test_no_progress_is_not_the_no_that_refuses_to_fetch(
+    tmp_path: pathlib.Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """`npx --no-progress eslint` still fetches; only `--no` and `--no-install` refuse to."""
+    files = {".github/workflows/ci.yml": STEP.format(line="npx --no-progress eslint .")}
+    assert scan_install_pinning.main(build(tmp_path, files)) == 1
+    assert "npx fetches eslint" in capsys.readouterr().out
 
 
 @pytest.mark.parametrize(
@@ -961,6 +1067,8 @@ def test_a_workflow_with_no_install_line_this_rule_reads_is_na_not_a_pass(
     "line",
     [
         "npm ci",
+        "npx --no eslint .",
+        "pnpm exec eslint .",
         "yarn install --frozen-lockfile",
         "pnpm install --frozen-lockfile",
         "uv sync --locked",
@@ -2129,6 +2237,10 @@ def test_every_installer_that_reaches_an_index_is_read(
         "yarn install --immutable",
         "pnpm install --frozen-lockfile",
         "npm ci",
+        "npx --no eslint .",
+        "npx --quiet --no-install eslint .",
+        "npm exec --no -- eslint .",
+        "pnpm exec eslint .",
     ],
     ids=[
         "uv-run-locked",
@@ -2137,6 +2249,10 @@ def test_every_installer_that_reaches_an_index_is_read(
         "yarn-immutable",
         "pnpm-frozen",
         "npm-ci",
+        "npx-no",
+        "npx-no-install-after-a-flag",
+        "npm-exec-no",
+        "pnpm-exec",
     ],
 )
 def test_an_install_from_a_lock_or_with_nothing_to_fetch_stays_clean(

@@ -87,6 +87,17 @@ Notable changes to this project. The format follows
 
 ### Fixed
 
+- **A finding on `npx` no longer says `use npm ci instead`.** Every line the Node family
+  matched got that one sentence — `npx eslint .` included, which `npm ci` does not replace —
+  on a tree with no `package-lock.json`, where `npm ci` exits 1 before it installs anything
+  (round 22, F4; measured against npm 11.14.1). The advice is now built from the line:
+  *npx fetches eslint to run it; commit a package-lock.json with it as a devDependency,
+  install with npm ci, then npx --no eslint runs that copy* — the tool named without its
+  `@version`, the lock named when it is there next to the command (`npm-shrinkwrap.json`
+  counts, and `cd web &&` is followed) and *commit a …* when it is not; `yarn add`, `pnpm add`
+  and `pnpm dlx` get their own locks and commands. `npx --no`, `npx --no-install`,
+  `npm exec --no` and `pnpm exec` run the installed copy and refuse to fetch, and are read
+  as clean — or the advice would never turn the gate green.
 - **An NA says what the rule reads, and "yet" is not a word in it.** Every scanner's NA was
   *nothing to check yet* — on a Go project, about `app/services` Python it would never have —
   and `no-debug-entrypoint` said *none of the declared entrypoints exist* about defaults the
