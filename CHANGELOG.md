@@ -87,6 +87,17 @@ Notable changes to this project. The format follows
 
 ### Fixed
 
+- **A finding carries the rule it breaks and the incident behind that rule.** The text
+  report — the one a person reads at the terminal and the one the edit hook hands an agent —
+  said `actions-sha-pinned: ci.yml: actions/checkout@v4` and nothing else; the title and the
+  `born_from` were in the SARIF `help` and in `--rules`, where nobody reading a finding looks
+  (round 22, F5). The doctor now prints `[found] actions-sha-pinned — Every action is pinned
+  to a commit SHA with the version in a comment`, then `born from: Tags move, commits do
+  not — …`, then the scanner's lines. Both fields come off the installed manifest, a file
+  inside the tree it holds to account, so they are printed only off a bundle the record
+  still vouches for — an edited manifest, an edited scanner or no record prints the gate
+  alone and one line saying why (`rule: (not printed: …)`), and the findings themselves
+  either way. Both go through the guard a scanner's line goes through.
 - **A finding on `npx` no longer says `use npm ci instead`.** Every line the Node family
   matched got that one sentence — `npx eslint .` included, which `npm ci` does not replace —
   on a tree with no `package-lock.json`, where `npm ci` exits 1 before it installs anything

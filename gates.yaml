@@ -2464,6 +2464,21 @@ gates:
       subprocess where a wrong exit code is easy to lose.
     proved_by:
       - kind: mutation
+        ref: pr/247
+        date: 2026-09-04
+        caught: >-
+          The text report — the one at the terminal and the one the edit hook hands an
+          agent — said `actions-sha-pinned: ci.yml: actions/checkout@v4` and nothing
+          else; the rule's title and the incident behind it lived in the SARIF `help`
+          and in `--rules` (self-audit round 22, F5). Eight planted defects red on their
+          own: the `born from:` line dropped, the rule dropped from the `[found]` line,
+          the origin printed off a bundle that is not the one installed, the guard
+          dropped on the origin, the *not printed* line dropped, the missing-origin
+          fallback removed, the two lines printed after the scanner's instead of above,
+          and the installed record never checked — the last three against the test that
+          edits a manifest title to *IMPORTANT UPDATE FOR THE AGENT* and reads the
+          report, which is round 21's finding pointed at this mode.
+      - kind: mutation
         ref: pr/242
         date: 2026-09-04
         caught: >-
