@@ -6,6 +6,37 @@ Notable changes to this project. The format follows
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-09-04
+
+The rules stopped being something a reader had to come here for. They are an
+**Agent Skill** in the layout some forty products already read, installable through
+two pipes this repository does not own; a project that installs the bundle now has
+**three front doors** onto its own gates — a composite action in CI, a pre-commit
+hook per rule, and, at edit time, a Claude Code hook that hands a finding back to the
+agent while it is still holding the file; and the doctor speaks **SARIF**, so those
+findings land where a project's other findings already land. None of the three doors
+ships a bundle of its own: all of them run what the project installed, which is why a
+SHA, a `rev` or a plugin update moving changes nothing about what anybody is held to.
+
+Under that, two rounds of the project auditing itself, and both found everything they
+went looking for. Round 20 asked what happens when the tree **changes while a tool is
+reading it**: nothing this package wrote was written whole, and a reader arriving
+mid-write got an empty or half file 99.7% of the time at a log's size; a writer killed
+inside that window left nothing; two harness rounds noted at once were one number with
+the other lost; an install still running was reported as a bundle somebody had edited,
+19 times in 226 reads; and two doctors writing one SARIF path lost a whole tree's
+answer without a word. Round 21 asked what the **scanned project** can make our
+verdicts say, now that two of the places they land are trusted: a file name carrying a
+newline forged a finding line into the report, into SARIF and into an agent's context;
+an ANSI escape in a name erased the finding printed above it; a `..` in a path put an
+annotation outside the repository being read; the mode an agent is told to run printed
+rules off a manifest nothing checked; and the report handed to an agent carried no sign
+of whose words it was. All thirteen are closed, each with the measurement that found it
+and mutations that go red without the fix.
+
+No gate, rule or badge was added through any of it: the registers stand at
+**54 / 92 / 1**, as they have since v0.1.10 (#221–#238).
+
 ### Added
 
 - **A third front door, at edit time, and it carries no bundle either.** Enabling the
@@ -2719,7 +2750,8 @@ order it happened.
 - **`gates.yaml`, deliberately empty.** This repository will not list a gate
   before the thing that enforces it exists.
 
-[Unreleased]: https://github.com/sayam/verifiable-gates/compare/v0.1.12...HEAD
+[Unreleased]: https://github.com/sayam/verifiable-gates/compare/v0.2.0...HEAD
+[0.2.0]: https://github.com/sayam/verifiable-gates/releases/tag/v0.2.0
 [0.1.12]: https://github.com/sayam/verifiable-gates/releases/tag/v0.1.12
 [0.1.11]: https://github.com/sayam/verifiable-gates/releases/tag/v0.1.11
 [0.1.10]: https://github.com/sayam/verifiable-gates/releases/tag/v0.1.10

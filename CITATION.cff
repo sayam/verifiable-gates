@@ -12,8 +12,8 @@ authors:
     affiliation: Burapha University
     orcid: null
 doi: 10.5281/zenodo.22103110
-version: 0.1.12
-date-released: '2026-09-02'
+version: 0.2.0
+date-released: '2026-09-04'
 repository-code: https://github.com/sayam/verifiable-gates
 url: https://github.com/sayam/verifiable-gates
 abstract: >-
