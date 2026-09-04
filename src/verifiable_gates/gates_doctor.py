@@ -329,6 +329,18 @@ def check_installed(root: pathlib.Path, manifest: dict[str, Any], bundle: pathli
 SCAN_TIMEOUT = 300
 
 
+def _found(gid: str, entry: dict[str, Any], unheld: list[str]) -> list[str]:
+    """`[found] <gate>`, with the rule on the line and the incident beneath it — off a
+    bundle that is still the one installed; otherwise the gate alone and one line saying
+    why the rest is not printed. Both fields are text from a file in the tree, and go
+    through the guard like a scanner's line."""
+    if unheld:
+        return [f"[found] {gid}", f"  rule: (not printed: {unheld[0]})"]
+    title = entry.get("title") or "(no title in this manifest)"
+    origin = entry.get("born_from") or "(origin not recorded in this manifest)"
+    return [f"[found] {gid} — {_shown(title)}", f"  born from: {_shown(origin)}"]
+
+
 # One scan's outcome, kept for the SARIF writer: the gate, one of pass / na / found /
 # error, the lines the scan printed, and the sentence the doctor said about it.
 Outcome = tuple[str, str, list[str], str]
@@ -340,10 +352,22 @@ def run_scans(
     bundle: pathlib.Path,
     sarif: pathlib.Path | None = None,
 ) -> int:
-    """Run every scan, reporting each gate rather than stopping at the first finding."""
+    """Run every scan, reporting each gate rather than stopping at the first finding.
+
+    A finding carries the rule it breaks and the incident behind that rule — the two
+    lines that say why this is a finding and not a preference. They were in the SARIF
+    `help` and in `--rules`, and a person at the terminal or an agent reading the edit
+    hook saw `actions-sha-pinned: ci.yml: actions/checkout@v4` and nothing else
+    (self-audit round 22, F5). Both come off the installed manifest, which lives inside
+    the tree it holds to account, so they are printed only off a bundle that is still the
+    one installed — the rule `--rules` already keeps (`DECISIONS.md`
+    `the-rules-are-read-off-a-bundle-that-is-still-intact`). The findings themselves are
+    printed either way: they are the scanner's words, marked as the tree's.
+    """
     failed: list[str] = []
     broken: list[str] = []
     outcomes: list[Outcome] = []
+    unheld = check_installed_record(root)
     for gid, script in scan_entries(manifest):
         try:
             result = subprocess.run(  # noqa: S603 — argv is built here, interpreter is sys.executable
@@ -383,7 +407,7 @@ def run_scans(
                 print(f"[ pass] {gid}")
                 outcomes.append((gid, "pass", said, ""))
         elif result.returncode == 1 and result.stdout.strip() and not crashed:
-            print(f"[found] {gid}")
+            print("\n".join(_found(gid, manifest["gates"][gid], unheld)))
             # Every line through the guard before it is printed or counted: what the
             # doctor writes is its own sentence about what a scanner said, and a scanner's
             # line is one finding whatever the tree it read was named (round 21).

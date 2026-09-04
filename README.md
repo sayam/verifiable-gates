@@ -153,7 +153,10 @@ scanner here can decide, so no instruction stands without a gate behind it. It p
 them only off a bundle the installed record still vouches for: an edited manifest, an
 edited scanner, or no record at all prints no rules and exits 2, because the file it
 reads lives inside the project it holds to account (`DECISIONS.md`
-`the-rules-are-read-off-a-bundle-that-is-still-intact`). And
+`the-rules-are-read-off-a-bundle-that-is-still-intact`). A finding in the report
+carries the same two lines — `[found] <gate> — <rule>` and `born from: <incident>` above
+the scanner's own — and off a bundle the record no longer vouches for it carries the gate
+alone and one line saying why, the findings printed either way. And
 `gates_doctor --sarif FILE` writes the same run as SARIF 2.1.0 for code scanning,
 reviewdog or an IDE — a finding is a result, while `NA` and a scan that did not answer
 are notifications on the invocation, never results, so a reader counting results cannot
@@ -311,7 +314,9 @@ doctor ขึ้นต้นด้วย *การติดตั้งคร�
 ชี้มาหา: อ่านตอนรันจาก manifest ที่ติดตั้งอยู่ การอัปเกรดจึงทิ้ง agent ไว้กับกฎเมื่อวานไม่ได้ และมีเฉพาะกฎที่ตัวสแกน
 ตรงนี้ตัดสินได้ จึงไม่มีคำสั่งข้อไหนยืนอยู่โดยไม่มีด่านหนุนหลัง · และมันพิมพ์กฎเฉพาะจากบันเดิลที่ record ยังรับรอง —
 manifest ถูกแก้ · scanner ถูกแก้ · หรือไม่มี record เลย = ไม่พิมพ์กฎสักข้อ exit 2 เพราะไฟล์ที่มันอ่านอยู่ในโปรเจกต์ที่มันกำลังตรวจเอง
-(`DECISIONS.md` `the-rules-are-read-off-a-bundle-that-is-still-intact`) · และ `gates_doctor --sarif FILE` เขียนผลรอบเดียวกันเป็น SARIF 2.1.0
+(`DECISIONS.md` `the-rules-are-read-off-a-bundle-that-is-still-intact`) · finding ในรายงานพกสองบรรทัดเดียวกัน —
+`[found] <gate> — <กฎ>` และ `born from: <เหตุการณ์>` เหนือบรรทัดของตัวสแกน — และจากบันเดิลที่ record ไม่รับรองแล้ว
+พิมพ์แค่ชื่อ gate กับหนึ่งบรรทัดบอกว่าทำไม ส่วน finding พิมพ์ทั้งสองกรณี · และ `gates_doctor --sarif FILE` เขียนผลรอบเดียวกันเป็น SARIF 2.1.0
 ให้ code scanning, reviewdog หรือ IDE — finding เป็น result ส่วน `NA` กับสแกนที่ตอบไม่ได้เป็น notification บน invocation ไม่ใช่ result
 คนที่นับ result จึงเข้าใจ "ดูไม่ได้" เป็น "ดูแล้วไม่เจอ" ไม่ได้ · ไฟล์ที่มีอยู่แล้วที่ path นั้นจะถูกแทนที่ก็ต่อเมื่อเป็นผลรอบของ doctor
 ตัวนี้บน root เดียวกัน ถ้าเป็นผลของต้นไม้อื่นหรืออย่างอื่นจะถูกทิ้งไว้และบอกชื่อ — สองต้นไม้ที่ใช้ path เดียวกันไม่เสียคำตอบ · ตัวตรวจ pin อ่าน workflow ทุกไฟล์
