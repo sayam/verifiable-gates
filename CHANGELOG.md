@@ -87,6 +87,14 @@ Notable changes to this project. The format follows
 
 ### Fixed
 
+- **The doctor's SARIF is accepted by GitHub code scanning.** Measured on a draft pull request
+  (round 23, D2): a run whose findings included one naming no existing file — a registry finding,
+  a missing `dependabot.yml` — was refused whole (`locationFromSarifResult: expected at least one
+  location`), and the project saw a neutral check *Error when processing the SARIF file* with
+  nothing else: no finding, no `NA`, no `[error]`. Every result now carries a location — the head
+  path when the tree has it, else the first file the sentence names that exists, else
+  `scaffold.json` — and `DECISIONS.md` `text-is-the-default-sarif-is-a-format` is re-decided to
+  say so.
 - **A key in `scaffold.json` that no scanner reads is a finding.** `templates_pth` for
   `templates_path` was read by nobody: every scanner answered NA from its default path and the
   doctor exited 0, while the same value under the right key is a broken configuration and exit 1

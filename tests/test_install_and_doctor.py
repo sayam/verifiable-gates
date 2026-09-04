@@ -2004,7 +2004,10 @@ def test_a_finding_that_names_no_file_under_the_root_is_a_result_with_no_locatio
         "/etc/hostname:1 leads outside the project",
         "adr_path: is not one path",
     ]
-    assert all("locations" not in r for r in results), "a location nobody can open"
+    # None of the three names a file the tree has, so each lands on the last resort — the
+    # configuration every scanner reads — rather than nowhere (round 23, D2).
+    assert [_artifact(r)["uri"] for r in results] == ["scaffold.json"] * 3
+    assert all("region" not in r["locations"][0]["physicalLocation"] for r in results)
 
 
 def test_an_na_is_a_note_on_the_invocation_and_never_a_result(installed: pathlib.Path) -> None:
@@ -2086,14 +2089,19 @@ def _located(project: pathlib.Path, gid: str, said: str) -> dict[str, Any] | Non
         ("/etc/hostname", "absolute, which was the only case the old guard had"),
     ],
 )
-def test_a_finding_that_names_a_path_outside_the_root_gets_no_location(
+def test_a_finding_that_names_a_path_outside_the_root_lands_on_the_last_resort(
     installed: pathlib.Path, tmp_path: pathlib.Path, named: str, why: str
 ) -> None:
-    """The message still carries what the scanner said; only the annotation is withheld."""
+    """The message still carries what the scanner said; the annotation goes to the
+    configuration file, never outside the tree — and never nowhere, since GitHub refuses
+    a whole file over one result without a location (round 23, D2)."""
     (tmp_path / "outside.txt").write_text("a file a reader must not be sent to\n")
     (installed / "inside").mkdir(exist_ok=True)
 
-    assert _located(installed, "adr-index-complete", f"{named}:1 said") is None, why
+    assert _located(installed, "adr-index-complete", f"{named}:1 said") == {
+        "uri": "scaffold.json",
+        "uriBaseId": "%SRCROOT%",
+    }, why
 
 
 def test_a_path_inside_the_root_still_gets_its_location(installed: pathlib.Path) -> None:
@@ -2142,7 +2150,7 @@ def test_the_climbing_path_reaches_the_log_through_a_real_run(installed: pathlib
         if r["ruleId"] == "adr-index-complete"
     ]
     assert result["message"]["text"] == "../../etc/hostname:1 a path outside the tree"
-    assert "locations" not in result, "an annotation outside the repository being read"
+    assert _artifact(result)["uri"] == "scaffold.json", "outside the tree is never a location"
 
 
 def test_a_sarif_that_cannot_be_written_is_a_sentence_after_the_report(
@@ -2187,6 +2195,13 @@ def test_the_sarif_carries_what_code_scanning_requires(installed: pathlib.Path) 
 # ones that prove the file as it ships.
 
 
+def _artifact(result: dict[str, Any]) -> dict[str, Any]:
+    """The artifact of a result's one location — every result has one now (round 23, D2)."""
+    (location,) = result["locations"]
+    artifact: dict[str, Any] = location["physicalLocation"]["artifactLocation"]
+    return artifact
+
+
 def _sarif_in_process(project: pathlib.Path, *args: str) -> tuple[int, dict[str, Any]]:
     manifest = str(project / "tools" / "overlay.json")
     out = project / "in-process.sarif"
@@ -2212,10 +2227,10 @@ def test_in_process_a_located_and_an_unlocated_finding_share_one_log(
     assert code == 1
     located, plain, whole, odd = log["runs"][0]["results"]
     assert located["locations"][0]["physicalLocation"]["region"] == {"startLine": 1}
-    assert "locations" not in plain
+    assert _artifact(plain)["uri"] == "scaffold.json", "no file named — the last resort"
     assert "region" not in whole["locations"][0]["physicalLocation"], "no line, no region"
     assert whole["locations"][0]["physicalLocation"]["artifactLocation"]["uri"] == "x.yml"
-    assert "locations" not in odd, "a head no path can be read from is a message only"
+    assert _artifact(odd)["uri"] == "scaffold.json", "a head no path can be read from"
 
 
 def test_a_rule_without_an_incident_or_a_layer_is_still_a_rule(tmp_path: pathlib.Path) -> None:
@@ -3657,3 +3672,51 @@ def test_the_doctor_prints_and_carries_the_key_finding_in_process(
     assert {"id": "scaffold.json", "shortDescription": {"text": "a key no scanner reads"}} in run[
         "tool"
     ]["driver"]["rules"]
+
+
+# ------------------------------------------------ every SARIF result lands somewhere
+
+
+def test_a_finding_naming_a_file_in_mid_sentence_lands_on_that_file(
+    installed: pathlib.Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """Measured 2026-09-05 (round 23, D2): GitHub refused a whole SARIF because two results
+    had no location — a registry finding that names gates.yaml only in mid-sentence, and a
+    dependabot finding naming a file that does not exist. Now the first file the sentence
+    names that the tree has is the location, and gates.yaml is what install wrote."""
+    _plant(
+        installed,
+        "scan_dockerfile_digest.py",
+        "print('image-digest-pinned: no docker ecosystem in .github/dependabot.yml — "
+        "add one, and see gates.yaml: for the row')\n"
+        "print('image-digest-pinned: job with no gate in the index: scans — add a row "
+        "to gates.yaml: id, title')\n"
+        "raise SystemExit(1)\n",
+    )
+    code, log = _sarif_in_process(installed)
+    capsys.readouterr()
+    assert code == 1
+    first, second = [r for r in log["runs"][0]["results"] if r["ruleId"] == "image-digest-pinned"]
+    assert not (installed / ".github" / "dependabot.yml").is_file()
+    assert _artifact(first)["uri"] == "gates.yaml", "the one file it names that exists"
+    assert _artifact(second)["uri"] == "gates.yaml"
+    assert _artifact(first)["uriBaseId"] == "%SRCROOT%"
+
+
+def test_the_last_resort_is_named_even_when_the_configuration_file_is_gone(
+    installed: pathlib.Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """A project that deleted scaffold.json still gets a file every reader knows to look
+    for, rather than a file GitHub refuses whole."""
+    (installed / "scaffold.json").unlink()
+    _plant(
+        installed,
+        "scan_adr_index.py",
+        "print('adr-index-complete: a sentence naming nothing at all')\nraise SystemExit(1)\n",
+    )
+    code, log = _sarif_in_process(installed)
+    capsys.readouterr()
+    assert code == 1
+    (result,) = [r for r in log["runs"][0]["results"] if r["ruleId"] == "adr-index-complete"]
+    assert _artifact(result)["uri"] == "scaffold.json"
+    assert all("locations" in r and len(r["locations"]) == 1 for r in log["runs"][0]["results"])
