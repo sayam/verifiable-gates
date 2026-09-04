@@ -67,8 +67,12 @@ not own: `npx skills add sayam/verifiable-gates` puts it into whichever agent yo
 `claude plugin marketplace add sayam/verifiable-gates` then
 `claude plugin install verifiable-gates@verifiable-gates` (the one-entry marketplace
 in `.claude-plugin/`). The `npx` pipe lands the **four** files under `skills/verifiable-gates/`
-— the sheet and its references — copied, not linked, and nothing else; what the
-marketplace pipe lands is not measured here. A skill is instructions. The scanners are still `pip install verifiable-gates` and
+— the sheet and its references — copied, not linked, and nothing else; the
+marketplace pipe lands the whole repository — its plugin is the root (`"source": "./"`)
+because the hook runs `src/verifiable_gates/edit_hook.py` — as a git clone of the
+marketplace plus a copy per version in Claude Code's plugin cache (measured on
+2.1.261, 2026-09-05). A skill is instructions. The scanners are still
+`pip install verifiable-gates` and
 `python -m verifiable_gates.install`, because a checker is not something to be
 handed an agent as prose. `DECISIONS.md` `distribution-is-two-pipes-nobody-here-owns`
 says why there is no marketplace or registry of this project's own. Neither pipe is
@@ -298,7 +302,8 @@ repo นี้เผยแพร่ ส่วน `gates.yaml` คือสิ่
 · ติดตั้งโดยไม่ต้อง clone ได้สองทางผ่านท่อที่ repo นี้ไม่ได้เป็นเจ้าของ: `npx skills add sayam/verifiable-gates`
 (Skills CLI ลงให้ agent ที่คุณใช้) หรือใน Claude Code `claude plugin marketplace add sayam/verifiable-gates` แล้ว
 `claude plugin install verifiable-gates@verifiable-gates` · ท่อ `npx` ลง **สี่** ไฟล์ใต้ `skills/verifiable-gates/` (แผ่นกฎกับ references) แบบ copy และไม่มีอะไรอื่น
-ส่วนท่อ marketplace ลงอะไรยังไม่ได้วัด — skill คือคำสั่ง ส่วนตัวสแกนยังเป็น `pip install verifiable-gates` + `python -m verifiable_gates.install`
+ส่วนท่อ marketplace ลง**ทั้ง repo** (plugin คือ root `"source": "./"` เพราะ hook รัน `src/verifiable_gates/edit_hook.py`)
+เป็น git clone ของ marketplace บวก copy ต่อเวอร์ชันใน plugin cache ของ Claude Code (วัดกับ 2.1.261, 2026-09-05) — skill คือคำสั่ง ส่วนตัวสแกนยังเป็น `pip install verifiable-gates` + `python -m verifiable_gates.install`
 เพราะตัวตรวจไม่ใช่ของที่จะยื่นให้ agent เป็นร้อยแก้ว · ท่อไม่ใช่ของ repo นี้ สิ่งที่ท่อทำระหว่างทางจึงเป็นเรื่องที่ท่อบอกเอง:
 README ของ Skills CLI (ที่ `435076e`) บอกว่า `npx skills add` ส่ง identifier ของ repo และ skill เป็น install telemetry
 ปิดได้ด้วย `DISABLE_TELEMETRY=1` หรือ `DO_NOT_TRACK=1` ส่วนท่อ marketplace ยังไม่ได้วัด · ท่อ `npx` ดึง default branch ณ เวลาที่สั่ง ไม่รับ ref (`@<sha>` ถูกอ่านเป็นชื่อ skill)

@@ -288,6 +288,24 @@ def test_the_plugin_points_at_a_skills_directory_that_holds_the_skill() -> None:
     assert (where / SKILL.parent.name / "SKILL.md").is_file(), "the skill is not under it"
 
 
+def test_the_plugin_does_not_declare_the_hooks_file_claude_code_loads_by_itself() -> None:
+    """`hooks/hooks.json` is loaded from its standard path; declaring it too is a duplicate.
+
+    Measured on Claude Code 2.1.261 (round 23, D3): with `"hooks": "./hooks/hooks.json"`
+    in the manifest, `plugin install` reported *failed to load — Duplicate hooks file
+    detected*, and neither the skill nor the hook was available; `plugin validate`
+    passed. So the standard file exists, and the manifest does not name it a second
+    time. A hooks file at another path may still be declared — that is not a duplicate.
+    """
+    standard = ROOT / "hooks" / "hooks.json"
+    assert standard.is_file(), "hooks/hooks.json is gone — Claude Code loads the hook from there"
+    declared = plugin().get("hooks")
+    assert declared is None or (ROOT / declared).resolve() != standard.resolve(), (
+        f"plugin.json declares hooks {declared!r}, the file Claude Code loads by itself — "
+        "on 2.1.261 that second declaration failed the whole plugin as a duplicate"
+    )
+
+
 def test_the_plugin_carries_the_cards_keywords() -> None:
     assert plugin()["keywords"] == list(citation()["keywords"])
 

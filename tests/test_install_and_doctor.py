@@ -3207,7 +3207,8 @@ def _plugin_hook() -> dict[str, Any]:
 def test_the_plugin_hook_fires_after_an_edit_and_names_a_script_that_exists() -> None:
     """After, never before: the file judged is the one on disk. The command names the
     script through the plugin's own root and names no doctor — the script finds the
-    project's."""
+    project's. The file sits where Claude Code loads it by itself, and the manifest does
+    not name it again."""
     loaded = json.loads(HOOKS_JSON.read_text(encoding="utf-8"))
     assert set(loaded) == {"hooks"}
     assert set(loaded["hooks"]) == {"PostToolUse"}, "after the edit has landed, never before"
@@ -3220,8 +3221,15 @@ def test_the_plugin_hook_fires_after_an_edit_and_names_a_script_that_exists() ->
     assert EDIT_HOOK.is_file()
     assert "tools/" not in hook["command"], "the command names no doctor; the script finds it"
     assert hook["timeout"] > edit_hook.DOCTOR_TIMEOUT, "the hook's ceiling is above the doctor's"
+    assert HOOKS_JSON == ROOT_OF_REPO / "hooks" / "hooks.json", (
+        "the path Claude Code loads by itself"
+    )
     plugin = json.loads((ROOT_OF_REPO / ".claude-plugin" / "plugin.json").read_text("utf-8"))
-    assert ROOT_OF_REPO / plugin["hooks"] == HOOKS_JSON, "the plugin manifest names this file"
+    declared = plugin.get("hooks")
+    assert declared is None or ROOT_OF_REPO / declared != HOOKS_JSON, (
+        "the manifest names this file a second time — on Claude Code 2.1.261 that duplicate "
+        "failed the whole plugin (round 23, D3)"
+    )
 
 
 def test_the_edit_hook_runs_under_a_bare_python3() -> None:
