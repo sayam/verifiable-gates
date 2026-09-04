@@ -1034,6 +1034,25 @@ def _installed_check(project: pathlib.Path) -> int:
     return gates_doctor.main([str(project), "--manifest", manifest, "--installed"])
 
 
+def test_the_bundle_leaves_no_bytecode_in_the_project(
+    installed: pathlib.Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """`--installed` compiled each scan through `py_compile`, which writes `__pycache__`
+    under the project's `tools/checks/` — nine `.pyc` files a Go or Node project has no
+    `.gitignore` for, committed by its first `git add tools/` (self-audit round 22, F6).
+    The check still compiles every scan; it writes nothing into the tree it checks."""
+    assert _installed_check(installed) == 0
+    assert run_doctor(installed).returncode == 0
+    assert run_doctor(installed, "--rules").returncode == 0
+    capsys.readouterr()
+    left = sorted(
+        path.relative_to(installed).as_posix()
+        for path in installed.rglob("*")
+        if path.suffix == ".pyc" or path.name == "__pycache__"
+    )
+    assert left == [], left
+
+
 def test_a_scan_that_does_not_compile_is_an_incomplete_install(
     installed: pathlib.Path, capsys: pytest.CaptureFixture[str]
 ) -> None:

@@ -384,6 +384,90 @@ def test_the_index_claiming_a_test_file_that_is_gone(
     assert "claims a file that is gone" in output
 
 
+# ---------------------------------------------------------------- a finding says where to go
+# Self-audit round 22 (2026-09-04), F7: the first finding a stranger sees from a fresh
+# install is `job with no gate in the index: test — give it one`, and it said neither
+# which file nor what a row looks like. The header of the installed `gates.yaml` explains
+# both — and the finding is read before the file.
+
+ONE_JOB_GATE = (
+    "version: 1\ngates:\n  - id: a-rule\n    title: t\n    kind: job\n"
+    "    enforced_by: {job: test}\n"
+)
+
+
+def test_a_job_with_no_gate_is_told_the_row_to_add(
+    tmp_path: pathlib.Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    project = a_project(tmp_path, ONE_JOB_GATE)
+    (project / ".github" / "workflows" / "extra.yml").write_text(
+        "jobs:\n  brand_new:\n    steps:\n      - run: true\n", encoding="utf-8"
+    )
+    assert scanner.main(project) == 1
+    out = capsys.readouterr().out
+    assert (
+        "job with no gate in the index: brand_new — add a row to gates.yaml: id, title,"
+        " kind: job, severity, enforced_by: {job: brand_new}"
+    ) in out, out
+
+
+def test_an_unclaimed_test_file_is_told_the_row_to_add(
+    tmp_path: pathlib.Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    registry = ONE_JOB_GATE.replace("kind: job", "kind: test").replace(
+        "{job: test}", "{job: test, tests: [tests/test_known.py]}"
+    )
+    project = a_project(tmp_path, registry, **{"tests/test_known.py": "", "tests/test_new.py": ""})
+    assert scanner.main(project) == 1
+    out = capsys.readouterr().out
+    assert (
+        "no gate claims this test file: tests/test_new.py — add a row to gates.yaml with"
+        " kind: test and enforced_by: {job: <the job that runs it>, tests: [tests/test_new.py]},"
+        " or add it to a row's tests"
+    ) in out, out
+
+
+def test_a_claimed_file_that_is_gone_is_told_where_the_claim_is(
+    tmp_path: pathlib.Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    registry = ONE_JOB_GATE.replace("kind: job", "kind: test").replace(
+        "{job: test}", "{job: test, tests: [tests/test_gone.py]}"
+    )
+    project = a_project(tmp_path, registry, **{"tests/test_here.py": ""})
+    assert scanner.main(project) == 1
+    out = capsys.readouterr().out
+    assert (
+        "the index claims a file that is gone: tests/test_gone.py — take it out of that"
+        " row's tests in gates.yaml, or restore the file"
+    ) in out, out
+
+
+def test_a_gate_pointing_nowhere_is_told_what_was_read_and_where_to_fix_it(
+    tmp_path: pathlib.Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    registry = ONE_JOB_GATE.replace("{job: test}", "{job: absent}")
+    assert scanner.main(a_project(tmp_path, registry)) == 1
+    out = capsys.readouterr().out
+    assert (
+        "a-rule: points at job 'absent', which no workflow defines — rename it in"
+        " gates.yaml, or add the job to a workflow under .github/workflows"
+    ) in out, out
+
+
+def test_the_finding_names_the_index_as_the_project_named_it(
+    tmp_path: pathlib.Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """A project that moved its registry (`gates_path`) is pointed at that file, not at
+    the default name — a pointer at a file that is not there is no pointer."""
+    registry = ONE_JOB_GATE.replace("{job: test}", "{job: absent}")
+    files = {".github/workflows/ci.yml": PINNED, "docs/gates.yaml": registry}
+    project = build(tmp_path, files, {"gates_path": "docs/gates.yaml", "tests_path": "tests"})
+    assert scanner.main(project) == 1
+    out = capsys.readouterr().out
+    assert "rename it in docs/gates.yaml, or add the job to a workflow" in out, out
+    assert "in gates.yaml," not in out, out
+
+
 # ---------------------------------------------------------------- shape
 
 

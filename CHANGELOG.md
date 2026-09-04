@@ -87,6 +87,18 @@ Notable changes to this project. The format follows
 
 ### Fixed
 
+- **`gates_doctor --installed` leaves no bytecode in the project.** It compiled each scan
+  through `py_compile`, which writes `__pycache__/*.pyc` under the project's `tools/checks/` —
+  nine files a Go or Node project has no `.gitignore` for, committed by its first
+  `git add tools/` (round 22, F6). The check still compiles every scan, in memory, and a test
+  walks the tree after `--installed`, a scan run and `--rules` and finds nothing.
+- **A finding from the gate index says which file to open and what row to add.** The first
+  finding a stranger sees from a fresh install was `job with no gate in the index: test — give
+  it one` (round 22, F7). It now reads *add a row to gates.yaml: id, title, kind: job, severity,
+  enforced_by: {job: test}*; an unclaimed test file is told the row with `kind: test` and its
+  `tests:`; a claimed file that is gone is told which row's `tests:` to take it out of; a gate
+  pointing at a job no workflow defines is told to rename it there or add the job under
+  `.github/workflows`. The file is named as the project named it (`gates_path`).
 - **A finding carries the rule it breaks and the incident behind that rule.** The text
   report — the one a person reads at the terminal and the one the edit hook hands an agent —
   said `actions-sha-pinned: ci.yml: actions/checkout@v4` and nothing else; the title and the
