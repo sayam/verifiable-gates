@@ -166,6 +166,20 @@ gates:
           then the job had been green on all 67 of its runs with an empty register,
           the one job here never seen red on the platform (re-audit census, 2026-08-30).
 
+  - id: d2-probe-the-third-answer-one-hop-out
+    title: PROBE (round 23, D2; never merged) — what the Security tab shows for a doctor run that could not look
+    kind: job
+    severity: blocking
+    enforced_by: {job: d2-probe}
+    layer: internal
+    pillar: security
+    portable: false
+    born_from: >-
+      Round 23 (2026-09-05), D2: the doctor's third answer travels as
+      toolExecutionNotifications and executionSuccessful false; nobody had read it one
+      hop out, on the Security tab. This row exists so the probe job is claimed by the
+      registry while the branch lives; it is deleted with the branch.
+
   - id: newcomer-handoff-is-checked-on-our-own-pull-requests
     title: The issue-handoff gate this bundle ships runs on this repository's pull requests
     kind: job

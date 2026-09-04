@@ -1,0 +1,48 @@
+# Round 23, D2 — a probe, never merged: what does GitHub's Security tab show for a
+# doctor run in which one scanner could not look? The doctor says NA and [error] as
+# toolExecutionNotifications and marks the invocation executionSuccessful: false; this
+# uploads such a run and the round reads the tab through the API.
+name: d2-probe
+on:
+  pull_request:
+permissions:
+  contents: read
+jobs:
+  d2-probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      security-events: write
+      actions: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.13"
+      - name: install the hash-pinned tools
+        run: pip install --require-hashes -r pins/dev/requirements.txt
+      - run: pip install --no-deps --no-build-isolation -e .
+      - name: install the bundle into this checkout and plant the third answer beside a real finding
+        run: |
+          set -euo pipefail
+          python -m verifiable_gates.install .
+          mkdir -p app/templates
+          printf 'plain\n' > app/templates/ok.html
+          printf '\xff\xfe\x00bad' > app/templates/undecodable.html
+          printf 'FROM python:3.13-slim\n' > Dockerfile
+          python3 - <<'PY'
+          import json, pathlib
+          p = pathlib.Path("scaffold.json"); d = json.loads(p.read_text())
+          d["templates_path"] = "app/templates"; p.write_text(json.dumps(d, indent=2) + "\n")
+          PY
+      - name: the doctor, text and SARIF
+        run: |
+          python3 tools/gates_doctor.py --root . --sarif d2.sarif || echo "doctor exit=$?"
+          echo "----- d2.sarif"
+          cat d2.sarif
+      - uses: github/codeql-action/upload-sarif@cdf488f595d80d6e07e03d4674febd5ab45fa938 # v4.37.9
+        with:
+          sarif_file: d2.sarif
+          category: verifiable-gates-d2-probe
+          wait-for-processing: true
