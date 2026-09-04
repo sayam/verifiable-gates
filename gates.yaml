@@ -2464,6 +2464,16 @@ gates:
       subprocess where a wrong exit code is easy to lose.
     proved_by:
       - kind: mutation
+        ref: pr/248
+        date: 2026-09-05
+        caught: >-
+          `--installed` restored to `py_compile` — red against the test that walks the
+          project after `--installed`, a scan run and `--rules` and expects no `.pyc`
+          and no `__pycache__` anywhere in it (self-audit round 22, F6: nine bytecode
+          files under a Go project's `tools/checks/`, which its `.gitignore` does not
+          cover and its first `git add tools/` would commit). A scan that does not
+          compile is still an incomplete install, from the in-memory compile.
+      - kind: mutation
         ref: pr/247
         date: 2026-09-04
         caught: >-
@@ -2959,6 +2969,18 @@ gates:
           whole suite and every reader green too. Four cases red now (self-
           audit round 3, 2026-09-01).
 
+      - kind: mutation
+        ref: pr/248
+        date: 2026-09-05
+        caught: >-
+          Each of five registry findings restored to its old sentence — `give it one`
+          on a job with no gate, an unclaimed test file and a claimed file that is gone
+          named with no row and no file, a gate pointing at a job no workflow defines
+          told nothing about where — and the registry's name replaced by the literal
+          `gates.yaml`; each red against the test that holds the finding to the file
+          as the project named it (`gates_path`) and the row to add or change
+          (self-audit round 22, F7: the first finding a stranger sees from a fresh
+          install pointed nowhere).
   - id: the-box-opens-already-true
     title: A fresh install's registry passes its own check, and is not skipped as not-applicable
     kind: test

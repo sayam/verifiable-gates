@@ -512,15 +512,19 @@ def _gate_findings(gates: list[object]) -> tuple[list[str], list[dict[str, Any]]
 
 
 def _forward(
-    gates: list[dict[str, Any]], jobs: dict[str, list[str]], root: pathlib.Path
+    gates: list[dict[str, Any]], jobs: dict[str, list[str]], root: pathlib.Path, index: str
 ) -> list[str]:
-    """Forward: does each gate point at a job, step, or file that exists?"""
+    """Forward: does each gate point at a job, step, or file that exists? `index` is the
+    registry as the project named it, for a finding that says where to go."""
     findings: list[str] = []
     for gate in gates:
         gid, enforced = gate["id"], gate["enforced_by"]
         job = str(enforced["job"])
         if job not in jobs:
-            findings.append(f"{gid}: points at job {job!r}, which no workflow defines")
+            findings.append(
+                f"{gid}: points at job {job!r}, which no workflow defines — rename it in"
+                f" {index}, or add the job to a workflow under .github/workflows"
+            )
         elif gate["kind"] == "step":
             step = enforced.get("step")
             if not step or str(step) not in jobs[job]:
@@ -549,9 +553,11 @@ def _forward(
 
 
 def _partition(
-    gates: list[dict[str, Any]], root: pathlib.Path, tests_dir: pathlib.Path
+    gates: list[dict[str, Any]], root: pathlib.Path, tests_dir: pathlib.Path, index: str
 ) -> list[str]:
-    """Back (tests): every test file is claimed, and claimed by exactly one gate."""
+    """Back (tests): every test file is claimed, and claimed by exactly one gate. A
+    finding names the row to add or change in `index`, the registry as the project named
+    it — a stranger reads the finding before the file (self-audit round 22, F7)."""
     if not tests_dir.is_dir():
         return []
     claims: dict[str, list[str]] = {}
@@ -569,10 +575,15 @@ def _partition(
         and (path.name.startswith("test_") or path.name.endswith("_test.py"))
     }
     findings = [
-        f"no gate claims this test file: {name}" for name in sorted(on_disk - claims.keys())
+        f"no gate claims this test file: {name} — add a row to {index} with kind: test and"
+        f" enforced_by: {{job: <the job that runs it>, tests: [{name}]}}, or add it to a"
+        " row's tests"
+        for name in sorted(on_disk - claims.keys())
     ]
     findings += [
-        f"the index claims a file that is gone: {name}" for name in sorted(claims.keys() - on_disk)
+        f"the index claims a file that is gone: {name} — take it out of that row's tests in"
+        f" {index}, or restore the file"
+        for name in sorted(claims.keys() - on_disk)
     ]
     findings += [
         f"the partition is broken — {name} is claimed by {sorted(owners)}"
@@ -718,6 +729,8 @@ def _judge(root: pathlib.Path) -> int:
     if found is None:
         return code
     registry, config = found
+    # The registry as the project named it, for every finding that says where to go.
+    index = _shown(registry.relative_to(root).as_posix())
 
     findings, rows = _read_registry(registry)
     if not findings:
@@ -729,7 +742,7 @@ def _judge(root: pathlib.Path) -> int:
         jobs, unreadable, clashes, toothless = workflow_jobs(root)
         findings += [f"a workflow could not be read — {problem}" for problem in unreadable]
         findings += clashes
-        findings += _forward(gates, jobs, root)
+        findings += _forward(gates, jobs, root, index)
         findings += [
             f"{gate['id']}: {toothless[str(gate['enforced_by']['job'])]} — a gate whose job "
             "cannot turn the build red is a row in the index and nothing else"
@@ -746,8 +759,11 @@ def _judge(root: pathlib.Path) -> int:
         ]
 
         covered = {str(gate["enforced_by"]["job"]) for gate in gates}
+        # The first finding a stranger sees from a fresh install is this one, and it said
+        # `give it one` without saying where or what shape (self-audit round 22, F7).
         findings += [
-            f"job with no gate in the index: {job} — give it one"
+            f"job with no gate in the index: {job} — add a row to {index}: id, title,"
+            f" kind: job, severity, enforced_by: {{job: {job}}}"
             for job in sorted(set(jobs) - covered)
         ]
         named, wrong = _configured_path(config, "tests_path", "tests")
@@ -755,7 +771,7 @@ def _judge(root: pathlib.Path) -> int:
         if named is None:
             findings.append(wrong)
         elif _inside(root, tests_dir):
-            findings += _partition(gates, root, tests_dir)
+            findings += _partition(gates, root, tests_dir, index)
         else:
             findings.append(OUTSIDE.format(key="tests_path", path=named))
 

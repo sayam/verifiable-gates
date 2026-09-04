@@ -112,7 +112,6 @@ import hashlib
 import json
 import os
 import pathlib
-import py_compile
 import re
 import stat
 import subprocess
@@ -300,9 +299,13 @@ def check_installed(root: pathlib.Path, manifest: dict[str, Any], bundle: pathli
     scans = scan_entries(manifest)
     for gid, script in scans:
         # The same one road as `_held_to_the_record`, for the scans the record may not
-        # name: a bundle with no record reached `py_compile` and died there instead.
+        # name: a bundle with no record reached the compile and died there instead.
+        # Compiled in memory: `py_compile` wrote `__pycache__/*.pyc` under the project's
+        # `tools/checks/`, nine files a Go or Node project has no `.gitignore` for and
+        # commits with its first `git add tools/` (self-audit round 22, F6). A check
+        # writes nothing into the tree it checks.
         try:
-            py_compile.compile(str(bundle / script), doraise=True)
+            compile((bundle / script).read_bytes(), str(bundle / script), "exec", dont_inherit=True)
         except FileNotFoundError:
             problems.append(f"{gid}: {script} is missing")
         except OSError as denied:
@@ -310,7 +313,7 @@ def check_installed(root: pathlib.Path, manifest: dict[str, Any], bundle: pathli
                 f"{gid}: {script} cannot be read ({denied.strerror or denied}) — a scan "
                 "nobody can read does not run"
             )
-        except py_compile.PyCompileError as error:
+        except (SyntaxError, ValueError) as error:
             problems.append(f"{gid}: {script} does not compile: {error}")
 
     if problems:

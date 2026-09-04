@@ -137,9 +137,11 @@ two pinning checkers until a line of it changes — a green on the bundle's own
 file says nothing about the project. That index check reads its own direction too: a
 gate whose job cannot turn the build red — a workflow with no trigger, `if: false`, or
 `continue-on-error: true` — is a finding, because a row nothing can fail is a row and
-nothing else. And the bundle keeps a record of what it installed: `gates_doctor
+nothing else; and each of its findings names the file to open and the row to add or
+change, so the first line a stranger reads points at the second. And the bundle keeps a
+record of what it installed: `gates_doctor
 --installed` holds every file it wrote to the contents it wrote, not merely to being
-present, and an upgrade names what this version no longer ships and leaves it in place,
+present — and writes nothing into the tree it checks, not even bytecode — and an upgrade names what this version no longer ships and leaves it in place,
 because a file in your repository is yours to remove. An install that stopped partway is
 read as one: the doctor leads with *the last install into this tree did not finish*
 rather than reporting the files that did land as files somebody edited — and one still
@@ -306,8 +308,9 @@ skill คือคำสั่ง ส่วนตัวสแกนยังเ�
 ตั้งต้นที่ตัวติดตั้งเขียนให้เป็น `NA` สำหรับตัวตรวจ pin ทั้งสองจนกว่าจะมีบรรทัดถูกแก้ —
 เขียวบนไฟล์ของบันเดิลเองไม่ได้บอกอะไรเกี่ยวกับโปรเจกต์ · ตัวตรวจทะเบียนอ่านทิศของตัวเองด้วย: gate ที่งานของมัน
 ทำให้ build แดงไม่ได้ — workflow ที่ไม่มี trigger, `if: false`, หรือ `continue-on-error: true` — เป็น finding
-เพราะแถวที่ไม่มีอะไรทำให้ล้มได้คือแถวเปล่า ๆ · และบันเดิลจดสิ่งที่มันติดตั้งไว้: `gates_doctor --installed`
-ถือทุกไฟล์ที่มันเขียนไว้กับ *เนื้อ* ที่มันเขียน ไม่ใช่แค่ว่ามีไฟล์อยู่ · และตอนอัปเกรด มันบอกว่ารุ่นนี้เลิกส่งอะไร
+เพราะแถวที่ไม่มีอะไรทำให้ล้มได้คือแถวเปล่า ๆ · และ finding แต่ละข้อของมันบอกชื่อไฟล์ที่ต้องเปิดกับแถวที่ต้องเพิ่มหรือแก้
+บรรทัดแรกที่คนแปลกหน้าอ่านจึงชี้ไปที่บรรทัดถัดไป · และบันเดิลจดสิ่งที่มันติดตั้งไว้: `gates_doctor --installed`
+ถือทุกไฟล์ที่มันเขียนไว้กับ *เนื้อ* ที่มันเขียน ไม่ใช่แค่ว่ามีไฟล์อยู่ — และไม่เขียนอะไรลงต้นไม้ที่มันตรวจ แม้แต่ bytecode · และตอนอัปเกรด มันบอกว่ารุ่นนี้เลิกส่งอะไร
 แล้วปล่อยไฟล์นั้นไว้ เพราะไฟล์ในรีโปของคุณเป็นสิทธิ์ของคุณที่จะลบ · การติดตั้งที่หยุดกลางทางถูกอ่านว่าอย่างนั้น —
 doctor ขึ้นต้นด้วย *การติดตั้งครั้งล่าสุดลงในต้นไม้นี้ยังไม่จบ* แทนที่จะรายงานไฟล์ที่ลงไปแล้วว่าเป็นไฟล์ที่ถูกใครแก้ · และ `gates_doctor --rules` พิมพ์กฎที่บันเดิล
 ตัดสินได้ — แต่ละข้อพร้อมที่มาและตัวสแกนที่อ่านมัน — ให้ไฟล์คำสั่งที่โปรเจกต์เก็บไว้ให้ agent (`AGENTS.md`, `CLAUDE.md`)
