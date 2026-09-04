@@ -5,6 +5,9 @@
 What the destination ends up with:
 
 - `tools/` — the doctor, the scans, and the manifest that describes them
+- `tools/installed.json` — a record of every file written and the digest it had,
+  which is what lets `gates_doctor.py --installed` tell *gone* from *edited* later,
+  and what `--rules` reads before it prints a rule to an agent
 - `scaffold.json` — configuration, **never overwritten** if it is already there
 - `gates.yaml` — the starting registry, also never overwritten
 - `.github/workflows/gates.yml` — a starting workflow, also never overwritten
@@ -12,6 +15,15 @@ What the destination ends up with:
 The three "never overwritten" cases are the ones holding decisions somebody made.
 Everything else is ours and is replaced, because a half-updated bundle is worse
 than an old one.
+
+**The record is written before the first file, not after the last.** It keeps what
+the previous install left and names, under `arriving`, the digest each file is about
+to have, so a doctor arriving mid-install reads a file as the old version or the new
+one and accuses neither. A record that cannot be written **refuses the install before
+anything lands**, since an install nobody can check is not an install anybody should
+trust. Every file arrives whole — written beside its destination and renamed over it —
+so a reader who opens one during an install gets the old bytes or the new ones, never
+half of either.
 
 Keeping `gates.yaml` while writing the workflow leaves a seam: the workflow runs a
 job the kept registry may not name, and the doctor is red from the first run
