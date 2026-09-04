@@ -325,6 +325,25 @@ def _pinned(ref: str) -> bool:
     return PINNED.search(ref) is not None
 
 
+def _verdicts(root: pathlib.Path, workflows: list[pathlib.Path]) -> tuple[list[str], int]:
+    """The findings, and how many `uses:` references were read to reach them — a
+    count of zero is the difference between pass and NA."""
+    findings: list[str] = []
+    judged = 0
+    for path in _followed(root, workflows):
+        for ref, after in _uses_lines(_text(path)):
+            if ref.startswith(LOCAL):
+                continue
+            judged += 1
+            if not _pinned(ref):
+                findings.append(f"{_shown(path.relative_to(root))}: {ref}")
+            elif PINNED.search(ref) and not VERSION_COMMENT.search(after):
+                findings.append(
+                    f"{_shown(path.relative_to(root))}: {ref} — pinned with no version comment"
+                )
+    return findings, judged
+
+
 def _judge(root: pathlib.Path) -> int:
     if not root.is_dir():
         # NA means "this project has nothing of that kind"; a root that is not
@@ -344,18 +363,18 @@ def _judge(root: pathlib.Path) -> int:
         )
         return 0
 
-    findings: list[str] = []
-    for path in _followed(root, workflows):
-        for ref, after in _uses_lines(_text(path)):
-            if ref.startswith(LOCAL):
-                continue
-            if not _pinned(ref):
-                findings.append(f"{_shown(path.relative_to(root))}: {ref}")
-            elif PINNED.search(ref) and not VERSION_COMMENT.search(after):
-                findings.append(
-                    f"{_shown(path.relative_to(root))}: {ref} — pinned with no version comment"
-                )
+    findings, judged = _verdicts(root, workflows)
 
+    # A workflow of `run:` steps alone has nothing this rule pins, and a `uses: ./…`
+    # is a path, not a reference. Read and judged nothing is said as NA, not pass —
+    # the same hole `ci-tools-hash-pinned` had on a Go workflow (self-audit round
+    # 22, 2026-09-04).
+    if not findings and not judged:
+        print(
+            f"NA: read {len(workflows)} workflow{'s' if len(workflows) != 1 else ''}"
+            " and found no `uses:` step naming an action — nothing this rule pins"
+        )
+        return 0
     for finding in findings:
         print(f"actions-sha-pinned: {_shown(finding)}")
     return 1 if findings else 0

@@ -142,6 +142,24 @@ BUILD = re.compile(
     r"(?:^|[\s/])(?:python(?:3(?:\.\d+)?)?\s+-m\s+build|pyproject-build|pip(?:3(?:\.\d+)?)?\s+wheel)\b"
 )
 NO_ISOLATION = re.compile(r"(?:^|\s)(?:--no-isolation|--no-build-isolation|-n)(?:\s|$)")
+# The lock-based forms the families above leave alone are read too, as a verdict of
+# clean rather than an absence: `npm ci`, `yarn install --frozen-lockfile`,
+# `pnpm install --frozen-lockfile`, `uv sync`, `uv run` (from `uv.lock`; only `--with`
+# reaches the index, and that stays a finding), `uv build`,
+# `poetry install`, `pdm sync`, `pipenv sync`. Without this a Node project that did
+# the right thing everywhere would answer NA, as if the scanner had not seen it.
+CLEAN = re.compile(
+    r"(?:^|[\s/])(?:npm\s+ci|yarn\s+install|pnpm\s+install|uv\s+(?:sync|build|run)"
+    r"|poetry\s+install|pdm\s+(?:sync|install)|pipenv\s+sync)\b"
+)
+# A line is judged when one of these reads it — to a finding or to clean. A file with
+# no such line is not a pass: on a Go workflow carrying `go install …@latest` the
+# scanner answered `pass`, having read the file and judged nothing in it, and `pass`
+# reads as "CI tools are hash-pinned" (self-audit round 22, 2026-09-04). It answers
+# NA there, naming what it reads; an installer outside that list is not read here
+# (`DECISIONS.md` `go-cargo-gem-installs-are-not-judged`).
+JUDGED = (PIP_INSTALL, NPM_INSTALL, PIPX_INSTALL, NO_PIP_INSTALL, BUILD, CLEAN)
+READS = "pip, pipx, npm/npx/yarn/pnpm, uv/uvx/poetry/pdm/pipenv and python -m build"
 # `pip install --no-deps -e .` installs the checkout itself and resolves nothing
 # from an index, so there is no hash to pin and nothing an attacker could swap.
 # **Both halves are required.** `--no-deps requests` still reaches the index, and
@@ -776,6 +794,40 @@ def _pip_requires_hashes(command: str, where: pathlib.Path) -> bool:
     return _requirements_all_hashed(after, where)
 
 
+def _command(line: str) -> str | None:
+    """The command in a line as the judge reads it — shell keywords stripped — or nothing
+    when the line only says the words (`echo "pip install"`)."""
+    while KEYWORD.match(line):
+        line = KEYWORD.sub("", line, count=1)
+    words = line.split()
+    if words and words[0] in PROSE:
+        return None
+    return line
+
+
+def _judged(line: str) -> bool:
+    """Whether a family above reads this line at all — a finding or a clean verdict."""
+    command = _command(line)
+    return command is not None and any(pattern.search(command) for pattern in JUDGED)
+
+
+def _read_as(targets: list[pathlib.Path]) -> str:
+    """What was read, counted by kind, for an NA that names it."""
+    dockerfiles = sum(1 for t in targets if t.name == "Dockerfile")
+    actions = sum(1 for t in targets if t.stem == "action")
+    workflows = len(targets) - dockerfiles - actions
+    parts = [
+        f"{n} {noun}{'s' if n != 1 else ''}"
+        for n, noun in (
+            (workflows, "workflow"),
+            (actions, "composite action"),
+            (dockerfiles, "Dockerfile"),
+        )
+        if n
+    ]
+    return " and ".join(parts)
+
+
 def _line_findings(where: str, line: str, stands_in: pathlib.Path) -> list[str]:
     """Everything one command does that reaches an index unpinned.
 
@@ -783,11 +835,10 @@ def _line_findings(where: str, line: str, stands_in: pathlib.Path) -> list[str]:
     not UTF-8 has to reach the report escaped (self-audit round 15, 2026-09-01).
     """
     found: list[str] = []
-    while KEYWORD.match(line):
-        line = KEYWORD.sub("", line, count=1)
-    words = line.split()
-    if words and words[0] in PROSE:
+    command = _command(line)
+    if command is None:
         return found
+    line = command
     if (
         PIP_INSTALL.search(line)
         and not _pip_requires_hashes(line, stands_in)
@@ -823,6 +874,7 @@ def _judge(root: pathlib.Path) -> int:
         return 0
 
     findings: list[str] = []
+    judged = 0
     for path in _with_scripts(root, _followed(root, targets)):
         # One `run:` line can chain several commands; each is judged on its own,
         # or the second hides behind the first's exemption.
@@ -832,8 +884,15 @@ def _judge(root: pathlib.Path) -> int:
                 if moved := CD.match(line):
                     stands_in = stands_in / moved.group("dir")
                     continue
+                judged += _judged(line)
                 findings += _line_findings(_shown(path.relative_to(root)), line, stands_in)
 
+    if not findings and not judged:
+        print(
+            f"NA: read {_read_as(targets)} and found no install line this rule judges"
+            f" ({READS}) — an installer outside that list is not read here"
+        )
+        return 0
     for finding in findings:
         print(f"ci-tools-hash-pinned: {_shown(finding)}")
     return 1 if findings else 0

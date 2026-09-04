@@ -722,10 +722,16 @@ def test_a_starting_workflow_whose_pin_was_loosened_is_judged(
     files = {**STARTING, ".github/workflows/gates.yml": loosened}
     code = scanner.main(build(tmp_path, files))
     out = capsys.readouterr().out
-    assert not out.startswith("NA:"), out
+    assert "nothing of yours" not in out, "an edited starting workflow is the project's"
     if scanner is scan_workflow_pinning:
         assert code == 1
         assert "actions/checkout@v7" in out
+    else:
+        # The loosened pin is a `uses:`, not an install line: this scanner read the
+        # project's workflow and judged nothing in it, and says that — a different
+        # NA from "the bundle's own, untouched".
+        assert code == 0
+        assert out.startswith("NA: read"), out
 
 
 # ---------------------------------------------------------------- the ADR index
@@ -920,6 +926,110 @@ def test_an_install_from_a_lockfile_is_left_alone(
     files = {".github/workflows/ci.yml": f"jobs:\n  a:\n    steps:\n      - run: {line}\n"}
     assert scan_install_pinning.main(build(tmp_path, files)) == 0
     assert "ci-tools-hash-pinned" not in capsys.readouterr().out
+
+
+# ------------------------------------ a scan that read files and judged nothing says so
+# Self-audit round 22 (2026-09-04): a Go project installed the bundle and
+# `ci-tools-hash-pinned` answered `pass` on a workflow carrying
+# `go install golang.org/x/tools/cmd/goimports@latest` — the scanner reads pip and npm
+# families, had read the file, and judged no line in it. `pass` reads as "CI tools are
+# hash-pinned". The same hole sat in `actions-sha-pinned` on a workflow of `run:` steps.
+
+GO_WORKFLOW = (
+    "jobs:\n  a:\n    steps:\n"
+    "      - run: go install golang.org/x/tools/cmd/goimports@latest\n"
+    "      - run: go test ./...\n"
+)
+
+
+def test_a_workflow_with_no_install_line_this_rule_reads_is_na_not_a_pass(
+    tmp_path: pathlib.Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """The NA names what was read and what the rule reads, so a Go developer learns
+    in one line that `go install` is outside it — rather than that it is pinned."""
+    files = {".github/workflows/ci.yml": GO_WORKFLOW, "Dockerfile": "FROM golang:1.22\n"}
+    assert scan_install_pinning.main(build(tmp_path, files)) == 0
+    said = capsys.readouterr().out
+    assert said.startswith("NA:"), said
+    assert "1 workflow and 1 Dockerfile" in said, said
+    for family in ("pip", "npm", "uv", "python -m build"):
+        assert family in said, f"an NA names what it reads: {family}"
+    assert "not read here" in said, "the limit is said, not implied"
+
+
+@pytest.mark.parametrize(
+    "line",
+    [
+        "npm ci",
+        "yarn install --frozen-lockfile",
+        "pnpm install --frozen-lockfile",
+        "uv sync --locked",
+        "uv run --locked pytest",
+        "uv build",
+        "poetry install --sync",
+        "pdm sync",
+        "pipenv sync",
+        "pip install --require-hashes -r requirements.txt",
+        "python -m build --no-isolation",
+    ],
+)
+def test_a_line_read_and_found_clean_is_a_pass_not_na(
+    tmp_path: pathlib.Path, capsys: pytest.CaptureFixture[str], line: str
+) -> None:
+    """A lock-based install is read as clean, not passed over: `npm ci` alone must be a
+    pass, or a Node project that did the right thing everywhere would read as unscanned.
+    The Go line beside it is not read and does not change the answer."""
+    go_steps = GO_WORKFLOW.split("steps:\n", 1)[1]
+    files = {
+        ".github/workflows/ci.yml": f"jobs:\n  a:\n    steps:\n      - run: {line}\n{go_steps}"
+    }
+    (tmp_path / "requirements.txt").write_text("ruff==0.1 --hash=sha256:aa\n", encoding="utf-8")
+    assert scan_install_pinning.main(build(tmp_path, files)) == 0
+    said = capsys.readouterr().out
+    assert not said.startswith("NA:"), said
+    assert "ci-tools-hash-pinned" not in said, said
+
+
+def test_a_line_that_only_says_the_words_is_not_judged(
+    tmp_path: pathlib.Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """`echo "pip install"` installs nothing and is not a judged line either: a workflow
+    of echoes is NA, not a pass on the strength of a word in a string."""
+    files = {
+        ".github/workflows/ci.yml": "jobs:\n  a:\n    steps:\n      - run: echo pip install x\n"
+    }
+    assert scan_install_pinning.main(build(tmp_path, files)) == 0
+    assert capsys.readouterr().out.startswith("NA:")
+
+
+@pytest.mark.parametrize(
+    ("workflow", "why"),
+    [
+        ("jobs:\n  a:\n    steps:\n      - run: echo hi\n", "run steps only"),
+        ("jobs:\n  a:\n    steps:\n      - uses: ./.github/actions/local\n", "a local path"),
+    ],
+)
+def test_a_workflow_with_no_action_reference_is_na_for_sha_pinning(
+    tmp_path: pathlib.Path, capsys: pytest.CaptureFixture[str], workflow: str, why: str
+) -> None:
+    """Nothing to pin is said as NA naming `uses:`; before, both cases were a silent pass."""
+    files = {".github/workflows/ci.yml": workflow}
+    assert scan_workflow_pinning.main(build(tmp_path, files)) == 0, why
+    said = capsys.readouterr().out
+    assert said.startswith("NA:"), (why, said)
+    assert "`uses:`" in said, said
+    assert "1 workflow" in said, said
+
+
+def test_one_pinned_action_reference_is_a_pass_not_na(
+    tmp_path: pathlib.Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """One reference read and found pinned is a verdict; NA there would hide it."""
+    sha = "3d3c42e5aac5ba805825da76410c181273ba90b1"
+    step = f"      - uses: actions/checkout@{sha} # v7\n"
+    files = {".github/workflows/ci.yml": f"jobs:\n  a:\n    steps:\n{step}"}
+    assert scan_workflow_pinning.main(build(tmp_path, files)) == 0
+    assert capsys.readouterr().out == ""
 
 
 SCRIPT_CALLERS = [
@@ -1479,7 +1589,7 @@ def test_a_literal_block_keeps_its_lines_apart(
     """`|` hands the shell two lines: `pip` alone, then `install ruff` alone — no install."""
     body = "jobs:\n  a:\n    steps:\n      - run: |\n          pip\n          install ruff\n"
     assert scan_install_pinning.main(build(tmp_path, {".github/workflows/ci.yml": body})) == 0
-    assert capsys.readouterr().out == ""
+    assert "ci-tools-hash-pinned" not in capsys.readouterr().out, "two lines are not one command"
 
 
 def test_an_anchor_on_the_run_line_names_the_command_not_the_anchor(
@@ -1525,7 +1635,7 @@ def test_a_pinned_uses_the_platform_reads_is_clean_here_too(
     """The alias carries its anchor's version comment; a tag is dropped; a `uses` under
     `with:` is an input, not a step (self-audit, 2026-08-31: `*co` was the finding)."""
     assert scan_workflow_pinning.main(build(tmp_path, {".github/workflows/ci.yml": body})) == 0
-    assert capsys.readouterr().out == ""
+    assert "actions-sha-pinned" not in capsys.readouterr().out
 
 
 @pytest.mark.parametrize(
@@ -1604,7 +1714,7 @@ def test_words_no_shell_runs_stay_prose(
 ) -> None:
     files = {".github/workflows/ci.yml": STEP.format(line=line)}
     assert scan_install_pinning.main(build(tmp_path, files)) == 0
-    assert capsys.readouterr().out == ""
+    assert "ci-tools-hash-pinned" not in capsys.readouterr().out, "prose is not a command"
 
 
 def test_a_hash_inside_a_word_is_not_a_comment(
@@ -1662,7 +1772,9 @@ def test_another_steps_working_directory_does_not_move_this_one(
         "setup.sh": "pip install ruff\n",
     }
     assert scan_install_pinning.main(build(tmp_path, files)) == 0
-    assert capsys.readouterr().out == ""
+    said = capsys.readouterr().out
+    assert "ci-tools-hash-pinned" not in said, "the root setup.sh is not the one run"
+    assert said.startswith("NA:"), "two echoes were run and judged nothing — said, not passed"
 
 
 @pytest.mark.parametrize(
