@@ -40,7 +40,9 @@ def a_bundle(tmp_path: pathlib.Path) -> pathlib.Path:
 
 VALID = {
     "ship": ["checks/scan_x.py"],
-    "gates": {"a-rule": {"kind": "scan", "script": "checks/scan_x.py", "title": "A rule"}},
+    "gates": {
+        "a-rule": {"kind": "scan", "script": "checks/scan_x.py", "title": "A rule", "reads": "x"}
+    },
 }
 
 
@@ -63,7 +65,12 @@ def test_only_scan_entries_have_scripts_to_run() -> None:
     manifest = {
         "ship": [],
         "gates": {
-            "decided-here": {"kind": "scan", "script": "checks/scan_x.py", "title": "t"},
+            "decided-here": {
+                "kind": "scan",
+                "script": "checks/scan_x.py",
+                "title": "t",
+                "reads": "x",
+            },
             "yours-to-write": {"kind": "suite", "title": "t"},
         },
     }
@@ -159,17 +166,17 @@ def test_the_overlay_says_of_each_rule_exactly_what_the_catalogue_says() -> None
     overlay = json.loads((ROOT / "src" / "verifiable_gates" / "overlay.json").read_text("utf-8"))
     rules = yaml.safe_load((ROOT / "rules.yaml").read_text("utf-8"))["rules"]
     scripted = {
-        rule["id"]: (rule["title"], rule["layer"], rule["born_from"])
+        rule["id"]: (rule["title"], rule["layer"], rule["born_from"], rule["reads"])
         for rule in rules
         if "script" in rule
     }
     shipped = {
-        gid: (entry["title"], entry["layer"], entry["born_from"])
+        gid: (entry["title"], entry["layer"], entry["born_from"], entry["reads"])
         for gid, entry in overlay["gates"].items()
         if entry.get("kind") == "scan"
     }
     assert shipped == scripted, (
-        "an id, a title, a layer or a born_from differs between overlay.json and rules.yaml"
+        "an id, title, layer, born_from or reads differs between overlay.json and rules.yaml"
     )
 
 
@@ -184,3 +191,13 @@ def test_the_default_registry_says_of_each_rule_exactly_what_the_catalogue_says(
     scripted = {rule["id"]: rule["title"] for rule in rules if "script" in rule}
     shipped = {gate["id"]: gate["title"] for gate in default["gates"]}
     assert shipped == scripted, "an id or a title differs between gates.yaml.default and rules.yaml"
+
+
+def test_a_scan_gate_that_does_not_say_what_it_reads_is_a_manifest_problem() -> None:
+    """`--rules` prints `reads` off the installed overlay; a scan gate without it would print
+    a placeholder where the one sentence a Go developer needs should be (round 22, F2)."""
+    overlay = json.loads((BUNDLE / "overlay.json").read_text("utf-8"))
+    gid = next(g for g, e in overlay["gates"].items() if e.get("kind") == "scan")
+    del overlay["gates"][gid]["reads"]
+    found = manifest_module.problems(overlay, BUNDLE)
+    assert any("no reads" in problem and gid in problem for problem in found), found

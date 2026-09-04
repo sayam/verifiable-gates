@@ -32,6 +32,12 @@ import sys
 # and DEL break the line grammar or the terminal; the C1 range does the same through a
 # terminal that reads 8-bit escapes; the bidi and zero-width formats reorder or hide what
 # a reader is looking at. Anything else — every language's letters — is left alone.
+
+# What this scanner reads, in one sentence — the catalogue's `reads:` for its rule is
+# held equal to this, `--rules` prints it, and every NA below is built from it. A Go
+# project read `nothing to check yet` about files it would never have (self-audit
+# round 22, 2026-09-04): an NA says what the rule reads, and "yet" is not a word in it.
+READS = "the .md records and the README.md index under docs/adr (scaffold.json adr_path)"
 _ESCAPED = {
     **{c: f"\\x{c:02x}" for c in (*range(0x20), 0x7F)},
     **{
@@ -282,7 +288,7 @@ def _records(adr_dir: pathlib.Path, root: pathlib.Path) -> dict[str, list[str]] 
     """
     records = [path for path in _walk(adr_dir) if path.suffix == ".md"]
     if not records:
-        print(f"NA: no record under {adr_dir.relative_to(root)} — nothing to check yet")
+        print(f"NA: no record under {adr_dir.relative_to(root)} — this rule reads {READS}")
         return None
     by_number: dict[str, list[str]] = {}
     for record in records:
@@ -317,7 +323,7 @@ def _adr_dir(root: pathlib.Path) -> tuple[pathlib.Path | None, int]:
             + MISCONFIGURED.format(key="adr_path", path=adr_dir.relative_to(root))
         )
         return None, 1
-    print(f"NA: no {adr_dir.relative_to(root)} — nothing to check yet")
+    print(f"NA: no {adr_dir.relative_to(root)} — this rule reads {READS}")
     return None, 0
 
 

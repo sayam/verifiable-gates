@@ -87,6 +87,10 @@ def _entry_problems(
             found.append(f"{gid}: script {script} is not in ship, so it never arrives")
         elif not (bundle / script).is_file():
             found.append(f"{gid}: script {script} is missing from the bundle")
+        if not str(entry.get("reads", "")).strip():
+            found.append(
+                f"{gid}: kind 'scan' with no reads — `--rules` could not say what it looks at"
+            )
     elif kind == "suite" and script:
         found.append(
             f"{gid}: kind 'suite' with a script — a suite gate is one this bundle "

@@ -41,6 +41,15 @@ import sys
 # and DEL break the line grammar or the terminal; the C1 range does the same through a
 # terminal that reads 8-bit escapes; the bidi and zero-width formats reorder or hide what
 # a reader is looking at. Anything else — every language's letters — is left alone.
+
+# What this scanner reads, in one sentence — the catalogue's `reads:` for its rule is
+# held equal to this, `--rules` prints it, and every NA below is built from it. A Go
+# project read `nothing to check yet` about files it would never have (self-audit
+# round 22, 2026-09-04): an NA says what the rule reads, and "yet" is not a word in it.
+READS = (
+    "the FROM lines of the root Dockerfile (scaffold.json dockerfiles), and "
+    ".github/dependabot.yml for a docker ecosystem"
+)
 _ESCAPED = {
     **{c: f"\\x{c:02x}" for c in (*range(0x20), 0x7F)},
     **{
@@ -333,7 +342,7 @@ def _judge(root: pathlib.Path) -> int:
     if not dockerfiles and not chosen:
         findings += _unnamed(root)
     if not dockerfiles and not findings:
-        print("NA: no Dockerfile — nothing to check yet")
+        print(f"NA: no Dockerfile — this rule reads {READS}")
         return 0
 
     for path in dockerfiles:

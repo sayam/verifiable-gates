@@ -8,6 +8,14 @@ Notable changes to this project. The format follows
 
 ### Added
 
+- **Every scanner-decided rule says what its scanner reads.** `reads:` on the nine rules that
+  carry a `script`, in the scanner's own words and held equal to a `READS` constant in the
+  scanner by a test — *Python modules under app/services (scaffold.json services_path) — their
+  imports, for request-side symbols*; *the uses: steps of workflows and composite actions under
+  .github*. `gates_doctor --rules` prints it under `decided by:`, the sheets print it as
+  **Reads:**, and the installed manifest carries it. Round 22, F2: a Go developer could not tell
+  before running which of the nine would ever apply. The field is what the tool reads, not a
+  stack label (`DECISIONS.md` `reads-is-what-the-tool-reads-not-a-stack-label`).
 - **The release workflow publishes the verified wheel and sdist to PyPI.** `pip install
   verifiable-gates` had been in the README since the first release and the index answered 404
   until 2026-09-04. The publish step is the last in `release-sign`: after the two-way
@@ -79,6 +87,13 @@ Notable changes to this project. The format follows
 
 ### Fixed
 
+- **An NA says what the rule reads, and "yet" is not a word in it.** Every scanner's NA was
+  *nothing to check yet* — on a Go project, about `app/services` Python it would never have —
+  and `no-debug-entrypoint` said *none of the declared entrypoints exist* about defaults the
+  project had never declared (round 22, F3). Each NA is now built from the scanner's `READS`:
+  *no app/services — this rule reads Python modules under app/services (scaffold.json
+  services_path) — their imports, for request-side symbols*; *no file at run.py, wsgi.py,
+  app.py, main.py — this rule reads the Python entrypoints … (scaffold.json entrypoints)*.
 - **A scan that read files and judged nothing answers NA, not `pass`.** Self-audit round 22
   installed the bundle into a Go project: `ci-tools-hash-pinned` answered `pass` on a workflow
   carrying `go install …@latest`, having read the file and judged no line in it — `pass` reads

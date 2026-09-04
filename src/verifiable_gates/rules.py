@@ -127,19 +127,12 @@ HELD_ON_REF = re.compile(r"^(pr|run)/\d+$")
 # `portable: true` on a rule is a gate's field: a rule in this catalogue is
 # published whole, portability is decided per gate in a registry. An outside
 # audit on 2026-08-30 wrote both and the schema said nothing.
-KEYS = frozenset(
-    {
-        "id",
-        "layer",
-        "pillar",
-        "title",
-        "title_th",
-        "born_from",
-        "born_from_th",
-        "reference",
-        "script",
-    }
-)
+# The keys a rule may carry beyond REQUIRED. `script` names the checker that decides
+# it; `reads` is what that checker reads, in the checker's own words (a test holds the
+# two equal), and travels with `script` or not at all — a rule held by reading reads
+# nothing. A key added later is added here, in one place.
+OPTIONAL = frozenset({"script", "reads"})
+KEYS = frozenset({*REQUIRED, *OPTIONAL})
 
 
 def load(path: str | pathlib.Path, key: str = "rules") -> list[dict[str, Any]]:
@@ -238,6 +231,18 @@ def _script_problems(
         return [f"{rule_id}: script {script!r} must be a path inside the bundle"]
     if package_dir is not None and not (pathlib.Path(package_dir) / script).is_file():
         return [f"{rule_id}: script {script!r} is not shipped by this bundle"]
+    return []
+
+
+def _reads_problems(rule_id: str, rule: dict[str, Any]) -> list[str]:
+    """`reads` says what the scanner reads and goes with `script`: a scripted rule without
+    it leaves a reader guessing which stacks it can ever apply to (self-audit round 22,
+    2026-09-04), and a reading-held rule with it claims a tool that is not there."""
+    reads, script = rule.get("reads"), rule.get("script")
+    if script and not (isinstance(reads, str) and reads.strip()):
+        return [f"{rule_id}: a rule with a script says what it reads — `reads` is missing"]
+    if reads and not script:
+        return [f"{rule_id}: `reads` without a script — nothing here reads anything"]
     return []
 
 
@@ -344,6 +349,7 @@ def problems(
             found += _reference_problems(rule_id, rule["reference"])
         found += _leaks(rule)
         found += _script_problems(rule_id, rule.get("script"), package_dir)
+        found += _reads_problems(rule_id, rule)
     return found
 
 

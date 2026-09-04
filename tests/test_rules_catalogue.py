@@ -8,6 +8,7 @@ validator only tested on broken input passes just as happily on everything.
 
 from __future__ import annotations
 
+import importlib
 import json
 import os
 import pathlib
@@ -216,13 +217,13 @@ def test_a_script_this_bundle_does_not_carry_is_refused() -> None:
 
 
 def test_a_script_this_bundle_carries_is_accepted() -> None:
-    rule = a_rule(script="checks/scan_adr_index.py")
+    rule = a_rule(script="checks/scan_adr_index.py", reads="the ADR records")
     assert rules.problems([rule], PACKAGE) == []
 
 
 def test_without_a_package_directory_only_the_shape_is_checked() -> None:
     """A caller who has no bundle on disk still gets the shape check."""
-    assert rules.problems([a_rule(script="checks/scan_nothing.py")]) == []
+    assert rules.problems([a_rule(script="checks/scan_nothing.py", reads="nothing")]) == []
 
 
 # ---------------------------------------------------------------- reading the file
@@ -299,3 +300,32 @@ def test_the_readme_example_runs_as_written(capsys: pytest.CaptureFixture[str]) 
         os.chdir(previous)
 
     assert capsys.readouterr().out == ""
+
+
+# ------------------------------------------------ what a scanner reads is said once
+# Round 22 (2026-09-04), F2: a Go developer installing the bundle could not tell before
+# running which of the nine scanner-decided rules would ever apply — the catalogue had
+# no word on what each scanner reads, and no sheet said "Python only".
+
+
+def test_every_scripted_rule_reads_exactly_what_its_scanner_says_it_reads() -> None:
+    """`reads` in the catalogue and `READS` in the scanner are one sentence in two places,
+    held equal — the scanner's word is the source, because it is the one that runs."""
+    scripted = [rule for rule in rules.load(ROOT / "rules.yaml") if rule.get("script")]
+    assert len(scripted) == 9, [rule["id"] for rule in scripted]
+    for rule in scripted:
+        module = importlib.import_module(
+            "verifiable_gates.checks." + pathlib.Path(rule["script"]).stem
+        )
+        assert rule["reads"] == module.READS, f"{rule['id']}: the catalogue and the scanner differ"
+        assert "yet" not in rule["reads"].split(), rule["id"]
+
+
+def test_reads_travels_with_a_script_or_not_at_all() -> None:
+    """A scripted rule without `reads` leaves the stack question open; a reading-held rule
+    with it claims a tool that is not there."""
+    assert "`reads` is missing" in complaints(
+        a_rule(script="checks/scan_adr_index.py"), package_dir=PACKAGE
+    )
+    assert "without a script" in complaints(a_rule(reads="the moon"))
+    assert "reads" not in complaints(a_rule())

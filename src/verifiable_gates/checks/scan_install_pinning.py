@@ -57,6 +57,15 @@ import sys
 # and DEL break the line grammar or the terminal; the C1 range does the same through a
 # terminal that reads 8-bit escapes; the bidi and zero-width formats reorder or hide what
 # a reader is looking at. Anything else — every language's letters — is left alone.
+
+# What this scanner reads, in one sentence — the catalogue's `reads:` for its rule is
+# held equal to this, `--rules` prints it, and every NA below is built from it. A Go
+# project read `nothing to check yet` about files it would never have (self-audit
+# round 22, 2026-09-04): an NA says what the rule reads, and "yet" is not a word in it.
+READS = (
+    "pip, pipx, npm/npx/yarn/pnpm, uv/uvx/poetry/pdm/pipenv and python -m build lines in "
+    "workflows, composite actions, the scripts they run, and the root Dockerfile"
+)
 _ESCAPED = {
     **{c: f"\\x{c:02x}" for c in (*range(0x20), 0x7F)},
     **{
@@ -159,7 +168,7 @@ CLEAN = re.compile(
 # NA there, naming what it reads; an installer outside that list is not read here
 # (`DECISIONS.md` `go-cargo-gem-installs-are-not-judged`).
 JUDGED = (PIP_INSTALL, NPM_INSTALL, PIPX_INSTALL, NO_PIP_INSTALL, BUILD, CLEAN)
-READS = "pip, pipx, npm/npx/yarn/pnpm, uv/uvx/poetry/pdm/pipenv and python -m build"
+FAMILIES = "pip, pipx, npm/npx/yarn/pnpm, uv/uvx/poetry/pdm/pipenv and python -m build"
 # `pip install --no-deps -e .` installs the checkout itself and resolves nothing
 # from an index, so there is no hash to pin and nothing an attacker could swap.
 # **Both halves are required.** `--no-deps requests` still reaches the index, and
@@ -730,7 +739,7 @@ def _nothing_of_yours(targets: list[pathlib.Path]) -> bool:
     """Every file read is the bundle's untouched starting workflow — said as NA."""
     if not all(_bundles_own(_text(path)) for path in targets):
         return False
-    print("NA: only the bundle's own starting workflow, untouched — nothing of yours to check yet")
+    print("NA: only the bundle's own starting workflow, untouched — nothing of yours to read")
     return True
 
 
@@ -868,7 +877,7 @@ def _judge(root: pathlib.Path) -> int:
         return 2
     targets = _files_read(root)
     if not targets:
-        print("NA: no workflows, composite actions or Dockerfile — nothing to check yet")
+        print(f"NA: no workflows, composite actions or Dockerfile — this rule reads {READS}")
         return 0
     if _nothing_of_yours(targets):
         return 0
@@ -890,7 +899,7 @@ def _judge(root: pathlib.Path) -> int:
     if not findings and not judged:
         print(
             f"NA: read {_read_as(targets)} and found no install line this rule judges"
-            f" ({READS}) — an installer outside that list is not read here"
+            f" ({FAMILIES}) — an installer outside that list is not read here"
         )
         return 0
     for finding in findings:

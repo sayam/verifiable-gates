@@ -355,6 +355,14 @@ gates:
           came back green first: the assertion read the whole of § Releasing,
           where "PyPI" survived in the next sentence, and it now holds step 5
           alone (L-0152).
+      - kind: mutation
+        ref: pr/245
+        date: 2026-09-04
+        caught: >-
+          Installing this repository's own bundle and reading it back: the
+          overlay's `reads` drifted from the catalogue, the catalogue's from the
+          scanner, and a scan gate stripped of `reads` — each red on this tree, the
+          dogfood catching what the unit tests catch on a fixture (round 22, F2).
   - id: the-security-policy-quotes-one-set-of-numbers
     title: SECURITY.md exists, quotes one set of timeframes, names no address, and points at a live channel
     kind: test
@@ -601,6 +609,13 @@ gates:
           — the row that says which installer families this project deliberately
           does not judge, and what would expire that. Red against its copy, both
           ways (2026-09-04).
+      - kind: mutation
+        ref: pr/245
+        date: 2026-09-04
+        caught: >-
+          `reads-is-what-the-tool-reads-not-a-stack-label` renamed in `DECISIONS.md`
+          alone — the row that says why the catalogue carries what each scanner
+          reads and no `applies_to` stack tag. Red against its copy, both ways.
   - id: the-posture-is-read-on-a-schedule
     title: Branch protection and the repository switches are read weekly and on every push, and held to the register
     kind: job
@@ -2348,6 +2363,14 @@ gates:
           installing the bundle into a Go project (self-audit round 22, F1),
           where `ci-tools-hash-pinned` said `pass` on a workflow whose only
           installer was `go install …@latest`.
+      - kind: mutation
+        ref: pr/245
+        date: 2026-09-04
+        caught: >-
+          An NA made to say "nothing to check yet" again, and the entrypoint NA
+          made to say "declared" of defaults the project never declared — red
+          against a test that walks eight scanners on an empty tree and holds every
+          NA to `this rule reads <READS>` with neither word (round 22, F3).
   - id: rules-we-ship-we-keep
     title: Scanners that apply to this repository are run against this repository
     kind: test
@@ -2772,7 +2795,13 @@ gates:
           on a violating tree; a file installed and gone, a missing record
           and an unreadable one were all green. Five cases red now (self-
           audit round 4, 2026-09-01).
-
+      - kind: mutation
+        ref: pr/245
+        date: 2026-09-04
+        caught: >-
+          `--rules` made to print no `reads:` line — the one line a project on
+          another stack needs to learn, before running, which of the nine rules can
+          ever apply to it (round 22, F2).
   - id: the-manifest-is-an-input
     title: The manifest is validated as data, and a rule the bundle cannot decide cannot carry a script
     kind: test
@@ -2820,7 +2849,15 @@ gates:
           receives — edited by hand: green before, red against the catalogue
           now; all nine had drifted from `rules.yaml` in words of their own
           (self-audit, 2026-08-31).
-
+      - kind: mutation
+        ref: pr/245
+        date: 2026-09-04
+        caught: >-
+          `reads` travels with the title, the layer and the origin: the installed
+          overlay's copy drifted from the catalogue, the catalogue's copy drifted
+          from the scanner, and a scan gate with no `reads` at all accepted — each
+          red here, because `--rules` prints the sentence off the installed
+          overlay and a drift there is the one an agent reads (round 22, F2).
   - id: the-shipped-reader-agrees-with-the-real-one
     title: The hand-written YAML reader agrees with PyYAML on this repository's own files
     kind: test
@@ -3269,7 +3306,16 @@ gates:
           apart, red; `portable: true` planted in `rules.yaml` itself, red in the
           schema test and the README example. An outside audit wrote both keys
           on 2026-08-30 and the schema said nothing.
-
+      - kind: mutation
+        ref: pr/245
+        date: 2026-09-04
+        caught: >-
+          Three planted defects red against `reads`, the sentence a scripted rule
+          carries to say what its scanner reads: the catalogue's copy drifted from
+          the scanner's `READS`, the scanner's `READS` drifted from the catalogue,
+          and the validator made to accept a scripted rule that says nothing
+          (self-audit round 22, F2 — a Go project could not tell before running
+          which of the nine rules could ever apply to it).
   - id: the-sheets-match-the-catalogue
     title: The committed sheets are a fresh render, and between them they publish every rule
     kind: test
@@ -3356,7 +3402,15 @@ gates:
           The sheets gained a declared ceiling, two-way: the sheet over its ceiling
           went red, and a ceiling raised 41 lines above the sheet went red too —
           the space above reality is the space that fills unseen.
-
+      - kind: mutation
+        ref: pr/245
+        date: 2026-09-04
+        caught: >-
+          The nine **Reads:** lines a scripted rule prints on its sheet: the
+          renderer made to print none, the committed sheet edited by hand to drop
+          one, and the catalogue's sentence drifted so the sheet no longer said
+          what the scanner says — red against the fresh render and against the
+          catalogue (round 22, F2).
   - id: the-schema-is-read-the-way-it-is-written
     title: The registry schema is proved against both a well-formed registry and a broken one
     kind: test

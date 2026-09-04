@@ -45,6 +45,8 @@ rules:
     tests:
     - tests/test_gates.py
   script: checks/scan_gates_registry.py
+  reads: >-
+    the gate index at gates.yaml (scaffold.json gates_path), the jobs of every workflow under .github/workflows, and the test files under tests
 - id: gates-carry-red-evidence
   layer: baseline
   pillar: devx
@@ -79,6 +81,8 @@ rules:
     - tests/test_service_layer.py
     - tests/test_services.py
   script: checks/scan_service_layer.py
+  reads: >-
+    Python modules under app/services (scaffold.json services_path) — their imports, for request-side symbols
 - id: delete-means-soft-delete
   layer: business
   pillar: security
@@ -95,6 +99,8 @@ rules:
     - tests/test_write_discipline.py
     - tests/test_soft_delete.py
   script: checks/scan_write_discipline.py
+  reads: >-
+    Python modules under app (scaffold.json src_path) — session.delete calls outside the purge_paths
 - id: every-write-audited
   layer: business
   pillar: security
@@ -341,6 +347,8 @@ rules:
     tests:
     - tests/test_security_headers.py
   script: checks/scan_templates_inline.py
+  reads: >-
+    .html, .htm, .jinja, .jinja2 and .j2 templates under app/templates (scaffold.json templates_path)
 - id: config-fails-loud
   layer: baseline
   pillar: security
@@ -372,6 +380,8 @@ rules:
     tests:
     - tests/test_entrypoint.py
   script: checks/scan_entrypoint_debug.py
+  reads: >-
+    the Python entrypoints run.py, wsgi.py, app.py and main.py (scaffold.json entrypoints), as an AST
 - id: api-contract-snapshot
   layer: baseline
   pillar: manageability
@@ -609,6 +619,8 @@ rules:
     tests:
     - tests/test_adr_index.py
   script: checks/scan_adr_index.py
+  reads: >-
+    the .md records and the README.md index under docs/adr (scaffold.json adr_path)
 - id: cadence-not-overdue
   layer: baseline
   pillar: security
@@ -836,6 +848,8 @@ rules:
     tests:
     - tests/test_workflow_pinning.py
   script: checks/scan_workflow_pinning.py
+  reads: >-
+    the uses: steps of workflows and composite actions under .github
 - id: image-digest-pinned
   layer: baseline
   pillar: security
@@ -850,6 +864,8 @@ rules:
     tests:
     - tests/test_dockerfile_pinning.py
   script: checks/scan_dockerfile_digest.py
+  reads: >-
+    the FROM lines of the root Dockerfile (scaffold.json dockerfiles), and .github/dependabot.yml for a docker ecosystem
 - id: ci-tools-hash-pinned
   layer: baseline
   pillar: security
@@ -866,6 +882,8 @@ rules:
     tests:
     - tests/test_ci_pinning.py
   script: checks/scan_install_pinning.py
+  reads: >-
+    pip, pipx, npm/npx/yarn/pnpm, uv/uvx/poetry/pdm/pipenv and python -m build lines in workflows, composite actions, the scripts they run, and the root Dockerfile
 - id: checkers-proven-two-way
   layer: baseline
   pillar: security

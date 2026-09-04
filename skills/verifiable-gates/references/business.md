@@ -34,6 +34,8 @@ enforces it today).
 
 **Enforced in the reference:** `tests/test_write_discipline.py` · `tests/test_soft_delete.py`
 
+**Reads:** Python modules under app (scaffold.json src_path) — session.delete calls outside the purge_paths
+
 ### `every-write-audited`
 
 **Rule:** Every write lands in an append-only audit trail with a hash chain

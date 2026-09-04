@@ -33,6 +33,15 @@ import sys
 # and DEL break the line grammar or the terminal; the C1 range does the same through a
 # terminal that reads 8-bit escapes; the bidi and zero-width formats reorder or hide what
 # a reader is looking at. Anything else — every language's letters — is left alone.
+
+# What this scanner reads, in one sentence — the catalogue's `reads:` for its rule is
+# held equal to this, `--rules` prints it, and every NA below is built from it. A Go
+# project read `nothing to check yet` about files it would never have (self-audit
+# round 22, 2026-09-04): an NA says what the rule reads, and "yet" is not a word in it.
+READS = (
+    "the Python entrypoints run.py, wsgi.py, app.py and main.py (scaffold.json "
+    "entrypoints), as an AST"
+)
 _ESCAPED = {
     **{c: f"\\x{c:02x}" for c in (*range(0x20), 0x7F)},
     **{
@@ -268,7 +277,7 @@ def _entrypoints(root: pathlib.Path) -> tuple[list[pathlib.Path] | None, int]:
         if "entrypoints" in config:
             print("no-debug-entrypoint: " + MISCONFIGURED.format(key="entrypoints", path=names))
             return None, 1
-        print("NA: none of the declared entrypoints exist — nothing to check yet")
+        print(f"NA: no entrypoint — this rule reads {READS}")
         return None, 0
     return present, 0
 

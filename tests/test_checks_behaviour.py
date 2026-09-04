@@ -1032,6 +1032,34 @@ def test_one_pinned_action_reference_is_a_pass_not_na(
     assert capsys.readouterr().out == ""
 
 
+@pytest.mark.parametrize(
+    "scanner",
+    [
+        scan_adr_index,
+        scan_dockerfile_digest,
+        scan_entrypoint_debug,
+        scan_install_pinning,
+        scan_service_layer,
+        scan_templates_inline,
+        scan_workflow_pinning,
+        scan_write_discipline,
+    ],
+    ids=lambda module: module.__name__.rsplit(".", 1)[-1],
+)
+def test_an_na_says_what_the_rule_reads_and_never_yet(
+    tmp_path: pathlib.Path, capsys: pytest.CaptureFixture[str], scanner: ModuleType
+) -> None:
+    """Round 22, F3: on a Go project every NA said *nothing to check yet* about Python it
+    would never have, and one said *declared entrypoints* about defaults the project never
+    declared. An NA is built from the scanner's own `READS`; "yet" and "declared" are not in it."""
+    assert scanner.main(build(tmp_path, {})) == 0
+    said = capsys.readouterr().out
+    assert said.startswith("NA:"), said
+    assert f"this rule reads {scanner.READS}" in said, said
+    assert " yet" not in said, said
+    assert "declared" not in said, said
+
+
 SCRIPT_CALLERS = [
     "./scripts/setup.sh",
     "bash scripts/setup.sh",
