@@ -179,9 +179,15 @@ field was one release away from proving it (2026-08-29).
    concept DOI already in the README.
 5. Publishing the release starts `release.yml`: it builds the wheel and the sdist
    from the tag, generates the SBOM, attests all three keyless, verifies them in
-   both directions and only then attaches them to the release. Watch it go
-   green; a downloader verifies with
-   `gh attestation verify <wheel> --repo sayam/verifiable-gates`.
+   both directions and only then attaches them to the release — and then, last,
+   publishes the same wheel and sdist to PyPI by trusted publishing (an OIDC
+   exchange; no token is stored anywhere, and `skip-existing` makes a
+   re-dispatch against a version already on the index a no-op rather than a red
+   last step). Watch it go green; a downloader gets it with
+   `pip install verifiable-gates==x.y.z` and verifies the same bytes with
+   `gh attestation verify <wheel> --repo sayam/verifiable-gates`. The
+   publisher is registered once, by the owner, on PyPI (workflow `release.yml`,
+   this repository, no environment).
 6. `python -m verifiable_gates.zenodo` — reads the archive back and holds its
    version count to the release count; the cut is done when it exits 0, not
    when the tag exists.

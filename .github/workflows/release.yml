@@ -14,6 +14,14 @@
 #     gh attestation verify verifiable_gates-<v>-py3-none-any.whl --repo sayam/verifiable-gates
 #
 # is how a downloader checks the same thing later.
+#
+# The same wheel and sdist — the bytes that verified, nothing rebuilt — then go
+# to PyPI by trusted publishing (OIDC, no long-lived token anywhere), so that
+# `pip install verifiable-gates` names something that exists: until 2026-09-04
+# the README said it and the index answered 404. `skip-existing` keeps a
+# re-dispatch against a tag already on the index from failing after the assets
+# were re-attached; the SBOM stays on the release page, where it is an asset,
+# not a distribution.
 
 name: release
 
@@ -97,3 +105,15 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: gh release upload "$TAG" dist/*.whl dist/*.tar.gz dist/sbom.cdx.json --clobber
+      - name: the distributions that verified, and only those, for the index
+        run: |
+          set -euo pipefail
+          mkdir pypi-dist
+          cp dist/*.whl dist/*.tar.gz pypi-dist/
+          ls -l pypi-dist
+      - name: publish the same wheel and sdist to PyPI by trusted publishing
+        uses: pypa/gh-action-pypi-publish@dc37677b2e1c63e2034f94d8a5b11f265b73ba33 # v1.14.2
+        with:
+          packages-dir: pypi-dist
+          skip-existing: true
+          print-hash: true

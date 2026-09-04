@@ -8,6 +8,14 @@ Notable changes to this project. The format follows
 
 ### Added
 
+- **The release workflow publishes the verified wheel and sdist to PyPI.** `pip install
+  verifiable-gates` had been in the README since the first release and the index answered 404
+  until 2026-09-04. The publish step is the last in `release-sign`: after the two-way
+  attestation check and after the assets are attached, it uploads the bytes that verified —
+  nothing rebuilt — by trusted publishing (OIDC; no token stored anywhere), from a directory
+  holding only the wheel and the sdist so the SBOM stays on the release page where it is an
+  asset. `skip-existing` makes a re-dispatch against a version already on the index a no-op.
+  A test holds the order, the pin, the directory and the checklist sentence together.
 - **A project turns the working on with one flag, and nothing lands until it does.**
   `python -m verifiable_gates.install <dest> --working` adds two files and nothing else:
   `.local/LESSONS.md`, an **empty** ledger that teaches the entry shape and says the first

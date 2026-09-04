@@ -314,6 +314,45 @@ def test_the_release_job_verifies_both_ways_before_it_attaches_anything() -> Non
     assert steps.index(attach) > steps.index(verify), "attached before verified"
 
 
+def test_the_release_publishes_to_the_index_only_what_verified_and_only_after() -> None:
+    """`pip install verifiable-gates` was in the README from the first release and the index
+    answered 404 until 2026-09-04. The step that ends that sits after the two-way verification,
+    uploads the bytes that verified and nothing rebuilt, leaves the SBOM on the release page,
+    and tolerates a re-dispatch against a version already on the index."""
+    jobs = preflight.jobs_on_disk(ROOT)
+    job = jobs["release-sign"]
+    steps = job["steps"]
+    verify = next(s for s in steps if "verify in both directions" in str(s.get("name")))
+    attach = next(s for s in steps if "attach the wheel" in str(s.get("name")))
+    publish = next(s for s in steps if "gh-action-pypi-publish" in str(s.get("uses")))
+    stage = steps[steps.index(publish) - 1]
+    with_ = publish["with"]
+    raw = (ROOT / ".github" / "workflows" / "release.yml").read_text(encoding="utf-8")
+    uses_line = next(line for line in raw.splitlines() if "gh-action-pypi-publish@" in line)
+
+    assert steps.index(publish) > steps.index(verify) > 0, "published before verified"
+    assert steps.index(publish) > steps.index(attach), "the release page is the record"
+    assert steps[-1] is publish, "nothing runs after the index has the bytes"
+    sha = str(publish["uses"]).split("@")[1]
+    assert len(sha) == 40, publish["uses"]
+    assert sha == sha.lower(), publish["uses"]
+    assert "# v" in uses_line, "a pin with no version comment is a pin nobody can move"
+    assert with_["packages-dir"] == "pypi-dist", "dist/ holds the SBOM too — an index refuses it"
+    assert with_["skip-existing"] is True, "a re-dispatch after a partial run is red at the end"
+    assert "cp dist/*.whl dist/*.tar.gz pypi-dist/" in stage["run"], stage
+    assert "sbom" not in stage["run"], "the SBOM is an asset of the release, not a distribution"
+    assert job["permissions"]["id-token"] == "write", "trusted publishing is an OIDC exchange"
+    releasing = (ROOT / "CONTRIBUTING.md").read_text(encoding="utf-8")
+    releasing = releasing[releasing.index("## Releasing") :]
+    step_five = releasing[releasing.index("\n5. ") : releasing.index("\n6. ")]
+    for phrase in (
+        "to PyPI by trusted publishing",
+        "skip-existing",
+        "pip install verifiable-gates==",
+    ):
+        assert phrase in step_five, f"checklist step 5 does not say: {phrase}"
+
+
 def test_the_sbom_is_taken_from_a_clean_environment_holding_the_wheel() -> None:
     """The SBOM records what was verified by hash, not what the index served that minute."""
     jobs = preflight.jobs_on_disk(ROOT)
@@ -630,8 +669,8 @@ def test_every_action_sha_is_followed_by_its_version_in_a_comment() -> None:
         for action, rest in PINNED_USES.findall(path.read_text(encoding="utf-8")):
             seen.append(action)
             assert VERSION_COMMENT.match(rest), f"{path.name}: {action} names no version"
-    assert len(seen) == 20, seen
-    assert len(set(seen)) == 6, sorted(set(seen))
+    assert len(seen) == 21, seen
+    assert len(set(seen)) == 7, sorted(set(seen))
 
 
 def test_a_body_edit_reruns_the_checks_that_read_the_body() -> None:
