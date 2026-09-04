@@ -70,7 +70,13 @@ in `.claude-plugin/`). Both install the same three files and nothing else — a 
 is instructions. The scanners are still `pip install verifiable-gates` and
 `python -m verifiable_gates.install`, because a checker is not something to be
 handed an agent as prose. `DECISIONS.md` `distribution-is-two-pipes-nobody-here-owns`
-says why there is no marketplace or registry of this project's own.
+says why there is no marketplace or registry of this project's own. Neither pipe is
+this repository's, so what each does on the way is the pipe's to say: the Skills CLI's
+own README (at `435076e`) says an `npx skills add` sends the repository and skill
+identifiers as install telemetry, off with `DISABLE_TELEMETRY=1` or `DO_NOT_TRACK=1`;
+what the marketplace pipe sends is not measured here. The bundle itself opens no
+network — no shipped file imports one, and `tests/test_checks_are_standalone.py`
+holds it.
 
 **Three front doors for a project that has installed the bundle.** In CI,
 `uses: sayam/verifiable-gates@<commit-sha>` runs the doctor the project installed —
@@ -286,7 +292,10 @@ repo นี้เผยแพร่ ส่วน `gates.yaml` คือสิ่
 (Skills CLI ลงให้ agent ที่คุณใช้) หรือใน Claude Code `claude plugin marketplace add sayam/verifiable-gates` แล้ว
 `claude plugin install verifiable-gates@verifiable-gates` · ทั้งสองทางลงไฟล์สามไฟล์เดียวกันและไม่มีอะไรอื่น —
 skill คือคำสั่ง ส่วนตัวสแกนยังเป็น `pip install verifiable-gates` + `python -m verifiable_gates.install`
-เพราะตัวตรวจไม่ใช่ของที่จะยื่นให้ agent เป็นร้อยแก้ว
+เพราะตัวตรวจไม่ใช่ของที่จะยื่นให้ agent เป็นร้อยแก้ว · ท่อไม่ใช่ของ repo นี้ สิ่งที่ท่อทำระหว่างทางจึงเป็นเรื่องที่ท่อบอกเอง:
+README ของ Skills CLI (ที่ `435076e`) บอกว่า `npx skills add` ส่ง identifier ของ repo และ skill เป็น install telemetry
+ปิดได้ด้วย `DISABLE_TELEMETRY=1` หรือ `DO_NOT_TRACK=1` ส่วนท่อ marketplace ยังไม่ได้วัด · ตัว bundle เองไม่เปิดเครือข่าย —
+ไม่มีไฟล์ที่ ship ไป import network module และ `tests/test_checks_are_standalone.py` ถือไว้
 
 **สามประตูหน้าสำหรับโปรเจกต์ที่ติดตั้ง bundle แล้ว** — ใน CI `uses: sayam/verifiable-gates@<commit-sha>` รัน doctor
 ที่โปรเจกต์ติดตั้งไว้ (`action.yml` เป็น `run:` ล้วน ไม่มีอะไรข้างในให้ pin · มี input `sarif:` ให้เลือก) · ใน pre-commit

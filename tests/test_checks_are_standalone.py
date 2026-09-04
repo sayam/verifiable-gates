@@ -52,6 +52,49 @@ def test_a_shipped_file_imports_stdlib_only(path: pathlib.Path) -> None:
     )
 
 
+NETWORK = frozenset(
+    {
+        "socket",
+        "socketserver",
+        "ssl",
+        "selectors",
+        "urllib",
+        "http",
+        "ftplib",
+        "smtplib",
+        "poplib",
+        "imaplib",
+        "nntplib",
+        "telnetlib",
+        "xmlrpc",
+        "webbrowser",
+    }
+)
+
+
+@pytest.mark.parametrize("path", SHIPPED_PYTHON, ids=lambda p: p.name)
+def test_a_shipped_file_opens_no_network(path: pathlib.Path) -> None:
+    """The README says the bundle opens no network; this is that sentence's holder.
+
+    Stdlib-only (above) still admits `urllib` and `socket`. A scanner that fetched a
+    rule, a checksum or a template at run time would be a gate downloading its own
+    judgement — and from the outside it would look exactly like a scanner that read
+    the tree (round 23, A1). So the network modules are named and refused at the
+    import, file by file, before any of them can be reached for.
+    """
+    tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
+    found: set[str] = set()
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Import):
+            found |= {a.name.split(".")[0] for a in node.names if a.name.split(".")[0] in NETWORK}
+        elif isinstance(node, ast.ImportFrom) and (node.module or "").split(".")[0] in NETWORK:
+            found.add((node.module or "").split(".")[0])
+    assert not found, (
+        f"{path.name} imports {sorted(found)} — the bundle opens no network. The README "
+        "says so beside the install commands, and this test is what holds the sentence."
+    )
+
+
 @pytest.mark.parametrize("path", SCANNERS, ids=scanner_ids())
 def test_a_scanner_can_be_run_as_a_file(path: pathlib.Path) -> None:
     """It needs `main(root)` and a `__main__` block, or copying it out gives you a no-op."""
