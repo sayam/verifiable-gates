@@ -6,6 +6,29 @@ Notable changes to this project. The format follows
 
 ## [Unreleased]
 
+### Added
+
+- **A second catalogue, `working.yaml`: the practices that held, each with the lesson
+  that paid for it.** Twenty-one rounds of self-audit were cheap for a reason no consumer
+  could take with the bundle — the way the work was done, kept in a private ledger of 148
+  entries. A *practice* is a rule whose defect was in the working rather than in the tree,
+  and it is held to the same two kinds of evidence a rule and a gate are: `born_from` is a
+  ledger entry (`L-NNNN · YYYY-MM-DD · what it cost`), and `held_on` names at least
+  **three** pull requests where it was applied and nothing had to be re-learned — the
+  floor that keeps a good idea out of the file, applied to ourselves first (ten of fifteen
+  habits crossed it; five stayed in the ledger). `held_by` says honestly what stands
+  behind each — `tool` (naming a shipped file that refuses), `file` (naming a shipped
+  template), or `reading` — and says what is true today: nine of ten are `reading`, and
+  the one `tool` is `lint_commits.py`. English only and no pillar, because the ledger is
+  English by its own rule and a Thai column would be a retelling of a record, and because
+  the pillars describe what a rule protects in a product. The same loader reads it
+  (`rules.load(path, key="practices")` — a file of practices that called them rules would
+  be the one place a name here lied), the validator holds it in both directions, and one
+  new gate holds the validator: `the-working-is-held-by-what-it-names`, the first gate
+  added since v0.1.10 (54 → 55). Our lessons themselves never ship. Four rows in
+  `DECISIONS.md`. The sheet an agent reads, and the templates a project turns on with a
+  flag, follow in their own changes.
+
 ## [0.2.0] - 2026-09-04
 
 The rules stopped being something a reader had to come here for. They are an

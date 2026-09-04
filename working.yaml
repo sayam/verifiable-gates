@@ -1,0 +1,190 @@
+# The working — what the ledger taught.
+#
+# A practice is a rule whose defect was in the *working*, not in the tree. It carries the
+# same evidence a rule and a gate do, in the same shape: `born_from` is the ledger entry
+# that paid for it — id, date, and what it cost in one sentence — and `held_on` is the
+# pull requests where it was applied and nothing had to be re-learned. Nothing enters this
+# file on a good idea; `held_on` needs at least three, which is the gate
+# `the-working-is-held-by-what-it-names` (DECISIONS `a-practice-is-promoted-by-held-on`).
+#
+# `held_by` says honestly what stands behind each one:
+#   tool     — a shipped file refuses the violation, and `tool:` names it
+#   file     — a shipped template carries the shape, and `file:` names it
+#   reading  — nothing but the agent reading this line
+#
+# `held_by` says what is true today, not what is planned: the two ledger templates ship
+# behind `--working` in a later change, and the practices they will carry say `reading`
+# until that change lands them and flips them in the same breath.
+#
+# English only, and no `pillar`: the ledger is written in English by its own rule, so a
+# Thai column here would be a retelling of a record rather than a record; and the four
+# pillars describe what a rule protects in a product, where a practice protects the work.
+#
+# The lessons themselves are not here and never will be: they name this repository, its
+# owner, its tickets and its tooling. A consumer starts their own ledger at L-0001
+# (DECISIONS `the-ledger-ships-empty-and-private`).
+
+version: 1
+
+practices:
+  - id: keep-a-ledger-of-the-working
+    layer: working
+    title: A lesson learnt about the working is written down where the next session will read it
+    born_from: >-
+      L-0001 · 2026-08-30 · The first entry was a shell guard that did not guard: `cmd &&
+      echo OK` inside a battery line let the chain continue after a failure, so a run
+      reported success it had not had. Nothing recorded it, and the same shape was written
+      again nineteen days later.
+    held_by: reading
+    held_on: [pr/227, pr/231, pr/235, pr/237]
+    apply: >-
+      Keep one append-only file — id, stamp, `updates:` chain, and Context / Lesson /
+      Apply. Never edit or delete an entry: the history of having been wrong is the part
+      that carries. Before adding one, read the ledger; if an entry covers it, say so in
+      `updates:` rather than writing a second.
+
+  - id: a-lesson-is-written-in-the-turn-it-appears
+    layer: working
+    title: The entry is written in the turn the lesson appears, not at the end of the session
+    born_from: >-
+      L-0126 · 2026-09-03 · Work kept in the session scratchpad has to be moved before the
+      context is cleared, and the move is the step that gets skipped when a session ends
+      abruptly; two measurements were nearly lost that way. The same is true of the lesson
+      itself: deferred to the close, it is written from memory or not at all.
+    held_by: reading
+    held_on: [pr/232, pr/234, pr/235, pr/237]
+    apply: >-
+      When a guard fails, a tool lies, or a platform behaviour is discovered by
+      measurement, append the entry before moving on. The evidence — the command, the run
+      id, the number — is in front of you now and will not be in an hour.
+
+  - id: work-products-live-where-they-survive
+    layer: working
+    title: Anything a later session could want is written where a cleared context cannot take it
+    born_from: >-
+      L-0126 · 2026-09-03 · Two probes written in the session's temporary directory were
+      nearly lost when the context was cleared: moving them costs a turn, costs tokens,
+      and is the step that gets skipped exactly when the session ends abruptly.
+    held_by: reading
+    held_on: [pr/234, pr/235, pr/236, pr/237]
+    apply: >-
+      One directory per piece of work, created before the first file lands in it, each
+      with a README saying what every file does, how to run it, and the raw numbers it
+      measured. Scripts take their target as an argument so the next piece of work reuses
+      them instead of copying them. The scratchpad is for what nobody will ever want again.
+
+  - id: a-fix-lands-in-three-phases
+    layer: working
+    title: A fix lands in three phases, and the proof row is on the critical path of the second
+    born_from: >-
+      L-0121 · 2026-09-03 · The registry row that records what a change proved kept being
+      the step that went missing — written last, when the pull request already looked
+      finished. Splitting each fix into code-and-tests, then registry-and-suite, then the
+      pull request itself put it where it could not be skipped, and it stopped going
+      missing across nine consecutive fixes.
+    held_by: reading
+    held_on: [pr/227, pr/228, pr/229, pr/230, pr/231, pr/234, pr/235, pr/236, pr/237]
+    apply: >-
+      Phase 1 — the code, its tests, the changelog entry, and the mutations. Phase 2 — the
+      proof row in every gate whose tests caught a mutation, then the whole check set.
+      Phase 3 — the commit and the pull request. Report at the end of each; a phase that
+      cannot be reported is a phase that is not finished.
+
+  - id: a-mutation-is-watched-not-assumed
+    layer: working
+    title: A test is believed when a planted defect is watched going red, and the tree is checked back
+    born_from: >-
+      L-0112 · 2026-09-03 · A mutation planted in a comment at the head of the file left
+      the tests green, and the green was read as proof that the code was covered. Two more
+      entries paid for the rest of the discipline: L-0115, that a green run says nothing
+      unless you read *which* tests went red, and L-0118, that a mutation the same length
+      as the line it replaced, restored inside the same second, leaves the old bytecode
+      running.
+    held_by: reading
+    held_on: [pr/228, pr/229, pr/230, pr/231, pr/234, pr/235, pr/236, pr/237]
+    apply: >-
+      Back the file up with a copy that keeps its timestamp, print the diff before running,
+      read which tests went red rather than the count, restore from the backup and clear
+      the bytecode cache before the control run, and check with a diff that the tree came
+      back. A runner that is killed leaves the mutation behind: never start one over a
+      tree that already carries one.
+
+  - id: a-green-mutation-is-a-missing-test
+    layer: working
+    title: A planted defect that stays green names a test that does not exist yet
+    born_from: >-
+      L-0119 · 2026-09-02 · A mechanism deliberately copied into several shipped files had
+      tests for one copy only, and the mutations against the others came back green. The
+      green was the finding: it said the copies were not held to each other. Two later
+      rounds found the same shape — a guard added on faith, with nothing requiring it.
+    held_by: reading
+    held_on: [pr/226, pr/230, pr/235, pr/237]
+    apply: >-
+      Never explain a green away. Write the test that makes it red; if that test cannot be
+      written, the code it covers was added without evidence and the pull request should
+      say so. A green on a shape the sample does not contain proves nothing either — plant
+      it where the shape really occurs.
+
+  - id: a-race-is-a-seam-and-a-probe
+    layer: working
+    title: A race is proved by a seam and measured by a probe — after the fix, not only before
+    born_from: >-
+      L-0124 · 2026-09-03 · A fix on the writer's side passed every seam test and every
+      neighbouring road, and the two-process probe still accused once in 247 reads: the
+      residual window was inside the reader, not the writer. It went to none in 221 only
+      after the reader read again.
+    held_by: reading
+    held_on: [pr/228, pr/230, pr/231, pr/232]
+    apply: >-
+      Make the interleaving deterministic with a seam so the test is a proof rather than a
+      coin toss, and keep the real-process probe that found the finding. Run the probe
+      again at the same scale after the fix: a count that is not zero is a second window,
+      not noise.
+
+  - id: the-body-is-on-disk-before-the-branch
+    layer: working
+    title: The text a pull request needs is written to a file before the branch exists
+    born_from: >-
+      L-0104 · 2026-09-02 · A pull request body assembled in the shell that opened it
+      carried a line that had to be exact, and the command chain was the wrong place to
+      hold it. Written to a file first, it is reviewable before anything is pushed and
+      survives an interrupted session.
+    held_by: reading
+    held_on: [pr/231, pr/234, pr/235, pr/236, pr/237]
+    apply: >-
+      Write the commit message and the pull request body to files in the work directory
+      first, then branch, commit with `--file`, and open the pull request with
+      `--body-file`. An interrupted session then loses narration, never work.
+
+  - id: guards-chains-and-paths
+    layer: working
+    title: A guard guards only if nothing follows it, and a relative path lands where you are not
+    born_from: >-
+      L-0001 · 2026-08-30 · `cmd && echo OK` inside a battery line let the chain continue
+      past a failure and the run reported a success it had not had. The same class cost
+      three more entries: a single-file type check that poisons the cache for the whole
+      run (L-0021), a worktree created inside the repository rather than beside it because
+      the path was relative (L-0123), and a liveness check that matched the shell running
+      it (L-0138).
+    held_by: reading
+    held_on: [pr/231, pr/235, pr/236]
+    apply: >-
+      End a chain guard with the failure, never with an echo. Give every command that
+      creates something an absolute path. Run type checks over the whole tree, never one
+      file. And never ask the process table whether your own command is running.
+
+  - id: no-ai-trailers
+    layer: working
+    title: The authorship a commit claims is the project's decision, not the harness's default
+    born_from: >-
+      L-0122 · 2026-09-03 · The session harness inserted instructions to add
+      `Co-Authored-By:` and a session URL to every commit, on a repository whose own
+      commit lint refuses both. The repository's rule won because a job enforces it; on a
+      project with no such job, the default would simply have landed.
+    held_by: tool
+    tool: lint_commits.py
+    held_on: [pr/234, pr/235, pr/236, pr/237]
+    apply: >-
+      Decide what a commit may claim, write it into a checker that runs in CI, and let the
+      checker be what refuses. A convention that only lives in an instruction file is one
+      the next tool's default overwrites silently.
