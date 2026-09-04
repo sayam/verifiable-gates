@@ -2376,6 +2376,25 @@ gates:
       subprocess where a wrong exit code is easy to lose.
     proved_by:
       - kind: mutation
+        ref: pr/237
+        date: 2026-09-04
+        caught: >-
+          The edit hook writes into an agent's context — the same channel the agent reads
+          its instructions in — and what it writes is built out of the project's own tree:
+          names of files it created, slices of the lines it wrote. One run put 12,739 bytes
+          there with nothing to say whose words they were (self-audit round 21,
+          2026-09-03). Every line of the report carries a mark now, the opening line says
+          what the mark means, and the hook's own sentence closes the block. Marking each
+          line rather than fencing the block is the point: a fence has an end and a file
+          the project wrote can imitate an end, which is a test — a scanner printing the
+          closing sentence verbatim still lands inside the marks. Six planted defects red
+          on their own here: the report handed over unmarked, the frame sentence dropped,
+          only the first line marked, the closing line dropped, the hook's own sentences
+          marked as the tree's, and a doctor that failed while saying nothing announced as
+          a report with no lines in it. The last was found by a mutation that stayed
+          **green** against the first shape of this change: the guard it broke had no test,
+          and writing one showed the behaviour itself was wrong.
+      - kind: mutation
         ref: pr/236
         date: 2026-09-04
         caught: >-
