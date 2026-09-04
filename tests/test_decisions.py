@@ -147,6 +147,7 @@ HELD = {
     "practices-are-held-by-what-they-name": "",
     "the-working-is-english-and-has-no-pillar": "",
     "the-ledger-ships-empty-and-private": "",
+    "the-working-is-off-by-default": "",
 }
 
 # The rows whose `expires when` is `Never` — an expiry rewritten to "Never" was

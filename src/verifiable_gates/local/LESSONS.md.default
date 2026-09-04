@@ -1,0 +1,35 @@
+# Lessons — what the working taught, in this project
+
+Append-only. One entry per lesson, written **in the turn the lesson appears**, never at the
+end of a session and never from memory. Ids are sequential from `L-0001`; the stamp is
+`date -u +'%Y-%m-%d %H:%M UTC'` at the moment of writing.
+
+**This file starts empty, and that is the point.** The practices shipped with the bundle
+(`skills/verifiable-gates/references/working.md`) came from somebody else's ledger and cost
+somebody else twenty-one rounds. Yours will be better for your project than theirs, and the
+first entry is usually a guard that did not guard.
+
+Never edit or delete an entry. If a later lesson overturns an earlier one, write a new
+entry and put `updates: L-00NN` in its header — the history of having been wrong is the
+part that carries. Before adding one, read the ledger: if an entry already covers it, say
+so in `updates:` rather than writing a second.
+
+Keep this file out of the tree unless you mean to publish it: add `.local/` to
+`.gitignore`, or to `.git/info/exclude` if the decision is yours alone rather than the
+team's.
+
+## The shape
+
+```
+## L-00NN — <title: the lesson in one line>
+stamp: YYYY-MM-DD HH:MM UTC · updates: L-00xx (or —)
+**Context:** what happened, with the concrete evidence — the command, the run id, the
+number measured. Facts, not impressions.
+**Lesson:** the rule in one or two sentences.
+**Apply:** the exact guard, command or habit that follows from it.
+```
+
+`Apply` is what makes an entry worth keeping. A lesson with no `Apply` is a story; one with
+an `Apply` somebody can follow is a practice waiting for its third pull request.
+
+<!-- Your first entry goes below this line. Delete this comment when it does. -->

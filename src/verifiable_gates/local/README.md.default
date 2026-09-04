@@ -1,0 +1,35 @@
+# `.local/` — this project's own working, kept out of the tree
+
+Everything here is yours. The bundle wrote these two files once, on
+`python -m verifiable_gates.install <dest> --working`, and will never overwrite them: from
+the moment they land they hold your decisions and your history, and an upgrade that
+replaced them would destroy exactly the work they exist to keep.
+
+**Add `.local/` to `.gitignore`** (or `.git/info/exclude`) unless you mean to publish it.
+The installer prints that line; it does not write it, because whether your ledger is
+private is your decision and belongs where your team can see it.
+
+## What lives here
+
+| | |
+|---|---|
+| `LESSONS.md` | the ledger: one entry per lesson about the working, written in the turn it appears. Append-only. |
+| `work/<date>-<slug>/` | one directory per piece of work, created **before** the first file lands in it, each with a `README.md` saying what every file does, how to run it, and the raw numbers it measured. |
+
+A directory of scripts with no README is a directory the next session rewrites from
+scratch. Scripts take their target as an argument where they reasonably can, so the next
+piece of work reuses them instead of copying them.
+
+**Write it here from the first command.** Anything a later session could want — a probe, a
+measurement, a reproduction, a draft, captured output — goes straight into `.local/`, not
+into a temporary directory to be moved later. Moving it costs a step, and that step is the
+one that gets skipped exactly when a session ends abruptly.
+
+## What this is not
+
+Not documentation for anybody else, and not a second rule sheet. The rules a project is
+held to live in the bundle and are read with `python3 tools/gates_doctor.py --rules`. This
+directory is how *your* work is done, and nothing in it is checked by any tool the bundle
+ships: `--installed` does not look for these files, and their absence is not a finding. A
+deleted ledger is a decision you made, and a doctor that judged it would be a rule the tool
+cannot check dressed as one it did.

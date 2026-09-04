@@ -2817,6 +2817,213 @@ def test_a_name_the_tree_chose_cannot_forge_a_finding_end_to_end(
     )
 
 
+# ------------------------------------------------- the working, off unless it is asked for
+#
+# The bundle carries the practices that made twenty-one rounds of self-audit cheap, and a
+# project takes them only if it asks. Nothing under `.local/` lands without `--working`;
+# enabled means one thing, that `.local/LESSONS.md` exists, because a second place saying
+# so would be a register nobody holds; and the installer prints the `.gitignore` line
+# rather than writing it, because whether a ledger is private is the project's decision
+# (`DECISIONS.md` `the-working-is-off-by-default`).
+
+WORKING_FILES = (".local/LESSONS.md", ".local/README.md")
+
+
+def _install(project: pathlib.Path, bundle: pathlib.Path, *, working: bool = False) -> int:
+    return install_module.install(
+        project, manifest_module.load(bundle / "overlay.json"), bundle, working=working
+    )
+
+
+def test_nothing_under_local_lands_unless_it_is_asked_for(
+    tmp_path: pathlib.Path, bundle_copy: pathlib.Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """The default install is the one every consumer's CI runs on every push."""
+    project = tmp_path / "project"
+    assert _install(project, bundle_copy) == 0
+
+    assert not (project / ".local").exists()
+    printed = capsys.readouterr().out
+    assert "this bundle also carries the working: 10 practices" in printed
+    assert "off here" in printed
+    assert "--working" in printed, "a project that is not told cannot ask"
+
+
+def test_the_flag_lands_the_two_files_and_asks_for_the_gitignore_line(
+    tmp_path: pathlib.Path, bundle_copy: pathlib.Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    project = tmp_path / "project"
+    assert _install(project, bundle_copy, working=True) == 0
+
+    for name in WORKING_FILES:
+        assert (project / name).is_file(), name
+    ledger = (project / ".local" / "LESSONS.md").read_text(encoding="utf-8")
+    assert "L-0001" in ledger, "the shape is taught"
+    assert not re.search(r"^## L-\d{4} — ", ledger, re.MULTILINE), "the ledger ships empty"
+
+    printed = capsys.readouterr().out
+    assert "the working is on: 10 practices" in printed
+    assert "Add `.local/` to .gitignore" in printed
+    assert not (project / ".gitignore").exists(), "the installer wrote a file of their decisions"
+
+
+def test_a_second_install_keeps_the_ledger_that_is_already_there(
+    tmp_path: pathlib.Path, bundle_copy: pathlib.Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """The same reason `gates.yaml` is kept: from the moment it lands it holds their work,
+    and an upgrade that replaced it would destroy exactly what it exists to keep."""
+    project = tmp_path / "project"
+    assert _install(project, bundle_copy, working=True) == 0
+    ledger = project / ".local" / "LESSONS.md"
+    ledger.write_text("## L-0001 — mine\n", encoding="utf-8")
+    capsys.readouterr()
+
+    assert _install(project, bundle_copy, working=True) == 0
+
+    assert ledger.read_text(encoding="utf-8") == "## L-0001 — mine\n"
+    assert "kept: .local/LESSONS.md (already there)" in capsys.readouterr().out
+
+
+def test_an_install_without_the_flag_leaves_a_ledger_that_is_there(
+    tmp_path: pathlib.Path, bundle_copy: pathlib.Path
+) -> None:
+    """Turning it off is deleting a directory that is theirs — never something an install
+    does on their behalf because a flag was forgotten."""
+    project = tmp_path / "project"
+    assert _install(project, bundle_copy, working=True) == 0
+    (project / ".local" / "LESSONS.md").write_text("## L-0001 — mine\n", encoding="utf-8")
+
+    assert _install(project, bundle_copy) == 0
+
+    assert (project / ".local" / "LESSONS.md").read_text(encoding="utf-8") == "## L-0001 — mine\n"
+
+
+def test_the_doctor_prints_the_practices_and_says_they_are_off(installed: pathlib.Path) -> None:
+    """Read off the installed manifest, like `--rules`. It judges nothing and exits 0."""
+    done = run_doctor(installed, "--working")
+
+    assert done.returncode == 0, done.stderr
+    assert "The practices this bundle carries: 10. None is decided by a scanner." in done.stdout
+    assert "no-ai-trailers" in done.stdout
+    assert "held by:   tool — lint_commits.py" in done.stdout
+    assert "held by:   reading" in done.stdout
+    assert "Off here: no .local/LESSONS.md" in done.stdout
+    assert done.stderr == ""
+
+
+def test_the_doctor_says_on_when_the_ledger_is_there_and_still_judges_nothing(
+    tmp_path: pathlib.Path, bundle_copy: pathlib.Path
+) -> None:
+    project = tmp_path / "project"
+    assert _install(project, bundle_copy, working=True) == 0
+
+    done = run_doctor(project, "--working")
+
+    assert done.returncode == 0
+    assert "On here: .local/LESSONS.md exists. The entries in it are yours." in done.stdout
+
+
+def test_a_deleted_ledger_is_a_decision_not_a_finding(
+    tmp_path: pathlib.Path, bundle_copy: pathlib.Path
+) -> None:
+    """`--installed` never looks for these files: a doctor judging a project's own ledger
+    would be a rule the tool cannot check dressed as one it did."""
+    project = tmp_path / "project"
+    assert _install(project, bundle_copy, working=True) == 0
+    shutil.rmtree(project / ".local")
+
+    assert run_doctor(project, "--installed").returncode == 0
+    assert run_doctor(project, "--working").returncode == 0
+    assert "Off here" in run_doctor(project, "--working").stdout
+
+
+def test_the_working_and_the_other_questions_are_asked_one_at_a_time(
+    installed: pathlib.Path,
+) -> None:
+    for other in ("--installed", "--rules"):
+        done = run_doctor(installed, "--working", other)
+        assert done.returncode == 2
+        assert "different questions: ask one at a time" in done.stderr
+    sarif = run_doctor(installed, "--working", "--sarif", str(installed / "x.sarif"))
+    assert sarif.returncode == 2
+    assert "--sarif describes a run of the scans" in sarif.stderr
+
+
+def test_in_process_the_working_mode_prints_every_practice_and_its_state(
+    installed: pathlib.Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """The same road as the subprocess tests above, in this process: those prove the file
+    a project installs, and this one reaches the lines that build the sentences, so one
+    dropped from them is red here (the coverage floor is measured in-process)."""
+    manifest_path = str(installed / "tools" / "overlay.json")
+    capsys.readouterr()
+
+    code = gates_doctor.main([str(installed), "--manifest", manifest_path, "--working"])
+
+    printed = capsys.readouterr()
+    assert code == 0
+    assert printed.err == ""
+    practices = json.loads((installed / "tools" / "overlay.json").read_text("utf-8"))["working"]
+    for practice in practices:
+        assert f"\n{practice['id']}\n" in printed.out
+        assert practice["title"] in printed.out
+        assert practice["apply"] in printed.out
+    assert printed.out.count("  born from: ") == len(practices)
+    assert "Off here: no .local/LESSONS.md" in printed.out
+
+    (installed / ".local").mkdir()
+    (installed / ".local" / "LESSONS.md").write_text("# mine\n", encoding="utf-8")
+    assert gates_doctor.main([str(installed), "--manifest", manifest_path, "--working"]) == 0
+    assert "On here: .local/LESSONS.md exists" in capsys.readouterr().out
+
+
+def test_a_bundle_that_carries_no_practices_says_so_rather_than_nothing(
+    tmp_path: pathlib.Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """A manifest from before the working existed, or one that ships none: both modes say
+    so in a sentence. Silence would read as "there are none to tell you about" and as
+    "there is nothing here" at the same time."""
+    bundle = tmp_path / "tools"
+    bundle.mkdir()
+    (bundle / "overlay.json").write_text(
+        json.dumps({"bundle": "x", "ship": [], "gates": {}}), encoding="utf-8"
+    )
+    capsys.readouterr()
+
+    assert (
+        gates_doctor.main([str(tmp_path), "--manifest", str(bundle / "overlay.json"), "--working"])
+        == 0
+    )
+    assert "this bundle carries no working practices." in capsys.readouterr().out
+
+    # Through the public door: an install from a manifest with no practices says nothing
+    # about the working at all, rather than an empty announcement.
+    empty = tmp_path / "empty-bundle"
+    empty.mkdir()
+    (empty / "overlay.json").write_text(
+        json.dumps({"bundle": "x", "ship": [], "gates": {}}), encoding="utf-8"
+    )
+    project = tmp_path / "project"
+    capsys.readouterr()
+    assert install_module.install(project, {"bundle": "x", "ship": [], "gates": {}}, empty) == 0
+    said = capsys.readouterr().out
+    assert "the working" not in said, said
+
+
+def test_the_manifests_practices_are_the_catalogues(installed: pathlib.Path) -> None:
+    """The doctor reads the practices off the installed manifest, so the manifest's copy
+    is held to `working.yaml` — a drift would print a practice nobody wrote."""
+    shipped = json.loads((installed / "tools" / "overlay.json").read_text(encoding="utf-8"))[
+        "working"
+    ]
+    source = yaml.safe_load((ROOT_OF_REPO / "working.yaml").read_text(encoding="utf-8"))[
+        "practices"
+    ]
+    assert [p["id"] for p in shipped] == [p["id"] for p in source]
+    assert [p.get("held_by") for p in shipped] == [p.get("held_by") for p in source]
+    assert all("layer" not in p for p in shipped), "the layer is the catalogue's, not the bundle's"
+
+
 # ---------------------------------------------------------------- the third front door
 #
 # `hooks/hooks.json` is how a project that installed the bundle hears from it *at edit
