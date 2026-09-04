@@ -32,6 +32,21 @@ Three invariants are enforced here rather than left to a reader:
 `problems()` returns a list rather than raising, because every caller wants to see
 all of them at once instead of the first one and a stop.
 
+**A second catalogue, `working.yaml`, is read by the same loader and held to its own
+shape.** A *practice* is a rule whose defect was in the working rather than in the
+tree, and it carries the same two kinds of evidence a rule and a gate do, in the same
+spirit: `born_from` is the ledger entry that paid for it — `L-NNNN · YYYY-MM-DD · one
+sentence` — and `held_on` is the pull requests where it was applied and nothing had to
+be re-learned, at least three of them, which is what keeps a good idea out of the file
+(`DECISIONS.md` `a-practice-is-promoted-by-held-on`). `held_by` says honestly what stands
+behind it — `tool` (a shipped file refuses the violation, and `tool:` names it), `file`
+(a shipped template carries the shape, and `file:` names it) or `reading` (nothing but
+the agent reading the line) — and a name given must be a file the bundle ships. A
+practice is English only and has no pillar: the ledger is written in English by its own
+rule, so a Thai column would be a retelling of a record rather than a record, and the
+four pillars describe what a rule protects in a product, where a practice protects the
+work (`DECISIONS.md` `the-working-is-english-and-has-no-pillar`).
+
 Role: decider — it answers whether a catalogue is well-formed and its claims
 resolvable. Its evidence is a planted defect per rule in `tests/test_rules_catalogue.py`.
 """
@@ -47,10 +62,13 @@ import yaml
 
 __all__ = [
     "FRAMEWORK_NAMES",
+    "HELD_BY",
+    "HELD_ON_FLOOR",
     "KINDS",
     "LAYERS",
     "PILLARS",
     "SCHEMA_VERSION",
+    "WORKING",
     "by_layer",
     "load",
     "problems",
@@ -91,6 +109,19 @@ FRAMEWORK_NAMES = (
 )
 
 RULE_ID = re.compile(r"^[a-z0-9]+(-[a-z0-9]+)*$")
+
+# The working catalogue. Its layer is not in LAYERS on purpose: LAYERS is what a rule may
+# be published as, and the sheet index walks it; a practice is never a rule.
+WORKING = "working"
+HELD_BY = frozenset({"tool", "file", "reading"})
+# The pull requests a practice must have held on before it is written down. Three is the
+# owner's number (2026-09-04), re-decided in DECISIONS.md and never here.
+HELD_ON_FLOOR = 3
+WORKING_REQUIRED = ("id", "layer", "title", "born_from", "held_by", "held_on", "apply")
+WORKING_KEYS = frozenset({*WORKING_REQUIRED, "tool", "file"})
+# `L-0124 · 2026-09-03 · one sentence` — the ledger entry, its stamp, and what it cost.
+BORN_FROM_LEDGER = re.compile(r"^L-\d{4} · \d{4}-\d{2}-\d{2} · \S")
+HELD_ON_REF = re.compile(r"^(pr|run)/\d+$")
 # Every key a rule may carry. A key outside this set is data nobody reads — a
 # misspelt `born_frm` is a rule with no origin that looks like one with, and
 # `portable: true` on a rule is a gate's field: a rule in this catalogue is
@@ -111,21 +142,24 @@ KEYS = frozenset(
 )
 
 
-def load(path: str | pathlib.Path) -> list[dict[str, Any]]:
-    """Read a catalogue file and hand back its rules in the order it lists them.
+def load(path: str | pathlib.Path, key: str = "rules") -> list[dict[str, Any]]:
+    """Read a catalogue file and hand back its entries in the order it lists them.
 
     Order comes from the file rather than from sorting, because a catalogue is
-    written to be read: the neighbours of a rule are part of what it means.
+    written to be read: the neighbours of a rule are part of what it means. `key` is
+    the list's name in the file — `rules` for the published catalogue, `practices`
+    for `working.yaml` — because a file of practices that called them rules would be
+    the one place this repository lets a name lie.
     """
     data = yaml.safe_load(pathlib.Path(path).read_text(encoding="utf-8"))
     if not isinstance(data, dict):
-        raise TypeError(f"{path}: a catalogue must be a mapping with 'version' and 'rules'")
+        raise TypeError(f"{path}: a catalogue must be a mapping with 'version' and {key!r}")
     version = data.get("version")
     if version != SCHEMA_VERSION:
         raise ValueError(f"{path}: version {version!r}, this reader speaks {SCHEMA_VERSION}")
-    rules = data.get("rules")
+    rules = data.get(key)
     if not isinstance(rules, list):
-        raise TypeError(f"{path}: 'rules' must be a list, got {type(rules).__name__}")
+        raise TypeError(f"{path}: {key!r} must be a list, got {type(rules).__name__}")
     return rules
 
 
@@ -207,6 +241,77 @@ def _script_problems(
     return []
 
 
+def _working_problems(
+    rule_id: str, entry: dict[str, Any], package_dir: str | pathlib.Path | None
+) -> list[str]:
+    """A practice: the ledger entry behind it, what holds it, and where it held.
+
+    Each refusal here is a way the file could grow by a good idea instead of a habit that
+    held, which is the failure the working catalogue exists to refuse.
+    """
+    found = [f"{rule_id}: missing {field}" for field in WORKING_REQUIRED if not entry.get(field)]
+    found += [
+        f"{rule_id}: {key!r} is not a field of a practice — nothing reads it"
+        for key in sorted(set(entry) - WORKING_KEYS)
+    ]
+    if not RULE_ID.match(rule_id):
+        found.append(f"{rule_id}: id must be lowercase words joined by hyphens")
+    born = " ".join(str(entry.get("born_from", "")).split())
+    if born and not BORN_FROM_LEDGER.match(born):
+        found.append(
+            f"{rule_id}: born_from must be a ledger entry — `L-NNNN · YYYY-MM-DD · sentence` —"
+            " a practice with no lesson behind it is a preference"
+        )
+    held_by = entry.get("held_by")
+    if held_by is not None and held_by not in HELD_BY:
+        found.append(f"{rule_id}: held_by {held_by!r} is outside {sorted(HELD_BY)}")
+    found += _named_holder_problems(rule_id, entry, held_by, package_dir)
+    found += _held_on_problems(rule_id, entry.get("held_on"))
+    return found
+
+
+def _named_holder_problems(
+    rule_id: str, entry: dict[str, Any], held_by: object, package_dir: str | pathlib.Path | None
+) -> list[str]:
+    """`tool` and `file` name what holds them, and the name is a file the bundle ships."""
+    found: list[str] = []
+    for kind in ("tool", "file"):
+        named = entry.get(kind)
+        if held_by == kind and not named:
+            found.append(f"{rule_id}: held_by {kind!r} must say which — add `{kind}:`")
+        if named is not None and held_by != kind:
+            found.append(f"{rule_id}: `{kind}:` is given but held_by is {held_by!r}")
+        if isinstance(named, str) and (named.startswith("/") or ".." in named):
+            found.append(f"{rule_id}: {kind} {named!r} must be a path inside the bundle")
+        elif (
+            isinstance(named, str)
+            and package_dir is not None
+            and not (pathlib.Path(package_dir) / named).is_file()
+        ):
+            found.append(f"{rule_id}: {kind} {named!r} is not shipped by this bundle")
+    return found
+
+
+def _held_on_problems(rule_id: str, held_on: object) -> list[str]:
+    """At least HELD_ON_FLOOR pull requests, each a ref somebody can look up."""
+    if held_on is None:
+        return []
+    if not isinstance(held_on, list):
+        return [f"{rule_id}: held_on must be a list of refs, got {type(held_on).__name__}"]
+    found = [
+        f"{rule_id}: held_on ref {ref!r} is not `pr/N` or `run/N` — a ref nobody can look up"
+        " is not evidence"
+        for ref in held_on
+        if not (isinstance(ref, str) and HELD_ON_REF.match(ref))
+    ]
+    if len(held_on) < HELD_ON_FLOOR:
+        found.append(
+            f"{rule_id}: held_on lists {len(held_on)} — a practice needs at least"
+            f" {HELD_ON_FLOOR} pull requests it held on before it is written down"
+        )
+    return found
+
+
 def problems(
     rules: list[dict[str, Any]], package_dir: str | pathlib.Path | None = None
 ) -> list[str]:
@@ -224,6 +329,12 @@ def problems(
             found.append(f"rule {index}: must be a mapping")
             continue
         rule_id = str(rule.get("id", f"<rule {index}>"))
+        if rule.get("layer") == WORKING:
+            found += _working_problems(rule_id, rule, package_dir)
+            if rule_id in seen:
+                found.append(f"{rule_id}: listed more than once")
+            seen.add(rule_id)
+            continue
         found += _field_problems(rule_id, rule)
         found += _key_problems(rule_id, rule)
         if rule_id in seen:

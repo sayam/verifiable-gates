@@ -142,6 +142,11 @@ HELD = {
     "the-edit-hook-reports-and-does-not-refuse": "",
     # 2026-09-04: the mode an agent is told to trust checks the record before it speaks.
     "the-rules-are-read-off-a-bundle-that-is-still-intact": "",
+    # 2026-09-04: the working catalogue — what a practice must carry before it is written down.
+    "a-practice-is-promoted-by-held-on": "",
+    "practices-are-held-by-what-they-name": "",
+    "the-working-is-english-and-has-no-pillar": "",
+    "the-ledger-ships-empty-and-private": "",
 }
 
 # The rows whose `expires when` is `Never` — an expiry rewritten to "Never" was

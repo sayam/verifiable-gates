@@ -3080,6 +3080,49 @@ gates:
           the report put back to `write_text` is red: the test holds that the file is
           replaced, never rewritten where it stood (self-audit round 20, 2026-09-03).
 
+  - id: the-working-is-held-by-what-it-names
+    title: A practice in the working catalogue names the lesson behind it, what holds it, and where it held
+    kind: test
+    severity: blocking
+    enforced_by: {job: test, tests: [tests/test_working_catalogue.py]}
+    layer: internal
+    pillar: devx
+    portable: false
+    born_from: >-
+      Twenty-one rounds of the project auditing itself were cheap for one reason that
+      lived nowhere a consumer could take it: the way the work was done — a ledger written
+      in the turn a lesson appeared, a fix landed in three phases with the proof row on the
+      critical path, a mutation watched rather than assumed, a race measured after the fix
+      and not only before. All of it sat in a private ledger of 148 entries and a local
+      instruction file, both excluded from git on purpose. A second catalogue,
+      `working.yaml`, carries the practices that held, and the danger of such a file is
+      exactly the one this repository is organised against: it grows by a good idea. So a
+      practice is held to the same two kinds of evidence a rule and a gate are —
+      `born_from` must be a ledger entry with its id, its date and what it cost, and
+      `held_on` must name at least three pull requests where it was applied and nothing had
+      to be re-learned (the owner's number, 2026-09-04). `held_by` says honestly what stands
+      behind it, and a name it gives must be a file the bundle ships: on the day the file was
+      written, nine of ten practices were held by nothing but the agent reading them, and the
+      file says so rather than promising a template that had not shipped yet.
+    proved_by:
+      - kind: mutation
+        ref: pr/240
+        date: 2026-09-04
+        caught: >-
+          The validator with each of its refusals removed in turn, against the planted
+          defects in the test file: the ledger-shape check on `born_from` dropped (a
+          sentence of prose accepted as a lesson), the floor on `held_on` lowered to one,
+          a `held_on` ref of any shape accepted, `held_by` outside the three accepted, a
+          `tool` holder accepted without saying which, a named tool the bundle does not
+          ship accepted, a practice given a `pillar` or a Thai column accepted, and the
+          working branch of `problems()` removed altogether so a practice fell through to
+          the rule checks and was refused for missing a pillar it must not have. Each red
+          on its own, and the published catalogue's ninety-two rules untouched by every one.
+          Run against the whole suite as well, from a green baseline, this file is the only
+          one that catches any of them — the first sweep said otherwise and was wrong, for
+          a reason worth the sentence: the suite was already red on a register this change
+          had moved and not written down, and a sweep that records which files failed
+          attributes that red to every mutation (L-0148).
   - id: a-published-rule-carries-its-origin
     title: A published rule names the incident behind it, belongs to a published layer, and names no framework
     kind: test
