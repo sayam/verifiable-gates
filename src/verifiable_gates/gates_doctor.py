@@ -812,6 +812,9 @@ def print_rules(manifest: dict[str, Any], bundle: pathlib.Path) -> int:
         print(f"  rule:       {entry.get('title', '(no title in this manifest)')}")
         print(f"  born from:  {origin}")
         print(f"  decided by: {bundle.name}/{entry['script']}")
+        # What the scanner reads, in its own words — so a project on another stack
+        # learns before running which of these can ever apply to it (round 22, F2).
+        print(f"  reads:      {entry.get('reads', '(not recorded in this manifest)')}")
     suites = suite_count(manifest)
     if suites:
         print(

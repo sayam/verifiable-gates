@@ -26,6 +26,15 @@ import sys
 # and DEL break the line grammar or the terminal; the C1 range does the same through a
 # terminal that reads 8-bit escapes; the bidi and zero-width formats reorder or hide what
 # a reader is looking at. Anything else — every language's letters — is left alone.
+
+# What this scanner reads, in one sentence — the catalogue's `reads:` for its rule is
+# held equal to this, `--rules` prints it, and every NA below is built from it. A Go
+# project read `nothing to check yet` about files it would never have (self-audit
+# round 22, 2026-09-04): an NA says what the rule reads, and "yet" is not a word in it.
+READS = (
+    ".html, .htm, .jinja, .jinja2 and .j2 templates under app/templates (scaffold.json "
+    "templates_path)"
+)
 _ESCAPED = {
     **{c: f"\\x{c:02x}" for c in (*range(0x20), 0x7F)},
     **{
@@ -302,7 +311,7 @@ def _templates_dir(root: pathlib.Path) -> tuple[pathlib.Path | None, int]:
             + MISCONFIGURED.format(key="templates_path", path=templates.relative_to(root))
         )
         return None, 1
-    print(f"NA: no {templates.relative_to(root)} — nothing to check yet")
+    print(f"NA: no {templates.relative_to(root)} — this rule reads {READS}")
     return None, 0
 
 
@@ -324,7 +333,7 @@ def _judge(root: pathlib.Path) -> int:
     # look like a rule it checked." A Go project's `app/` came back `[ pass]`
     # (self-audit round 8, 2026-09-01).
     if not paths:
-        print(f"NA: no template under {templates.relative_to(root)} — nothing to check yet")
+        print(f"NA: no template under {templates.relative_to(root)} — this rule reads {READS}")
         return 0
 
     findings: list[str] = []

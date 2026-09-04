@@ -109,6 +109,10 @@ def render(
         lines.append(f"**{rule_label}:** {_field(rule, 'title', language)}\n")
         lines.append(f"**{born_label}:** {_field(rule, 'born_from', language)}\n")
         lines.append(f"**{enforced_label}:** {_enforcement(rule)}\n")
+        if rule.get("reads"):
+            # A scanner-decided rule says what its scanner reads, so a reader on another
+            # stack knows before installing which rules can ever apply (round 22, F2).
+            lines.append(f"**Reads:** {_field(rule, 'reads', language)}\n")
         if rule.get("layer") == catalogue.WORKING:
             lines.append(f"**Apply:** {_field(rule, 'apply', language)}\n")
     return "\n".join(lines)

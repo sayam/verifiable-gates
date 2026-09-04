@@ -28,6 +28,12 @@ import sys
 # and DEL break the line grammar or the terminal; the C1 range does the same through a
 # terminal that reads 8-bit escapes; the bidi and zero-width formats reorder or hide what
 # a reader is looking at. Anything else — every language's letters — is left alone.
+
+# What this scanner reads, in one sentence — the catalogue's `reads:` for its rule is
+# held equal to this, `--rules` prints it, and every NA below is built from it. A Go
+# project read `nothing to check yet` about files it would never have (self-audit
+# round 22, 2026-09-04): an NA says what the rule reads, and "yet" is not a word in it.
+READS = "the uses: steps of workflows and composite actions under .github"
 _ESCAPED = {
     **{c: f"\\x{c:02x}" for c in (*range(0x20), 0x7F)},
     **{
@@ -355,12 +361,10 @@ def _judge(root: pathlib.Path) -> int:
     workflows = _yaml_files(root / ".github" / "workflows", deep=False)
     workflows += [path for path in actions if path.stem == "action"]
     if not workflows:
-        print("NA: no workflows or composite actions — nothing to check yet")
+        print(f"NA: no workflows or composite actions — this rule reads {READS}")
         return 0
     if all(_bundles_own(_text(path)) for path in workflows):
-        print(
-            "NA: only the bundle's own starting workflow, untouched — nothing of yours to check yet"
-        )
+        print("NA: only the bundle's own starting workflow, untouched — nothing of yours to read")
         return 0
 
     findings, judged = _verdicts(root, workflows)

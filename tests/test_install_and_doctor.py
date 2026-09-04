@@ -1561,6 +1561,7 @@ def test_the_doctor_prints_every_rule_a_scanner_here_decides(
         assert f"{gid} [{entry['layer']}]" in out, f"{gid} is missing or unlabelled"
         assert entry["born_from"] in out, f"{gid} lost its origin"
         assert f"decided by: tools/{entry['script']}" in out, f"{gid} does not name its scanner"
+        assert f"reads:      {entry['reads']}" in out, f"{gid} does not say what it reads"
     assert "does not switch a scanner off" in out, "the one sentence of guidance is missing"
     assert "only these are decided here" in out, "what the bundle cannot decide is not said"
 

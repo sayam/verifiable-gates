@@ -40,6 +40,15 @@ from typing import Any
 # and DEL break the line grammar or the terminal; the C1 range does the same through a
 # terminal that reads 8-bit escapes; the bidi and zero-width formats reorder or hide what
 # a reader is looking at. Anything else — every language's letters — is left alone.
+
+# What this scanner reads, in one sentence — the catalogue's `reads:` for its rule is
+# held equal to this, `--rules` prints it, and every NA below is built from it. A Go
+# project read `nothing to check yet` about files it would never have (self-audit
+# round 22, 2026-09-04): an NA says what the rule reads, and "yet" is not a word in it.
+READS = (
+    "the gate index at gates.yaml (scaffold.json gates_path), the jobs of every workflow "
+    "under .github/workflows, and the test files under tests"
+)
 _ESCAPED = {
     **{c: f"\\x{c:02x}" for c in (*range(0x20), 0x7F)},
     **{
@@ -694,7 +703,7 @@ def _index(root: pathlib.Path) -> tuple[tuple[pathlib.Path, dict[str, object]] |
     if "gates_path" in config:
         print("gates-registry-total: " + MISCONFIGURED.format(key="gates_path", path=declared))
         return None, 1
-    print(f"NA: no {declared} — there is no index to check yet")
+    print(f"NA: no {declared} — this rule reads {READS}")
     return None, 0
 
 

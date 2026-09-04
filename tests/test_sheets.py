@@ -275,3 +275,20 @@ def test_a_sheet_sits_under_its_declared_ceiling_and_the_ceiling_sits_on_the_she
 
 def test_every_sheet_has_a_ceiling() -> None:
     assert {INDEX, WORKING_SHEET, *(sheet for sheet, _p, _l in SHEETS)} == set(CEILING_LINES)
+
+
+def test_a_scanner_decided_rule_says_on_its_sheet_what_the_scanner_reads() -> None:
+    """Nine `**Reads:**` lines across the two rule sheets, one per scripted rule, each the
+    catalogue's sentence — a reader on another stack learns from the sheet which rules can
+    ever apply (round 22, F2). A reading-held rule has none: nothing reads for it."""
+    catalogue = rules.load(ROOT / "rules.yaml")
+    text = "".join(
+        (ROOT / "skills" / "verifiable-gates" / "references" / f"{layer}.md").read_text("utf-8")
+        for layer in ("baseline", "business")
+    )
+    said = re.findall(r"^\*\*Reads:\*\* (.+)$", text, flags=re.MULTILINE)
+    expected = [
+        re.sub(r"\s+", " ", rule["reads"]).strip() for rule in catalogue if rule.get("reads")
+    ]
+    assert len(expected) == 9
+    assert sorted(said) == sorted(expected)

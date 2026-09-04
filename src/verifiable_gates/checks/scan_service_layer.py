@@ -29,6 +29,15 @@ import sys
 # and DEL break the line grammar or the terminal; the C1 range does the same through a
 # terminal that reads 8-bit escapes; the bidi and zero-width formats reorder or hide what
 # a reader is looking at. Anything else — every language's letters — is left alone.
+
+# What this scanner reads, in one sentence — the catalogue's `reads:` for its rule is
+# held equal to this, `--rules` prints it, and every NA below is built from it. A Go
+# project read `nothing to check yet` about files it would never have (self-audit
+# round 22, 2026-09-04): an NA says what the rule reads, and "yet" is not a word in it.
+READS = (
+    "Python modules under app/services (scaffold.json services_path) — their imports, for "
+    "request-side symbols"
+)
 _ESCAPED = {
     **{c: f"\\x{c:02x}" for c in (*range(0x20), 0x7F)},
     **{
@@ -239,7 +248,7 @@ def _services_dir(root: pathlib.Path) -> tuple[pathlib.Path | None, int]:
             + MISCONFIGURED.format(key="services_path", path=services.relative_to(root))
         )
         return None, 1
-    print(f"NA: no {services.relative_to(root)} — nothing to check yet")
+    print(f"NA: no {services.relative_to(root)} — this rule reads {READS}")
     return None, 0
 
 
@@ -323,7 +332,10 @@ def _judge(root: pathlib.Path) -> int:
     # forbid reporting as checked: "A rule the tool cannot check must not look like
     # a rule it checked." A Go project came back `[ pass]` (round 8, 2026-09-01).
     if not readable:
-        print(f"NA: no Python under {services.relative_to(root)} — nothing to check yet")
+        print(
+            f"NA: no Python under {services.relative_to(root)} — this rule reads {READS};"
+            " a service layer in another language is not read"
+        )
         return 0
 
     findings: list[str] = []

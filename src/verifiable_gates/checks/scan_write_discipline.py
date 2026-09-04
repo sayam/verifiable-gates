@@ -37,6 +37,15 @@ import tokenize
 # and DEL break the line grammar or the terminal; the C1 range does the same through a
 # terminal that reads 8-bit escapes; the bidi and zero-width formats reorder or hide what
 # a reader is looking at. Anything else — every language's letters — is left alone.
+
+# What this scanner reads, in one sentence — the catalogue's `reads:` for its rule is
+# held equal to this, `--rules` prints it, and every NA below is built from it. A Go
+# project read `nothing to check yet` about files it would never have (self-audit
+# round 22, 2026-09-04): an NA says what the rule reads, and "yet" is not a word in it.
+READS = (
+    "Python modules under app (scaffold.json src_path) — session.delete calls outside the "
+    "purge_paths"
+)
 _ESCAPED = {
     **{c: f"\\x{c:02x}" for c in (*range(0x20), 0x7F)},
     **{
@@ -282,7 +291,7 @@ def _src_dir(root: pathlib.Path, config: dict[str, object]) -> tuple[pathlib.Pat
                 + MISCONFIGURED.format(key="src_path", path=src.relative_to(root))
             )
             return None, 1
-        print(f"NA: no {src.relative_to(root)} — nothing to check yet")
+        print(f"NA: no {src.relative_to(root)} — this rule reads {READS}")
         return None, 0
     return src, 0
 
@@ -320,7 +329,10 @@ def _judge(root: pathlib.Path) -> int:
     # look like a rule it checked." A Go project's `app/` came back `[ pass]`
     # (self-audit round 8, 2026-09-01).
     if not readable:
-        print(f"NA: no Python under {src.relative_to(root)} — nothing to check yet")
+        print(
+            f"NA: no Python under {src.relative_to(root)} — this rule reads {READS};"
+            " another language is not read"
+        )
         return 0
 
     findings: list[str] = []

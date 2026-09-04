@@ -37,6 +37,8 @@ a theory) · **Enforced in the reference** (how one project enforces it today).
 
 **Enforced in the reference:** `tests/test_gates.py`
 
+**Reads:** the gate index at gates.yaml (scaffold.json gates_path), the jobs of every workflow under .github/workflows, and the test files under tests
+
 ### `gates-carry-red-evidence`
 
 **Rule:** A new gate arrives with evidence that it went red on a real defect — the list of ones that have not can only shrink
@@ -52,6 +54,8 @@ a theory) · **Enforced in the reference** (how one project enforces it today).
 **Born from:** Phase 3 — logic buried in routes makes the HTML and the API diverge the instant a second adapter exists · an AST scan forbids services importing anything from the request side.
 
 **Enforced in the reference:** `tests/test_service_layer.py` · `tests/test_services.py`
+
+**Reads:** Python modules under app/services (scaffold.json services_path) — their imports, for request-side symbols
 
 ### `every-column-classified`
 
@@ -157,6 +161,8 @@ a theory) · **Enforced in the reference** (how one project enforces it today).
 
 **Enforced in the reference:** `tests/test_security_headers.py`
 
+**Reads:** .html, .htm, .jinja, .jinja2 and .j2 templates under app/templates (scaffold.json templates_path)
+
 ### `config-fails-loud`
 
 **Rule:** A missing SECRET_KEY or an unknown scheme means the app does not start — never a silent fallback
@@ -172,6 +178,8 @@ a theory) · **Enforced in the reference** (how one project enforces it today).
 **Born from:** The first SAST round pointed at an entrypoint that could enable debug and was being copied into the image — run the wrong one and you have a debug console that executes code from a web page.
 
 **Enforced in the reference:** `tests/test_entrypoint.py`
+
+**Reads:** the Python entrypoints run.py, wsgi.py, app.py and main.py (scaffold.json entrypoints), as an AST
 
 ### `api-contract-snapshot`
 
@@ -269,6 +277,8 @@ a theory) · **Enforced in the reference** (how one project enforces it today).
 
 **Enforced in the reference:** `tests/test_adr_index.py`
 
+**Reads:** the .md records and the README.md index under docs/adr (scaffold.json adr_path)
+
 ### `cadence-not-overdue`
 
 **Rule:** The periodic-review schedule is genuinely read; more than 7 days overdue is red · and the register of deliberate deferrals keeps up with the ADRs
@@ -333,6 +343,8 @@ a theory) · **Enforced in the reference** (how one project enforces it today).
 
 **Enforced in the reference:** `tests/test_workflow_pinning.py`
 
+**Reads:** the uses: steps of workflows and composite actions under .github
+
 ### `image-digest-pinned`
 
 **Rule:** The base image is pinned to a manifest-index digest and Dependabot moves it
@@ -341,6 +353,8 @@ a theory) · **Enforced in the reference** (how one project enforces it today).
 
 **Enforced in the reference:** `tests/test_dockerfile_pinning.py`
 
+**Reads:** the FROM lines of the root Dockerfile (scaffold.json dockerfiles), and .github/dependabot.yml for a docker ecosystem
+
 ### `ci-tools-hash-pinned`
 
 **Rule:** Tools CI installs for itself are pinned by hash, on both the Python and the Node side
@@ -348,6 +362,8 @@ a theory) · **Enforced in the reference** (how one project enforces it today).
 **Born from:** An unpinned install command takes whatever is newest at the second the job runs, and it runs with our workflow's privileges · pinning one package at a time pins only that package while the rest of the tree still floats.
 
 **Enforced in the reference:** `tests/test_ci_pinning.py`
+
+**Reads:** pip, pipx, npm/npx/yarn/pnpm, uv/uvx/poetry/pdm/pipenv and python -m build lines in workflows, composite actions, the scripts they run, and the root Dockerfile
 
 ### `checkers-proven-two-way`
 
