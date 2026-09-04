@@ -108,6 +108,7 @@ scanner's own tests decide the verdicts it relays, and that NA is never a pass.
 from __future__ import annotations
 
 import argparse
+import difflib
 import hashlib
 import json
 import os
@@ -348,6 +349,59 @@ def _found(gid: str, entry: dict[str, Any], unheld: list[str]) -> list[str]:
 # error, the lines the scan printed, and the sentence the doctor said about it.
 Outcome = tuple[str, str, list[str], str]
 
+# The keys the bundle reads from a project's `scaffold.json` — one per scanner that
+# takes a path or a list, plus preflight's. Held to the scanners' own reads by
+# `tests/test_install_and_doctor.py`: a key a scanner started reading and nobody added
+# here would be reported as one nobody reads.
+SCAFFOLD_KEYS = frozenset(
+    {
+        "adr_path",
+        "dockerfiles",
+        "entrypoints",
+        "gates_path",
+        "tests_path",
+        "services_path",
+        "templates_path",
+        "purge_paths",
+        "src_path",
+        "preflight_jobs",
+    }
+)
+
+
+def check_scaffold_keys(root: pathlib.Path) -> list[str]:
+    """Every key in `scaffold.json` that no scanner reads, as finding lines.
+
+    A misspelt key — `templates_pth` for `templates_path` — was read by nobody: every
+    scanner answered NA from its default path and the doctor exited 0, while the same
+    value under the right key is a broken configuration and exit 1 (round 23, D4,
+    measured 2026-09-05). A configuration nobody reads is the project pointing at one
+    place and the tool looking at another, so it is a finding, and it names the nearest
+    key the bundle does read. Keys starting with `_` are the file's own comments. A file
+    that cannot be read as a configuration is left to the scanners, which say so.
+    """
+    path = root / "scaffold.json"
+    if not path.is_file():
+        return []
+    try:
+        config = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, UnicodeDecodeError, json.JSONDecodeError):
+        return []
+    if not isinstance(config, dict):
+        return []
+    lines = []
+    for key in sorted(k for k in config if not k.startswith("_")):
+        if key in SCAFFOLD_KEYS:
+            continue
+        near = difflib.get_close_matches(key, sorted(SCAFFOLD_KEYS), n=1, cutoff=0.6)
+        hint = f" — did you mean {near[0]}?" if near else ""
+        lines.append(
+            f"scaffold.json names {key}, which no scanner reads{hint} — every scanner "
+            "answered from its default instead; the keys the bundle reads are "
+            + ", ".join(sorted(SCAFFOLD_KEYS))
+        )
+    return lines
+
 
 def run_scans(
     root: pathlib.Path,
@@ -371,6 +425,14 @@ def run_scans(
     broken: list[str] = []
     outcomes: list[Outcome] = []
     unheld = check_installed_record(root)
+    unread = check_scaffold_keys(root)
+    if unread:
+        # The doctor's own finding, before any scan: a scan cannot see a key it does not
+        # read, so only the file that knows every key can say that one is nobody's.
+        print("[found] scaffold.json — a key no scanner reads")
+        print("\n".join(unread))
+        failed.append("scaffold.json")
+        outcomes.append(("scaffold.json", "found", unread, ""))
     for gid, script in scan_entries(manifest):
         try:
             result = subprocess.run(  # noqa: S603 — argv is built here, interpreter is sys.executable
@@ -560,6 +622,11 @@ def sarif_log(
         if isinstance(gate.get("layer"), str):
             rule["properties"] = {"layer": gate["layer"]}
         rules.append(rule)
+    if any(gid == "scaffold.json" for gid, _kind, _said, _sentence in outcomes):
+        # The doctor's own finding has no gate; a result still needs a rule to hang on.
+        rules.append(
+            {"id": "scaffold.json", "shortDescription": {"text": "a key no scanner reads"}}
+        )
     results: list[dict[str, Any]] = []
     notes: list[dict[str, Any]] = []
     for gid, kind, said, sentence in outcomes:

@@ -87,6 +87,14 @@ Notable changes to this project. The format follows
 
 ### Fixed
 
+- **A key in `scaffold.json` that no scanner reads is a finding.** `templates_pth` for
+  `templates_path` was read by nobody: every scanner answered NA from its default path and the
+  doctor exited 0, while the same value under the right key is a broken configuration and exit 1
+  (round 23, D4, measured 2026-09-05). The doctor — the one file that knows every key — now says
+  `[found] scaffold.json — a key no scanner reads`, names the nearest key the bundle does read,
+  and lists them all; the finding travels into SARIF with a rule of its own. `SCAFFOLD_KEYS` is
+  held to what the shipped files read and to `scaffold.json.default` by a test. A file that is not
+  a configuration at all is left to the scanners, which already say so.
 - **The Claude Code plugin loads again.** On Claude Code 2.1.261, `plugin.json` declaring
   `"hooks": "./hooks/hooks.json"` — the file Claude Code loads from that path by itself — made
   `plugin install` report *failed to load: Duplicate hooks file detected*, with neither the skill
