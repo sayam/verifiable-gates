@@ -2371,6 +2371,21 @@ gates:
           made to say "declared" of defaults the project never declared — red
           against a test that walks eight scanners on an empty tree and holds every
           NA to `this rule reads <READS>` with neither word (round 22, F3).
+      - kind: mutation
+        ref: pr/246
+        date: 2026-09-04
+        caught: >-
+          The Node finding's advice reverted to the one sentence every match got —
+          `use npm ci instead`, on `npx eslint .` as on `npm install` — red against
+          the test that holds each shape to what replaces *that* line; nine more red
+          on their own: the lock always there, the lock never there, the lock looked
+          for at the root instead of where `cd web &&` put the command,
+          `npm-shrinkwrap.json` forgotten, `--no-progress` read as `--no`, the
+          `@version` kept on the tool name, a flag taken as the tool name, and
+          `npx --no` and `pnpm exec` no longer read as clean, which is the shape the
+          advice recommends (self-audit round 22, F4: the finding said `use npm ci
+          instead — npx eslint .` on a tree with no `package-lock.json`, where
+          `npm ci` exits 1 before it installs anything).
   - id: rules-we-ship-we-keep
     title: Scanners that apply to this repository are run against this repository
     kind: test

@@ -7,7 +7,15 @@ it with the workflow's permissions. It has to carry `--require-hashes`, normally
 refusal would add a rule without adding a catch (DECISIONS `pip-uppercase-not-a-gap`,
 which is also why the word `pip` is read in lower case only).
 On the node side it has to be `npm ci`: `npm install pkg@x` pins that one package
-and leaves the rest of the tree floating.
+and leaves the rest of the tree floating. What a finding tells the reader to do is
+built from the line it read, not from the family that matched it: `npx <tool>` and
+`npm exec <tool>` fetch a package to run it, and `npm ci` is not a replacement for
+either — the replacement is the tool as a devDependency the lock installs, run as
+`npx --no <tool>`, which refuses to fetch (self-audit round 22, 2026-09-04: *use npm
+ci instead — npx eslint .*, on a tree with no `package-lock.json`, where `npm ci`
+exits 1 before installing anything; measured against npm 11.14.1). A lock that is
+not there next to the command is said, because the advice is otherwise a command
+that fails.
 The installers with no `pip` in the line — `uv tool install`, `uv add`, `uvx`,
 `poetry add`, `pdm add`, `pipenv install` — resolve against the index too, and
 were unread until an outside audit on 2026-08-30 planted two of them.
@@ -52,6 +60,7 @@ import pathlib
 import re
 import shlex
 import sys
+import typing
 
 # Characters a finding line may not carry, and what is printed instead. The C0 controls
 # and DEL break the line grammar or the terminal; the C1 range does the same through a
@@ -158,8 +167,90 @@ NO_ISOLATION = re.compile(r"(?:^|\s)(?:--no-isolation|--no-build-isolation|-n)(?
 # `poetry install`, `pdm sync`, `pipenv sync`. Without this a Node project that did
 # the right thing everywhere would answer NA, as if the scanner had not seen it.
 CLEAN = re.compile(
-    r"(?:^|[\s/])(?:npm\s+ci|yarn\s+install|pnpm\s+install|uv\s+(?:sync|build|run)"
+    r"(?:^|[\s/])(?:npm\s+ci|yarn\s+install|pnpm\s+(?:install|exec)|uv\s+(?:sync|build|run)"
     r"|poetry\s+install|pdm\s+(?:sync|install)|pipenv\s+sync)\b"
+)
+# `npx --no <tool>` and `npm exec --no -- <tool>` (`--no-install` before npm 7) run the
+# copy the lock installed and refuse to fetch — *npx canceled due to missing packages*
+# when it is not there (measured, npm 11.14.1). That is the shape a finding on `npx`
+# recommends, so it has to be read as clean or the advice never turns the gate green.
+# `--no-progress` is a different flag and is not read as it.
+NPX_LOCAL = re.compile(
+    r"(?:^|[\s/])(?:npx|npm\s+exec)(?:\s+-{1,2}[\w-]+(?:=\S+)?)*?\s+--no(?:-install)?(?=\s|$)"
+)
+# What each Node shape is replaced by, said two ways — with the lock it installs from
+# there next to the command, and without it — so the advice is built from the line, not
+# from the family that matched it (self-audit round 22).
+NPM_LOCKS = ("package-lock.json", "npm-shrinkwrap.json")
+RUN_LOCAL = (
+    (
+        "{verb} fetches {tool} to run it; make it a devDependency, install with {install},"
+        " then {run} {tool} runs that copy"
+    ),
+    (
+        "{verb} fetches {tool} to run it; commit a {lock} with it as a devDependency, install"
+        " with {install}, then {run} {tool} runs that copy"
+    ),
+)
+INSTALL_LOCKED = (
+    "use {install}, which installs {lock} as committed",
+    "commit a {lock} and use {install}, which installs it as committed",
+)
+
+
+class Shape(typing.NamedTuple):
+    """One Node command shape: how it is read, what replaces it, and the lock that needs."""
+
+    pattern: re.Pattern[str]
+    advice: tuple[str, str]  # with the lock there next to the command · without it
+    verb: str
+    install: str
+    run: str
+    locks: tuple[str, ...]
+
+
+NODE_SHAPES = (
+    Shape(re.compile(r"(?:^|[\s/])npx\b"), RUN_LOCAL, "npx", "npm ci", "npx --no", NPM_LOCKS),
+    Shape(
+        re.compile(r"(?:^|[\s/])npm\s+exec\b"),
+        RUN_LOCAL,
+        "npm exec",
+        "npm ci",
+        "npx --no",
+        NPM_LOCKS,
+    ),
+    Shape(
+        re.compile(r"(?:^|[\s/])pnpm\s+dlx\b"),
+        RUN_LOCAL,
+        "pnpm dlx",
+        "pnpm install --frozen-lockfile",
+        "pnpm exec",
+        ("pnpm-lock.yaml",),
+    ),
+    Shape(
+        re.compile(r"(?:^|[\s/])npm\s+(?:install|i|add)\b"),
+        INSTALL_LOCKED,
+        "",
+        "npm ci",
+        "",
+        NPM_LOCKS,
+    ),
+    Shape(
+        re.compile(r"(?:^|[\s/])yarn\s+add\b"),
+        INSTALL_LOCKED,
+        "",
+        "yarn install --immutable",
+        "",
+        ("yarn.lock",),
+    ),
+    Shape(
+        re.compile(r"(?:^|[\s/])pnpm\s+add\b"),
+        INSTALL_LOCKED,
+        "",
+        "pnpm install --frozen-lockfile",
+        "",
+        ("pnpm-lock.yaml",),
+    ),
 )
 # A line is judged when one of these reads it — to a finding or to clean. A file with
 # no such line is not a pass: on a Go workflow carrying `go install …@latest` the
@@ -837,6 +928,32 @@ def _read_as(targets: list[pathlib.Path]) -> str:
     return " and ".join(parts)
 
 
+def _tool_named(after: str) -> str:
+    """The package `npx`/`npm exec`/`pnpm dlx` was told to run — the first word that is
+    not a flag or the `--` separator, without its `@version` (`eslint@9.9.0` is `eslint`,
+    `@org/cli@1` is `@org/cli`) — or `<tool>` when the line names none."""
+    for word in after.split():
+        if word.startswith("-"):
+            continue
+        return re.sub(r"(?<=.)@[^@]*$", "", word)
+    return "<tool>"
+
+
+def _node_advice(line: str, stands_in: pathlib.Path) -> str:
+    """What this Node line is replaced by, and whether the lock it needs is there next to it
+    — `npm ci` on a tree with no `package-lock.json` exits 1 before it installs anything."""
+    read = ((shape.pattern.search(line), shape) for shape in NODE_SHAPES)
+    matched, shape = next((found, shape) for found, shape in read if found)
+    present = [lock for lock in shape.locks if (stands_in / lock).is_file()]
+    return shape.advice[0 if present else 1].format(
+        verb=shape.verb,
+        tool=_tool_named(line[matched.end() :]),
+        install=shape.install,
+        run=shape.run,
+        lock=present[0] if present else shape.locks[0],
+    )
+
+
 def _line_findings(where: str, line: str, stands_in: pathlib.Path) -> list[str]:
     """Everything one command does that reaches an index unpinned.
 
@@ -854,8 +971,8 @@ def _line_findings(where: str, line: str, stands_in: pathlib.Path) -> list[str]:
         and _installs_from_an_index(line)
     ):
         found.append(f"{where}: {line.strip()[:70]}")
-    if NPM_INSTALL.search(line):
-        found.append(f"{where}: use npm ci instead — {line.strip()[:60]}")
+    if NPM_INSTALL.search(line) and not NPX_LOCAL.search(line):
+        found.append(f"{where}: {_node_advice(line, stands_in)} — {line.strip()[:40]}")
     if PIPX_INSTALL.search(line):
         found.append(f"{where}: pipx resolves from the index — {line.strip()[:55]}")
     if NO_PIP_INSTALL.search(line):

@@ -191,7 +191,10 @@ whether it says `pip`, `pipx`, `uv tool install`, `uv tool run`, `uv add`, `uvx`
 builds in an isolated environment like `python -m build` and is held to
 `--no-build-isolation`; `uv run --locked`, `uv sync --locked`, `uv build`, `npm ci`,
 `yarn install --immutable` and `pnpm install --frozen-lockfile` install from a lock
-and are left alone. A `uses:` folded onto the next line is
+and are left alone, as are `npx --no`, `npm exec --no` and `pnpm exec`, which run the
+installed copy and refuse to fetch. A Node finding says what replaces that line —
+`npm ci` for `npm install`, `npx --no <tool>` for `npx <tool>` — and names the lock it
+needs, or says to commit one when it is not there. A `uses:` folded onto the next line is
 read from that line. `actions-sha-pinned` judges both halves of its title: a
 floating tag is a finding, and so is a commit SHA with no version comment beside
 it — a pin nobody can read or move (a `docker://` digest needs none). Of the
