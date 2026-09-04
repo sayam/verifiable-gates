@@ -2464,6 +2464,19 @@ gates:
       subprocess where a wrong exit code is easy to lose.
     proved_by:
       - kind: mutation
+        ref: pr/254
+        date: 2026-09-05
+        caught: >-
+          A SARIF result with no line number given no location again — red against nine
+          tests, among them the two written for this: a finding that names a file only in
+          mid-sentence lands on that file, and one that names nothing lands on
+          `scaffold.json` (self-audit round 23, D2: measured on draft pull request #253,
+          GitHub code scanning refused the doctor's whole file over two such results —
+          `locationFromSarifResult: expected at least one location` — and the project saw
+          a neutral check titled *Error when processing the SARIF file* and nothing else).
+          Three more plants, each red on its own: no mid-sentence scan, another last
+          resort, `..` no longer refused.
+      - kind: mutation
         ref: pr/252
         date: 2026-09-05
         caught: >-

@@ -567,18 +567,47 @@ def _as_prose(text: str) -> str:
     return "\n".join(_shown(line) for line in text.splitlines(keepends=False))
 
 
+NAMED = re.compile(r"[\w.\-]+(?:/[\w.\-]+)*")
+LAST_RESORT = pathlib.Path("scaffold.json")
+
+
+def _inside_file(root: pathlib.Path, path: pathlib.Path) -> bool:
+    """A relative path, no `..`, and a file the tree has — the only kind a location may name."""
+    return not path.is_absolute() and ".." not in path.parts and (root / path).is_file()
+
+
+def _sarif_location(root: pathlib.Path, text: str) -> tuple[pathlib.Path, dict[str, int]]:
+    """Where a result lands: the head path when the tree has it, else the first file the
+    sentence names that the tree has, else `scaffold.json`.
+
+    A result carried no location when its head named nothing the reader could open — a
+    key, a sentence, a path outside — on the ground that an annotation on the wrong file
+    sends a reader to the wrong place (round 21). Measured 2026-09-05 (round 23, D2):
+    GitHub code scanning refuses the **whole file** when any result has no location —
+    `locationFromSarifResult: expected at least one location` — and what the project then
+    sees is a neutral check titled *Error when processing the SARIF file*, nothing else: no
+    finding, no `NA`, no `[error]`. A registry finding ("job with no gate in the index:
+    scans — add a row to gates.yaml …") and a missing `dependabot.yml` were enough. So every
+    result lands somewhere the tree has: the file the sentence names, or the configuration
+    every scanner reads — the right place to start from when a finding names no file.
+    """
+    head = LOCATION.match(text)
+    if head is not None:
+        path = pathlib.Path(head.group("path"))
+        if _inside_file(root, path):
+            return path, {"startLine": int(head.group("line"))} if head.group("line") else {}
+    for token in NAMED.findall(text):
+        candidate = pathlib.Path(token.strip("."))
+        if ("/" in token or "." in token) and _inside_file(root, candidate):
+            return candidate, {}
+    return LAST_RESORT, {}
+
+
 def _sarif_result(root: pathlib.Path, gid: str, line: str) -> dict[str, Any]:
-    """One finding line as a SARIF result, located only where the tree agrees."""
+    """One finding line as a SARIF result, always located where the tree agrees."""
     text = line.removeprefix(f"{gid}:").strip()
     result: dict[str, Any] = {"ruleId": gid, "level": "error", "message": {"text": text}}
-    head = LOCATION.match(text)
-    if head is None:
-        return result
-    path = pathlib.Path(head.group("path"))
-    # A finding that names a path the reader cannot open under the root — a key from
-    # `scaffold.json`, a sentence, a path outside — gets a message and no location:
-    # an annotation on the wrong file is a reader sent to the wrong place.
-    #
+    path, region = _sarif_location(root, text)
     # "Under the root" is decided on the **path**, not on what the path leads to.
     # `is_absolute()` was the whole check, and `..` walked straight through it: a finding
     # naming `../outside.txt` was given `uri: ../outside.txt`, because `(root / "..")` is
@@ -592,9 +621,6 @@ def _sarif_result(root: pathlib.Path, gid: str, line: str) -> dict[str, Any]:
     # from any project that keeps a vendored or shared directory that way. What is refused
     # is a path that names somewhere else *as a path* — which is what a reader would have
     # to follow out of the tree to make sense of.
-    if path.is_absolute() or ".." in path.parts or not (root / path).is_file():
-        return result
-    region = {"startLine": int(head.group("line"))} if head.group("line") else {}
     location: dict[str, Any] = {
         "artifactLocation": {"uri": path.as_posix(), "uriBaseId": "%SRCROOT%"}
     }
