@@ -128,6 +128,18 @@ PLACES: dict[str, list[advertised.Place]] = {
     "checkers_word_th": [
         advertised.Place("README.md", r"stdlib " + PURELY_TH + r"(\S+?)" + CLASSIFIER_TH + r" "),
     ],
+    # README counts the files the `npx` pipe lands; it kept saying "three" after
+    # `references/working.md` made it four (2026-09-04), and nothing held the number
+    # (round 23, D5 — measured on Skills CLI 1.5.23, 2026-09-05).
+    "skill_files_word": [
+        advertised.Place(
+            "README.md", r"lands the \*\*(\w+)\*\* files under `skills/verifiable-gates/`"
+        ),
+    ],
+    # The Thai half by its shape — `npx`, a word, the bold count, a word, the path.
+    "skill_files_word_th": [
+        advertised.Place("README.md", r"`npx` \S+ \*\*(\S+)\*\* \S+ `skills/verifiable-gates/`"),
+    ],
 }
 
 # The claims the About field on the hosting platform makes. Patterns, not the
@@ -153,7 +165,10 @@ def facts(root: pathlib.Path) -> dict[str, str]:
     gates = yaml.safe_load((root / "gates.yaml").read_text(encoding="utf-8"))["gates"]
     checkers = sorted((root / "src" / "verifiable_gates" / "checks").glob("scan_*.py"))
     scripted = sum(1 for rule in catalogue if rule.get("script"))
+    skill_files = [p for p in (root / "skills" / "verifiable-gates").rglob("*") if p.is_file()]
     return {
+        "skill_files_word": as_word(len(skill_files)),
+        "skill_files_word_th": as_word(len(skill_files), WORDS_TH),
         "rules_scripted": str(scripted),
         "rules_sheet_only": str(len(catalogue) - scripted),
         "version": __version__,

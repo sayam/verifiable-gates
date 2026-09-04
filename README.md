@@ -66,15 +66,22 @@ not own: `npx skills add sayam/verifiable-gates` puts it into whichever agent yo
 (the Skills CLI reads the `skills/` directory), and in Claude Code
 `claude plugin marketplace add sayam/verifiable-gates` then
 `claude plugin install verifiable-gates@verifiable-gates` (the one-entry marketplace
-in `.claude-plugin/`). Both install the same three files and nothing else — a skill
-is instructions. The scanners are still `pip install verifiable-gates` and
+in `.claude-plugin/`). The `npx` pipe lands the **four** files under `skills/verifiable-gates/`
+— the sheet and its references — copied, not linked, and nothing else; what the
+marketplace pipe lands is not measured here. A skill is instructions. The scanners are still `pip install verifiable-gates` and
 `python -m verifiable_gates.install`, because a checker is not something to be
 handed an agent as prose. `DECISIONS.md` `distribution-is-two-pipes-nobody-here-owns`
 says why there is no marketplace or registry of this project's own. Neither pipe is
 this repository's, so what each does on the way is the pipe's to say: the Skills CLI's
 own README (at `435076e`) says an `npx skills add` sends the repository and skill
 identifiers as install telemetry, off with `DISABLE_TELEMETRY=1` or `DO_NOT_TRACK=1`;
-what the marketplace pipe sends is not measured here. The bundle itself opens no
+what the marketplace pipe sends is not measured here. The `npx` pipe fetches the
+default branch at the moment of the command and takes no ref (`@<sha>` is read as a
+skill name); its `skills-lock.json` records a content hash it does not enforce, and
+`skills update` re-fetches and moves the copy to `.agents/skills/` with a symlink in
+its place — so through this pipe you get `main` of that moment, and the pinned routes
+are the submodule and the versioned dependency above (measured on Skills CLI 1.5.23,
+2026-09-05). The bundle itself opens no
 network — no shipped file imports one, and `tests/test_checks_are_standalone.py`
 holds it.
 
@@ -290,11 +297,14 @@ repo นี้เผยแพร่ ส่วน `gates.yaml` คือสิ่
 **แผ่นกฎเป็น Agent Skill ตาม spec แล้ว** อยู่ที่ `skills/verifiable-gates/` (หน้าแรก `SKILL.md` + entry เต็มใน `references/`)
 · ติดตั้งโดยไม่ต้อง clone ได้สองทางผ่านท่อที่ repo นี้ไม่ได้เป็นเจ้าของ: `npx skills add sayam/verifiable-gates`
 (Skills CLI ลงให้ agent ที่คุณใช้) หรือใน Claude Code `claude plugin marketplace add sayam/verifiable-gates` แล้ว
-`claude plugin install verifiable-gates@verifiable-gates` · ทั้งสองทางลงไฟล์สามไฟล์เดียวกันและไม่มีอะไรอื่น —
-skill คือคำสั่ง ส่วนตัวสแกนยังเป็น `pip install verifiable-gates` + `python -m verifiable_gates.install`
+`claude plugin install verifiable-gates@verifiable-gates` · ท่อ `npx` ลง **สี่** ไฟล์ใต้ `skills/verifiable-gates/` (แผ่นกฎกับ references) แบบ copy และไม่มีอะไรอื่น
+ส่วนท่อ marketplace ลงอะไรยังไม่ได้วัด — skill คือคำสั่ง ส่วนตัวสแกนยังเป็น `pip install verifiable-gates` + `python -m verifiable_gates.install`
 เพราะตัวตรวจไม่ใช่ของที่จะยื่นให้ agent เป็นร้อยแก้ว · ท่อไม่ใช่ของ repo นี้ สิ่งที่ท่อทำระหว่างทางจึงเป็นเรื่องที่ท่อบอกเอง:
 README ของ Skills CLI (ที่ `435076e`) บอกว่า `npx skills add` ส่ง identifier ของ repo และ skill เป็น install telemetry
-ปิดได้ด้วย `DISABLE_TELEMETRY=1` หรือ `DO_NOT_TRACK=1` ส่วนท่อ marketplace ยังไม่ได้วัด · ตัว bundle เองไม่เปิดเครือข่าย —
+ปิดได้ด้วย `DISABLE_TELEMETRY=1` หรือ `DO_NOT_TRACK=1` ส่วนท่อ marketplace ยังไม่ได้วัด · ท่อ `npx` ดึง default branch ณ เวลาที่สั่ง ไม่รับ ref (`@<sha>` ถูกอ่านเป็นชื่อ skill)
+`skills-lock.json` ของมันบันทึก hash ที่ไม่ได้บังคับ และ `skills update` ดึงใหม่แล้วย้ายสำเนาไป `.agents/skills/` ทิ้ง symlink ไว้แทน —
+ผ่านท่อนี้จึงได้ `main` ณ ขณะนั้น ทางที่ pin ได้คือ submodule กับ dependency ที่ระบุเวอร์ชันข้างบน (วัดกับ Skills CLI 1.5.23, 2026-09-05)
+· ตัว bundle เองไม่เปิดเครือข่าย —
 ไม่มีไฟล์ที่ ship ไป import network module และ `tests/test_checks_are_standalone.py` ถือไว้
 
 **สามประตูหน้าสำหรับโปรเจกต์ที่ติดตั้ง bundle แล้ว** — ใน CI `uses: sayam/verifiable-gates@<commit-sha>` รัน doctor
