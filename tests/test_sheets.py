@@ -31,6 +31,7 @@ from verifiable_gates import rules, skill
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 CATALOGUE = ROOT / "rules.yaml"
+WORKING_CATALOGUE = ROOT / "working.yaml"
 
 SKILL_DIR = "skills/verifiable-gates"
 INDEX = f"{SKILL_DIR}/SKILL.md"
@@ -40,6 +41,11 @@ SHEETS = [
     (f"{SKILL_DIR}/references/baseline.md", "preambles/baseline.md", "baseline"),
     (f"{SKILL_DIR}/references/business.md", "preambles/business.md", "business"),
 ]
+# The working sheet is rendered from the other catalogue, under its own labels, so it is
+# held here separately rather than by adding a fourth field to every row above.
+WORKING_SHEET = f"{SKILL_DIR}/references/working.md"
+WORKING_PREAMBLE = "preambles/working.md"
+WORKING_LABELS = ("Practice", "Born from", "Held by")
 
 # The specification's limits, copied here because they are the contract with every
 # reader of the layout, not a preference of this repository.
@@ -75,12 +81,98 @@ def test_the_sheets_between_them_publish_every_rule() -> None:
     assert on_sheets == {rule["id"] for rule in catalogue}
 
 
+def test_the_committed_working_sheet_is_a_fresh_render() -> None:
+    """The same contract as the rule sheets: the file on disk is what the catalogue says,
+    and a hand edit is red on the next run."""
+    fresh = skill.render(
+        rules.load(WORKING_CATALOGUE, key="practices"),
+        (ROOT / WORKING_PREAMBLE).read_text(encoding="utf-8"),
+        rules.WORKING,
+        labels=WORKING_LABELS,
+    )
+    committed = (ROOT / WORKING_SHEET).read_text(encoding="utf-8")
+    assert committed == fresh, f"{WORKING_SHEET} drifted from working.yaml — regenerate it"
+
+
+def test_the_working_sheet_publishes_every_practice_with_its_holder_and_its_apply() -> None:
+    """Three things a reader must not have to guess: which practice, what held it, and
+    what to do. The holder is on every entry because a practice held by nothing but
+    reading must never look like one a checker refuses."""
+    practices = rules.load(WORKING_CATALOGUE, key="practices")
+    sheet = (ROOT / WORKING_SHEET).read_text(encoding="utf-8")
+    for practice in practices:
+        assert f"### `{practice['id']}`" in sheet
+        assert practice["born_from"].split(" · ")[0] in sheet, "the ledger id travels"
+        assert "**Apply:**" in sheet
+    assert sheet.count("**Held by:**") == len(practices)
+    assert sheet.count("reading this line — nothing here refuses it for you") == sum(
+        1 for p in practices if p["held_by"] == "reading"
+    )
+    for practice in practices:
+        named = practice.get(practice["held_by"])
+        if named:
+            assert f"`{named}`" in sheet
+
+
+def test_the_working_sheet_carries_no_lesson_of_ours() -> None:
+    """`the-ledger-ships-empty-and-private`: our entries name this repository, its owner,
+    its tickets and its tooling. What travels is the practice and one sentence of what it
+    cost — never an entry.
+
+    The sheet *does* name the ledger's fields, and must: teaching the shape is what it is
+    for. So the check is on the entries themselves — no heading of one, no title of one —
+    and the ledger is read from disk rather than remembered, which also means this test
+    says nothing in a clone that has none, as a consumer's will not.
+    """
+    sheet = (ROOT / WORKING_SHEET).read_text(encoding="utf-8")
+    assert "**Context:**" not in sheet, "a ledger entry's own body reached the sheet"
+    assert not re.search(r"^## L-\d{4} — ", sheet, re.MULTILINE), "an entry was copied whole"
+
+    ledger = ROOT / ".local" / "LESSONS.md"
+    if not ledger.is_file():  # pragma: no cover — a fresh clone has none, which is the point
+        return
+    titles = [
+        line.split(" — ", 1)[1].strip()
+        for line in ledger.read_text(encoding="utf-8").splitlines()
+        if line.startswith("## L-") and " — " in line
+    ]
+    assert titles, "the ledger is there but no entry was read — the check would be vacuous"
+    leaked = [title for title in titles if title in sheet]
+    assert leaked == [], f"a ledger entry's title travelled: {leaked}"
+
+
 def test_the_committed_index_is_a_fresh_render() -> None:
     fresh = skill.render_index(
-        rules.load(CATALOGUE), (ROOT / INDEX_PREAMBLE).read_text(encoding="utf-8")
+        rules.load(CATALOGUE),
+        (ROOT / INDEX_PREAMBLE).read_text(encoding="utf-8"),
+        practices=rules.load(WORKING_CATALOGUE, key="practices"),
     )
     committed = (ROOT / INDEX).read_text(encoding="utf-8")
-    assert committed == fresh, f"{INDEX} drifted from the catalogue — regenerate it"
+    assert committed == fresh, f"{INDEX} drifted from either catalogue — regenerate it"
+
+
+def test_the_index_lists_the_practices_apart_from_the_rules() -> None:
+    """A reader who took a practice for a rule would think the bundle could decide it.
+    The section is counted in practices, says no scanner decides one, and every line
+    points into the working sheet."""
+    text = (ROOT / INDEX).read_text(encoding="utf-8")
+    practices = rules.load(WORKING_CATALOGUE, key="practices")
+    assert f"### working — {len(practices)} practices" in text
+    assert "`gates_doctor --rules` never prints one" in text
+    for practice in practices:
+        assert f"[`{practice['id']}`](references/working.md#{practice['id']})" in text
+    for rule in rules.load(CATALOGUE):
+        assert f"references/working.md#{rule['id']}" not in text, "a rule listed as a practice"
+
+
+def test_the_index_without_practices_is_the_index_as_it_was() -> None:
+    """The argument is optional, and a caller that omits it gets no empty heading — the
+    sheet generator is used by hand as well as by the test above."""
+    without = skill.render_index(
+        rules.load(CATALOGUE), (ROOT / INDEX_PREAMBLE).read_text(encoding="utf-8")
+    )
+    assert "### working" not in without
+    assert "### baseline" in without
 
 
 def test_the_index_names_every_rule_and_points_at_its_sheet() -> None:
@@ -139,7 +231,7 @@ def test_the_skill_front_page_is_under_the_specifications_line_ceiling() -> None
     )
 
 
-@pytest.mark.parametrize("sheet", [INDEX, *(s[0] for s in SHEETS)])
+@pytest.mark.parametrize("sheet", [INDEX, WORKING_SHEET, *(s[0] for s in SHEETS)])
 def test_a_sheet_says_it_is_generated(sheet: str) -> None:
     """Somebody will open it and start typing otherwise."""
     head = (ROOT / sheet).read_text(encoding="utf-8")[:1200]
@@ -155,9 +247,14 @@ def test_a_sheet_says_it_is_generated(sheet: str) -> None:
 # day content moves out, the ceiling comes down with it. Raise a number here only
 # in the same change that adds the content, and say why in the commit.
 CEILING_LINES = {
-    INDEX: 190,
+    # 190 → 200 on 2026-09-04: the index gained a `working` section, ten lines of
+    # practices under their own heading.
+    INDEX: 200,
     f"{SKILL_DIR}/references/baseline.md": 690,
     f"{SKILL_DIR}/references/business.md": 160,
+    # New on 2026-09-04 with the sheet itself: ten practices, each with its lesson,
+    # its holder and what to do.
+    WORKING_SHEET: 170,
 }
 SLACK = 40
 
@@ -177,4 +274,4 @@ def test_a_sheet_sits_under_its_declared_ceiling_and_the_ceiling_sits_on_the_she
 
 
 def test_every_sheet_has_a_ceiling() -> None:
-    assert {INDEX, *(sheet for sheet, _p, _l in SHEETS)} == set(CEILING_LINES)
+    assert {INDEX, WORKING_SHEET, *(sheet for sheet, _p, _l in SHEETS)} == set(CEILING_LINES)

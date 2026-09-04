@@ -27,6 +27,11 @@ compares the two on every test run.
    agreements an application of a given kind may legitimately decide differently. Each
    entry is the rule, the incident that produced it, and how one real project enforces it.
 3. **The index below names every rule.** Skim it once to know what exists.
+4. **[`references/working.md`](references/working.md) is a different kind of sheet** and
+   optional. It is not rules — it is how the work is done: ten practices, each with the
+   ledger entry that paid for it and the pull requests it held on. Nothing there is
+   decided by a scanner, and `--rules` never prints one. Read it once, then keep your own
+   ledger; in a few months your entries will be better for your project than ours are.
 
 Every rule is **framework-agnostic**. What enforces a rule is not: enforcement is
 written in some project's own framework, and each entry's *Enforced in the reference*
@@ -58,7 +63,8 @@ the conditions that created it still hold.
 
 ## The index
 
-One line per rule, grouped by layer. The link on each is its full entry.
+One line per rule, grouped by layer, then the practices under their own heading. The link
+on each is its full entry.
 
 ### baseline — 79 rules · full entries in `references/baseline.md`
 
@@ -157,3 +163,18 @@ One line per rule, grouped by layer. The link on each is its full entry.
 - [`suite-on-three-brands`](references/business.md#suite-on-three-brands) — The whole test suite passes on MySQL 8 and MariaDB 11 for real, not only on SQLite
 - [`plugin-deps-cve-decided`](references/business.md#plugin-deps-cve-decided) — Every CVE in a plugin's libraries must have been decided (upgraded · removed · or accepted with a reason)
 - [`sbom-per-category`](references/business.md#sbom-per-category) — SBOMs are split per category — able to answer which components disappear when a plugin is removed
+
+### working — 10 practices · full entries in `references/working.md`
+
+How the work is done, not what the code must be. Each carries the lesson that paid for it and the pull requests it held on; none is decided by a scanner, and `gates_doctor --rules` never prints one.
+
+- [`keep-a-ledger-of-the-working`](references/working.md#keep-a-ledger-of-the-working) — A lesson learnt about the working is written down where the next session will read it
+- [`a-lesson-is-written-in-the-turn-it-appears`](references/working.md#a-lesson-is-written-in-the-turn-it-appears) — The entry is written in the turn the lesson appears, not at the end of the session
+- [`work-products-live-where-they-survive`](references/working.md#work-products-live-where-they-survive) — Anything a later session could want is written where a cleared context cannot take it
+- [`a-fix-lands-in-three-phases`](references/working.md#a-fix-lands-in-three-phases) — A fix lands in three phases, and the proof row is on the critical path of the second
+- [`a-mutation-is-watched-not-assumed`](references/working.md#a-mutation-is-watched-not-assumed) — A test is believed when a planted defect is watched going red, and the tree is checked back
+- [`a-green-mutation-is-a-missing-test`](references/working.md#a-green-mutation-is-a-missing-test) — A planted defect that stays green names a test that does not exist yet
+- [`a-race-is-a-seam-and-a-probe`](references/working.md#a-race-is-a-seam-and-a-probe) — A race is proved by a seam and measured by a probe — after the fix, not only before
+- [`the-body-is-on-disk-before-the-branch`](references/working.md#the-body-is-on-disk-before-the-branch) — The text a pull request needs is written to a file before the branch exists
+- [`guards-chains-and-paths`](references/working.md#guards-chains-and-paths) — A guard guards only if nothing follows it, and a relative path lands where you are not
+- [`no-ai-trailers`](references/working.md#no-ai-trailers) — The authorship a commit claims is the project's decision, not the harness's default

@@ -3205,6 +3205,25 @@ gates:
       paused.
     proved_by:
       - kind: mutation
+        ref: pr/241
+        date: 2026-09-04
+        caught: >-
+          The working sheet joined the two rule sheets, and with it the way a reader could
+          be told a practice is something it is not. Ten planted defects red on their own
+          here: a practice rendered through the rule's enforcement branch, the holder never
+          naming the shipped file it says holds it, `reading` dressed as something that
+          refuses, the `apply` line dropped so a habit arrives with nothing to do about it,
+          the index section dropped, the practices **counted as rules** in that section,
+          the sentence saying no scanner decides one removed, the committed sheet edited by
+          hand, the committed index edited by hand to claim eleven practices where there are
+          ten, and a ledger entry's title pasted into the sheet. The last holds
+          `the-ledger-ships-empty-and-private` against the ledger on disk rather than
+          against a remembered list, and announces a vacuous pass rather than making one:
+          it asserts it read some entries before it claims none of them leaked. The other
+          nine are the property a generated file has and a written one does not — any change
+          to the renderer that is not in the file, or to the file that is not in the
+          renderer, is red on the next run.
+      - kind: mutation
         ref: pr/222
         date: 2026-09-02
         caught: >-

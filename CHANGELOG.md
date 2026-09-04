@@ -8,6 +8,24 @@ Notable changes to this project. The format follows
 
 ### Added
 
+- **The working sheet an agent reads, generated from the catalogue like every other.**
+  `skills/verifiable-gates/references/working.md` publishes the ten practices — each with
+  the ledger entry that paid for it, what holds it, and what to do — and the skill's front
+  page gains a `working` section listing them under their own heading, counted in
+  *practices* rather than rules and saying in as many words that no scanner decides one and
+  `gates_doctor --rules` never prints one. A reader who took a practice for a rule would
+  think the bundle could decide it. The generator learnt two things and no more: a
+  `working` entry's third field is what **holds** it rather than what enforces it (`tool`
+  and `file` name the shipped file; `reading` says *nothing here refuses it for you*, which
+  is the honest answer for nine of the ten), and a practice carries its `apply` line, since
+  a habit a reader cannot act on is prose. `--catalogue`/`--key` and `--practices` let one
+  command render either catalogue, and the index takes the practices as an argument that
+  may be omitted — a caller that omits it gets the index exactly as it was. The sheet is
+  held like the others: a fresh render on every test run, a two-way line ceiling, the
+  *this file is generated* notice, and one check of its own — **no entry of our ledger
+  travels with it**, read from the ledger on disk rather than remembered, so a clone
+  without one says nothing rather than passing vacuously.
+
 - **A second catalogue, `working.yaml`: the practices that held, each with the lesson
   that paid for it.** Twenty-one rounds of self-audit were cheap for a reason no consumer
   could take with the bundle — the way the work was done, kept in a private ledger of 148
