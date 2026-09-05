@@ -6,6 +6,14 @@ Notable changes to this project. The format follows
 
 ## [Unreleased]
 
+### Fixed
+
+- The pre-commit hooks say, before the click, that they run what the project installed
+  under `tools/` and how the bundle gets there (`description:` on every hook), and a
+  project with no bundle gets the sentence the action prints — *no bundle installed under
+  … (python -m verifiable_gates.install)* — and exit 2, not `python3: can't open file`
+  (round 24, measured 2026-09-05 with pre-commit 4.6.2).
+
 ## [0.3.1] - 2026-09-05
 
 A patch, because the v0.3.0 wheel on PyPI could not run the README it shipped with:
