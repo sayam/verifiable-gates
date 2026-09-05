@@ -125,7 +125,7 @@ action อยู่บน [GitHub Marketplace](https://github.com/marketplace/ac
 
 | ท่อ | คำสั่ง | ลงอะไร |
 |---|---|---|
-| Skills CLI | `npx skills add sayam/verifiable-gates` | ท่อ `npx` ลง **สี่** ไฟล์ใต้ `skills/verifiable-gates/` (แผ่นกฎกับ references) และไม่มีอะไรอื่น |
+| Skills CLI | `npx skills add sayam/verifiable-gates` | ท่อ `npx` ลง **สี่** ไฟล์ใต้ `skills/verifiable-gates/` (แผ่นกฎกับ references) และไม่มีอะไรอื่น · ท่อส่ง identifier ของ repo และ skill เป็น telemetry ปิดได้ด้วย `DISABLE_TELEMETRY=1` |
 | Claude Code | `claude plugin marketplace add sayam/verifiable-gates` แล้ว `claude plugin install verifiable-gates@verifiable-gates` | ทั้ง repo เป็น plugin |
 
 กฎที่มีตัวตรวจ (`script:` ใน `rules.yaml`) คือกฎที่ doctor กับ installer ตัดสิน และไม่ตัดสินอะไรมากกว่านั้น ·
