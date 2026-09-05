@@ -44,6 +44,7 @@ import pathlib
 import re
 import tomllib
 from typing import Any
+from urllib.parse import unquote
 
 import pytest
 import yaml
@@ -72,6 +73,10 @@ SECTION = re.compile(r"`CONTRIBUTING\.md`\s+§ \"([^\"]+)\"")
 TAG = re.compile(r"<[^>]+>")
 # A Zenodo concept DOI: the prefix is fixed, the record number is not.
 DOI = re.compile(r"10\.5281/zenodo\.\d+")
+# Every document that advertises the DOI to a reader *now*. `CHANGELOG.md` is not
+# among them on purpose: a DOI inside a released entry is a record of what was said
+# on a day, not a claim about today, and holding it would make history unwritable.
+DOI_ADVERTISED_IN = ("README.md", "README.th.md", "docs/history.md")
 
 # Hosts whose badge images GitHub's camo proxy was **measured** to fetch, with
 # the reason each one earned its place. See the test at the end of this file.
@@ -211,20 +216,33 @@ def test_the_citation_card_carries_a_doi() -> None:
     assert DOI.fullmatch(str(doi)), f"CITATION.cff has no usable DOI: {doi!r}"
 
 
-def test_every_doi_printed_in_the_readme_is_the_one_on_the_card() -> None:
+@pytest.mark.parametrize("name", DOI_ADVERTISED_IN)
+def test_every_doi_printed_where_a_reader_reads_it_is_the_one_on_the_card(name: str) -> None:
     """A DOI is a number that lives outside this repository, advertised inside it.
 
     Nothing about a stale one looks wrong: it resolves, it renders, and it points
     at somebody's work — just not necessarily at the state being claimed. The
     reference implementation had four such numbers stale at once before anything
     read them, so every occurrence is compared rather than only the first.
+
+    Every occurrence means two things a regex over raw markdown does not see. The
+    first is the **badge label**: what a reader sees on the badge is drawn from the
+    image URL, where the slash of the DOI arrives percent-encoded as ``%2F``, and
+    the plain-looking DOI beside it is the alt text nobody reads unless the image
+    fails — so the text is unquoted before it is searched, and the number on the
+    picture is compared rather than the number under it. The second is **the other
+    documents**: the Thai README and the history page print the DOI to the same
+    reader, and a check that reads only `README.md` holds one of three.
+
+    Measured here on 2026-09-05: with a wrong record number in the badge URL and a
+    wrong one in `README.th.md`, all 2267 tests passed.
     """
     declared = str(citation()["doi"])
-    found = set(DOI.findall(README.read_text(encoding="utf-8")))
+    found = set(DOI.findall(unquote((ROOT / name).read_text(encoding="utf-8"))))
 
-    assert found, "the README advertises no DOI at all"
+    assert found, f"{name} advertises no DOI at all"
     assert found == {declared}, (
-        f"the README prints {sorted(found)} while the citation card says {declared!r} — "
+        f"{name} prints {sorted(found)} while the citation card says {declared!r} — "
         "one of them is pointing at a different record"
     )
 
