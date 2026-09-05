@@ -207,7 +207,11 @@ The two schemas — `rules.py` for this catalogue, `registry.py` for a project's
   rule with no origin is a rule nobody knows when to remove;
 - `proved_by` entries must say what they caught and when — a gate nobody has seen
   go red is indistinguishable from a gate that checks nothing;
-- the vocabularies for `kind`, `severity`, `layer`, and `pillar` are closed.
+- the vocabularies for `kind`, `severity`, `layer`, and `pillar` are closed — and a
+  severity is what something reads: `blocking` is every gate on a run (a scan is red
+  whatever the row says), `watched` is a `watched_by` promise the red-streak census
+  measures, and there is no third word, because a label no run reads is a softness
+  nobody delivers.
 
 A rule and its enforcement live in separate files, because they have separate
 lifetimes: `rules.yaml` is what this project publishes; `gates.yaml` is what this

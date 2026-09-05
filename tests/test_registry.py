@@ -136,11 +136,40 @@ def test_ids_must_be_kebab_case(bad: str) -> None:
 
 @pytest.mark.parametrize(
     ("field", "bad"),
-    [("kind", "check"), ("severity", "critical"), ("layer", "shared"), ("pillar", "quality")],
+    [
+        ("kind", "check"),
+        ("severity", "critical"),
+        # `warning` was in the vocabulary from the first schema and read by nothing: no
+        # scan, not the doctor, not the census — a gate marked `warning` was as red as
+        # one marked `blocking`, and the word promised a softness no run delivered
+        # (self-audit round 26, 2026-09-05). A severity is what something reads.
+        ("severity", "warning"),
+        ("layer", "shared"),
+        ("pillar", "quality"),
+    ],
 )
 def test_closed_vocabularies_are_closed(field: str, bad: str) -> None:
     found = registry.problems([a_gate(**{field: bad})])
     assert any(field in problem and bad in problem for problem in found)
+
+
+def test_watched_is_a_promise_and_needs_its_watcher() -> None:
+    """`watched` is the severity the red-streak census measures — a gate that does not
+    block, on a workflow somebody promises to look at within `within_days`. Without
+    `watched_by` the word names a promise nobody made."""
+    found = registry.problems([a_gate(severity="watched")])
+    assert any("watched" in problem and "watched_by" in problem for problem in found)
+    watched = a_gate(severity="watched", watched_by={"who": "the owner", "within_days": 7})
+    assert not [p for p in registry.problems([watched]) if "watched" in p]
+
+
+def test_a_gate_that_blocks_carries_no_watcher() -> None:
+    """A `watched_by` promise on a `blocking` gate is one the census never measures — it
+    reads promises on workflows that do not run on pull_request — so it is a sentence in
+    the register that nothing holds."""
+    blocking = a_gate(watched_by={"who": "the owner", "within_days": 7})
+    found = registry.problems([blocking])
+    assert any("blocking" in problem and "watched_by" in problem for problem in found)
 
 
 def test_an_internal_rule_cannot_be_exported() -> None:
