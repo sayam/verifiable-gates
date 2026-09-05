@@ -106,6 +106,14 @@ jobs:
         run: python -m verifiable_gates.proved_by_refs --root .
         env:
           GH_TOKEN: ${{ github.token }}
+      # The two categories of the Marketplace listing are set on a release form, by a
+      # person, and no API writes them. On 2026-09-05 the owner opened the form and found
+      # them the other way round from the runbook that listed the action — and nothing here
+      # could say when that changed, because nothing had ever read them back. This is the
+      # read-back; the fix stays a person's, and the message says so.
+      - name: the Marketplace listing shows the categories we declared
+        if: ${{ !cancelled() }}
+        run: python -m verifiable_gates.marketplace
       - name: no DECISIONS revisit date has passed
         if: ${{ !cancelled() }}
         run: pytest -q tests/test_decisions.py -p no:cacheprovider --no-cov

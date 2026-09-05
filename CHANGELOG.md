@@ -6,6 +6,26 @@ Notable changes to this project. The format follows
 
 ## [Unreleased]
 
+### Added
+
+- **`verifiable_gates.marketplace`: the listing's categories, read back.** The two categories
+  of a listed action are set on a release form, by a person, and no API writes them. On
+  2026-09-05 the owner opened that form and found them the other way round from the runbook
+  that listed the action, and nothing here could say when it had changed — the only capture of
+  the page already showed the new order and no check had ever read it. The order is now
+  declared in `marketplace.py` (Code quality first, Continuous integration second), copied
+  into `tests/test_marketplace.py`, and compared with the page by `posture.yml` weekly and on
+  every push to `main`. The reader can only report — the fix is a person on the release form,
+  and the message names the form and the field. A page that is not the listing (a login wall,
+  a challenge page, a 404 body served with 200) is the third answer, **not** a finding: "no
+  categories" and "the listing was emptied" must not be the same sentence.
+  **The first run is red on purpose** — the listing shows the other order today.
+- `verifiable_gates.net`: the answer reader every live check shares — the two ceilings on how
+  large an answer may be and by when it must have arrived. It had been written twice, in
+  `zenodo.py` and `asvs_worksheet.py`, each with a comment saying the other one says the same;
+  the third live check would have made three copies, so it is one file now and the two callers
+  point at it.
+
 ## [0.4.0] - 2026-09-05
 
 A minor release, and all of it is about somebody outside being able to check us. Twenty-four

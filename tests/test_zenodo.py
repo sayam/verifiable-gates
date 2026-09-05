@@ -14,7 +14,7 @@ from typing import Any, Self
 
 import pytest
 
-from verifiable_gates import gh, zenodo
+from verifiable_gates import gh, net, zenodo
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 CONCEPT = "10.5281/zenodo.22103110"
@@ -311,8 +311,8 @@ def test_an_answer_that_never_ends_is_refused_by_the_deadline(
 def test_an_answer_longer_than_the_ceiling_is_refused(monkeypatch: pytest.MonkeyPatch) -> None:
     """And the other ceiling `json.load(response)` never had: how large it may be. Without
     one, a reader on a CI job holds whatever the other end decides to send."""
-    monkeypatch.setattr(zenodo, "MAX_ANSWER_BYTES", 64)
-    monkeypatch.setattr(zenodo, "READ_CHUNK", 16)
+    monkeypatch.setattr(net, "MAX_ANSWER_BYTES", 64)
+    monkeypatch.setattr(net, "READ_CHUNK", 16)
     monkeypatch.setattr(urllib.request, "urlopen", lambda *_a, **_k: _Answer(b"x" * 4096))
 
     with pytest.raises(RuntimeError, match="longer than 64 bytes"):

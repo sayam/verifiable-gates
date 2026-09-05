@@ -31,7 +31,7 @@ import time
 import urllib.request
 from typing import IO, TYPE_CHECKING, Any
 
-from verifiable_gates import files
+from verifiable_gates import files, net
 
 if TYPE_CHECKING:
     import pathlib
@@ -79,29 +79,12 @@ def sort_key(requirement: dict[str, Any]) -> tuple[int, ...]:
     return tuple(int(part) for part in str(requirement["req_id"])[1:].split("."))
 
 
-# **A ceiling on time is not a ceiling on the answer.** `urlopen(timeout=N)` bounds the gap
-# between packets, not the download: a server that sends a little and often never trips it.
-# Measured against a server writing 1KB every 0.5s with the ceiling set to **1 second**, the
-# reader was held for **12.0 seconds** and it ended because the server stopped, not because
-# the ceiling fired; `json.load(response)` meanwhile accumulates every byte with nothing to
-# cap it (self-audit round 19, 2026-09-02). The copy of this reader in `zenodo.py` says the
-# same, because a rule that lives in one of two places is a rule the other one loses.
-MAX_ANSWER_BYTES = 16 * 1024 * 1024
-READ_CHUNK = 64 * 1024
-
-
+# The two ceilings an answer carries — how large it may be, and by when it must have
+# arrived — are `net.body`'s. This reader was one of the two copies that made writing them
+# in one place worth doing (2026-09-05).
 def _answer(response: IO[bytes], url: str, deadline: float) -> object:
     """The body, parsed — or `RuntimeError` naming the ceiling it went past."""
-    body = bytearray()
-    while chunk := response.read(READ_CHUNK):
-        body += chunk
-        if len(body) > MAX_ANSWER_BYTES:
-            message = f"the answer from {url} is longer than {MAX_ANSWER_BYTES} bytes"
-            raise RuntimeError(message)
-        if time.monotonic() > deadline:
-            message = f"the answer from {url} was still arriving after the ceiling passed"
-            raise RuntimeError(message)
-    return json.loads(body)
+    return json.loads(net.body(response, url, deadline))
 
 
 def fetch(url: str, *, timeout: int = 60) -> list[dict[str, Any]]:

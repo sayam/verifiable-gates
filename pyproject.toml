@@ -83,6 +83,7 @@ ignore = [
 "src/verifiable_gates/install.py" = ["T201"]
 "src/verifiable_gates/lint_commits.py" = ["T201"]
 "src/verifiable_gates/proved_by_refs.py" = ["T201"]
+"src/verifiable_gates/marketplace.py" = ["T201"]
 "src/verifiable_gates/check_issue_handoff.py" = ["T201"]
 "src/verifiable_gates/skeleton.py" = ["T201"]
 "src/verifiable_gates/schedule_census.py" = ["T201"]

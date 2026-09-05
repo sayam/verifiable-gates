@@ -28,7 +28,7 @@ import urllib.error
 import urllib.request
 from typing import IO, Any
 
-from verifiable_gates import gh
+from verifiable_gates import gh, net
 
 __all__ = [
     "NETWORK_TIMEOUT_SECONDS",
@@ -60,31 +60,11 @@ def concept_doi(citation: pathlib.Path) -> tuple[str, str]:
 PAGE_SIZE = 25
 
 
-# **A ceiling on time is not a ceiling on the answer.** `urlopen(timeout=N)` bounds the gap
-# between packets, not the download: a server that sends a little and often never trips it.
-# Measured against a server writing 1KB every 0.5s with the ceiling set to **1 second**, the
-# reader was held for **12.0 seconds** — twelve times the ceiling — and it ended because the
-# server stopped, not because the ceiling fired; `json.load(response)` meanwhile accumulates
-# every byte with nothing to cap it (self-audit round 19, 2026-09-02). This is the failure
-# the ceilings in this package exist to prevent, said in `gh.py`'s own words: a job's whole
-# budget eaten while nothing happens, then reported as "the job timed out". So the answer
-# carries two more ceilings — how large it may be, and by when it must have arrived.
-MAX_ANSWER_BYTES = 16 * 1024 * 1024
-READ_CHUNK = 64 * 1024
-
-
+# The two ceilings an answer carries — how large it may be, and by when it must have
+# arrived — are `net.body`'s, written once there and read by every live check here.
 def _answer(response: IO[bytes], url: str, deadline: float) -> object:
     """The body, parsed — or `RuntimeError` naming the ceiling it went past."""
-    body = bytearray()
-    while chunk := response.read(READ_CHUNK):
-        body += chunk
-        if len(body) > MAX_ANSWER_BYTES:
-            message = f"the answer from {url} is longer than {MAX_ANSWER_BYTES} bytes"
-            raise RuntimeError(message)
-        if time.monotonic() > deadline:
-            message = f"the answer from {url} was still arriving after the ceiling passed"
-            raise RuntimeError(message)
-    return json.loads(body)
+    return json.loads(net.body(response, url, deadline))
 
 
 def _page(url: str, timeout: int) -> Any:  # noqa: ANN401 — the shape is the archive's
