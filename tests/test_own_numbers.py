@@ -13,8 +13,10 @@ import re
 from typing import Any
 
 import pytest
+import yaml
 
 from verifiable_gates import __version__, advertised, gh, own_numbers
+from verifiable_gates import rules as catalogue_rules
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 
@@ -81,9 +83,44 @@ def test_the_counts_are_the_files_and_rows_on_disk() -> None:
     assert values["checkers_word"] == own_numbers.as_word(int(values["checkers"]))
     assert int(values["rules"]) > 0
     assert int(values["gates"]) > 0
+    # Of the rules in force. A withdrawn rule stays in `rules.yaml` with the date and the
+    # reason (`DECISIONS.md` `a-withdrawal-is-published-not-deleted`); counting it would
+    # make every number the documents advertise grow the more of the catalogue turned out
+    # to be wrong, and the README's "N rules, each carrying an incident" is a promise
+    # about rules somebody is still held to.
+    catalogue = catalogue_rules.load(ROOT / "rules.yaml")
+    assert values["rules"] == str(len(catalogue_rules.live(catalogue)))
 
 
 # ---------------------------------------------------------------- measuring
+
+
+def test_the_advertised_rule_count_is_of_the_rules_in_force(tmp_path: pathlib.Path) -> None:
+    """Two rules, one of them withdrawn, and the documents say **one**.
+
+    Held on a tree of its own because this repository has withdrawn nothing yet: measured
+    against `rules.yaml` the two counts are the same number, so nothing here would go red
+    if `facts` went back to counting the file (`DECISIONS.md`
+    `a-withdrawal-is-published-not-deleted`, T1).
+    """
+    (tmp_path / "CHANGELOG.md").write_text("# Changelog\n\n## [0.1.0] - 2026-01-01\n", "utf-8")
+    (tmp_path / "rules.yaml").write_text(
+        yaml.safe_dump(
+            {
+                "version": 1,
+                "rules": [
+                    {"id": "in-force"},
+                    {"id": "taken-back", "retracted": {"date": "2026-09-05", "reason": "misread"}},
+                ],
+            }
+        ),
+        "utf-8",
+    )
+    (tmp_path / "gates.yaml").write_text(yaml.safe_dump({"version": 1, "gates": []}), "utf-8")
+    (tmp_path / "src" / "verifiable_gates" / "checks").mkdir(parents=True)
+    (tmp_path / "skills" / "verifiable-gates").mkdir(parents=True)
+
+    assert own_numbers.facts(tmp_path)["rules"] == "1"
 
 
 def test_a_changelog_with_no_released_heading_is_an_error_not_a_guess(

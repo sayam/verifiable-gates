@@ -8,6 +8,23 @@ Notable changes to this project. The format follows
 
 ### Added
 
+- **A rule can be taken back, and the taking back is published.** `rules.yaml` and
+  `working.yaml` accept `retracted: {date, reason, replaced_by}`. A withdrawn entry stays in
+  the catalogue and on its sheet — with the withdrawal printed *above* the rule, so a reader
+  who came from an old sheet learns it before reading three fields of it — is marked in the
+  index, is **not** counted among the rules in force (`rules.live`, which every advertised
+  count now goes through), may not keep a `script:` (a checker deciding a rule nobody is held
+  to is enforcement with no rule behind it), and is not shipped in the bundle, which is what
+  `gates_doctor --rules` and `--working` actually read. `replaced_by` must name a rule that is
+  in force: a withdrawal pointing at nothing is a deletion with extra words. Until now the only
+  way out of a wrong `born_from` was deleting the rule, which leaves every reader who followed
+  it with nothing to read — a certificate authority publishes a revocation instead, and for the
+  same reason. Nothing here is withdrawn today; the schema, the renderer and the counts are in
+  place before the first one, and the shipped sheets are byte-identical to a fresh render.
+  `DECISIONS.md` `a-withdrawal-is-published-not-deleted` says why gates are outside it: a gate
+  is one project's enforcement, and enforcement that stops is deleted with the test that was
+  it, which `scan_gates_registry` already refuses to do silently (T1 of the trust analysis).
+
 - **A CI badge, on the host that was measured.** `README.md` shows the status of `ci.yml` on
   `main`, linked to the workflow. It is an `img.shields.io` image because that is the one host
   in `BADGE_HOSTS`, measured through GitHub's camo proxy: 200 on a cache MISS three times on

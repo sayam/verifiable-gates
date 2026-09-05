@@ -24,6 +24,11 @@
 # The lessons themselves are not here and never will be: they name this repository, its
 # owner, its tickets and its tooling. A consumer starts their own ledger at L-0001
 # (DECISIONS `the-ledger-ships-empty-and-private`).
+#
+# A practice leaves the way a rule does: `retracted: {date, reason, replaced_by}`, in
+# place, never deleted. A practice that stopped holding is itself a lesson about the
+# working, and deleting it would delete the record of both (DECISIONS
+# `a-withdrawal-is-published-not-deleted`).
 
 version: 1
 

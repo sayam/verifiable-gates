@@ -178,7 +178,11 @@ def facts(root: pathlib.Path) -> dict[str, str]:
     newest = RELEASED.search(changelog)
     if newest is None:
         raise RuntimeError("CHANGELOG.md has no released heading `## [x.y.z] - YYYY-MM-DD`")
-    catalogue = rules.load(root / "rules.yaml")
+    # In force, not merely present: a rule this repository has withdrawn stays in
+    # `rules.yaml` with the date and the reason (`DECISIONS.md`
+    # `a-withdrawal-is-published-not-deleted`), and counting it would make every number
+    # the documents advertise grow the more of the catalogue turned out to be wrong.
+    catalogue = rules.live(rules.load(root / "rules.yaml"))
     gates = yaml.safe_load((root / "gates.yaml").read_text(encoding="utf-8"))["gates"]
     checkers = sorted((root / "src" / "verifiable_gates" / "checks").glob("scan_*.py"))
     scripted = sum(1 for rule in catalogue if rule.get("script"))

@@ -24,6 +24,17 @@
 # `reference` says how the reference implementation enforces the rule. It is evidence,
 # not instruction: a project adopting a rule writes its own enforcement, and a rule
 # with a `script` is one this bundle can decide on its own.
+#
+# `retracted` is how a rule leaves. A rule that turns out to be wrong is withdrawn in
+# place — `retracted: {date, reason, replaced_by}` — and never deleted: the entry stays
+# here and on its sheet, with the withdrawal printed above the rule, so the reader who
+# followed it can find out that they should stop and where to go instead. A withdrawn
+# rule is not counted among the rules the documents advertise, may not keep a `script:`
+# (a checker deciding a rule nobody is held to is enforcement with no rule behind it),
+# and is not shipped in the bundle. Nothing here is withdrawn today; the schema, the
+# renderer and the count are in place before the first one, and `DECISIONS.md`
+# `a-withdrawal-is-published-not-deleted` says why the shape is a revocation list
+# rather than a deletion.
 version: 1
 rules:
 - id: gates-registry-total
