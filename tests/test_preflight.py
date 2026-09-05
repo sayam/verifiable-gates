@@ -79,6 +79,81 @@ def test_a_step_that_cannot_run_locally_is_skipped_with_a_reason(
     assert needle in entries[0]["skip"], "the reason does not say why"
 
 
+# Every spelling of "this installs something into the machine you are standing on".
+# Round 27 (2026-09-05) measured an agent given a task in a project with the bundle
+# installed: it wrote `python3 -m pip install --require-hashes -r requirements-lock.txt`
+# into a workflow, ran `tools/preflight.py`, and preflight **ran the install** — into the
+# developer's own virtual environment, downgrading a tool there and adding six packages
+# that did not belong. The skip list existed for exactly that and did not fire, because it
+# matched a command that *starts with* `pip install`, and this one starts with `python3`.
+# The scanner beside it, `scan_install_pinning`, has known the wide list since an outside
+# audit planted `uv tool install` and `poetry add` on 2026-08-30. The two halves of the
+# bundle disagreed about what an install looks like, and the half that *executes* had the
+# narrow list.
+INSTALL_SPELLINGS = [
+    "pip install ruff",
+    "pip3 install ruff",
+    "pip3.13 install ruff",
+    "python3 -m pip install --require-hashes -r requirements-lock.txt",
+    "python -m pip install -e .",
+    "/usr/bin/pip install ruff",
+    "pip --quiet install ruff",
+    "pipx install ruff",
+    "pipx run ruff",
+    "uv pip install ruff",
+    "uv tool install ruff",
+    "uv add ruff",
+    "uvx ruff",
+    "poetry add ruff",
+    "poetry install",
+    "pdm add ruff",
+    "pipenv install ruff",
+    "npm install",
+    "npm ci",
+    "npm i -g something",
+    "npm exec eslint",
+    "npx eslint .",
+    "yarn add eslint",
+    "yarn install",
+    "pnpm add eslint",
+    "pnpm install",
+    "pnpm dlx eslint",
+    "sudo apt-get install -y libpq-dev",
+    "brew install postgresql",
+    "conda install numpy",
+]
+
+
+@pytest.mark.parametrize("command", INSTALL_SPELLINGS)
+def test_every_spelling_of_an_install_is_skipped_not_run(command: str) -> None:
+    """preflight runs a workflow's commands on the developer's machine. A step that
+    installs must never be one of them, whatever it is spelt like."""
+    entries = preflight.plan(a_workflow(lint={"steps": [{"run": command}]}), ("lint",), "main")
+    assert "skip" in entries[0], f"preflight would RUN {command!r} on this machine"
+    assert "environment" in entries[0]["skip"], entries[0]["skip"]
+
+
+@pytest.mark.parametrize(
+    "command",
+    [
+        "python -m pytest -q",
+        "python3 tools/gates_doctor.py",
+        "ruff check .",
+        "echo pip install ruff",
+        "printf 'npm ci'",
+        "true",
+        "make test",
+        "./scripts/check.sh",
+    ],
+)
+def test_a_step_that_installs_nothing_still_runs(command: str) -> None:
+    """The other direction of the same register: skipping everything would make preflight
+    a program that reports a green it never earned. `echo` and `printf` quote commands
+    they do not run — the scanner beside this one has read them as prose since 2026-08-30."""
+    entries = preflight.plan(a_workflow(lint={"steps": [{"run": command}]}), ("lint",), "main")
+    assert "skip" not in entries[0], f"preflight would skip {command!r}, which installs nothing"
+
+
 def test_the_expressions_with_a_local_equivalent_are_substituted() -> None:
     """`base_ref` and `runner.temp` have local answers, so they are not a reason to skip."""
     step = {"run": "diff-cover --compare-branch origin/${{ github.base_ref }} ${{ runner.temp }}/x"}

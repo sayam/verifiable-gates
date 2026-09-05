@@ -83,11 +83,62 @@ CONFIG = "scaffold.json"
 # container, or a secret that only CI has.
 DEFAULT_JOBS = ("lint", "test")
 
+# Every spelling of "this installs something into the machine you are standing on".
+#
+# This list was `("pip install", …)` matched with `startswith`, and round 27 measured what
+# that costs: an agent given an ordinary task wrote `python3 -m pip install --require-hashes
+# -r requirements-lock.txt` into a workflow, ran this file, and **preflight ran the install**
+# — into the developer's own virtual environment, downgrading a tool there and adding six
+# packages that did not belong (2026-09-05, reproduced into a throwaway environment: 4
+# packages before, 15 after). The skip existed for exactly that and did not fire, because
+# the command starts with `python3`. The scanner beside this file, `scan_install_pinning`,
+# has read the wide list since an outside audit planted `uv tool install` and `poetry add`
+# on 2026-08-30; the half of the bundle that only *reads* knew, and the half that *executes*
+# did not. Held to that list, in both directions, by `tests/test_preflight.py`.
+#
+# Skipping too widely costs a step that is not run locally, and the reason is printed.
+# Skipping too narrowly costs the developer's machine. The list leans wide on purpose.
+INSTALLS = re.compile(
+    r"(?:^|[\s/])(?:"
+    r"pip(?:3(?:\.\d+)?)?(?:\s+--?[A-Za-z][\w-]*(?:=\S+)?)*\s+install"
+    r"|pipx\s+(?:install|run)"
+    r"|uv\s+(?:pip\s+install|tool\s+install|add|sync)"
+    r"|uvx"
+    r"|poetry\s+(?:add|install)"
+    r"|pdm\s+(?:add|install)"
+    r"|pipenv\s+install"
+    r"|npm\s+(?:install|i|ci|add|exec)"
+    r"|npx"
+    r"|yarn\s+(?:add|install)"
+    r"|pnpm\s+(?:add|install|dlx)"
+    r"|(?:apt-get|apt|dnf|yum|apk|brew|conda|mamba)\s+(?:install|add)"
+    r")(?=\s|$)"
+)
+# `echo` and `printf` quote commands they do not run — the scanner beside this one has read
+# them as prose since 2026-08-30, and a step that merely prints an install line is a step
+# that installs nothing.
+PROSE = ("echo", "printf")
+
 # Steps skipped locally, each with the reason that gets printed every time.
 SKIP_RUNS = (
-    ("pip install", "installs the runner's tools — your machine already has an environment"),
-    ("pipenv sync", "arranges an environment rather than judging anything, and it edits yours"),
+    # Before INSTALLS, which would otherwise answer for `pipenv sync` in the wrong words.
+    (
+        re.compile(r"(?:^|[\s/])pipenv\s+sync\b"),
+        "arranges an environment rather than judging anything, and it edits yours",
+    ),
+    (INSTALLS, "installs the runner's tools — your machine already has an environment"),
 )
+
+
+def skip_reason(command: str) -> str | None:
+    """Why this step must not run on the developer's machine, or nothing.
+
+    Read line by line, because a `run:` block is several commands and one of them being
+    prose says nothing about the next.
+    """
+    body = "\n".join(line for line in command.splitlines() if not line.strip().startswith(PROSE))
+    return next((why for pattern, why in SKIP_RUNS if pattern.search(body)), None)
+
 
 EXPRESSION = re.compile(r"\$\{\{[^}]*\}\}")
 
@@ -305,7 +356,7 @@ def plan(
                 made.append({**entry, "skip": f"an action ({uses}) — the version in CI decides"})
                 continue
             head = command.strip()
-            skip = next((why for prefix, why in SKIP_RUNS if head.startswith(prefix)), None)
+            skip = skip_reason(head)
             if skip:
                 made.append({**entry, "skip": skip})
                 continue
