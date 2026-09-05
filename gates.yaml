@@ -2557,6 +2557,17 @@ gates:
           `tests/test_dogfood.py` went red — the floor `doctor-all-na-exits-zero`
           names, doing on our own tree what it exists to do on a consumer's
           (2026-09-04).
+      - kind: mutation
+        ref: pr/291
+        date: 2026-09-05
+        caught: >-
+          The fingerprint broken three ways: the line number left inside the key (one
+          line inserted above a finding re-keys it), the ordinal dropped (two identical
+          sentences in one file fold into one alert), and the rule id dropped (the same
+          sentence under two rules folds) — each red. A fourth, the location's uri
+          dropped, stayed green: the uri is read out of the same text, so it was taken
+          out of the key rather than kept as an ingredient nobody holds. Round 26, F2:
+          every field the file had about a finding moved with an edit above it.
   - id: a-bundle-installs-and-answers
     title: A fresh install gives a project something that runs, and never overwrites its decisions
     kind: test
