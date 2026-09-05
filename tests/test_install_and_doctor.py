@@ -21,6 +21,7 @@ Three properties, and the second is the one that decays quietly:
 from __future__ import annotations
 
 import contextlib
+import datetime
 import io
 import json
 import os
@@ -2080,6 +2081,289 @@ def test_the_installer_points_the_agents_at_the_rules(
     assert not (project / "AGENTS.md").exists(), "the installer must not write the project's file"
 
 
+# ---------------------------------------------------------------- waivers, the way to say "not yet"
+#
+# Round 26 (2026-09-05) measured day one on real trees: 772 findings on django, 627 of
+# them one gate's test-file half; and the moves a project had were to fix everything,
+# delete the scan from the overlay, or point a path at nothing — the last of which was
+# silent. A waiver is the fourth move, and the only one the record keeps: it carries the
+# gate, a reason, an expiry and a name, it is printed on every run, it goes red when it
+# expires, and a waiver with a field missing is a finding, never a silent excuse.
+
+TWO_FINDINGS = (
+    "print('delete-means-soft-delete: app/a.py:3 session.delete(x)')\n"
+    "print('delete-means-soft-delete: lib/b.py:9 session.delete(y)')\n"
+    "raise SystemExit(1)\n"
+)
+
+
+def _waiving(project: pathlib.Path, *waivers: dict[str, object]) -> None:
+    """Plant a scan with two findings in two directories, and the given waivers."""
+    _plant(project, "scan_write_discipline.py", TWO_FINDINGS)
+    for name in ("app/a.py", "lib/b.py"):
+        (project / name).parent.mkdir(exist_ok=True)
+        (project / name).write_text("\n\nsession.delete(x)\n", encoding="utf-8")
+    _scaffold_with(project, waivers=list(waivers))
+
+
+def _a_waiver(**overrides: object) -> dict[str, object]:
+    waiver: dict[str, object] = {
+        "gate": "delete-means-soft-delete",
+        "reason": "the purge module predates the rule; claimed as it is touched",
+        "until": "2999-12-31",
+        "decided_by": "the maintainer",
+    }
+    waiver.update(overrides)
+    return waiver
+
+
+def test_a_waiver_over_the_whole_gate_turns_found_into_waived_and_the_run_green(
+    installed: pathlib.Path,
+) -> None:
+    _waiving(installed, _a_waiver())
+    done = run_doctor(installed)
+    assert done.returncode == 0, done.stdout
+    assert "[found] delete-means-soft-delete" not in done.stdout
+    assert (
+        "[waived] delete-means-soft-delete — 2 findings under the waiver until 2999-12-31,"
+        " decided by the maintainer: the purge module predates the rule" in done.stdout
+    )
+    assert "waived: 2 findings under 1 waiver" in done.stdout
+
+
+def test_a_waiver_with_a_scope_excuses_only_what_is_under_it(installed: pathlib.Path) -> None:
+    """The finding in `lib/` stays red and is printed; the one in `app/` is excused and
+    counted beneath it — a partial waiver never hides the half it does not cover."""
+    _waiving(installed, _a_waiver(scope="app/"))
+    done = run_doctor(installed)
+    assert done.returncode == 1
+    assert "[found] delete-means-soft-delete" in done.stdout
+    assert "delete-means-soft-delete: lib/b.py:9 session.delete(y)" in done.stdout
+    assert "delete-means-soft-delete: app/a.py:3 session.delete(x)" not in done.stdout
+    assert "  waived: 1 finding under the waiver until 2999-12-31" in done.stdout
+    assert "waived: 1 finding under 1 waiver" in done.stdout
+
+
+def test_a_waiver_is_printed_on_every_run_even_when_it_excuses_nothing(
+    installed: pathlib.Path,
+) -> None:
+    """The count never leaves the report: a reader sees what is excused on a green run
+    too, and a waiver that excuses nothing is told so — it can go."""
+    _waiving(installed, _a_waiver(scope="docs/"))
+    done = run_doctor(installed)
+    assert done.returncode == 1
+    assert "waived: 0 findings under 1 waiver" in done.stdout
+    assert (
+        "  delete-means-soft-delete docs/ until 2999-12-31, decided by the maintainer:"
+        " the purge module predates the rule; claimed as it is touched"
+        " — excused nothing this run" in done.stdout
+    )
+
+
+def test_no_waivers_means_no_waiver_lines(installed: pathlib.Path) -> None:
+    done = run_doctor(installed)
+    assert "waived" not in done.stdout
+    assert "waiver" not in done.stdout
+
+
+def test_an_expired_waiver_is_a_finding_and_excuses_nothing(installed: pathlib.Path) -> None:
+    """The scar every ecosystem carries is the temporary suppression that became
+    permanent because nothing asked about it again. Here the asking is the run."""
+    _waiving(installed, _a_waiver(until="2000-01-01"))
+    done = run_doctor(installed)
+    assert done.returncode == 1
+    assert "[found] waivers" in done.stdout
+    assert (
+        "waivers: waiver 1 for delete-means-soft-delete expired 2000-01-01 — renew it with a"
+        " new until and a new reason, or fix the findings; an expired waiver excuses nothing"
+        in done.stdout
+    )
+    assert "[found] delete-means-soft-delete" in done.stdout, "still red — nothing excused"
+    assert "found problems in 2 gates: waivers, delete-means-soft-delete" in done.stdout
+
+
+@pytest.mark.parametrize(
+    ("broken", "said"),
+    [
+        (_a_waiver(reason=""), "waiver 1 has no reason — a waiver with no reason is a suppression"),
+        (_a_waiver(until=None), "waiver 1 has no until — a waiver with no until is permanent"),
+        (_a_waiver(decided_by=" "), "waiver 1 has no decided_by — a waiver nobody signed"),
+        (_a_waiver(gate=""), "waiver 1 has no gate"),
+        (_a_waiver(until="soon"), "waiver 1 gives until 'soon', which is not a date (YYYY-MM-DD)"),
+        (
+            _a_waiver(gate="csp-inline"),
+            "waiver 1 names csp-inline, which no scan in this bundle decides",
+        ),
+        (
+            _a_waiver(reasn="typo"),
+            "waiver 1 names reasn, which a waiver does not have — did you mean reason?",
+        ),
+        (_a_waiver(scope="../elsewhere"), "waiver 1 gives scope ../elsewhere, which leads outside"),
+        (_a_waiver(scope=["app/"]), 'waiver 1 gives scope ["app/"], which is not a path'),
+    ],
+    ids=lambda x: x if isinstance(x, str) else "",
+)
+def test_a_waiver_with_a_field_missing_or_wrong_is_a_finding_that_names_it(
+    installed: pathlib.Path, broken: dict[str, object], said: str
+) -> None:
+    """Required fields are refused, not skipped — a waiver with no reason is a noqa, and
+    the whole point is that this tool never learned to write one of those."""
+    _waiving(installed, broken)
+    done = run_doctor(installed)
+    assert done.returncode == 1
+    assert "[found] waivers" in done.stdout
+    assert f"waivers: {said}" in done.stdout
+    assert "[found] delete-means-soft-delete" in done.stdout, "a broken waiver excuses nothing"
+
+
+def test_waivers_that_are_not_a_list_or_not_objects_are_findings(installed: pathlib.Path) -> None:
+    _waiving(installed)
+    _scaffold_with(installed, waivers={"gate": "x"})
+    done = run_doctor(installed)
+    assert 'waivers: scaffold.json gives waivers {"gate": "x"}, which is not a list' in done.stdout
+    _scaffold_with(installed, waivers=["not an object"])
+    done = run_doctor(installed)
+    assert (
+        "waivers: waiver 1 is not an object with gate, reason, until and decided_by" in done.stdout
+    )
+
+
+def test_a_waived_result_is_a_suppressed_result_in_the_sarif(installed: pathlib.Path) -> None:
+    """The result stays in the file — a reader counts it — and carries the sentence: GitHub
+    shows a result with a suppression as dismissed, with the justification, rather than
+    gone. (What GitHub does with it was not measured in this round; the file is.)"""
+    _waiving(installed, _a_waiver(scope="app/"))
+    code, log, _ = _sarif_after(installed)
+    assert code == 1
+    results = log["runs"][0]["results"]
+    by_text = {r["message"]["text"]: r for r in results}
+    waived = by_text["app/a.py:3 session.delete(x)"]
+    assert waived["suppressions"] == [
+        {
+            "kind": "external",
+            "justification": "the purge module predates the rule; claimed as it is touched"
+            " (until 2999-12-31, decided by the maintainer)",
+        }
+    ]
+    assert "suppressions" not in by_text["lib/b.py:9 session.delete(y)"]
+    assert "primaryLocationLineHash" in waived["partialFingerprints"]
+    assert log["runs"][0]["invocations"][0]["exitCode"] == 1
+
+
+def test_a_broken_waiver_is_a_result_under_the_doctors_own_rule(installed: pathlib.Path) -> None:
+    _waiving(installed, _a_waiver(until="2000-01-01"))
+    _, log, _ = _sarif_after(installed)
+    run = log["runs"][0]
+    assert any(rule["id"] == "waivers" for rule in run["tool"]["driver"]["rules"])
+    (expired,) = [r for r in run["results"] if r["ruleId"] == "waivers"]
+    assert expired["message"]["text"].startswith("waiver 1 for delete-means-soft-delete expired")
+    assert _artifact(expired)["uri"] == "scaffold.json"
+
+
+def test_the_waiver_reader_in_process_for_every_shape_of_file(installed: pathlib.Path) -> None:
+    """Coverage is collected in this process; the doctor above ran as a child."""
+    manifest = gates_doctor.load_manifest(installed / "tools" / "overlay.json")
+    today = datetime.date(2026, 9, 5)
+    path = installed / "scaffold.json"
+    for text in ("{bad", "[1, 2]", "{}"):
+        path.write_text(text, encoding="utf-8")
+        assert gates_doctor.read_waivers(installed, manifest, today) == ([], []), text
+    _scaffold_with(installed, waivers=[_a_waiver(until="2026-09-05", scope="app")])
+    waivers, findings = gates_doctor.read_waivers(installed, manifest, today)
+    assert findings == []
+    (waiver,) = waivers
+    assert waiver.until == today, "a waiver is in force through its last day"
+    assert waiver.scope == "app"
+    _scaffold_with(installed, waivers=[_a_waiver(until="2026-09-04")])
+    waivers, findings = gates_doctor.read_waivers(installed, manifest, today)
+    assert waivers == []
+    assert findings
+    assert "expired 2026-09-04" in findings[0]
+
+
+def test_the_waiver_roads_in_process(
+    installed: pathlib.Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """Coverage is collected in this process; the runs above were children. The same four
+    roads once more through `main`: a whole-gate waiver, a scoped one beside one that
+    excuses nothing, an expired one, and every shape that is not a waiver."""
+    manifest = str(installed / "tools" / "overlay.json")
+    sarif = installed / "in-process.sarif"
+
+    def run() -> tuple[int, str, dict[str, Any]]:
+        code = gates_doctor.main([str(installed), "--manifest", manifest, "--sarif", str(sarif)])
+        return code, capsys.readouterr().out, json.loads(sarif.read_text(encoding="utf-8"))
+
+    _waiving(installed, _a_waiver())
+    code, out, log = run()
+    assert code == 0
+    assert "[waived] delete-means-soft-delete — 2 findings" in out
+    assert sum("suppressions" in r for r in log["runs"][0]["results"]) == 2
+
+    # A waiver for another gate first, so the covering test walks past it; and a key no
+    # scanner reads beside it, so the doctor's two findings before the scans run together.
+    _scaffold_with(
+        installed,
+        colour="blue",
+        waivers=[
+            _a_waiver(gate="csp-no-inline"),
+            _a_waiver(scope="app/a.py"),
+            _a_waiver(scope="docs"),
+        ],
+    )
+    code, out, log = run()
+    assert code == 1
+    assert "[found] scaffold.json — a key no scanner reads" in out
+    assert "  waived: 1 finding under the waiver" in out
+    assert "waived: 1 finding under 3 waivers" in out
+    assert "csp-no-inline until 2999-12-31, decided by the maintainer" in out
+    _scaffold_with(installed, colour=None)
+    config = json.loads((installed / "scaffold.json").read_text(encoding="utf-8"))
+    del config["colour"]
+    (installed / "scaffold.json").write_text(json.dumps(config), encoding="utf-8")
+    assert "delete-means-soft-delete docs until 2999-12-31" in out
+    assert "— excused nothing this run" in out
+
+    _scaffold_with(installed, waivers=[_a_waiver(until="2000-01-01")])
+    code, out, log = run()
+    assert code == 1
+    assert "waivers: waiver 1 for delete-means-soft-delete expired 2000-01-01" in out
+    assert any(rule["id"] == "waivers" for rule in log["runs"][0]["tool"]["driver"]["rules"])
+
+    _scaffold_with(
+        installed,
+        waivers=[
+            "not an object",
+            _a_waiver(reason="", reasn="typo", scope=["app/"]),
+            _a_waiver(scope="/abs"),
+            _a_waiver(until="soon"),
+            _a_waiver(gate="csp-inline"),
+        ],
+    )
+    code, out, _ = run()
+    assert code == 1
+    for said in (
+        "waiver 1 is not an object",
+        "waiver 2 names reasn, which a waiver does not have — did you mean reason?",
+        "waiver 2 has no reason",
+        'waiver 2 gives scope ["app/"], which is not a path',
+        "waiver 3 gives scope /abs, which leads outside the project",
+        "waiver 4 gives until 'soon', which is not a date",
+        "waiver 5 names csp-inline, which no scan in this bundle decides",
+    ):
+        assert f"waivers: {said}" in out, said
+
+    _scaffold_with(installed, waivers={"gate": "x"})
+    code, out, _ = run()
+    assert code == 1
+    assert "which is not a list" in out
+
+
+def test_today_is_a_utc_date() -> None:
+    """The clock a waiver's `until` is held against — one for every runner, in UTC."""
+    assert abs((gates_doctor.today() - datetime.datetime.now(datetime.UTC).date()).days) <= 1
+
+
 # ---------------------------------------------------------------- SARIF, a format
 
 
@@ -4007,11 +4291,15 @@ def test_the_keys_the_doctor_knows_are_the_keys_the_scanners_read() -> None:
     # own file only — the registry scanner's `document.get("gates")` reads gates.yaml.
     scanners = re.compile(r'config,\s*"(\w+)"')
     preflight = re.compile(r'document\.get\("(\w+)"\)')
+    # The doctor reads one key itself — `waivers` (round 26) — as `config.get("<key>")`.
+    doctor = re.compile(r'config\.get\("(\w+)"\)')
     read: set[str] = set()
     for path in sorted(CHECKS.glob("scan_*.py")):
         read |= set(scanners.findall(path.read_text(encoding="utf-8")))
     source = ROOT_OF_REPO / "src" / "verifiable_gates" / "preflight.py"
     read |= set(preflight.findall(source.read_text(encoding="utf-8")))
+    source = ROOT_OF_REPO / "src" / "verifiable_gates" / "gates_doctor.py"
+    read |= set(doctor.findall(source.read_text(encoding="utf-8")))
     assert read == set(gates_doctor.SCAFFOLD_KEYS)
     default = ROOT_OF_REPO / "src" / "verifiable_gates" / "scaffold.json.default"
     comment = json.loads(default.read_text(encoding="utf-8"))["_comment"]

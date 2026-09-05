@@ -17,6 +17,7 @@ findings or `[error]`, **2** misuse — two questions asked at once, two roots, 
 | `[found]` | looked, and the rule is broken                 | 1                |
 | `[   NA]` | had nothing of the kind it reads to look at; it names what it looked for | 0 |
 | `[error]` | could not answer; its stderr is passed through | 1                |
+| `[waived]` | looked, found it, and a waiver in `scaffold.json` covers it — the run prints what was excused | 0 (for that gate) |
 
 ## Situation → verdict → why not the other one
 
@@ -27,6 +28,8 @@ findings or `[error]`, **2** misuse — two questions asked at once, two roots, 
 | A path `scaffold.json` *names* and the project does not have | finding | A broken configuration is a defect, not an absence. |
 | A `scaffold.json` value of the wrong shape — a list where one path goes, a string where a list of names goes | finding, naming the key | Same: the configuration is broken, and the finding says where. |
 | A `scaffold.json` path that leads outside the project | finding, naming the key | Same. |
+| A finding a waiver covers — `waivers: [{gate, reason, until, decided_by, scope?}]` in `scaffold.json` | `[waived]`, and `waived: N findings under M waivers` on every run that declares one | Not silence: the count is printed on a green run too, a waiver that excused nothing is told so, and the SARIF keeps the result with the reason as its suppression. |
+| A waiver past its `until`, or missing a field, naming a scan the bundle does not run, or a scope that leads outside | finding under the doctor's own `waivers`, and it excuses nothing | A waiver with no reason is `# noqa`; one with no `until` is permanent; one nobody signed is nobody's. The tool never learned to write any of those. |
 | A `scaffold.json` key no scanner reads — `templates_pth` for `templates_path` | finding, naming the nearest key the bundle does read | Every scanner would answer from its default while the project pointed elsewhere (measured 2026-09-05, round 23). |
 | A `Dockerfile*` the project has but never named in `scaffold.json` | finding | Not "no Dockerfile": the file is there and unjudged. |
 | A directory that is *there* and holds no file of the kind a checker reads — an `app/` of Go, a templates directory of `.ejs` | `NA`, naming what it looked for | Not a pass: nothing was read. |
@@ -113,6 +116,7 @@ reviewdog or an IDE. The mapping, measured against GitHub's Security tab in roun
 | a scan that did not answer | **both** — an error notification, and a result of the doctor's own rule `scan-did-not-answer` | Same reason: the result is the one shape that reader keeps. |
 | every result | carries a **location** the tree has — the file the finding names, else `scaffold.json` | GitHub refuses a whole file over one result without one. |
 | every result | carries a **fingerprint** (`partialFingerprints.primaryLocationLineHash`): the rule, the message with its line number taken out, and its place among identical sentences in the run | GitHub matches an alert across commits on it; a line inserted above a finding moves its region and its `:N`, and must not re-open it (round 26). |
+| a waived finding | a **result with `suppressions`** — `kind: external`, the waiver's reason, `until` and `decided_by` as the justification | A reader counts it, and sees why it does not fail the run; code scanning shows a suppressed result as dismissed with its justification rather than gone (what GitHub does with it was not measured in round 26; the file is). |
 | the run | the invocation names the doctor's exit code and why | The one line about the run that GitHub keeps; the notifications it drops. |
 
 A file already at that path is replaced only if it is this doctor's run over the same
