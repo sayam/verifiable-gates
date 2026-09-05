@@ -3,8 +3,8 @@
 This repository is the governance core extracted from
 [`sayam/flask-todolist`](https://github.com/sayam/flask-todolist) (its
 [ADR 0075 §6](https://github.com/sayam/flask-todolist/blob/main/docs/adr/0075-thesis-track-freeze-effort-and-ceilings.md)).
-The extraction finished on 2026-08-28; the README says what landed and what the
-reference implementation kept.
+The extraction finished on 2026-08-28; [`docs/history.md`](docs/history.md) says what
+landed and what the reference implementation kept.
 
 ## `main` only accepts pull requests
 

@@ -115,13 +115,22 @@ PLACES: dict[str, list[advertised.Place]] = {
         # README says the split too, in both languages — three places `--write` never
         # reached, so a rule added left "The other 83" behind (self-audit, 2026-08-31).
         advertised.Place("README.md", r"The other (\d+) are the rule sheets"),
+        # The restructured README (2026-09-05) says the split twice more, in the pitch and in
+        # *What this is not*; `re.search` holds the first occurrence of a pattern only, so each
+        # sentence has an anchor of its own.
+        advertised.Place("README.md", r"the other (\d+) are written for an agent to read"),
+        advertised.Place("README.md", r"says nothing about the (\d+) it cannot"),
         # The Thai README by its shape — a word, the count, a word, then `agent`.
         advertised.Place("README.th.md", r"\S+ (\d+) \S+ agent "),
     ],
     "checkers_word": [
         advertised.Place("README.md", r"the (\w+) stdlib-only checkers"),
         advertised.Place("README.md", r"Of the \d+ rules, \*\*(\w+)\*\* have"),
-        advertised.Place("README.md", r"\| The (\w+) checks · the doctor"),
+        advertised.Place("README.md", r"means the (\w+) checks it can decide"),
+        advertised.Place("README.md", r"## What the (\w+) checkers decide"),
+        advertised.Place("README.md", r"The (\w+) rules with a checker \(`script:`"),
+        # The stage table moved from README.md to docs/history.md on 2026-09-05.
+        advertised.Place("docs/history.md", r"\| The (\w+) checks · the doctor"),
         advertised.Place("CITATION.cff", r"ships (\w+) standalone checkers"),
         advertised.Place(".zenodo.json", r"ships (\w+) standalone checkers"),
     ],

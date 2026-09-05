@@ -14,6 +14,14 @@ Notable changes to this project. The format follows
   for it. The language test holds the new file to contain Thai and to have its English
   counterpart, and the five places `own_numbers` writes into the Thai text moved with it
   (`DECISIONS.md` `the-thai-readme-is-a-file-beside-it`).
+- `README.md` is restructured so a stranger can decide, install and read the first
+  output in one sitting: quickstart with real transcripts, a four-row table for
+  `pass` / `[found]` / `NA` / `[error]`, the three entry points as a table, the nine
+  checkers as a table. Nothing was dropped: the full verdict taxonomy moved to
+  `docs/output-semantics.md`, the pinning checkers' parsing rules to
+  `docs/checker-reference.md` as tables, and the extraction, the stage table and the
+  two pipes to `docs/history.md`. The `own_numbers` place on the stage table moved with
+  it.
 
 ## [0.3.0] - 2026-09-05
 
