@@ -39,7 +39,14 @@ gates:
       `AGENTS.md`, read by the sixty-odd agents that follow the agents.md
       convention and imported by `CLAUDE.md` for the one that does not — a card a
       machine will act on, so it is held to point at things that exist and to copy
-      no rule, since a copied rule is the one that goes stale.
+      no rule, since a copied rule is the one that goes stale. The DOI itself found a
+      fifth way to be stale on 2026-09-05: what a reader sees on the badge is drawn on
+      the image from its URL, where the slash of the DOI arrives percent-encoded, and
+      the plain-looking DOI beside it is alt text nobody reads unless the image fails
+      — so a check over raw markdown was holding the caption rather than the picture;
+      and the Thai README and the history page print the same number to the same
+      reader and were not read at all. With a wrong record in the badge URL and a
+      wrong one in `README.th.md`, all 2267 tests passed.
     proved_by:
       - kind: mutation
         ref: pr/258
@@ -84,6 +91,14 @@ gates:
           and nothing about what installing does — red; the hook's switch dropped from
           it, red; the count word changed on the manifest alone, red in own_numbers
           (round 24, F3: the third card is what Claude Code shows before install).
+      - kind: mutation
+        ref: pr/276
+        date: 2026-09-05
+        caught: >-
+          The record number changed inside the badge's image URL, where a reader reads
+          it off the picture and the regex over raw markdown did not — red; the DOI in
+          `README.th.md` changed, red; the DOI on `docs/history.md` changed, red. All
+          three were green before this change.
 
   - id: the-archive-is-read-back
     title: The archive reader holds Zenodo's versions to the releases both ways, and posture's cron runs it live

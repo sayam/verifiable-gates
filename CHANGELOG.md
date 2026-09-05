@@ -14,6 +14,14 @@ Notable changes to this project. The format follows
   the v0.3.1 page answered 404 while GitHub resolved every one. A test holds both
   directions: no relative link, and every link into this repository names a path — and an
   anchor — that exists (round 24). The PyPI page shows the fix from the next release on.
+- The DOI is held where a reader actually reads it. What a reader sees on the DOI badge is
+  drawn on the image from its URL, where the slash arrives percent-encoded as `%2F`, so the
+  check that compared every DOI in `README.md` to `CITATION.cff` was reading the alt text
+  beside the badge and not the number on it; `README.th.md` and `docs/history.md` print the
+  same DOI and were not read at all. With a wrong record in the badge URL and a wrong one in
+  the Thai README, all 2267 tests passed. The check now unquotes each document before it
+  searches, and runs over all three. `CHANGELOG.md` stays out of it on purpose: a DOI inside
+  a released entry is a record of what was said on a day, not a claim about today.
 
 ### Added
 
