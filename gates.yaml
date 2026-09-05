@@ -3996,3 +3996,37 @@ gates:
           one declared category dropped from the fixture, red; a category nobody declared
           added to it, red (the check reads both directions). Live against the real listing
           after the owner's change: **exit 0**.
+  - id: a-published-id-is-never-taken-away
+    title: Every rule and practice id this project has released is still in the catalogue
+    kind: test
+    severity: blocking
+    enforced_by: {job: test, tests: [tests/test_released_ids.py]}
+    layer: internal
+    pillar: devx
+    portable: false
+    born_from: >-
+      The id is the one thing about a rule that leaves this repository and does not come back.
+      Measured in round 25 (2026-09-05): the SARIF the doctor writes labels every result with
+      the rule id, and that string is what GitHub code scanning stores per alert — what a
+      dismissal is attached to, what a dashboard groups by, and what a consumer's own
+      `gates.yaml` row names. Rename it and each of those points at nothing, in somebody
+      else's repository, at a moment nobody here is watching. Seventeen releases had never
+      removed one — 92 rule ids at every tag from v0.1.0 to v0.4.0, the nine shipped scan ids
+      identical throughout — and **nothing held that**: renaming a rule id was red only
+      because the committed sheets stopped matching a fresh render, so regenerating them in
+      the same change made it green again, and renaming a gate id left all 2312 tests
+      passing. The stability was a practice by one hand. This gate turns it into a promise,
+      and it costs nothing to keep, because the way a rule leaves already exists: `retracted:`
+      withdraws it in place, with the date and the reason, and the id stays. Our own
+      `gates.yaml` ids are deliberately outside it — they are this repository's enforcement,
+      they are not shipped, and no consumer sees one; a gate goes when the test that was it
+      goes, which `scan_gates_registry` refuses to let happen silently.
+    proved_by:
+      - kind: mutation
+        ref: pr/287
+        date: 2026-09-05
+        caught: >-
+          A rule id renamed **and the sheets regenerated in the same change** — the shape that
+          was green before this gate existed — red; a rule entry deleted outright, red; a
+          practice id renamed, red; `released_tags` made to answer nothing, red in the guard
+          that refuses a comparison over an empty list (round 25, F1).
