@@ -154,6 +154,11 @@ it into a test. What each pipe sends and fetches, and why there is no registry o
 project's own, is in [`docs/history.md`](https://github.com/sayam/verifiable-gates/blob/main/docs/history.md#the-two-pipes) and
 `DECISIONS.md` `distribution-is-two-pipes-nobody-here-owns`.
 
+A rule that turns out to be wrong is **withdrawn in place**, never deleted: `retracted:`
+keeps it in the catalogue and on its sheet with the date and the reason, marked and out of
+every count, so a reader who followed it can find out that they should stop. Nothing is
+withdrawn today.
+
 A rule may also say where it sits in a vocabulary somebody else already speaks:
 `maps_to:` names items of [OpenSSF Scorecard](https://github.com/ossf/scorecard/blob/main/docs/checks.md),
 [SLSA v1.0](https://slsa.dev/spec/v1.0/levels) and

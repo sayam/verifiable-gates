@@ -133,6 +133,9 @@ action อยู่บน [GitHub Marketplace](https://github.com/marketplace/ac
 เปลี่ยนมันเป็นเทสต์อย่างไร · ท่อแต่ละท่อส่งอะไร ดึงอะไร และทำไมไม่มี registry ของ repo นี้เอง อยู่ใน
 [`docs/history.md`](https://github.com/sayam/verifiable-gates/blob/main/docs/history.md#the-two-pipes) และ `DECISIONS.md` `distribution-is-two-pipes-nobody-here-owns`
 
+กฎที่ปรากฏภายหลังว่าผิด จะถูก**ถอนคาที่** ไม่ถูกลบ: `retracted:` เก็บมันไว้ในคลังกฎและบนแผ่นกฎพร้อมวันที่กับเหตุผล
+ทำเครื่องหมายไว้และไม่ถูกนับในตัวเลขใด ๆ เพื่อให้คนที่เคยทำตามกฎข้อนั้นรู้ได้ว่าควรหยุด · วันนี้ยังไม่มีข้อไหนถูกถอน
+
 กฎหนึ่งข้อบอกได้ด้วยว่ามันอยู่ตรงไหนในคำศัพท์ที่คนอื่นใช้กันอยู่แล้ว: `maps_to:` อ้างรายการของ
 [OpenSSF Scorecard](https://github.com/ossf/scorecard/blob/main/docs/checks.md) ·
 [SLSA v1.0](https://slsa.dev/spec/v1.0/levels) · [NIST SSDF](https://csrc.nist.gov/pubs/sp/800/218/final)
