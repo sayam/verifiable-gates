@@ -9,11 +9,20 @@ nothing had ever looked. A setting a person can change on a web form, that nobod
 back, is a setting that drifts silently — the same shape as the branch-protection switches
 `posture.yml` already reads, one surface along.
 
-So the order is declared here and compared with what the listing shows. This check can only
-**report**: the fix is a person on the release form, and the message says so.
+**Which of the two is primary is not held, because the platform does not keep it.** Measured
+the same day, in this order: the owner set *Primary Category = Code quality* on the form and
+pressed Update release; the listing payload still read `Continuous integration, Code quality`
+eight minutes later, over repeated fetches, with the page served uncached
+(`cache-control: max-age=0, private, must-revalidate`, a fresh `etag` each time); and the
+owner reopened the form and found **Continuous integration selected as primary again**. The
+order is GitHub's, not ours. A register that claimed to hold it would be a register nobody
+can make true — the thing this repository exists to refuse — so what is held is that **both
+categories are there and no third one is** (`DECISIONS.md`
+`the-listings-primary-category-is-not-ours-to-hold`).
 
-Three answers: 0 the listing says what was declared · 1 it does not, and the difference is
-named · 2 the listing could not be asked, or answered with something that is not the listing.
+Three answers: 0 the listing carries the two categories declared · 1 it does not, and the
+difference is named · 2 the listing could not be asked, or answered with something that is
+not the listing.
 
 Role: decider — it answers pass or fail with an exit code and a job blocks on it
 (`posture.yml`'s cron, weekly and on every push to `main`). What it decides on is a page
@@ -35,13 +44,12 @@ __all__ = ["DECLARED", "LISTING", "categories", "fetch_listing", "main", "proble
 
 LISTING = "https://github.com/marketplace/actions/verifiable-gates"
 
-# **In order**: the first is the *Primary Category* on the release form, the second the
-# optional one beside it. The runbook that listed this action (2026-09-05) chose Code quality
-# first and Continuous integration second — a gate registry is a code-quality tool that
-# happens to run in CI, not a CI tool — and the owner re-decided the same order on
-# 2026-09-05 when the form was found the other way round. A copy of this tuple lives in
-# `tests/test_marketplace.py`, so changing what we mean is a change a reviewer sees twice.
-DECLARED = ("Code quality", "Continuous integration")
+# **As a set, deliberately.** The two categories a reader should find on the listing; which
+# one the platform calls primary is the platform's to decide (see the docstring — the form
+# was set to Code quality, saved, and came back showing Continuous integration). A copy of
+# this set lives in `tests/test_marketplace.py`, so changing what we mean is a change a
+# reviewer sees twice.
+DECLARED = frozenset({"Code quality", "Continuous integration"})
 
 # The page embeds its own payload; the visible chips are rendered from it, and there is more
 # than one of them on the page (the listing shows one category, the payload carries both), so
@@ -80,14 +88,26 @@ def categories(page: str) -> tuple[str, ...]:
     return tuple(NAME.findall(payload.group(1)))
 
 
-def problems(found: tuple[str, ...], declared: tuple[str, ...] = DECLARED) -> list[str]:
-    """What the listing says that the declaration does not, in one sentence each."""
-    if found == declared:
+def problems(found: tuple[str, ...], declared: frozenset[str] = DECLARED) -> list[str]:
+    """What the listing carries that the declaration does not, and the other way round.
+
+    Order is not compared, and the docstring says why. What is compared is membership, in
+    both directions: a category gone is a listing that stopped saying what this is, and a
+    category added is one that says something nobody here decided.
+    """
+    if set(found) == set(declared):
         return []
+    gone = sorted(set(declared) - set(found))
+    extra = sorted(set(found) - set(declared))
+    parts = []
+    if gone:
+        parts.append(f"the listing no longer carries {gone}")
+    if extra:
+        parts.append(f"the listing carries {extra}, which nobody here declared")
     said = (
-        f"the listing shows {list(found)}; this repository declares {list(declared)}"
-        " — primary first. Only a person can change it: the release form of any release,"
-        " Primary Category and the one beside it, then Update release."
+        f"{'; '.join(parts)} (it shows {list(found)}). Only a person can change it: the"
+        " release form of any release, Primary Category and the one beside it, then Update"
+        " release — the order between them is GitHub's and is not held here."
     )
     return [said]
 
@@ -110,7 +130,7 @@ def main(argv: list[str] | None = None) -> int:
         print(f"** {problem}", file=sys.stderr)
     if found_problems:
         return 1
-    print(f"the listing says what was declared: {' · '.join(found)}")
+    print(f"the listing carries the two categories declared: {' · '.join(sorted(found))}")
     return 0
 
 

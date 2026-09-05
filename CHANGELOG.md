@@ -6,6 +6,22 @@ Notable changes to this project. The format follows
 
 ## [Unreleased]
 
+### Changed
+
+- **The Marketplace listing's categories are held as a set, and the order is not.** The check
+  added hours earlier compared the two **in order**, on the reading that the first is the
+  *Primary Category* on the release form. Measured the same day, in this order: the owner set
+  *Primary Category = Code quality* and pressed Update release; the listing payload still read
+  `Continuous integration, Code quality` eight minutes later over repeated fetches, with the
+  page served uncached (`cache-control: max-age=0, private, must-revalidate`, a fresh `etag`
+  each time); and **the reopened form showed Continuous integration selected as primary
+  again**. The order is the platform's. A register claiming to hold it would be one nobody
+  here can make true, which is the failure this repository is organised against — so
+  `marketplace.problems` compares membership in both directions (a category gone, and a
+  category nobody declared) and says in as many words that the order is GitHub's.
+  `DECISIONS.md` `the-listings-primary-category-is-not-ours-to-hold`, with the condition that
+  would bring the order back. The check is green against the real listing.
+
 ### Added
 
 - **`verifiable_gates.marketplace`: the listing's categories, read back.** The two categories

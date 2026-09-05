@@ -3969,7 +3969,12 @@ gates:
       challenge, a 404 body served with 200 — is the third answer and not a finding, because
       "no categories" and "the listing was emptied" would otherwise be the same sentence
       (measured the same day on another host: pypi.org answers `curl` with a challenge page,
-      HTTP 200).
+      HTTP 200). What is held is the **set**, not the order: hours later the owner set
+      *Primary Category = Code quality* on the form and pressed Update release, the listing
+      payload still read `Continuous integration, Code quality` eight minutes on over
+      repeated uncached fetches, and the reopened form showed Continuous integration primary
+      again — the order is the platform's, and a register claiming it would be one nobody
+      here can make true (`DECISIONS.md` `the-listings-primary-category-is-not-ours-to-hold`).
     proved_by:
       - kind: mutation
         ref: pr/283
@@ -3982,3 +3987,12 @@ gates:
           difference between "could not ask" and "the listing is wrong". Run live against the
           real listing on 2026-09-05: **exit 1**, naming both orders — the finding this gate
           was built to make visible.
+      - kind: mutation
+        ref: pr/284
+        date: 2026-09-05
+        caught: >-
+          The set turned back into an ordered comparison — red on the page the platform
+          actually serves, which is the shape that would have kept a finding open forever;
+          one declared category dropped from the fixture, red; a category nobody declared
+          added to it, red (the check reads both directions). Live against the real listing
+          after the owner's change: **exit 0**.
