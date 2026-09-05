@@ -2,11 +2,11 @@
 
 [![PyPI](https://img.shields.io/pypi/v/verifiable-gates)](https://pypi.org/project/verifiable-gates/)
 [![Python](https://img.shields.io/pypi/pyversions/verifiable-gates)](https://pypi.org/project/verifiable-gates/)
-[![Code: Apache-2.0](https://img.shields.io/badge/code-Apache--2.0-blue)](LICENSE)
-[![Rules: CC BY 4.0](https://img.shields.io/badge/rules-CC_BY_4.0-blue)](LICENSE-docs)
+[![Code: Apache-2.0](https://img.shields.io/badge/code-Apache--2.0-blue)](https://github.com/sayam/verifiable-gates/blob/main/LICENSE)
+[![Rules: CC BY 4.0](https://img.shields.io/badge/rules-CC_BY_4.0-blue)](https://github.com/sayam/verifiable-gates/blob/main/LICENSE-docs)
 [![DOI 10.5281/zenodo.22103110](https://img.shields.io/badge/DOI-10.5281%2Fzenodo.22103110-blue)](https://doi.org/10.5281/zenodo.22103110)
 
-Thai: [`README.th.md`](README.th.md).
+Thai: [`README.th.md`](https://github.com/sayam/verifiable-gates/blob/main/README.th.md).
 
 A registry of CI gates for projects built with or without AI coding agents. Every
 gate carries evidence of having gone red on a real defect, and the same rules ship
@@ -57,7 +57,7 @@ about itself. Everything else is `NA` until the project has something to check.
 
 Add one workflow with a floating tag and an unpinned install, and the same command
 answers with two findings and exits 1 (the full transcript, with the third finding
-the new job itself causes, is in [`docs/output-semantics.md`](docs/output-semantics.md)):
+the new job itself causes, is in [`docs/output-semantics.md`](https://github.com/sayam/verifiable-gates/blob/main/docs/output-semantics.md)):
 
 ```text
 [found] actions-sha-pinned — Every action is pinned to a commit SHA with the version in a comment
@@ -90,15 +90,15 @@ Two consequences to know before trusting a green:
 
 The full taxonomy — every `NA` and `[error]` case, the `--installed` record, `--rules`
 off an edited bundle, the SARIF mapping — is in
-[`docs/output-semantics.md`](docs/output-semantics.md).
+[`docs/output-semantics.md`](https://github.com/sayam/verifiable-gates/blob/main/docs/output-semantics.md).
 
 ## Three ways to run it
 
 | Entry point           | Runs                         | Config                                                                                                                      | Default                     |
 |-----------------------|------------------------------|-----------------------------------------------------------------------------------------------------------------------------|-----------------------------|
-| GitHub Action         | on push / pull request       | `uses: sayam/verifiable-gates@<commit-sha> # vX.Y.Z` · optional `with: sarif: gates.sarif` ([`action.yml`](action.yml))  | —                           |
-| pre-commit            | before each commit           | `repo: https://github.com/sayam/verifiable-gates` · hook `gates-doctor`, or one hook per rule id ([`.pre-commit-hooks.yaml`](.pre-commit-hooks.yaml)) | —                    |
-| Claude Code edit hook | after every `Edit` / `Write` | plugin installed (below) · `"env": {"VERIFIABLE_GATES_AT_EDIT": "1"}` in `.claude/settings.json` ([`hooks/hooks.json`](hooks/hooks.json)) | off; reports, never refuses |
+| GitHub Action         | on push / pull request       | `uses: sayam/verifiable-gates@<commit-sha> # vX.Y.Z` · optional `with: sarif: gates.sarif` ([`action.yml`](https://github.com/sayam/verifiable-gates/blob/main/action.yml))  | —                           |
+| pre-commit            | before each commit           | `repo: https://github.com/sayam/verifiable-gates` · hook `gates-doctor`, or one hook per rule id ([`.pre-commit-hooks.yaml`](https://github.com/sayam/verifiable-gates/blob/main/.pre-commit-hooks.yaml)) | —                    |
+| Claude Code edit hook | after every `Edit` / `Write` | plugin installed (below) · `"env": {"VERIFIABLE_GATES_AT_EDIT": "1"}` in `.claude/settings.json` ([`hooks/hooks.json`](https://github.com/sayam/verifiable-gates/blob/main/hooks/hooks.json)) | off; reports, never refuses |
 
 All three run `tools/` as the project has it, and none carries a copy of the
 checkers. Moving the SHA, the `rev` or the plugin version changes nothing about what
@@ -118,25 +118,25 @@ this list off the installed bundle, with each rule's incident.
 
 | Rule id | What it catches | What it reads |
 |---|---|---|
-| [`gates-registry-total`](docs/checker-reference.md#gates-registry-total) | A CI job with no row in the gate index, a row nothing can fail, a test file no gate claims | `gates.yaml`, every workflow under `.github/workflows`, the test files |
-| [`actions-sha-pinned`](docs/checker-reference.md#actions-sha-pinned) | A `uses:` on a floating tag, or on a SHA with no version comment beside it | `uses:` steps of workflows and composite actions under `.github` |
-| [`ci-tools-hash-pinned`](docs/checker-reference.md#ci-tools-hash-pinned) | A tool CI installs for itself without hashes or a lock | pip, pipx, uv, poetry, pdm, pipenv, npm, npx, yarn, pnpm and `python -m build` lines in workflows, the scripts they run, the root Dockerfile |
-| [`image-digest-pinned`](docs/checker-reference.md#image-digest-pinned) | A base image not pinned to a manifest-index digest, or pinned with nobody to move it | `FROM` lines of the root Dockerfile, `.github/dependabot.yml` |
-| [`csp-no-inline`](docs/checker-reference.md#csp-no-inline) | Inline script, style or handler in a template | `.html`, `.htm`, `.jinja`, `.jinja2`, `.j2` under the templates path |
-| [`no-debug-entrypoint`](docs/checker-reference.md#no-debug-entrypoint) | An entrypoint that can open a debug console | `run.py`, `wsgi.py`, `app.py`, `main.py`, as an AST |
-| [`logic-knows-no-http`](docs/checker-reference.md#logic-knows-no-http) | A service module importing from the request side | Python modules under the services path, their imports |
-| [`delete-means-soft-delete`](docs/checker-reference.md#delete-means-soft-delete) | A `session.delete` outside the one purge path (layer `business`) | Python modules under the source path |
-| [`adr-index-complete`](docs/checker-reference.md#adr-index-complete) | An ADR missing from the index, a repeated or skipped number, a supersession recorded one way | `.md` records and the `README.md` index under the ADR path |
+| [`gates-registry-total`](https://github.com/sayam/verifiable-gates/blob/main/docs/checker-reference.md#gates-registry-total) | A CI job with no row in the gate index, a row nothing can fail, a test file no gate claims | `gates.yaml`, every workflow under `.github/workflows`, the test files |
+| [`actions-sha-pinned`](https://github.com/sayam/verifiable-gates/blob/main/docs/checker-reference.md#actions-sha-pinned) | A `uses:` on a floating tag, or on a SHA with no version comment beside it | `uses:` steps of workflows and composite actions under `.github` |
+| [`ci-tools-hash-pinned`](https://github.com/sayam/verifiable-gates/blob/main/docs/checker-reference.md#ci-tools-hash-pinned) | A tool CI installs for itself without hashes or a lock | pip, pipx, uv, poetry, pdm, pipenv, npm, npx, yarn, pnpm and `python -m build` lines in workflows, the scripts they run, the root Dockerfile |
+| [`image-digest-pinned`](https://github.com/sayam/verifiable-gates/blob/main/docs/checker-reference.md#image-digest-pinned) | A base image not pinned to a manifest-index digest, or pinned with nobody to move it | `FROM` lines of the root Dockerfile, `.github/dependabot.yml` |
+| [`csp-no-inline`](https://github.com/sayam/verifiable-gates/blob/main/docs/checker-reference.md#csp-no-inline) | Inline script, style or handler in a template | `.html`, `.htm`, `.jinja`, `.jinja2`, `.j2` under the templates path |
+| [`no-debug-entrypoint`](https://github.com/sayam/verifiable-gates/blob/main/docs/checker-reference.md#no-debug-entrypoint) | An entrypoint that can open a debug console | `run.py`, `wsgi.py`, `app.py`, `main.py`, as an AST |
+| [`logic-knows-no-http`](https://github.com/sayam/verifiable-gates/blob/main/docs/checker-reference.md#logic-knows-no-http) | A service module importing from the request side | Python modules under the services path, their imports |
+| [`delete-means-soft-delete`](https://github.com/sayam/verifiable-gates/blob/main/docs/checker-reference.md#delete-means-soft-delete) | A `session.delete` outside the one purge path (layer `business`) | Python modules under the source path |
+| [`adr-index-complete`](https://github.com/sayam/verifiable-gates/blob/main/docs/checker-reference.md#adr-index-complete) | An ADR missing from the index, a repeated or skipped number, a supersession recorded one way | `.md` records and the `README.md` index under the ADR path |
 
 The paths are the defaults `scaffold.json` carries; the project moves them there.
 
 ## The 92 rules
 
-[`rules.yaml`](rules.yaml) — 92 rules, each carrying the incident that produced it
+[`rules.yaml`](https://github.com/sayam/verifiable-gates/blob/main/rules.yaml) — 92 rules, each carrying the incident that produced it
 (`born_from`), because a rule with no origin is a rule nobody knows when to remove.
 They are rendered into an agent skill in the layout of the
 [Agent Skills specification](https://agentskills.io/specification):
-[`skills/verifiable-gates/SKILL.md`](skills/verifiable-gates/SKILL.md) is the front
+[`skills/verifiable-gates/SKILL.md`](https://github.com/sayam/verifiable-gates/blob/main/skills/verifiable-gates/SKILL.md) is the front
 page, and the full entries sit beside it in `references/`.
 
 Two pipes this repository does not own install the skill without cloning:
@@ -150,7 +150,7 @@ The nine rules with a checker (`script:` in `rules.yaml`) are the ones the docto
 the installer decide, and nothing else. The other 83 are the rule sheets an agent is held to by
 reading, and the *Enforced in the reference* line on each says how one project turned
 it into a test. What each pipe sends and fetches, and why there is no registry of this
-project's own, is in [`docs/history.md`](docs/history.md#the-two-pipes) and
+project's own, is in [`docs/history.md`](https://github.com/sayam/verifiable-gates/blob/main/docs/history.md#the-two-pipes) and
 `DECISIONS.md` `distribution-is-two-pipes-nobody-here-owns`.
 
 `rules.yaml` and the sheets come with the checkout, not with the wheel. The package
@@ -187,7 +187,7 @@ The two schemas — `rules.py` for this catalogue, `registry.py` for a project's
 A rule and its enforcement live in separate files, because they have separate
 lifetimes: `rules.yaml` is what this project publishes; `gates.yaml` is what this
 project is itself held to. What was deliberately not done, each with the condition
-that would expire it, is [`DECISIONS.md`](DECISIONS.md).
+that would expire it, is [`DECISIONS.md`](https://github.com/sayam/verifiable-gates/blob/main/DECISIONS.md).
 
 ## Provenance and status
 
@@ -198,14 +198,14 @@ tag `evidence-freeze-1` is the state the measurements were taken on and `v0.1.0`
 The extraction from the reference implementation,
 [`sayam/flask-todolist`](https://github.com/sayam/flask-todolist), is complete;
 the stage table, the census and what stayed behind are in
-[`docs/history.md`](docs/history.md). Consume a pinned submodule or a versioned
+[`docs/history.md`](https://github.com/sayam/verifiable-gates/blob/main/docs/history.md). Consume a pinned submodule or a versioned
 dependency, never `main`.
 
 ## Licence
 
-- Code: [Apache-2.0](LICENSE). Contributors sign [`CLA.md`](CLA.md) — one line in
+- Code: [Apache-2.0](https://github.com/sayam/verifiable-gates/blob/main/LICENSE). Contributors sign [`CLA.md`](https://github.com/sayam/verifiable-gates/blob/main/CLA.md) — one line in
   the pull request; you keep your copyright.
-- Rules and documentation: [CC BY 4.0](LICENSE-docs).
+- Rules and documentation: [CC BY 4.0](https://github.com/sayam/verifiable-gates/blob/main/LICENSE-docs).
 
 The application this was extracted from stays AGPL-3.0-or-later. The two differ
 on purpose: a CI tool is not a network service, and a rule meant to be adopted
@@ -213,5 +213,5 @@ inside an organisation's internal handbook must not require share-alike.
 
 ---
 
-[`README.th.md`](README.th.md) · [`docs/`](docs/) · [`CONTRIBUTING.md`](CONTRIBUTING.md) ·
-[`SECURITY.md`](SECURITY.md) · [`CHANGELOG.md`](CHANGELOG.md) · [the experiment](docs/comparison/)
+[`README.th.md`](https://github.com/sayam/verifiable-gates/blob/main/README.th.md) · [`docs/`](https://github.com/sayam/verifiable-gates/tree/main/docs) · [`CONTRIBUTING.md`](https://github.com/sayam/verifiable-gates/blob/main/CONTRIBUTING.md) ·
+[`SECURITY.md`](https://github.com/sayam/verifiable-gates/blob/main/SECURITY.md) · [`CHANGELOG.md`](https://github.com/sayam/verifiable-gates/blob/main/CHANGELOG.md) · [the experiment](https://github.com/sayam/verifiable-gates/tree/main/docs/comparison)

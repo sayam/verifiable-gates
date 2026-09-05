@@ -6,6 +6,15 @@ Notable changes to this project. The format follows
 
 ## [Unreleased]
 
+### Fixed
+
+- Every link in `README.md` and `README.th.md` is absolute
+  (`https://github.com/sayam/verifiable-gates/blob/main/…`). PyPI renders the README as the
+  long description and resolves a relative link against pypi.org, so 31 of the 43 links on
+  the v0.3.1 page answered 404 while GitHub resolved every one. A test holds both
+  directions: no relative link, and every link into this repository names a path — and an
+  anchor — that exists (round 24). The PyPI page shows the fix from the next release on.
+
 ### Added
 
 - `verifiable_gates.proved_by_refs`: every `proved_by.ref` in `gates.yaml`, resolved against

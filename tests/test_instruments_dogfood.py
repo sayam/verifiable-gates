@@ -414,6 +414,52 @@ def test_the_action_is_listable_on_the_marketplace_and_the_checklist_says_so() -
     assert "pin the SHA, not the tag the listing offers" in readme
 
 
+MARKDOWN_LINK = re.compile(r"\]\(([^)\s]+)\)")
+REPO_LINK = re.compile(
+    r"^https://github\.com/sayam/verifiable-gates/(blob|tree)/main/([^#]*?)/?(?:#(.+))?$"
+)
+HEADING = re.compile(r"^#+\s+(.*)$", re.MULTILINE)
+
+
+def _slugs(markdown: pathlib.Path) -> set[str]:
+    """GitHub's heading anchors: lower-case, punctuation dropped, spaces to dashes."""
+    return {
+        re.sub(r"[^\w\- ]", "", title.strip().lower()).replace(" ", "-")
+        for title in HEADING.findall(markdown.read_text(encoding="utf-8"))
+    }
+
+
+@pytest.mark.parametrize("name", ["README.md", "README.th.md"])
+def test_every_readme_link_is_absolute_and_every_one_into_this_repository_exists(
+    name: str,
+) -> None:
+    """Two directions. PyPI renders `README.md` as the long description and resolves a
+    relative link against pypi.org — 31 of 43 answered 404 there on 2026-09-05, the day
+    after v0.3.1, while GitHub resolved every one (round 24, F4; found by the owner
+    clicking). So no link is relative. And an absolute link into this repository cannot
+    rot silently the way a relative one could not: the path it names exists, `tree` is a
+    directory and `blob` a file, and a `#anchor` on a Markdown file names one of its headings.
+    """
+    targets = MARKDOWN_LINK.findall((ROOT / name).read_text(encoding="utf-8"))
+    relative = [t for t in targets if not t.startswith(("http://", "https://", "#"))]
+    assert relative == [], f"{name}: relative links, 404 on PyPI: {relative}"
+    ours = [t for t in targets if "github.com/sayam/verifiable-gates/" in t]
+    into_repo = [(t, REPO_LINK.match(t)) for t in ours]
+    checked = 0
+    for target, match in into_repo:
+        if match is None:
+            continue  # a release, a pull request, a tag — not a path in the tree
+        kind, path, anchor = match.groups()
+        named = ROOT / path
+        assert named.exists(), f"{name}: {target} names nothing in the tree"
+        assert (kind == "tree") == named.is_dir(), f"{name}: {target} — blob/tree does not match"
+        if anchor:
+            assert named.suffix == ".md", f"{name}: an anchor on a non-Markdown file: {target}"
+            assert anchor in _slugs(named), f"{name}: no heading `{anchor}` in {path}"
+        checked += 1
+    assert checked, f"{name} links into this repository nowhere — if deliberate, delete this test"
+
+
 def test_the_readme_says_beside_the_npx_command_what_the_pipe_sends() -> None:
     """`DECISIONS.md` `distribution-is-two-pipes-nobody-here-owns` says the README says it beside
     the command (round 23, A1). The README restructure (#265) moved the sentence to
