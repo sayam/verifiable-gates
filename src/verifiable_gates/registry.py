@@ -54,7 +54,14 @@ __all__ = [
 SCHEMA_VERSION = 1
 
 KINDS = frozenset({"test", "job", "step"})
-SEVERITIES = frozenset({"blocking", "watched", "warning"})
+# A severity is what something reads. `blocking` is every gate on a run — a scan is red
+# whatever the row says — and `watched` is the one the red-streak census measures: a gate
+# on a workflow that does not block, with a `watched_by` promise that somebody looks
+# within `within_days`. `warning` was here from the first schema and read by nothing;
+# a gate marked with it was as red as any other, and the word promised a softness no
+# run delivered (self-audit round 26, 2026-09-05). Whatever a project wants to say
+# "not yet" about goes through a waiver with a reason and a date, not a label.
+SEVERITIES = frozenset({"blocking", "watched"})
 LAYERS = frozenset({"baseline", "business", "internal"})
 PILLARS = frozenset({"security", "performance", "manageability", "devx"})
 PROOF_KINDS = frozenset({"ci-red", "mutation"})
@@ -177,6 +184,27 @@ def _vocabulary_problems(gate_id: str, gate: dict[str, Any]) -> list[str]:
     ]
 
 
+def _watch_problems(gate_id: str, gate: dict[str, Any]) -> list[str]:
+    """`watched` and `watched_by` come together, or the word names a promise nobody made
+    — and a promise on a gate that blocks is one the census never measures."""
+    severity, watcher = gate.get("severity"), gate.get("watched_by")
+    if severity == "watched" and not watcher:
+        return [
+            (
+                f"{gate_id}: severity watched without watched_by — watched is a promise that"
+                " somebody looks within a number of days, and this row makes none"
+            )
+        ]
+    if severity == "blocking" and watcher:
+        return [
+            (
+                f"{gate_id}: severity blocking with watched_by — a gate that blocks needs no"
+                " watcher, and the census measures promises only on workflows that do not block"
+            )
+        ]
+    return []
+
+
 def _enforcement_problems(gate_id: str, gate: dict[str, Any]) -> list[str]:
     """`kind` and `enforced_by` have to describe the same enforcement.
 
@@ -239,6 +267,7 @@ def problems(gates: list[dict[str, Any]]) -> list[str]:
             for key in sorted(set(gate) - KEYS)
         )
         found.extend(_vocabulary_problems(gate_id, gate))
+        found.extend(_watch_problems(gate_id, gate))
         found.extend(_export_problems(gate_id, gate))
         found.extend(_enforcement_problems(gate_id, gate))
         if "proved_by" in gate:
