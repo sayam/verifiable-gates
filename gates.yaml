@@ -284,6 +284,15 @@ gates:
       repository. The rule `fail-fix-harness-honest` was published from a tree
       whose harness had never been asked about that tree.
     proved_by:
+      - kind: mutation
+        ref: pr/260
+        date: 2026-09-05
+        caught: >-
+          The `branding` block removed from `action.yml`, its colour set to one GitHub
+          does not accept, its icon set to one GitHub omits, and the Marketplace
+          checkbox dropped from step 4 of the releasing checklist — each red in the
+          test that holds the action's listing metadata together with the checklist
+          sentence (the owner asked for a Marketplace listing, 2026-09-05).
       - kind: ci-red
         ref: run/33937392727
         date: 2026-09-05

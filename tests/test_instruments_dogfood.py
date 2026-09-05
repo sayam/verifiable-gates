@@ -355,6 +355,53 @@ def test_the_release_publishes_to_the_index_only_what_verified_and_only_after() 
         assert phrase in step_five, f"checklist step 5 does not say: {phrase}"
 
 
+# The nine colours GitHub's metadata syntax accepts for `branding.color`, and the Feather
+# icons it omits (read from the docs, 2026-09-05; the full icon list is theirs to keep).
+BRANDING_COLOURS = frozenset(
+    ["white", "black", "yellow", "blue", "green", "orange", "red", "purple", "gray-dark"]
+)
+FEATHER_OMITTED = frozenset(
+    [
+        "coffee",
+        "columns",
+        "divide-circle",
+        "divide-square",
+        "divide",
+        "frown",
+        "hexagon",
+        "key",
+        "meh",
+        "mouse-pointer",
+        "smile",
+        "tool",
+        "x-octagon",
+    ]
+)
+
+
+def test_the_action_is_listable_on_the_marketplace_and_the_checklist_says_so() -> None:
+    """A Marketplace listing is a checkbox on the release form that validates `action.yml`
+    — name, description, author, and a `branding` the listing shows. The box is ticked by
+    a person, every release; the metadata is this repository's, held here with the
+    checklist step that names the box, the way step 5 is held with the publish step."""
+    loaded = yaml.safe_load((ROOT / "action.yml").read_text(encoding="utf-8"))
+    for key in ("name", "description", "author"):
+        assert str(loaded.get(key, "")).strip(), f"action.yml has no {key}"
+    branding = loaded["branding"]
+    assert set(branding) == {"icon", "color"}, branding
+    assert branding["color"] in BRANDING_COLOURS, branding["color"]
+    assert re.fullmatch(r"[a-z0-9]+(-[a-z0-9]+)*", branding["icon"]), branding["icon"]
+    assert branding["icon"] not in FEATHER_OMITTED, "an icon GitHub does not accept"
+    releasing = (ROOT / "CONTRIBUTING.md").read_text(encoding="utf-8")
+    releasing = releasing[releasing.index("## Releasing") :]
+    step_four = releasing[releasing.index("\n4. ") : releasing.index("\n5. ")]
+    for phrase in (
+        "Publish this Action to the GitHub Marketplace",
+        "github.com/marketplace/actions/verifiable-gates",
+    ):
+        assert phrase in step_four, f"checklist step 4 does not say: {phrase}"
+
+
 def test_the_sbom_is_taken_from_a_clean_environment_holding_the_wheel() -> None:
     """The SBOM records what was verified by hash, not what the index served that minute."""
     jobs = preflight.jobs_on_disk(ROOT)
