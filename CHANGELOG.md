@@ -6,6 +6,22 @@ Notable changes to this project. The format follows
 
 ## [Unreleased]
 
+### Added
+
+- **A waiver: the one way to say "not yet", and the record keeps it.** Round 26 measured day
+  one on real trees — django **772** findings, **627** of them one gate's test-file half;
+  flask 30 of 30 — and the moves a project had: fix everything, delete the scan from the
+  overlay, or point a path at nothing, which was silent. `scaffold.json` now takes
+  `waivers: [{gate, reason, until, decided_by, scope?}]`. A covered finding is printed as
+  `[waived]` and does not fail the run; every run that declares a waiver prints
+  `waived: N findings under M waivers` with each waiver's terms, and one that excused
+  nothing is told so; a waiver past its `until` (UTC, in force through that day), missing a
+  field, naming a scan the bundle does not run, or scoped outside the tree is a finding under
+  the doctor's own `waivers` and excuses nothing. The SARIF keeps a waived result with the
+  reason as its `suppressions` justification. The waiver lives in `scaffold.json`, not
+  `gates.yaml`, because the doctor ships alone and reads JSON and nothing else — a YAML block
+  would have meant a second reader carried in that file (#293).
+
 ### Changed
 
 - **A severity is what something reads: `warning` is retired.** Round 26 measured that
