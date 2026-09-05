@@ -42,6 +42,15 @@ gates:
       no rule, since a copied rule is the one that goes stale.
     proved_by:
       - kind: mutation
+        ref: pr/258
+        date: 2026-09-05
+        caught: >-
+          The plugin manifest's licence put back to the sheets' alone, set to the
+          code's alone, and set to an expression the sheet's frontmatter is not part
+          of — each red in the test that holds the manifest to the citation card's two
+          licences (round 23, D6: the marketplace pipe lands the whole repository, so a
+          manifest naming one licence for it overclaimed; owner's decision 2026-09-05).
+      - kind: mutation
         ref: pr/224
         date: 2026-09-03
         caught: >-
