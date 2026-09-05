@@ -182,8 +182,11 @@ field was one release away from proving it (2026-08-29).
    box — edit it afterwards). Zenodo reads `.zenodo.json` from the release and
    mints the version's DOI under the concept DOI already in the README.
 5. Publishing the release starts `release.yml`: it builds the wheel and the sdist
-   from the tag, generates the SBOM, attests all three keyless, verifies them in
-   both directions and only then attaches them to the release — and then, last,
+   from the tag, generates the SBOM, **installs the bundle from that wheel** into an
+   empty project and runs the doctor there (the v0.3.0 wheel was attested, verified
+   and published, and could not install its own bundle — `local/*.default` was
+   missing; found 2026-09-05 from a fresh venv), attests all three keyless, verifies
+   them in both directions and only then attaches them to the release — and then, last,
    publishes the same wheel and sdist to PyPI by trusted publishing (an OIDC
    exchange; no token is stored anywhere, and `skip-existing` makes a
    re-dispatch against a version already on the index a no-op rather than a red

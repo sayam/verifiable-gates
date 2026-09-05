@@ -351,6 +351,8 @@ def test_the_release_publishes_to_the_index_only_what_verified_and_only_after() 
         "to PyPI by trusted publishing",
         "skip-existing",
         "pip install verifiable-gates==",
+        # The wheel is asked to install its own bundle before it is attested (2026-09-05).
+        "installs the bundle from that wheel",
     ):
         assert phrase in step_five, f"checklist step 5 does not say: {phrase}"
 

@@ -409,6 +409,14 @@ gates:
           overlay's `reads` drifted from the catalogue, the catalogue's from the
           scanner, and a scan gate stripped of `reads` — each red on this tree, the
           dogfood catching what the unit tests catch on a fixture (round 22, F2).
+      - kind: mutation
+        ref: pr/268
+        date: 2026-09-05
+        caught: >-
+          Checklist step 5 with its new sentence dropped — the release workflow
+          installs the bundle from the wheel it built before attesting it — red in
+          the test that holds the step's phrases to the workflow (documents before
+          the v0.3.1 cut).
   - id: the-security-policy-quotes-one-set-of-numbers
     title: SECURITY.md exists, quotes one set of timeframes, names no address, and points at a live channel
     kind: test
