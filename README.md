@@ -81,6 +81,7 @@ ci-tools-hash-pinned: .github/workflows/lint.yml: pip install ruff
 | `[found]` | The checker looked and the rule is broken; the doctor exits 1.        | The build is unsafe in ways this checker does not read.    |
 | `NA`      | Nothing of the kind this checker reads is here; it says what it looked for. | The rule passed.                                     |
 | `[error]` | The checker could not answer: crash, timeout, undecodable or oversize file, unreadable directory, malformed `scaffold.json`. Its stderr is passed through; the doctor exits 1. | "Looked and found nothing." It is red without a verdict. |
+| `[waived]` | The checker found it and a waiver in `scaffold.json` covers it — gate, reason, `until`, `decided_by`, optional `scope`; the run exits 0 for it and prints what was excused. | The finding is gone. It is counted on every run, an expired waiver is a finding, and a waiver missing a field excuses nothing. |
 
 Two consequences to know before trusting a green:
 
@@ -88,6 +89,11 @@ Two consequences to know before trusting a green:
   a passed one (`DECISIONS.md` `doctor-all-na-exits-zero`).
 - A path that `scaffold.json` names and the project does not have is a finding, not
   `NA`: a broken configuration is a defect, not an absence.
+- **Saying "not yet" goes through the record, not around it.** There is no `# noqa` here
+  and no warn-only mode; a finding a project will not fix this week gets a waiver in
+  `scaffold.json` (`waivers: [{gate, reason, until, decided_by, scope?}]`), which the
+  doctor prints on every run, turns red when it expires, and refuses when a field is
+  missing. The SARIF keeps the result, with the reason as its suppression.
 
 The full taxonomy — every `NA` and `[error]` case, the `--installed` record, `--rules`
 off an edited bundle, the SARIF mapping — is in

@@ -70,6 +70,7 @@ ci-tools-hash-pinned: .github/workflows/lint.yml: pip install ruff
 | `[found]` | ตัวตรวจดูแล้ว และกฎข้อนั้นถูกละเมิด · doctor ออก 1 | build ไม่ปลอดภัยในแบบที่ตัวตรวจนี้ไม่ได้อ่าน |
 | `NA`      | ไม่มีของชนิดที่ตัวตรวจนี้อ่านอยู่ที่นี่เลย · มันบอกว่าไปหาอะไร | กฎข้อนั้นผ่าน |
 | `[error]` | ตัวตรวจตอบไม่ได้: ล่ม · ค้างเกินเวลา · ไฟล์ถอดรหัสไม่ได้หรือใหญ่เกิน · ไดเรกทอรีเข้าไม่ได้ · `scaffold.json` ผิดรูป · ส่ง stderr ต่อ · doctor ออก 1 | "ดูแล้วไม่เจอ" · มันแดงโดยไม่มีคำตัดสิน |
+| `[waived]` | ตัวตรวจพบ แต่มี waiver ใน `scaffold.json` คลุมอยู่ — gate, reason, `until`, `decided_by` และ `scope` (เลือกได้) · ข้อนี้ไม่ทำให้รันแดง และพิมพ์ว่ายกเว้นอะไรไป | finding หายไป — มันถูกนับทุกครั้งที่รัน waiver ที่หมดอายุคือ finding และ waiver ที่ขาด field ยกเว้นอะไรไม่ได้เลย |
 
 สองเรื่องที่ต้องรู้ก่อนเชื่อสีเขียว:
 
@@ -77,6 +78,10 @@ ci-tools-hash-pinned: .github/workflows/lint.yml: pip install ruff
   (`DECISIONS.md` `doctor-all-na-exits-zero`)
 - พาธที่ `scaffold.json` *ตั้งชื่อไว้* แต่โปรเจกต์ไม่มี เป็น finding ไม่ใช่ `NA` — คอนฟิกที่พังคือของเสีย ไม่ใช่ของที่ไม่มี
 
+- **การพูดว่า "ยังไม่ทำ" ต้องผ่าน record ไม่ใช่อ้อม record** ที่นี่ไม่มี `# noqa` และไม่มีโหมดเตือนเฉย ๆ
+  finding ที่โปรเจกต์จะยังไม่แก้สัปดาห์นี้ใส่ waiver ใน `scaffold.json`
+  (`waivers: [{gate, reason, until, decided_by, scope?}]`) ซึ่ง doctor พิมพ์ทุกครั้งที่รัน
+  แดงเมื่อหมดอายุ และปฏิเสธเมื่อขาด field · SARIF เก็บผลไว้ โดยมีเหตุผลเป็น suppression
 อนุกรมวิธานเต็ม — ทุกกรณีของ `NA` กับ `[error]` · record ของ `--installed` · `--rules` บนบันเดิลที่ถูกแก้ ·
 การแมปเป็น SARIF — อยู่ใน [`docs/output-semantics.md`](https://github.com/sayam/verifiable-gates/blob/main/docs/output-semantics.md) (ภาษาอังกฤษ)
 

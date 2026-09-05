@@ -115,6 +115,7 @@ scanner's own tests decide the verdicts it relays, and that NA is never a pass.
 from __future__ import annotations
 
 import argparse
+import datetime
 import difflib
 import hashlib
 import json
@@ -124,7 +125,7 @@ import re
 import stat
 import subprocess
 import sys
-from typing import TYPE_CHECKING, Any, TypeGuard
+from typing import TYPE_CHECKING, Any, NamedTuple, TypeGuard
 
 if TYPE_CHECKING:
     from collections.abc import Callable
@@ -372,6 +373,7 @@ SCAFFOLD_KEYS = frozenset(
         "purge_paths",
         "src_path",
         "preflight_jobs",
+        "waivers",
     }
 )
 
@@ -410,6 +412,252 @@ def check_scaffold_keys(root: pathlib.Path) -> list[str]:
     return lines
 
 
+# ---------------------------------------------------------------- waivers
+
+# Round 26 (2026-09-05) measured day one on real trees — 772 findings on django, 627 of
+# them one gate's test-file half; 30 of 30 on flask — and the moves a project had: fix
+# everything, delete the scan from the overlay, or point `tests_path` at nothing, which
+# was silent. A waiver is the fourth move and the only one the record keeps. It lives in
+# `scaffold.json` because the doctor is shipped alone and reads JSON and nothing else
+# (`tests/test_checks_are_standalone.py`); a `gates.yaml` block would have needed a
+# second YAML reader carried in this file. What it must carry is what this repository
+# holds its own noqa lines to, turned outward: a reason, a date and a name.
+WAIVER_REQUIRED = ("gate", "reason", "until", "decided_by")
+WAIVER_KEYS = frozenset({*WAIVER_REQUIRED, "scope"})
+WAIVERS = "waivers"
+_WITHOUT = {
+    "gate": "a waiver with no gate excuses nothing in particular",
+    "reason": "a waiver with no reason is a suppression",
+    "until": "a waiver with no until is permanent",
+    "decided_by": "a waiver nobody signed",
+}
+
+
+class Waiver(NamedTuple):
+    ordinal: int
+    gate: str
+    reason: str
+    until: datetime.date
+    decided_by: str
+    scope: str | None
+
+    @property
+    def terms(self) -> str:
+        return f"until {self.until.isoformat()}, decided by {self.decided_by}: {self.reason}"
+
+    @property
+    def justification(self) -> str:
+        """The sentence a suppressed SARIF result carries."""
+        return f"{self.reason} (until {self.until.isoformat()}, decided by {self.decided_by})"
+
+    def covers(self, gid: str, path: pathlib.Path) -> bool:
+        """The whole gate when it names no scope; else that file, or anything under it."""
+        if gid != self.gate:
+            return False
+        if self.scope is None:
+            return True
+        scope = self.scope.rstrip("/")
+        where = path.as_posix()
+        return where == scope or where.startswith(scope + "/")
+
+
+def _waiver_shape(ordinal: int, entry: object) -> list[str]:
+    """Every way one entry is not a waiver, in the words that say what is missing."""
+    if not isinstance(entry, dict):
+        return [f"waiver {ordinal} is not an object with gate, reason, until and decided_by"]
+    found = []
+    for key in sorted(set(entry) - WAIVER_KEYS):
+        near = difflib.get_close_matches(key, sorted(WAIVER_KEYS), n=1, cutoff=0.6)
+        hint = f" — did you mean {near[0]}?" if near else ""
+        found.append(
+            f"waiver {ordinal} names {_shown(key)}, which a waiver does not have{hint}; a"
+            " waiver carries gate, reason, until, decided_by and, optionally, scope"
+        )
+    for key in WAIVER_REQUIRED:
+        value = entry.get(key)
+        if not isinstance(value, str) or not value.strip():
+            found.append(f"waiver {ordinal} has no {key} — {_WITHOUT[key]}")
+    scope = entry.get("scope")
+    if scope is not None and not isinstance(scope, str):
+        found.append(
+            f"waiver {ordinal} gives scope {_shown(json.dumps(scope)[:40])}, which is not"
+            " a path — a scope is one file or directory, relative to the project"
+        )
+    elif isinstance(scope, str) and _leads_out(scope):
+        found.append(
+            f"waiver {ordinal} gives scope {_shown(scope)}, which leads outside the project"
+        )
+    return found
+
+
+def _leads_out(scope: str) -> bool:
+    """A scope is relative and stays in the tree, as a path — the same test a SARIF
+    location gets: `..` is refused before anything is opened."""
+    parts = pathlib.PurePosixPath(scope)
+    return parts.is_absolute() or ".." in parts.parts
+
+
+def _waiver(
+    ordinal: int, entry: dict[str, Any], scans: set[str], today: datetime.date
+) -> tuple[Waiver | None, list[str]]:
+    """One well-shaped entry as a waiver in force, or the findings about it."""
+    gate = str(entry["gate"])
+    if gate not in scans:
+        which = ", ".join(sorted(scans))
+        return None, [
+            (
+                f"waiver {ordinal} names {_shown(gate)}, which no scan in this bundle decides"
+                f" — the scans are {which}"
+            )
+        ]
+    try:
+        until = datetime.date.fromisoformat(str(entry["until"]))
+    except ValueError:
+        given = _shown(repr(entry["until"]))
+        return None, [f"waiver {ordinal} gives until {given}, which is not a date (YYYY-MM-DD)"]
+    if until < today:
+        return None, [
+            (
+                f"waiver {ordinal} for {gate} expired {until.isoformat()} — renew it with a"
+                " new until and a new reason, or fix the findings; an expired waiver excuses"
+                " nothing"
+            )
+        ]
+    reason, who = str(entry["reason"]).strip(), str(entry["decided_by"]).strip()
+    return Waiver(ordinal, gate, reason, until, who, entry.get("scope")), []
+
+
+def read_waivers(
+    root: pathlib.Path, manifest: dict[str, Any], today: datetime.date
+) -> tuple[list[Waiver], list[str]]:
+    """The waivers in force from `scaffold.json`, and every finding about the ones that
+    are not — a field missing, a date that is not one, a gate no scan decides, an expiry
+    that has passed. A file that cannot be read is left to the scanners, which say so."""
+    try:
+        config = json.loads((root / "scaffold.json").read_text(encoding="utf-8"))
+    except (OSError, UnicodeDecodeError, json.JSONDecodeError):
+        return [], []
+    if not isinstance(config, dict) or config.get("waivers") is None:
+        return [], []
+    declared = config.get("waivers")
+    if not isinstance(declared, list):
+        return [], [
+            (
+                f"scaffold.json gives waivers {_shown(json.dumps(declared)[:40])}, which is"
+                " not a list — waivers is a list of objects, each with gate, reason, until"
+                " and decided_by"
+            )
+        ]
+    scans = {gid for gid, _script in scan_entries(manifest)}
+    waivers: list[Waiver] = []
+    findings: list[str] = []
+    for ordinal, entry in enumerate(declared, start=1):
+        shape = _waiver_shape(ordinal, entry)
+        if shape:
+            findings += shape
+            continue
+        waiver, problems = _waiver(ordinal, entry, scans, today)
+        findings += problems
+        if waiver is not None:
+            waivers.append(waiver)
+    return waivers, findings
+
+
+def _excused(
+    root: pathlib.Path, waivers: list[Waiver], gid: str, said: list[str]
+) -> tuple[list[str], dict[Waiver, list[str]]]:
+    """A scan's lines split into the ones still live and the ones a waiver covers, by
+    the file the SARIF would place each on — so a scope means the same thing in the
+    report and in the log."""
+    live: list[str] = []
+    excused: dict[Waiver, list[str]] = {}
+    for line in said:
+        path, _region = _sarif_location(root, line.removeprefix(f"{gid}:").strip())
+        holder = next((w for w in waivers if w.covers(gid, path)), None)
+        if holder is None:
+            live.append(line)
+        else:
+            excused.setdefault(holder, []).append(line)
+    return live, excused
+
+
+def _plural(count: int, noun: str) -> str:
+    return f"{count} {noun}{'' if count == 1 else 's'}"
+
+
+def _report_found(
+    gid: str,
+    split: tuple[list[str], dict[Waiver, list[str]]],
+    entry: dict[str, Any],
+    unheld: list[str],
+) -> tuple[list[str], list[Outcome]]:
+    """Print what a scan found, less what a waiver covers: the gate as failed (or not),
+    and the outcomes for the SARIF — the live lines under the gate, the excused ones
+    under each waiver that covers them."""
+    live, excused = split
+    outcomes: list[Outcome] = []
+    if live:
+        print("\n".join(_found(gid, entry, unheld)))
+        print("\n".join(live))
+        outcomes.append((gid, "found", live, ""))
+        for waiver, lines in excused.items():
+            print(f"  waived: {_plural(len(lines), 'finding')} under the waiver {waiver.terms}")
+    else:
+        ((waiver, lines),) = excused.items()
+        print(f"[waived] {gid} — {_plural(len(lines), 'finding')} under the waiver {waiver.terms}")
+    outcomes += [(gid, "waived", lines, waiver.justification) for waiver, lines in excused.items()]
+    return [gid] if live else [], outcomes
+
+
+def _report_waivers(waivers: list[Waiver], outcomes: list[Outcome]) -> None:
+    """Every run that declares a waiver says what it excused — a reader of a green run
+    sees the count too, and a waiver that excused nothing is told so; it can go."""
+    if not waivers:
+        return
+    excused: dict[int, int] = {}
+    for _gid, kind, said, sentence in outcomes:
+        if kind == "waived":
+            ordinal = next(w.ordinal for w in waivers if sentence.startswith(w.reason))
+            excused[ordinal] = excused.get(ordinal, 0) + len(said)
+    total = sum(excused.values())
+    print(f"waived: {_plural(total, 'finding')} under {_plural(len(waivers), 'waiver')}")
+    for waiver in waivers:
+        where = f" {waiver.scope}" if waiver.scope else ""
+        idle = "" if excused.get(waiver.ordinal) else " — excused nothing this run"
+        print(f"  {waiver.gate}{where} {waiver.terms}{idle}")
+
+
+def today() -> datetime.date:
+    """The date a waiver's `until` is held against: UTC, the clock CI runs on, so a
+    waiver expires on the same day for everybody who runs the doctor."""
+    return datetime.datetime.now(datetime.UTC).date()
+
+
+def _before_the_scans(
+    root: pathlib.Path, manifest: dict[str, Any]
+) -> tuple[list[Waiver], list[str], list[Outcome]]:
+    """The doctor's own two findings, before any scan — a key no scanner reads, a waiver
+    that is not one — and the waivers in force. A scan cannot see a key it does not
+    read, so only the file that knows every key can say that one is nobody's; and a
+    broken waiver has the same standing as a broken configuration: a finding, and it
+    excuses nothing."""
+    failed: list[str] = []
+    outcomes: list[Outcome] = []
+    unread = check_scaffold_keys(root)
+    if unread:
+        print("[found] scaffold.json — a key no scanner reads")
+        print("\n".join(unread))
+        failed.append("scaffold.json")
+        outcomes.append(("scaffold.json", "found", unread, ""))
+    waivers, unfit = read_waivers(root, manifest, today())
+    if unfit:
+        print(f"[found] {WAIVERS} — a waiver that is not one excuses nothing")
+        print("\n".join(f"{WAIVERS}: {line}" for line in unfit))
+        failed.append(WAIVERS)
+        outcomes.append((WAIVERS, "found", unfit, ""))
+    return waivers, failed, outcomes
+
+
 def run_scans(
     root: pathlib.Path,
     manifest: dict[str, Any],
@@ -428,18 +676,9 @@ def run_scans(
     `the-rules-are-read-off-a-bundle-that-is-still-intact`). The findings themselves are
     printed either way: they are the scanner's words, marked as the tree's.
     """
-    failed: list[str] = []
     broken: list[str] = []
-    outcomes: list[Outcome] = []
     unheld = check_installed_record(root)
-    unread = check_scaffold_keys(root)
-    if unread:
-        # The doctor's own finding, before any scan: a scan cannot see a key it does not
-        # read, so only the file that knows every key can say that one is nobody's.
-        print("[found] scaffold.json — a key no scanner reads")
-        print("\n".join(unread))
-        failed.append("scaffold.json")
-        outcomes.append(("scaffold.json", "found", unread, ""))
+    waivers, failed, outcomes = _before_the_scans(root, manifest)
     for gid, script in scan_entries(manifest):
         try:
             result = subprocess.run(  # noqa: S603 — argv is built here, interpreter is sys.executable
@@ -479,14 +718,14 @@ def run_scans(
                 print(f"[ pass] {gid}")
                 outcomes.append((gid, "pass", said, ""))
         elif result.returncode == 1 and result.stdout.strip() and not crashed:
-            print("\n".join(_found(gid, manifest["gates"][gid], unheld)))
             # Every line through the guard before it is printed or counted: what the
             # doctor writes is its own sentence about what a scanner said, and a scanner's
             # line is one finding whatever the tree it read was named (round 21).
             said = [_shown(line) for line in result.stdout.strip().splitlines()]
-            print("\n".join(said))
-            failed.append(gid)
-            outcomes.append((gid, "found", said, ""))
+            split = _excused(root, waivers, gid, said)
+            still, reported = _report_found(gid, split, manifest["gates"][gid], unheld)
+            failed += still
+            outcomes += reported
         else:
             reason = f"the scan did not answer (exit {result.returncode})"
             print(f"[error] {gid} — {reason}")
@@ -494,6 +733,7 @@ def run_scans(
             outcomes.append((gid, "error", [], f"{reason}\n{_as_prose(result.stderr)}".strip()))
 
     print(f"\nwaiting on this project's own tests: {suite_count(manifest)} gates")
+    _report_waivers(waivers, outcomes)
     if failed:
         print(f"** scans found problems in {len(failed)} gates: {', '.join(failed)}")
     if broken:
@@ -728,6 +968,19 @@ def _sarif_rules(manifest: dict[str, Any], outcomes: list[Outcome]) -> list[dict
         rules.append(
             {"id": "scaffold.json", "shortDescription": {"text": "a key no scanner reads"}}
         )
+    if any(gid == WAIVERS for gid, _kind, _said, _sentence in outcomes):
+        rules.append(
+            {
+                "id": WAIVERS,
+                "shortDescription": {"text": "a waiver that is not one excuses nothing"},
+                "fullDescription": {
+                    "text": "A waiver in scaffold.json carries gate, reason, until and "
+                    "decided_by, and is in force through its until; one with a field "
+                    "missing, a date that is not one, a gate no scan decides, or an "
+                    "expiry that has passed is this finding, and excuses nothing."
+                },
+            }
+        )
     if any(kind == "error" for _gid, kind, _said, _sentence in outcomes):
         rules.append(
             {
@@ -753,6 +1006,13 @@ def sarif_log(
     for gid, kind, said, sentence in outcomes:
         if kind == "found":
             results += [_sarif_result(root, gid, line) for line in said if line.strip()]
+        elif kind == "waived":
+            # Still a result — a reader counts it — with the waiver's sentence on it, the
+            # shape code scanning shows as dismissed with a justification rather than gone.
+            for line in said:
+                result = _sarif_result(root, gid, line)
+                result["suppressions"] = [{"kind": "external", "justification": sentence}]
+                results.append(result)
         elif kind in {"na", "error"}:
             # The third answer, kept as what it is: neither a finding nor silence. NA is a
             # note and nothing else; an unanswered scan is an error note **and** a result
