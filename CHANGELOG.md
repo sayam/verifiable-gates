@@ -6,6 +6,29 @@ Notable changes to this project. The format follows
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-09-05
+
+The doctor's third answer now survives the hop out of the doctor. Round 23 asked what
+a reader one hop away — GitHub's Security tab — sees of a scan that could not look, and
+measured on a draft pull request that the answer was nothing: the file was refused
+whole over one result with no location, and once accepted, the invocation and every
+notification on it were dropped. So every result carries a location the tree has, the
+invocation names the doctor's exit code and why, and a scan that did not answer is a
+**result of its own rule** — the one shape that reader keeps — while `NA` stays a
+note. Around it: the plugin **loads again** on Claude Code 2.1.261 (a duplicate hooks
+declaration had failed the whole plugin), a `scaffold.json` key no scanner reads is a
+finding rather than a silent default, the two distribution pipes are described from
+measurement — what each sends, what the `npx` pipe fetches and does not pin — and
+`pip install verifiable-gates` names something that exists: the release workflow
+**publishes to PyPI** by trusted publishing, and the action is **listed on the GitHub
+Marketplace**. Every scanner-decided rule says what its scanner reads, and the
+**working** — how this repository is worked on, as a catalogue beside the rules —
+ships as a fourth mode a project turns on with one flag.
+
+One gate was added, `the-working-is-held-by-what-it-names`: the registers stand at
+**55 / 92 / 1** (#240–#261). Decisions were written or re-decided along the way, each
+with the condition that would expire it.
+
 ### Added
 
 - **`action.yml` is ready for the GitHub Marketplace.** A `branding` block (`icon: shield`,
@@ -2974,7 +2997,8 @@ order it happened.
 - **`gates.yaml`, deliberately empty.** This repository will not list a gate
   before the thing that enforces it exists.
 
-[Unreleased]: https://github.com/sayam/verifiable-gates/compare/v0.2.0...HEAD
+[Unreleased]: https://github.com/sayam/verifiable-gates/compare/v0.3.0...HEAD
+[0.3.0]: https://github.com/sayam/verifiable-gates/releases/tag/v0.3.0
 [0.2.0]: https://github.com/sayam/verifiable-gates/releases/tag/v0.2.0
 [0.1.12]: https://github.com/sayam/verifiable-gates/releases/tag/v0.1.12
 [0.1.11]: https://github.com/sayam/verifiable-gates/releases/tag/v0.1.11
