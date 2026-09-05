@@ -6,6 +6,18 @@ Notable changes to this project. The format follows
 
 ## [Unreleased]
 
+### Fixed
+
+- **A `tests_path` you named and do not have is a finding, not silence.** Round 26 measured
+  the doctor on day one against real trees: django **772** findings, **627** of them *no gate
+  claims this test file*; flask 30 of 30. On that wall the cheapest move a project had was to
+  point `tests_path` at a directory that does not exist — and measured on flask, every finding
+  vanished with no sentence saying the tests were not read, against the contract
+  `scaffold.json.default` states in its own words and `gates_path` was already held to. It now
+  answers `scaffold.json names tests_path <p>, which is not there — a configured path that is
+  missing is a broken configuration, not nothing to check`. The default `tests`, absent and
+  unnamed, stays the quiet half it always was (#290).
+
 ### Added
 
 - **The installer says what an upgrade changes about the scans that decide your tree.** Round 25

@@ -3182,6 +3182,17 @@ gates:
           as the project named it (`gates_path`) and the row to add or change
           (self-audit round 22, F7: the first finding a stranger sees from a fresh
           install pointed nowhere).
+      - kind: mutation
+        ref: pr/290
+        date: 2026-09-05
+        caught: >-
+          A `tests_path` the project named and does not have answered nothing — the
+          branch removed (the silent zero returns), the branch widened to the unnamed
+          default (the quiet half becomes a finding), and the finding naming `gates_path`
+          instead of `tests_path`; each red. On a brownfield the test-file half of this
+          gate is the whole first-day wall (627 of django's 772 findings), and pointing
+          `tests_path` at nothing made all of it vanish with no sentence — the cheapest
+          move, and a silent one (self-audit round 26).
   - id: the-box-opens-already-true
     title: A fresh install's registry passes its own check, and is not skipped as not-applicable
     kind: test
