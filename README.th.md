@@ -170,6 +170,9 @@ for problem in verifiable_gates.rules.problems(catalogue, package_dir="src/verif
 [`flask-todolist`](https://github.com/sayam/flask-todolist) ครบทุกขั้นแล้ว · ตารางเวที สำมะโน และสิ่งที่ยังอยู่ที่นั่น
 อยู่ใน [`docs/history.md`](https://github.com/sayam/verifiable-gates/blob/main/docs/history.md) (ภาษาอังกฤษ) · ใช้ผ่าน submodule ที่ pin ไว้หรือ dependency ที่ระบุรุ่น ไม่ใช่จาก `main`
 
+ทั้งหมดนี้ไม่ต้องเชื่อเอาเอง — [`docs/auditing.md`](https://github.com/sayam/verifiable-gates/blob/main/docs/auditing.md) (ภาษาอังกฤษ) คือหนึ่งชั่วโมงนั้น:
+กฎ 11 ข้อที่ repo นี้ประกาศกับตัวเอง คำสั่งที่ตัดสินแต่ละข้อ และสิ่งที่ไม่มีคำสั่งไหนที่นี่ตอบได้ เขียนไว้ตรง ๆ
+
 **คลังเก็บสองภาษา**: อังกฤษเป็นข้อความที่เผยแพร่ ส่วนถ้อยคำไทยต้นฉบับอยู่ในฟิลด์
 `*_th` คู่กัน เพราะคำแปลของบันทึกเหตุการณ์คือการเล่าใหม่ และการเล่าใหม่ไม่ใช่ตัวบันทึก
 

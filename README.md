@@ -202,6 +202,10 @@ the stage table, the census and what stayed behind are in
 [`docs/history.md`](https://github.com/sayam/verifiable-gates/blob/main/docs/history.md). Consume a pinned submodule or a versioned
 dependency, never `main`.
 
+None of this has to be taken on trust. [`docs/auditing.md`](https://github.com/sayam/verifiable-gates/blob/main/docs/auditing.md) is the
+hour: the eleven rules this repository states about itself, the command that decides each
+one, and — said plainly — what no command here can answer.
+
 ## Licence
 
 - Code: [Apache-2.0](https://github.com/sayam/verifiable-gates/blob/main/LICENSE). Contributors sign [`CLA.md`](https://github.com/sayam/verifiable-gates/blob/main/CLA.md) — one line in
