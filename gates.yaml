@@ -2568,6 +2568,16 @@ gates:
           dropped, stayed green: the uri is read out of the same text, so it was taken
           out of the key rather than kept as an ingredient nobody holds. Round 26, F2:
           every field the file had about a finding moved with an edit above it.
+      - kind: mutation
+        ref: pr/293
+        date: 2026-09-05
+        caught: >-
+          The waiver broken eight ways — its expiry ignored, its scope ignored, the
+          required fields not checked, a gate no scan decides accepted, the SARIF
+          suppression not written, the every-run summary dropped, a fully waived gate
+          still counted as failed, and a key a waiver does not have accepted — each red.
+          Round 26, F1/F3: day one on django was 772 findings with no way to say "not
+          yet" that the record keeps, and the cheapest way out was a silent one.
   - id: a-bundle-installs-and-answers
     title: A fresh install gives a project something that runs, and never overwrites its decisions
     kind: test
