@@ -14,6 +14,12 @@
 name: verifiable-gates
 description: Run the gates a project installed from verifiable-gates — its own tools/gates_doctor.py — and fail on a finding
 author: Sayam Sriphua
+# What the GitHub Marketplace listing shows beside the name (a Feather icon, one of the
+# nine colours GitHub accepts). The listing itself is a checkbox on the release form —
+# CONTRIBUTING.md § Releasing, step 4 — and this block is the metadata it validates.
+branding:
+  icon: shield
+  color: green
 inputs:
   root:
     description: The project root, the directory that holds tools/gates_doctor.py

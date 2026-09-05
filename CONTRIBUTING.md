@@ -175,8 +175,12 @@ field was one release away from proving it (2026-08-29).
    first release cut under this checklist (`v0.1.1`) found that out — this step
    used to sit after the merge, where it could never have been reached.
 4. Merge; tag `vx.y.z` on the merged commit and publish the GitHub release —
-   Zenodo reads `.zenodo.json` from it and mints the version's DOI under the
-   concept DOI already in the README.
+   on the release form, with **Publish this Action to the GitHub Marketplace**
+   ticked, so the listing at `github.com/marketplace/actions/verifiable-gates`
+   moves to the new version (`action.yml` carries the name, description and
+   branding the form validates; a release cut from the CLI does not tick the
+   box — edit it afterwards). Zenodo reads `.zenodo.json` from the release and
+   mints the version's DOI under the concept DOI already in the README.
 5. Publishing the release starts `release.yml`: it builds the wheel and the sdist
    from the tag, generates the SBOM, attests all three keyless, verifies them in
    both directions and only then attaches them to the release — and then, last,
