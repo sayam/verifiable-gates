@@ -95,6 +95,17 @@ jobs:
         run: python -m verifiable_gates.zenodo --root .
         env:
           GH_TOKEN: ${{ github.token }}
+      # Every proved_by.ref, resolved: the schema holds a ref to its shape and the
+      # suite runs with no network, so `pr/999999999` passed every test (filed by
+      # three outside audits; RC-12). Here the platform is asked — a 404 is a ref
+      # that names nothing, and a run whose log is past the retention window
+      # answers 410 while the run itself stays — weekly, where the token already is
+      # (round 24, B1, 2026-09-05; DECISIONS.md proved-by-ref-is-a-shape).
+      - name: every proved_by ref still points at something readable
+        if: ${{ !cancelled() }}
+        run: python -m verifiable_gates.proved_by_refs --root .
+        env:
+          GH_TOKEN: ${{ github.token }}
       - name: no DECISIONS revisit date has passed
         if: ${{ !cancelled() }}
         run: pytest -q tests/test_decisions.py -p no:cacheprovider --no-cov

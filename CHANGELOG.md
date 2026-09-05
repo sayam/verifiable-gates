@@ -6,6 +6,15 @@ Notable changes to this project. The format follows
 
 ## [Unreleased]
 
+### Added
+
+- `verifiable_gates.proved_by_refs`: every `proved_by.ref` in `gates.yaml`, resolved against
+  GitHub — a 404, a shape it cannot ask about, or a `run/N` whose log is gone (410, past the
+  retention window) is red, naming the gates that cite the ref and what to do. It runs from
+  `posture.yml` weekly and on every push to `main`; the test job stays no-network and holds the
+  resolver on fakes. Closes RC-12 (`pr/999999999` passed the schema) and T2; the DECISIONS row
+  `proved-by-ref-is-a-shape` is re-decided and its revisit date goes (round 24, B1).
+
 ### Changed
 
 - The plugin's description — the one text Claude Code shows before `plugin install` — says
