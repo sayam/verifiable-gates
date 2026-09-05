@@ -1,5 +1,6 @@
 # verifiable-gates
 
+[![CI](https://img.shields.io/github/actions/workflow/status/sayam/verifiable-gates/ci.yml?branch=main&label=CI)](https://github.com/sayam/verifiable-gates/actions/workflows/ci.yml)
 [![PyPI](https://img.shields.io/pypi/v/verifiable-gates)](https://pypi.org/project/verifiable-gates/)
 [![Python](https://img.shields.io/pypi/pyversions/verifiable-gates)](https://pypi.org/project/verifiable-gates/)
 [![Code: Apache-2.0](https://img.shields.io/badge/code-Apache--2.0-blue)](https://github.com/sayam/verifiable-gates/blob/main/LICENSE)
