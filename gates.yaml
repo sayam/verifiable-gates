@@ -2464,6 +2464,18 @@ gates:
       subprocess where a wrong exit code is easy to lose.
     proved_by:
       - kind: mutation
+        ref: pr/255
+        date: 2026-09-05
+        caught: >-
+          The SARIF invocation's exit code pinned to 0 whatever the run found — red
+          against the pure test over `sarif_log` and the in-process test that holds the
+          invocation's `exitCode` to the code `main()` returned from the same run
+          (self-audit round 23, out of D2: GitHub keeps a SARIF's results and drops its
+          invocation, and writes `warning: unsuccessful tool execution, exit code 0` on
+          the analysis when none is named — the one surviving line was false). Two more
+          plants, each red on its own: the sentence dropped, and a scan that did not
+          answer counted as clean.
+      - kind: mutation
         ref: pr/254
         date: 2026-09-05
         caught: >-

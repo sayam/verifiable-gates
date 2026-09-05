@@ -2019,6 +2019,10 @@ def test_an_na_is_a_note_on_the_invocation_and_never_a_result(installed: pathlib
     assert run["results"] == []
     (invocation,) = run["invocations"]
     assert invocation["executionSuccessful"] is True, "NA is not a failure to run"
+    assert invocation["exitCode"] == 0, "the doctor's own exit, for the one string GitHub keeps"
+    assert invocation["exitCodeDescription"] == (
+        "every scan answered pass or NA — nothing found, nothing unanswered"
+    )
     notes = invocation["toolExecutionNotifications"]
     assert notes, "eight NA gates on a fresh install, and not one note"
     assert {n["level"] for n in notes} == {"note"}
@@ -3720,3 +3724,57 @@ def test_the_last_resort_is_named_even_when_the_configuration_file_is_gone(
     (result,) = [r for r in log["runs"][0]["results"] if r["ruleId"] == "adr-index-complete"]
     assert _artifact(result)["uri"] == "scaffold.json"
     assert all("locations" in r and len(r["locations"]) == 1 for r in log["runs"][0]["results"])
+
+
+# ------------------------------------------ the invocation names the doctor's exit
+
+
+def test_the_invocation_names_the_doctors_exit_and_why(installed: pathlib.Path) -> None:
+    """GitHub drops a SARIF's invocation and writes one string about it on the analysis —
+    `warning: unsuccessful tool execution, exit code 0`, the zero being its reading of an
+    invocation with no exit code (round 23, D2, measured 2026-09-05). So the invocation
+    says the exit the doctor gives and why, in the report's own summary words."""
+    manifest = gates_doctor.load_manifest(installed / "tools" / "overlay.json")
+    found: gates_doctor.Outcome = ("image-digest-pinned", "found", ["Dockerfile: FROM x"], "")
+    found_again: gates_doctor.Outcome = ("image-digest-pinned", "found", ["no dependabot"], "")
+    gone: gates_doctor.Outcome = ("csp-no-inline", "error", [], "the scan did not answer (exit 2)")
+    na: gates_doctor.Outcome = ("adr-index-complete", "na", ["NA: no docs/adr"], "no docs/adr")
+
+    (both,) = gates_doctor.sarif_log(installed, manifest, [found, found_again, gone, na])["runs"][
+        0
+    ]["invocations"]
+    assert both["exitCode"] == 1
+    assert both["exitCodeDescription"] == (
+        "scans found problems in 1 gates: image-digest-pinned; "
+        "1 scans did not answer, which is no verdict: csp-no-inline"
+    )
+    assert both["executionSuccessful"] is False
+
+    (only_gone,) = gates_doctor.sarif_log(installed, manifest, [gone, na])["runs"][0]["invocations"]
+    assert only_gone["exitCode"] == 1, "no verdict is exit 1 at the terminal, and here"
+    assert only_gone["exitCodeDescription"] == (
+        "1 scans did not answer, which is no verdict: csp-no-inline"
+    )
+
+    (clean,) = gates_doctor.sarif_log(installed, manifest, [na])["runs"][0]["invocations"]
+    assert clean["exitCode"] == 0
+    assert clean["executionSuccessful"] is True
+
+
+def test_the_exit_in_the_sarif_is_the_exit_the_doctor_returned(
+    installed: pathlib.Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """The two answers come from the same run, so they cannot disagree."""
+    _plant(
+        installed,
+        "scan_adr_index.py",
+        "print('adr-index-complete: docs/adr: a record with no index')\nraise SystemExit(1)\n",
+    )
+    code, log = _sarif_in_process(installed)
+    capsys.readouterr()
+    (invocation,) = log["runs"][0]["invocations"]
+    assert code == 1
+    assert invocation["exitCode"] == code
+    assert invocation["exitCodeDescription"].startswith(
+        "scans found problems in 1 gates: adr-index"
+    )

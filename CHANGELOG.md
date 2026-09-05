@@ -87,6 +87,13 @@ Notable changes to this project. The format follows
 
 ### Fixed
 
+- **The SARIF invocation names the doctor's exit code and why.** GitHub code scanning keeps a
+  SARIF's results and drops its invocation — every notification, the `executionSuccessful` flag —
+  and writes one string about it on the analysis: `warning: unsuccessful tool execution, exit code
+  0`, the zero being its reading of an invocation that named no exit code (round 23, D2, measured
+  2026-09-05). The invocation now carries `exitCode` — the exit the doctor gives — and
+  `exitCodeDescription` in the report's own summary words (*scans found problems in N gates: …; M
+  scans did not answer, which is no verdict: …*), so the one line that survives is true.
 - **The doctor's SARIF is accepted by GitHub code scanning.** Measured on a draft pull request
   (round 23, D2): a run whose findings included one naming no existing file — a registry finding,
   a missing `dependabot.yml` — was refused whole (`locationFromSarifResult: expected at least one

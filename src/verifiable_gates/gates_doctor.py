@@ -82,8 +82,11 @@ are **not** — they are `toolExecutionNotifications` on the invocation (level `
 and `error`), and any error marks the invocation `executionSuccessful: false`. A
 reader that only counts results sees a clean run where a scan could not look, which
 is the sentence the manifest forbids; a reader that reads invocations sees the
-truth. A location is attached only when the path the scanner named exists under
-the root — a location nobody can open is worse than none. The SARIF file that cannot
+truth — and the invocation names the doctor's exit code and why, because GitHub keeps
+that one string of an invocation and drops the rest (round 23, D2). Every result
+carries a location the tree has: the path the scanner named when it exists, else the
+first file the sentence names, else `scaffold.json` — GitHub refuses a whole file over
+one result without one (round 23, D2). The SARIF file that cannot
 be written is exit 2 with a sentence, after the report has been printed: the
 verdict stood, the artefact asked for did not arrive. **A file already at that path
 is replaced only if it is this doctor's run over this root.** Two doctors over two
@@ -630,6 +633,30 @@ def _sarif_result(root: pathlib.Path, gid: str, line: str) -> dict[str, Any]:
     return result
 
 
+def _exit_of(outcomes: list[Outcome]) -> tuple[int, str]:
+    """The doctor's exit for this run and the sentence behind it, for the invocation.
+
+    GitHub code scanning keeps a SARIF's results and drops its invocation — every
+    notification, the `executionSuccessful` flag — and writes one string about it on the
+    analysis, `warning: unsuccessful tool execution, exit code 0`, the zero being its
+    reading of an invocation that named no exit code (round 23, D2, measured 2026-09-05).
+    So the invocation names the exit the doctor actually gives and why, in the words of
+    the report's own summary lines: the one thing about the run that reader will keep.
+    """
+    found = sorted({gid for gid, kind, _said, _sentence in outcomes if kind == "found"})
+    unanswered = sorted({gid for gid, kind, _said, _sentence in outcomes if kind == "error"})
+    if not found and not unanswered:
+        return 0, "every scan answered pass or NA — nothing found, nothing unanswered"
+    parts = []
+    if found:
+        parts.append(f"scans found problems in {len(found)} gates: {', '.join(found)}")
+    if unanswered:
+        parts.append(
+            f"{len(unanswered)} scans did not answer, which is no verdict: {', '.join(unanswered)}"
+        )
+    return 1, "; ".join(parts)
+
+
 def sarif_log(
     root: pathlib.Path, manifest: dict[str, Any], outcomes: list[Outcome]
 ) -> dict[str, Any]:
@@ -664,6 +691,7 @@ def sarif_log(
             notes.append(
                 {"level": level, "message": {"text": sentence}, "associatedRule": {"id": gid}}
             )
+    exit_code, exit_sentence = _exit_of(outcomes)
     driver: dict[str, Any] = {
         "name": "verifiable-gates",
         "informationUri": INFORMATION_URI,
@@ -682,6 +710,8 @@ def sarif_log(
                 "invocations": [
                     {
                         "executionSuccessful": not any(k == "error" for _g, k, _s, _t in outcomes),
+                        "exitCode": exit_code,
+                        "exitCodeDescription": exit_sentence,
                         "toolExecutionNotifications": notes,
                     }
                 ],
