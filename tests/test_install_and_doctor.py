@@ -80,6 +80,55 @@ def test_the_doctor_runs_the_scans_on_a_bare_project(
     )
 
 
+def test_a_scan_that_says_nothing_and_exits_zero_is_a_pass(
+    tmp_path: pathlib.Path, bundle_copy: pathlib.Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """The decided answer, and the honest cost of it.
+
+    Silence with exit 0 is how a clean scan reports: `scan_gates_registry` prints nothing at
+    all on a tree it has read and found nothing wrong in. So a scan that never looked and a
+    scan that looked and found nothing produce **the same line** — measured here, the planted
+    do-nothing scan sits beside the real one as `[ pass]`. That is accepted, because the exit
+    code is the contract the scanners share and a scan that could not look has a way to say so
+    (`NA: <what it looked for>`, held below) while one that could not run exits 2
+    (`DECISIONS.md` `a-silent-scan-is-clean-because-zero-is-the-contract`).
+
+    The test exists so the day that stops being acceptable is a red beside the row, not a
+    reading of the doctor's source.
+    """
+    project = tmp_path / "project"
+    assert do_install(project, bundle_copy) == 0
+    capsys.readouterr()
+    (project / "tools" / "checks" / "scan_says_nothing.py").write_text(
+        "import sys\n\nsys.exit(0)\n", encoding="utf-8"
+    )
+    (project / "tools" / "checks" / "scan_says_na.py").write_text(
+        'print("NA: nothing here to read")\nraise SystemExit(0)\n', encoding="utf-8"
+    )
+    manifest_path = project / "tools" / "overlay.json"
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    for gid, script in (
+        ("a-scan-that-says-nothing", "checks/scan_says_nothing.py"),
+        ("a-scan-that-could-not-look", "checks/scan_says_na.py"),
+    ):
+        manifest["gates"][gid] = {
+            "kind": "scan",
+            "script": script,
+            "title": gid,
+            "layer": "baseline",
+            "born_from": "a probe",
+            "reads": "nothing",
+        }
+    manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
+
+    done = run_doctor(project)
+
+    assert done.returncode == 0, done.stdout + done.stderr
+    assert "[ pass] a-scan-that-says-nothing" in done.stdout
+    assert "[ pass] gates-registry-total" in done.stdout, "the same line as the real clean scan"
+    assert "[   NA] a-scan-that-could-not-look — nothing here to read" in done.stdout
+
+
 def test_the_doctor_reports_findings_and_names_them(
     tmp_path: pathlib.Path, bundle_copy: pathlib.Path, capsys: pytest.CaptureFixture[str]
 ) -> None:

@@ -8,6 +8,17 @@ Notable changes to this project. The format follows
 
 ### Changed
 
+- **A decision, at last, about a silent scan.** `DECISIONS.md`
+  `a-silent-scan-is-clean-because-zero-is-the-contract`: a scan that prints nothing and exits 0
+  is `[ pass]` — the same line as a scan that read the tree and found nothing — because exit 0
+  is the contract the scanners share and silence is what a clean scan prints. A scan that
+  *could not look* says `NA: <what it looked for>`; one that *could not run* exits 2. The
+  2026-08-31 strength-claims audit saw this as D7 and filed it as an observation, where it sat
+  unrecorded; it is now a row with its expiry and a test that plants a do-nothing scan beside
+  the real one and holds all three lines.
+
+### Changed
+
 - **The Marketplace listing's categories are held as a set, and the order is not.** The check
   added hours earlier compared the two **in order**, on the reading that the first is the
   *Primary Category* on the release form. Measured the same day, in this order: the owner set
