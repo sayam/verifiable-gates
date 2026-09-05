@@ -23,6 +23,9 @@ from __future__ import annotations
 
 import pathlib
 import re
+import shlex
+import subprocess
+import sys
 
 import pytest
 import yaml
@@ -292,3 +295,42 @@ def test_a_scanner_decided_rule_says_on_its_sheet_what_the_scanner_reads() -> No
     ]
     assert len(expected) == 9
     assert sorted(said) == sorted(expected)
+
+
+# `**This file is generated … Rebuild it with `<command>`**` — the line every generated
+# file opens with, wrapped across source lines.
+REBUILD = re.compile(r"Rebuild it with\n`([^`]+)`")
+GENERATED = [INDEX, *[sheet for sheet, *_ in SHEETS], WORKING_SHEET]
+
+
+@pytest.mark.parametrize("name", GENERATED)
+def test_the_command_a_generated_file_prints_is_the_command_that_rebuilds_it(name: str) -> None:
+    """The one instruction in this repository that ships to everybody who installs the skill.
+
+    Every generated file opens by saying how to rebuild it, and until 2026-09-05 the index
+    said it wrong: the command it printed omitted `--practices working.yaml`, so running it
+    as written produced a file without the working section and `--check` answered *differs
+    from a fresh render*, exit 1. Nothing was red — the suite renders the index by calling
+    the renderer with the arguments it knows, never by reading the sentence the file prints.
+    Found by running the line from a fresh clone (`.local/work/2026-09-05-auditing-guide/`),
+    which is the only place a documented instruction is ever really tested.
+
+    So the sentence is executed here, with `--check` in front of it: a rebuild line that does
+    not reproduce its own file is red, in the file that carries the line.
+    """
+    printed = REBUILD.search((ROOT / name).read_text(encoding="utf-8"))
+    assert printed, f"{name} does not say how to rebuild it"
+    argv = shlex.split(" ".join(printed.group(1).split()))
+    assert argv[:3] == ["python", "-m", "verifiable_gates.skill"], argv[:3]
+
+    run = subprocess.run(  # noqa: S603 — the argv comes from this repository's own file
+        [sys.executable, "-m", "verifiable_gates.skill", "--check", *argv[3:]],
+        cwd=ROOT,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert run.returncode == 0, (
+        f"{name} prints a rebuild command that does not reproduce it: "
+        f"{run.stdout.strip()}{run.stderr.strip()}"
+    )

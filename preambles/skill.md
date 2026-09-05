@@ -12,8 +12,8 @@ metadata:
 
 **This file is generated. Do not edit it by hand.** Rebuild it with
 `python -m verifiable_gates.skill --index --preamble preambles/skill.md
---out skills/verifiable-gates/SKILL.md`. The source is `rules.yaml`, and a gate
-compares the two on every test run.
+--practices working.yaml --out skills/verifiable-gates/SKILL.md`. The sources are
+`rules.yaml` and `working.yaml`, and a gate compares the two on every test run.
 
 ## How to use this skill
 

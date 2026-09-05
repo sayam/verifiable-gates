@@ -8,6 +8,31 @@ Notable changes to this project. The format follows
 
 ### Added
 
+- **`docs/auditing.md` — audit this repository in an hour.** Twenty-four self-audit rounds
+  are the root signing its own certificate: the same hand chose the questions, wrote the
+  checks and read the answers. This is the form that lets somebody else check instead — the
+  eleven rules of `CONTRIBUTING.md` § "The rules this repository holds itself to", the
+  command that decides each one, four more that are cheap, and, said plainly, **what no
+  command here can answer**: which defect somebody chose to plant, whether a `proved_by`
+  pull request went red for the reason claimed, the Thai half of the catalogue, anything
+  the platform decides, and whether the rules are any good. Both READMEs point at it. A
+  test holds the guide and `CONTRIBUTING.md` to each other in both directions and in order
+  — a rule in one and not the other leaves an auditor checking ten of eleven while
+  believing they checked all of them — and holds every module and path the guide names to
+  exist (T3 of the trust analysis).
+
+### Fixed
+
+- **The index said the wrong way to rebuild itself.** `skills/verifiable-gates/SKILL.md`
+  printed `python -m verifiable_gates.skill --index --preamble preambles/skill.md --out …`
+  without `--practices working.yaml`, so running the line as written produced a file with
+  no working section and `--check` answered *differs from a fresh render*, exit 1. Nothing
+  was red: the suite renders the index by calling the renderer with the arguments it knows,
+  never by reading the sentence the file prints — and that sentence ships to everybody who
+  installs the skill. Found by running it from a fresh clone. The line is corrected, and a
+  test now executes the rebuild command each generated file prints, with `--check` in front
+  of it, so a line that does not reproduce its own file is red in the file that carries it.
+
 - **A rule can be taken back, and the taking back is published.** `rules.yaml` and
   `working.yaml` accept `retracted: {date, reason, replaced_by}`. A withdrawn entry stays in
   the catalogue and on its sheet — with the withdrawal printed *above* the rule, so a reader

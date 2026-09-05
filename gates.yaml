@@ -3341,6 +3341,15 @@ gates:
           dropped from an index line, red. With nothing withdrawn the render is byte-identical
           to the shipped sheet, which is the test that says the mechanism costs today's reader
           nothing (T1).
+      - kind: mutation
+        ref: pr/279
+        date: 2026-09-05
+        caught: >-
+          `--practices working.yaml` taken back out of the rebuild line the index prints —
+          the shape it had until 2026-09-05, when running that line from a fresh clone
+          answered *differs from a fresh render*, exit 1, with nothing red here — and the
+          layer swapped on the baseline sheet's line. Each red in the new test that runs
+          the printed command with `--check` in front of it (T3).
   - id: the-harness-never-passes-what-it-cannot-decide
     title: The fail-fix harness answers machine-readably, and reports skips rather than hiding them
     kind: test
@@ -3880,3 +3889,38 @@ gates:
           are readable — the eighth, `startup_failure`, has none and is the record
           itself, which the first draft had reported as a finding.
 
+  - id: an-outsider-audits-us-by-the-rules-we-publish
+    title: The audit guide names every rule this repository states about itself, and its commands run
+    kind: test
+    severity: blocking
+    enforced_by: {job: test, tests: [tests/test_auditing_guide.py]}
+    layer: internal
+    pillar: devx
+    portable: false
+    born_from: >-
+      Twenty-four self-audit rounds are the root signing its own certificate: the same
+      hand chose the questions, wrote the checks and read the answers. A reading of that
+      on 2026-09-04 (T3) found the piece that would let somebody else check instead — not
+      more rules, but *the criteria published in a form an outsider can act on inside a
+      bounded time*, since a criterion that takes a conversation with us to apply is a
+      criterion only we can apply. `docs/auditing.md` is that form: the eleven rules of
+      `CONTRIBUTING.md` § "The rules this repository holds itself to", the command that
+      decides each one, and the things no command here can answer — which defect somebody
+      chose to plant, whether a `proved_by` pull request went red for the reason claimed,
+      the Thai half of the catalogue, and whether the rules are any good. That makes the
+      guide a register: the same eleven in a second file. A rule added to `CONTRIBUTING.md`
+      and not to the guide leaves an auditor checking ten of eleven while believing they
+      checked all of them, and a heading in the guide with no rule behind it invents a
+      criterion nobody agreed to — so the two are held to each other in both directions and
+      in order, and every command the guide prints is held to name a module and a path that
+      are there, because an instruction fails on the reader's machine, where nobody here is
+      watching.
+    proved_by:
+      - kind: mutation
+        ref: pr/279
+        date: 2026-09-05
+        caught: >-
+          A rule dropped from `CONTRIBUTING.md`'s list while the guide still walked it,
+          red; a guide heading reworded away from the rule it repeats, red; the guide
+          running `verifiable_gates.preflght`, red; the guide naming `docs/history.mb`,
+          red. Before the guide existed there was nothing to be red.
