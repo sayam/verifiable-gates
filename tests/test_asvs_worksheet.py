@@ -270,7 +270,11 @@ def test_an_upstream_answer_that_never_ends_is_refused_by_the_deadline(
 ) -> None:
     """The ceiling that `timeout=` is not: a sender that never goes quiet never trips a
     socket timeout, so the answer carries a deadline of its own."""
-    monkeypatch.setattr(ws, "time", _Clock())
+    # One clock for both: the deadline is computed here and read by `net.body` (CI,
+    # 2026-09-05 — patching one left the check comparing a fake number with the real one).
+    clock = _Clock()
+    monkeypatch.setattr(ws, "time", clock)
+    monkeypatch.setattr(net, "time", clock)
     monkeypatch.setattr(urllib.request, "urlopen", lambda *_a, **_k: io.BytesIO(b'{"a": 1}'))
 
     with pytest.raises(RuntimeError, match="still arriving"):

@@ -301,7 +301,13 @@ def test_an_answer_that_never_ends_is_refused_by_the_deadline(
     against a server writing 1KB every 0.5s with the ceiling at **1 second**, the reader was
     held for **12.0 seconds** and stopped because the server did, not because the ceiling
     fired (self-audit round 19, 2026-09-02). The answer now has a deadline of its own."""
-    monkeypatch.setattr(zenodo, "time", _Clock())
+    # One clock for both: the deadline is computed by `zenodo` and read by `net.body`,
+    # so patching only one of them leaves the check comparing a fake number with the real
+    # monotonic — which passes on a machine that has been up for hours and fails on a fresh
+    # runner. This test did exactly that (CI, 2026-09-05).
+    clock = _Clock()
+    monkeypatch.setattr(zenodo, "time", clock)
+    monkeypatch.setattr(net, "time", clock)
     monkeypatch.setattr(urllib.request, "urlopen", lambda *_a, **_k: _Answer(b"[" + b"0," * 100))
 
     with pytest.raises(RuntimeError, match="still arriving"):
