@@ -22,6 +22,12 @@ Notable changes to this project. The format follows
   `docs/checker-reference.md` as tables, and the extraction, the stage table and the
   two pipes to `docs/history.md`. The `own_numbers` place on the stage table moved with
   it.
+- `README.th.md` mirrors the English README heading for heading, in the Thai wording it
+  already had where the content survived; its five `own_numbers` anchors are unchanged. The
+  abstract the two identity cards share, the PyPI headline in `pyproject.toml` and the
+  platform's About field say the same thing in plain words — what this is, what the nine
+  checkers decide, what the rest is for — and three new `own_numbers` places hold the
+  counts they state.
 
 ## [0.3.0] - 2026-09-05
 

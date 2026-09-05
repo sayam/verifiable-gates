@@ -93,6 +93,9 @@ PLACES: dict[str, list[advertised.Place]] = {
         advertised.Place("README.md", r"— (\d+) rules, each carrying"),
         advertised.Place("DECISIONS.md", SPLIT_ROW + r"(\d+) rules are published"),
         advertised.Place("README.md", r"Of the (\d+) rules"),
+        # The two identity cards state the count since 2026-09-05 (round 24 docs, PR-C).
+        advertised.Place("CITATION.cff", r"Each of the (\d+) rules records"),
+        advertised.Place(".zenodo.json", r"Each of the (\d+) rules records"),
         # The Thai README is matched by its shape — bold phrase, number, phrase —
         # because this file is held to the language policy like every other.
         advertised.Place("README.th.md", r"\*\*\S+ (\d+) \S+\*\* \(`rules\.yaml`\)"),
@@ -133,6 +136,8 @@ PLACES: dict[str, list[advertised.Place]] = {
         advertised.Place("docs/history.md", r"\| The (\w+) checks · the doctor"),
         advertised.Place("CITATION.cff", r"ships (\w+) standalone checkers"),
         advertised.Place(".zenodo.json", r"ships (\w+) standalone checkers"),
+        # The PyPI headline (pyproject `description`) states it too, since 2026-09-05.
+        advertised.Place("pyproject.toml", r"agent skill: (\w+) checkers decide"),
     ],
     "checkers_word_th": [
         advertised.Place("README.th.md", r"stdlib " + PURELY_TH + r"(\S+?)" + CLASSIFIER_TH + r" "),
