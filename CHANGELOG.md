@@ -6,6 +6,22 @@ Notable changes to this project. The format follows
 
 ## [Unreleased]
 
+### Fixed
+
+- **`preflight` knows an install by any of its names, and stops running them on your
+  machine.** The list of steps it declines to run locally matched a command that *started
+  with* `pip install`; round 27 (the agent-era round) gave a coding agent an ordinary task
+  in a project with the bundle installed, and it wrote `python3 -m pip install --require-hashes
+  -r requirements-lock.txt` into a workflow. `preflight` ran it — into this repository's own
+  virtual environment, downgrading a tool there and adding six packages that did not belong —
+  while printing *"installs the runner's tools — your machine already has an environment"* as
+  the reason it would not. Twenty-nine of thirty install spellings were being executed,
+  including every one `scan_install_pinning` has read since 2026-08-30: the half of the bundle
+  that only reads knew the wide list, and the half that executes did not. Now `pip3`,
+  `python -m pip install`, `pipx`, `uv`, `uvx`, `poetry`, `pdm`, `pipenv`, `npm`, `npx`,
+  `yarn`, `pnpm` and the system managers are all skipped with the reason, `echo` and `printf`
+  lines are read as prose, and a `run:` block is read line by line (#294).
+
 ### Added
 
 - **A waiver: the one way to say "not yet", and the record keeps it.** Round 26 measured day
