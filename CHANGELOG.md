@@ -6,6 +6,22 @@ Notable changes to this project. The format follows
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-09-05
+
+A minor release, and all of it is about somebody outside being able to check us. Twenty-four
+self-audit rounds are the root signing its own certificate, so this cut adds the three things
+that let a stranger do the checking instead: a rule can now be **taken back** — `retracted:`
+keeps a withdrawn rule in the catalogue with the date and the reason, because a deletion leaves
+every reader who followed it with nothing to read; a rule can say **where it sits in a
+vocabulary they already speak** — `maps_to:` names items of OpenSSF Scorecard, SLSA v1.0 and
+NIST's SSDF, read off those publications and held to them; and `docs/auditing.md` is **the
+hour** — the eleven rules this repository states about itself, the command that decides each
+one, and, said plainly, what no command here can answer. Around them: the DOI is held where a
+reader actually reads it (on the badge, in the Thai README, on the history page), the README
+shows whether CI is green from the one host camo was measured to fetch, and the index's own
+rebuild command — wrong since the working catalogue arrived, and shipped to everybody who
+installs the skill — is corrected and now executed by a test.
+
 ### Changed
 
 - The documents say the two things this release added to the catalogue's shape, where a
@@ -3176,7 +3192,8 @@ order it happened.
 - **`gates.yaml`, deliberately empty.** This repository will not list a gate
   before the thing that enforces it exists.
 
-[Unreleased]: https://github.com/sayam/verifiable-gates/compare/v0.3.1...HEAD
+[Unreleased]: https://github.com/sayam/verifiable-gates/compare/v0.4.0...HEAD
+[0.4.0]: https://github.com/sayam/verifiable-gates/releases/tag/v0.4.0
 [0.3.1]: https://github.com/sayam/verifiable-gates/releases/tag/v0.3.1
 [0.3.0]: https://github.com/sayam/verifiable-gates/releases/tag/v0.3.0
 [0.2.0]: https://github.com/sayam/verifiable-gates/releases/tag/v0.2.0

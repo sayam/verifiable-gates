@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "verifiable-gates"
-version = "0.3.1"
+version = "0.4.0"
 description = "CI gates that carry evidence of having gone red on a real defect, and the same rules as an agent skill: nine checkers decide part of the catalogue, the rest is written for an agent to read."
 readme = "README.md"
 requires-python = ">=3.11"
