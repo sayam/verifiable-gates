@@ -80,3 +80,7 @@ person who writes checks is a check that works.
   of the defence", not "does the defence work". Nothing was run or attacked.
 - Not which individual rule had an effect — the sheet was given as a whole.
 - Not whether any of it holds for a different model or a different brief.
+- Not whether the sheet does anything at the agent's end that a *persona*
+  instruction with no rules in it ("approach this code as a bug hunter") does
+  not — there is no persona arm, by decision, and the condition that would add
+  one is written with it (`DECISIONS.md` `the-comparison-has-no-persona-arm`).
