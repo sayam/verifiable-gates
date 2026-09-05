@@ -6,6 +6,15 @@ Notable changes to this project. The format follows
 
 ## [Unreleased]
 
+### Changed
+
+- The Thai README is its own file, `README.th.md`, beside the English one; `README.md`
+  is English only. `README.md` is what PyPI renders and what the wheel embeds, so the
+  Thai half had been travelling to every adopter while nothing an adopter receives asks
+  for it. The language test holds the new file to contain Thai and to have its English
+  counterpart, and the five places `own_numbers` writes into the Thai text moved with it
+  (`DECISIONS.md` `the-thai-readme-is-a-file-beside-it`).
+
 ## [0.3.0] - 2026-09-05
 
 The doctor's third answer now survives the hop out of the doctor. Round 23 asked what

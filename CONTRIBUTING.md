@@ -147,8 +147,8 @@ Every step below has a test or a CI step reading alongside it — the rule
 none goes stale exactly like a number with none, and this repository's own About
 field was one release away from proving it (2026-08-29).
 
-0. **Bring every document up to date first, in its own pull request** — README (both
-   languages), CONTRIBUTING, DECISIONS.md, and any docstring or `_comment` that
+0. **Bring every document up to date first, in its own pull request** — README (the
+   English and `README.th.md`), CONTRIBUTING, DECISIONS.md, and any docstring or `_comment` that
    describes a behaviour the `[Unreleased]` entries changed. The numbers half is
    held by `tests/test_own_numbers.py`; the prose half is not, and it is the
    half an outside reader audits: on 2026-08-30 seventeen fixes were green and
@@ -162,7 +162,7 @@ field was one release away from proving it (2026-08-29).
    released heading (`tests/test_own_numbers.py` holds the heading to the version).
 2. `python -m verifiable_gates.own_numbers --write` — fixes every other place that
    quotes the version, the date, or a count (`pyproject.toml`, `CITATION.cff`,
-   `.zenodo.json`, `.claude-plugin/plugin.json`, the README in both languages),
+   `.zenodo.json`, `.claude-plugin/plugin.json`, `README.md` and `README.th.md`),
    touching nothing else. The same
    test holds every place to its fact on every run, so a place missed here is red.
    If a place cannot be written, the report names the ones that did land before
@@ -236,11 +236,15 @@ ruff check . && ruff format --check . && mypy src tests && pytest -q --cov
 ```
 
 **This repository is written in English** — comments, docstrings, commit
-messages, changelog entries, and anything the tools print. The two exceptions are
-[`README.md`](README.md) and [`CLA.md`](CLA.md), which are bilingual with English
-first and Thai below, and any future file of that kind: a licence, a notice, or
-anything else that binds someone legally is kept in the maintainer's first
-language as well, so that what was agreed to is what was understood. (The
+messages, changelog entries, and anything the tools print. One exception is
+[`CLA.md`](CLA.md), bilingual with English first and Thai below, and any future
+file of that kind: a licence, a notice, or anything else that binds someone
+legally is kept in the maintainer's first language as well, so that what was
+agreed to is what was understood. The other is [`README.th.md`](README.th.md),
+the Thai README kept as its own file beside the English one — `README.md` is what
+PyPI renders and the wheel embeds, so the Thai the maintainer thinks in stays in
+this repository rather than travelling to everyone who installs
+(`DECISIONS.md` `the-thai-readme-is-a-file-beside-it`). (The
 reference implementation is the other way round, in Thai; that is deliberate —
 it is one project's record, this is a tool other people are meant to pick up.)
 

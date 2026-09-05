@@ -16,6 +16,13 @@ Why that exception exists at all: a licence or an agreement has to be understood
 by the person bound by it, and the maintainer's first language is Thai. English
 first, Thai below — both halves saying the same thing.
 
+The README is not that kind of document, and until v0.3.0 it was on the same list
+anyway — which put the Thai half on the PyPI page and inside every wheel's
+metadata, because `README.md` is what both render. The Thai README is now a file
+*beside* the English one, `README.th.md`, held two ways: it must still contain
+Thai, and `README.md` must still be there for it to translate (`DECISIONS.md`
+`the-thai-readme-is-a-file-beside-it`).
+
 There is a **third** kind, and it is the same principle at the level of a whole
 file rather than a field: a research report is *thought* in one language and
 *published* in another. The published English lives beside the original, and the
@@ -48,7 +55,14 @@ ROOT = pathlib.Path(__file__).resolve().parent.parent
 
 # Files kept bilingual on purpose: anything that binds someone legally.
 # Adding to this list is a decision, not a convenience — see CONTRIBUTING.md.
-BILINGUAL = ("README.md", "CLA.md")
+BILINGUAL = ("CLA.md",)
+
+# A translation kept as its own file beside the English it translates, at the root:
+# `<stem>.th.md` next to `<stem>.md`. README.md left BILINGUAL on 2026-09-05 because
+# PyPI renders it and the wheel embeds it, and an adopter needs none of the Thai
+# (`DECISIONS.md` `the-thai-readme-is-a-file-beside-it`). Adding here is a decision too.
+TRANSLATIONS = ("README.th.md",)
+TRANSLATION_SUFFIX = ".th.md"
 
 # The catalogue keeps every rule's original wording. Thai is allowed in it only as
 # the value of a `*_th` field — never in a comment, a key, or any other field.
@@ -136,6 +150,7 @@ def thai_offenders() -> list[str]:
         relative = path.relative_to(ROOT).as_posix()
         if (
             relative in BILINGUAL
+            or relative in TRANSLATIONS
             or relative == CATALOGUE
             or relative in THAI_IN_LITERALS
             or relative in SHEETS
@@ -152,8 +167,8 @@ def thai_offenders() -> list[str]:
 
 
 def test_the_allowlist_names_files_that_exist() -> None:
-    missing = [name for name in BILINGUAL if not (ROOT / name).is_file()]
-    assert not missing, f"the bilingual allowlist names files that are gone: {missing}"
+    missing = [name for name in BILINGUAL + TRANSLATIONS if not (ROOT / name).is_file()]
+    assert not missing, f"the language allowlists name files that are gone: {missing}"
 
 
 def test_no_thai_outside_the_bilingual_files() -> None:
@@ -174,6 +189,24 @@ def test_every_bilingual_file_really_is_bilingual(name: str) -> None:
         "Either restore the Thai half or drop the file from BILINGUAL — an "
         "exception that excuses nothing is a hole with a label on it."
     )
+
+
+@pytest.mark.parametrize("name", TRANSLATIONS)
+def test_every_translation_really_is_one(name: str) -> None:
+    """The other direction, as for the bilingual files — a translation with no Thai
+    left in it is an English file wearing the suffix."""
+    assert has_thai((ROOT / name).read_text(encoding="utf-8")), (
+        f"{name} is on the translations list but has no Thai left in it — either put the "
+        "Thai back or drop the file from TRANSLATIONS"
+    )
+
+
+@pytest.mark.parametrize("name", TRANSLATIONS)
+def test_every_translation_has_the_english_beside_it(name: str) -> None:
+    """A translation of a file that is not there is a document with no original."""
+    assert name.endswith(TRANSLATION_SUFFIX), f"{name} is not named <stem>{TRANSLATION_SUFFIX}"
+    english = ROOT / (name.removesuffix(TRANSLATION_SUFFIX) + ".md")
+    assert english.is_file(), f"{name} translates {english.name}, which is gone"
 
 
 def reference_files() -> list[pathlib.Path]:
