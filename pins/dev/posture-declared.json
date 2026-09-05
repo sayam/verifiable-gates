@@ -60,7 +60,7 @@
     },
     "allowed_actions": {
       "want": "selected",
-      "why": "every action this repository uses is GitHub's own (actions/*, github/*); a policy of 'all' lets the next workflow pull anyone's — 'selected' with GitHub-owned allowed is the smallest set that runs what runs today"
+      "why": "every action this repository uses is GitHub's own (actions/*, github/*) or named one by one under selected_actions; a policy of 'all' lets the next workflow pull anyone's — 'selected' with GitHub-owned allowed and the named few is the smallest set that runs what runs today"
     },
     "dependabot_alerts": {
       "want": true,
@@ -74,9 +74,9 @@
       "want": {
         "github_owned_allowed": true,
         "verified_allowed": false,
-        "patterns_allowed": []
+        "patterns_allowed": ["pypa/gh-action-pypi-publish@*"]
       },
-      "why": "the detail behind 'selected': every action used here is GitHub's own, so nothing verified-by-marketplace and no pattern is allowed — a pattern '*' under 'selected' is 'all' with a different word (pre-cut review, 2026-08-30)"
+      "why": "the detail behind 'selected': GitHub's own actions, nothing verified-by-marketplace, and one pattern naming one action — pypa/gh-action-pypi-publish, the trusted-publishing step of release.yml. The policy refused it at startup on 2026-09-05 (run 33937392727: not allowed because all actions must be from a repository owned by sayam or created by GitHub) while every check was green, because nothing read this register against the workflows' uses: lines — tests/test_instruments_dogfood.py does now, both ways. A pattern '*' under 'selected' is 'all' with a different word (pre-cut review, 2026-08-30); a pattern naming one action keeps the SHA pin the platform requires"
     }
   },
   "not_required": {

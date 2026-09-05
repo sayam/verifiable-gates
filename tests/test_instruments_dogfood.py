@@ -8,6 +8,7 @@ had been proved on fixtures and never asked about this tree.
 
 from __future__ import annotations
 
+import fnmatch
 import json
 import os
 import pathlib
@@ -16,6 +17,7 @@ import runpy
 import shutil
 import subprocess
 import tomllib
+from typing import Any
 
 import pytest
 import yaml
@@ -671,6 +673,45 @@ def test_every_action_sha_is_followed_by_its_version_in_a_comment() -> None:
             assert VERSION_COMMENT.match(rest), f"{path.name}: {action} names no version"
     assert len(seen) == 21, seen
     assert len(set(seen)) == 7, sorted(set(seen))
+
+
+def _admitted(want: dict[str, Any], owner: str, action: str) -> bool:
+    """The platform's reading of a `selected` policy: the repository's own owner always,
+    GitHub's own when `github_owned_allowed`, and otherwise a pattern — `owner/repo@*`,
+    `owner/*` — matched as the platform matches it."""
+    head = action.split("/", 1)[0]
+    if head == owner or (want["github_owned_allowed"] and head in {"actions", "github"}):
+        return True
+    return any(fnmatch.fnmatchcase(action, str(p)) for p in want["patterns_allowed"])
+
+
+def test_every_action_the_workflows_use_is_one_the_declared_policy_admits() -> None:
+    """The Actions policy is `selected` — GitHub-owned and a list — and a `uses:` outside
+    it is refused at **startup**, before any job: `release.yml` dispatched for v0.2.0 on
+    2026-09-05 lasted one second (run 33937392727, *pypa/gh-action-pypi-publish@… is not
+    allowed … all actions must be from a repository owned by sayam or created by GitHub*)
+    after #243 had added the step and every check had been green, because no check read the
+    register against the workflows. Both ways: every `uses:` is admitted by the declared
+    policy, and every pattern the register allows is one some workflow uses — an allowance
+    nobody uses is one nobody reviews.
+    """
+    register = json.loads((ROOT / "pins/dev/posture-declared.json").read_text("utf-8"))
+    want = register["settings"]["selected_actions"]["want"]
+    card = yaml.safe_load((ROOT / "CITATION.cff").read_text("utf-8"))
+    owner_login = str(card["repository-code"]).removeprefix("https://github.com/").split("/")[0]
+    used: set[str] = set()
+    for path in sorted((ROOT / ".github" / "workflows").glob("*.yml")):
+        for action, _rest in PINNED_USES.findall(path.read_text(encoding="utf-8")):
+            used.add(action)
+            assert _admitted(want, owner_login, action), (
+                f"{path.name}: {action} is not admitted by pins/dev/posture-declared.json — "
+                "the platform refuses the whole workflow at startup; name it there, both ways"
+            )
+    for pattern in want["patterns_allowed"]:
+        assert any(fnmatch.fnmatchcase(a, str(pattern)) for a in used), (
+            f"the register admits {pattern!r} and no workflow uses it — remove the allowance"
+        )
+    assert want["patterns_allowed"] == ["pypa/gh-action-pypi-publish@*"], want
 
 
 def test_a_body_edit_reruns_the_checks_that_read_the_body() -> None:
