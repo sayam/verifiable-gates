@@ -161,6 +161,8 @@ HELD = {
     "a-withdrawal-is-published-not-deleted": "",
     # 2026-09-05: T5 — where a rule sits in somebody else's vocabulary, read off theirs.
     "a-mapping-is-read-from-the-framework-not-from-memory": "2027-02-28",
+    # 2026-09-05: the listing's categories are held as a set; the order is the platform's.
+    "the-listings-primary-category-is-not-ours-to-hold": "2027-02-28",
 }
 
 # The rows whose `expires when` is `Never` — an expiry rewritten to "Never" was
