@@ -2887,6 +2887,34 @@ def test_the_hooks_name_the_doctor_and_every_installed_scan_and_nothing_else() -
         assert hook["always_run"] is True, f"{hook['id']}: a scan skipped is a scan not run"
 
 
+def test_every_hook_says_before_the_click_that_it_runs_what_the_project_installed() -> None:
+    """`pre-commit` shows a hook's `description`; ours said nothing (round 24, 2026-09-05).
+
+    A stranger adding `repo: …/verifiable-gates` saw a name and, with no bundle installed,
+    `python3: can't open file '…/tools/gates_doctor.py'` — the one entry point whose failure
+    was a traceback-shaped error while the action and the edit hook say what to do.
+    """
+    for hook in _hooks():
+        description = hook.get("description", "")
+        assert "tools/" in description, f"{hook['id']}: says nothing about what it runs"
+        assert "python -m verifiable_gates.install" in description, (
+            f"{hook['id']}: does not say how the bundle gets there"
+        )
+
+
+def test_a_hook_refuses_a_tree_with_no_bundle_in_a_sentence(tmp_path: pathlib.Path) -> None:
+    """The same sentence and exit code as the action, for the same reason."""
+    empty = tmp_path / "nothing-installed"
+    empty.mkdir()
+    for hook in _hooks():
+        done = _bash(hook["entry"], empty, {})
+        assert done.returncode == 2, f"{hook['id']}: {done.returncode} {done.stderr}"
+        assert "no bundle installed under" in done.stderr, hook["id"]
+        assert "python -m verifiable_gates.install" in done.stderr, f"{hook['id']}: says what to do"
+        assert "Traceback" not in done.stderr, hook["id"]
+        assert "can't open file" not in done.stderr, hook["id"]
+
+
 def test_a_hook_entry_runs_the_scanner_the_project_installed(installed: pathlib.Path) -> None:
     hooks = {hook["id"]: hook for hook in _hooks()}
     assert _bash(hooks["gates-doctor"]["entry"], installed, {}).returncode == 0

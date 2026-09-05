@@ -6,73 +6,108 @@
 # every installed scan; the others run one scanner each, by the id of the rule it decides,
 # for a project that wants them one at a time. A scanner exits 2 when it could not look;
 # pre-commit fails the commit on that too, which is right — "could not check" is not a pass.
+# Every `entry` is guarded: a project with no bundle under tools/ gets the sentence the action
+# prints — "no bundle installed under . — … (python -m verifiable_gates.install)" — and exit 2,
+# not `python3: can't open file` (round 24, 2026-09-05). The `description:` says the same before
+# the click, where `pre-commit` shows it.
+
 
 - id: gates-doctor
   name: verifiable-gates — every installed scan
-  entry: python3 tools/gates_doctor.py --root .
+  description: >-
+    Every scan the project installed under tools/, run by its own gates_doctor.py; exits 2 with a sentence when nothing is installed. Install first: python -m verifiable_gates.install <project>
+  entry: >-
+    bash -c 'test -f tools/gates_doctor.py || { echo "verifiable-gates: no bundle installed under . — this hook runs the doctor a project installed (python -m verifiable_gates.install); it carries no copy of its own" >&2; exit 2; }; python3 tools/gates_doctor.py --root .'
   language: system
   pass_filenames: false
   always_run: true
 
 - id: actions-sha-pinned
   name: verifiable-gates — actions-sha-pinned
-  entry: python3 tools/checks/scan_workflow_pinning.py .
+  description: >-
+    The scanner for rule actions-sha-pinned the project installed under tools/checks/; exits 2 with a sentence when nothing is installed. Install first: python -m verifiable_gates.install <project>
+  entry: >-
+    bash -c 'test -f tools/checks/scan_workflow_pinning.py || { echo "verifiable-gates: no bundle installed under . — this hook runs the scanner a project installed (python -m verifiable_gates.install); it carries no copy of its own" >&2; exit 2; }; python3 tools/checks/scan_workflow_pinning.py .'
   language: system
   pass_filenames: false
   always_run: true
 
 - id: adr-index-complete
   name: verifiable-gates — adr-index-complete
-  entry: python3 tools/checks/scan_adr_index.py .
+  description: >-
+    The scanner for rule adr-index-complete the project installed under tools/checks/; exits 2 with a sentence when nothing is installed. Install first: python -m verifiable_gates.install <project>
+  entry: >-
+    bash -c 'test -f tools/checks/scan_adr_index.py || { echo "verifiable-gates: no bundle installed under . — this hook runs the scanner a project installed (python -m verifiable_gates.install); it carries no copy of its own" >&2; exit 2; }; python3 tools/checks/scan_adr_index.py .'
   language: system
   pass_filenames: false
   always_run: true
 
 - id: ci-tools-hash-pinned
   name: verifiable-gates — ci-tools-hash-pinned
-  entry: python3 tools/checks/scan_install_pinning.py .
+  description: >-
+    The scanner for rule ci-tools-hash-pinned the project installed under tools/checks/; exits 2 with a sentence when nothing is installed. Install first: python -m verifiable_gates.install <project>
+  entry: >-
+    bash -c 'test -f tools/checks/scan_install_pinning.py || { echo "verifiable-gates: no bundle installed under . — this hook runs the scanner a project installed (python -m verifiable_gates.install); it carries no copy of its own" >&2; exit 2; }; python3 tools/checks/scan_install_pinning.py .'
   language: system
   pass_filenames: false
   always_run: true
 
 - id: csp-no-inline
   name: verifiable-gates — csp-no-inline
-  entry: python3 tools/checks/scan_templates_inline.py .
+  description: >-
+    The scanner for rule csp-no-inline the project installed under tools/checks/; exits 2 with a sentence when nothing is installed. Install first: python -m verifiable_gates.install <project>
+  entry: >-
+    bash -c 'test -f tools/checks/scan_templates_inline.py || { echo "verifiable-gates: no bundle installed under . — this hook runs the scanner a project installed (python -m verifiable_gates.install); it carries no copy of its own" >&2; exit 2; }; python3 tools/checks/scan_templates_inline.py .'
   language: system
   pass_filenames: false
   always_run: true
 
 - id: delete-means-soft-delete
   name: verifiable-gates — delete-means-soft-delete
-  entry: python3 tools/checks/scan_write_discipline.py .
+  description: >-
+    The scanner for rule delete-means-soft-delete the project installed under tools/checks/; exits 2 with a sentence when nothing is installed. Install first: python -m verifiable_gates.install <project>
+  entry: >-
+    bash -c 'test -f tools/checks/scan_write_discipline.py || { echo "verifiable-gates: no bundle installed under . — this hook runs the scanner a project installed (python -m verifiable_gates.install); it carries no copy of its own" >&2; exit 2; }; python3 tools/checks/scan_write_discipline.py .'
   language: system
   pass_filenames: false
   always_run: true
 
 - id: gates-registry-total
   name: verifiable-gates — gates-registry-total
-  entry: python3 tools/checks/scan_gates_registry.py .
+  description: >-
+    The scanner for rule gates-registry-total the project installed under tools/checks/; exits 2 with a sentence when nothing is installed. Install first: python -m verifiable_gates.install <project>
+  entry: >-
+    bash -c 'test -f tools/checks/scan_gates_registry.py || { echo "verifiable-gates: no bundle installed under . — this hook runs the scanner a project installed (python -m verifiable_gates.install); it carries no copy of its own" >&2; exit 2; }; python3 tools/checks/scan_gates_registry.py .'
   language: system
   pass_filenames: false
   always_run: true
 
 - id: image-digest-pinned
   name: verifiable-gates — image-digest-pinned
-  entry: python3 tools/checks/scan_dockerfile_digest.py .
+  description: >-
+    The scanner for rule image-digest-pinned the project installed under tools/checks/; exits 2 with a sentence when nothing is installed. Install first: python -m verifiable_gates.install <project>
+  entry: >-
+    bash -c 'test -f tools/checks/scan_dockerfile_digest.py || { echo "verifiable-gates: no bundle installed under . — this hook runs the scanner a project installed (python -m verifiable_gates.install); it carries no copy of its own" >&2; exit 2; }; python3 tools/checks/scan_dockerfile_digest.py .'
   language: system
   pass_filenames: false
   always_run: true
 
 - id: logic-knows-no-http
   name: verifiable-gates — logic-knows-no-http
-  entry: python3 tools/checks/scan_service_layer.py .
+  description: >-
+    The scanner for rule logic-knows-no-http the project installed under tools/checks/; exits 2 with a sentence when nothing is installed. Install first: python -m verifiable_gates.install <project>
+  entry: >-
+    bash -c 'test -f tools/checks/scan_service_layer.py || { echo "verifiable-gates: no bundle installed under . — this hook runs the scanner a project installed (python -m verifiable_gates.install); it carries no copy of its own" >&2; exit 2; }; python3 tools/checks/scan_service_layer.py .'
   language: system
   pass_filenames: false
   always_run: true
 
 - id: no-debug-entrypoint
   name: verifiable-gates — no-debug-entrypoint
-  entry: python3 tools/checks/scan_entrypoint_debug.py .
+  description: >-
+    The scanner for rule no-debug-entrypoint the project installed under tools/checks/; exits 2 with a sentence when nothing is installed. Install first: python -m verifiable_gates.install <project>
+  entry: >-
+    bash -c 'test -f tools/checks/scan_entrypoint_debug.py || { echo "verifiable-gates: no bundle installed under . — this hook runs the scanner a project installed (python -m verifiable_gates.install); it carries no copy of its own" >&2; exit 2; }; python3 tools/checks/scan_entrypoint_debug.py .'
   language: system
   pass_filenames: false
   always_run: true
