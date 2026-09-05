@@ -13,6 +13,11 @@ Notable changes to this project. The format follows
   project with no bundle gets the sentence the action prints — *no bundle installed under
   … (python -m verifiable_gates.install)* — and exit 2, not `python3: can't open file`
   (round 24, measured 2026-09-05 with pre-commit 4.6.2).
+- The README says beside the `npx skills add` command, in both languages, that the pipe
+  sends the repository and skill identifiers as telemetry and how to turn it off — the
+  clause the README restructure had moved to `docs/history.md` while `DECISIONS.md`
+  `distribution-is-two-pipes-nobody-here-owns` said it was beside the command. A test
+  holds it there now (round 24).
 
 ## [0.3.1] - 2026-09-05
 

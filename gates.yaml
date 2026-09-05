@@ -417,6 +417,13 @@ gates:
           installs the bundle from the wheel it built before attesting it — red in
           the test that holds the step's phrases to the workflow (documents before
           the v0.3.1 cut).
+      - kind: mutation
+        ref: pr/271
+        date: 2026-09-05
+        caught: >-
+          The telemetry clause taken off the README's npx row again, in either
+          language — the shape #265 left, which a DECISIONS row said was not so and
+          nothing held — red in both (round 24, F1).
   - id: the-security-policy-quotes-one-set-of-numbers
     title: SECURITY.md exists, quotes one set of timeframes, names no address, and points at a live channel
     kind: test

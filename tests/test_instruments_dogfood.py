@@ -414,6 +414,21 @@ def test_the_action_is_listable_on_the_marketplace_and_the_checklist_says_so() -
     assert "pin the SHA, not the tag the listing offers" in readme
 
 
+def test_the_readme_says_beside_the_npx_command_what_the_pipe_sends() -> None:
+    """`DECISIONS.md` `distribution-is-two-pipes-nobody-here-owns` says the README says it beside
+    the command (round 23, A1). The README restructure (#265) moved the sentence to
+    `docs/history.md` and nothing was red — this is the holder that was missing (round 24, F1).
+    Same line as the command, in both languages: "beside" means the reader cannot miss it.
+    """
+    for name in ("README.md", "README.th.md"):
+        lines = (ROOT / name).read_text(encoding="utf-8").splitlines()
+        beside = [line for line in lines if "npx skills add sayam/verifiable-gates" in line]
+        assert beside, f"{name} no longer shows the npx command"
+        assert any("DISABLE_TELEMETRY=1" in line for line in beside), (
+            f"{name}: the npx command is shown without what the pipe sends and how to turn it off"
+        )
+
+
 def test_the_sbom_is_taken_from_a_clean_environment_holding_the_wheel() -> None:
     """The SBOM records what was verified by hash, not what the index served that minute."""
     jobs = preflight.jobs_on_disk(ROOT)

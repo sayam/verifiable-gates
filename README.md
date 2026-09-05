@@ -143,7 +143,7 @@ Two pipes this repository does not own install the skill without cloning:
 
 | Pipe | Command | What lands |
 |---|---|---|
-| Skills CLI | `npx skills add sayam/verifiable-gates` | lands the **four** files under `skills/verifiable-gates/` and nothing else |
+| Skills CLI | `npx skills add sayam/verifiable-gates` | lands the **four** files under `skills/verifiable-gates/` and nothing else; the pipe sends the repository and skill identifiers as telemetry, off with `DISABLE_TELEMETRY=1` |
 | Claude Code | `claude plugin marketplace add sayam/verifiable-gates`, then `claude plugin install verifiable-gates@verifiable-gates` | the whole repository, as a plugin |
 
 The nine rules with a checker (`script:` in `rules.yaml`) are the ones the doctor and
