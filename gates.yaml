@@ -3796,6 +3796,16 @@ gates:
           and stopped the scanner looking for that gate's files, every
           reader green; two cases red now (self-audit round 2, 2026-08-31).
 
+      - kind: mutation
+        ref: pr/292
+        date: 2026-09-05
+        caught: >-
+          `warning` put back into the vocabulary, the `watched`-without-`watched_by`
+          branch removed, the `blocking`-with-`watched_by` branch removed, and the whole
+          check unwired from `problems()` — each red. Round 26, F3: `warning` had been in
+          the schema from the first version and was read by nothing at run time, so a
+          gate marked with it was as red as any other and the word promised a softness
+          no run delivered.
   - id: every-commit-is-shaped-and-signed
     title: Every commit added by a branch is a Conventional Commit and carries a sign-off
     kind: job
