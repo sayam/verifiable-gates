@@ -62,6 +62,113 @@ def test_a_fresh_install_gives_a_project_something_that_runs(
     assert "installed:" in intact.stdout
 
 
+# What an upgrade changes about the **decided set** — the half a version number hides.
+# Round 25 measured a project installed at v0.1.11 and upgraded to v0.4.0 with its own files
+# untouched: the same four findings before and after, because the same nine scans have shipped
+# in every release since v0.1.0. Nothing had ever been *prevented* — the installer printed the
+# same count both times and compared nothing, so a tenth scan would have arrived as a red build
+# on a day nobody changed the code (P5).
+
+
+def _overlay(project: pathlib.Path) -> dict[str, Any]:
+    loaded: dict[str, Any] = json.loads(
+        (project / "tools" / "overlay.json").read_text(encoding="utf-8")
+    )
+    return loaded
+
+
+def _write_overlay(project: pathlib.Path, manifest: dict[str, Any]) -> None:
+    (project / "tools" / "overlay.json").write_text(json.dumps(manifest), encoding="utf-8")
+
+
+def test_a_first_install_says_nothing_about_an_upgrade(
+    tmp_path: pathlib.Path, bundle_copy: pathlib.Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """There is nothing to compare against, and inventing a comparison would be worse."""
+    assert do_install(tmp_path / "project", bundle_copy) == 0
+
+    said = capsys.readouterr().out
+    assert "9 gates (9 scan)" in said
+    assert "scans you had" not in said
+    assert "decide your tree from now" not in said
+
+
+def test_an_upgrade_that_decides_nothing_new_says_so(
+    tmp_path: pathlib.Path, bundle_copy: pathlib.Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """The v0.1.11 → v0.4.0 case, which is every upgrade this project has ever shipped."""
+    project = tmp_path / "project"
+    assert do_install(project, bundle_copy) == 0
+    capsys.readouterr()
+
+    assert do_install(project, bundle_copy) == 0
+
+    assert "the same 9 scans you had" in capsys.readouterr().out
+
+
+def test_a_scan_that_arrives_with_the_upgrade_is_named(
+    tmp_path: pathlib.Path, bundle_copy: pathlib.Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """The pitfall itself: a rule that decides the tree from now on, and no red to explain it.
+    The project's bundle is put back to one scan short, which is what an older release was."""
+    project = tmp_path / "project"
+    assert do_install(project, bundle_copy) == 0
+    older = _overlay(project)
+    older["gates"].pop("csp-no-inline")
+    _write_overlay(project, older)
+    capsys.readouterr()
+
+    assert do_install(project, bundle_copy) == 0
+
+    said = capsys.readouterr().out
+    assert "1 new scan(s) decide your tree from now" in said
+    assert "csp-no-inline" in said
+
+
+def test_a_scan_that_no_longer_decides_anything_is_named_too(
+    tmp_path: pathlib.Path, bundle_copy: pathlib.Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """The other direction. A scan going is not a red, but a project whose CI was green
+    because of it deserves to be told which check stopped happening."""
+    project = tmp_path / "project"
+    assert do_install(project, bundle_copy) == 0
+    with_extra = _overlay(project)
+    with_extra["gates"]["a-scan-from-another-bundle"] = {
+        "kind": "scan",
+        "script": "checks/scan_adr_index.py",
+        "title": "a scan from another bundle",
+        "layer": "baseline",
+        "born_from": "a fixture",
+        "reads": "nothing",
+    }
+    _write_overlay(project, with_extra)
+    capsys.readouterr()
+
+    assert do_install(project, bundle_copy) == 0
+
+    said = capsys.readouterr().out
+    assert "1 scan(s) no longer decide anything here" in said
+    assert "a-scan-from-another-bundle" in said
+
+
+def test_a_bundle_already_there_that_cannot_be_read_is_said_and_not_guessed(
+    tmp_path: pathlib.Path, bundle_copy: pathlib.Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """ "There was nothing before" and "what was before could not be read" are different facts.
+    The install still finishes — the unreadable file is being replaced anyway — but it does not
+    print a comparison it could not make."""
+    project = tmp_path / "project"
+    assert do_install(project, bundle_copy) == 0
+    (project / "tools" / "overlay.json").write_text("not a manifest", encoding="utf-8")
+    capsys.readouterr()
+
+    assert do_install(project, bundle_copy) == 0
+
+    said = capsys.readouterr().out
+    assert "the bundle already here could not be read" in said
+    assert "scans you had" not in said
+
+
 def test_the_doctor_runs_the_scans_on_a_bare_project(
     tmp_path: pathlib.Path, bundle_copy: pathlib.Path, capsys: pytest.CaptureFixture[str]
 ) -> None:

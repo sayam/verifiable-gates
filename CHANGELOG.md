@@ -8,6 +8,20 @@ Notable changes to this project. The format follows
 
 ### Added
 
+- **The installer says what an upgrade changes about the scans that decide your tree.** Round 25
+  measured a project installed at v0.1.11 and upgraded to v0.4.0 with its own files untouched:
+  the installer kept `gates.yaml`, `scaffold.json` and the workflow and said so, only `tools/`
+  changed, and the doctor found the same four gates before and after — because **the same nine
+  scans have shipped in every release since v0.1.0**. Nothing was preventing otherwise: the
+  installer printed the same count both times and compared nothing, so a tenth scan would have
+  arrived as a red build on a day nobody changed the code (P5). It now reads the overlay already
+  there before replacing it and says one of *"the same 9 scans you had — this upgrade decides
+  nothing new about your tree"*, *"N new scan(s) decide your tree from now …"* naming them, or
+  *"N scan(s) no longer decide anything here …"*. A first install says none of it, and a bundle
+  that is there but cannot be read says **that**, rather than passing for one that was absent.
+
+### Added
+
 - **The hook says what it costs.** Round 25 measured the doctor for the first time: about
   **0.4 s** of interpreter starts (nine scans, nine processes) plus roughly **1.6 ms per Python
   file** under `src_path` — 0.5 s on this repository, 2.5 s at 907 modules, **14.5 s at 7 256**,

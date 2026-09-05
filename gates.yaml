@@ -3026,6 +3026,16 @@ gates:
           answered `can't open file` in a project with no bundle — and a hook's
           `description` dropped: each red (round 24, F2: pre-commit was the one entry
           point that said nothing before the click and tracebacked after it).
+      - kind: mutation
+        ref: pr/289
+        date: 2026-09-05
+        caught: >-
+          The comparison of the decided set removed four ways: the "nothing new" branch made
+          unconditional, the two sets emptied so nothing is ever named, the previous overlay
+          never read (so an upgrade always looks like a first install), and the unreadable
+          case narrowed so a bundle that is there but malformed reads as one that is absent —
+          each red. Round 25, F2: the same nine scans have shipped since v0.1.0, so a tenth
+          would have arrived as a red build on a day nobody changed the code.
   - id: the-manifest-is-an-input
     title: The manifest is validated as data, and a rule the bundle cannot decide cannot carry a script
     kind: test
