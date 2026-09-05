@@ -163,6 +163,8 @@ HELD = {
     "a-mapping-is-read-from-the-framework-not-from-memory": "2027-02-28",
     # 2026-09-05: the listing's categories are held as a set; the order is the platform's.
     "the-listings-primary-category-is-not-ours-to-hold": "2027-02-28",
+    # 2026-09-05: D7 of the 2026-08-31 audit, recorded at last — silence with exit 0 is clean.
+    "a-silent-scan-is-clean-because-zero-is-the-contract": "",
 }
 
 # The rows whose `expires when` is `Never` — an expiry rewritten to "Never" was
