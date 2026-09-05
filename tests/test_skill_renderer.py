@@ -550,3 +550,13 @@ def test_a_withdrawn_practice_is_marked_and_uncounted_too() -> None:
     index = skill.render_index([a_rule()], PREAMBLE, practices=practices)
     assert "### working — 1 practices · 1 retracted · full entries" in index
     assert "#a-dropped-practice) — **retracted 2026-09-05** — " in index
+
+
+def test_the_sheet_says_where_a_rule_sits_outside_after_it_says_who_enforces_it() -> None:
+    """An auditor who came from Scorecard or the SSDF is looking for their own words, and
+    finding them under the rule rather than above it says which is the source and which
+    the map (`DECISIONS.md` `a-mapping-is-read-from-the-framework-not-from-memory`)."""
+    sheet = skill.render([a_rule(maps_to=["scorecard:SAST", "ssdf:PW.7"])], PREAMBLE)
+    assert "**Maps to:** `scorecard:SAST` · `ssdf:PW.7`" in sheet
+    assert sheet.index("**Enforced in the reference:**") < sheet.index("**Maps to:**")
+    assert "Maps to" not in skill.render([a_rule()], PREAMBLE)

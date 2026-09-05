@@ -40,6 +40,7 @@ rules:
 - id: gates-registry-total
   layer: baseline
   pillar: devx
+  maps_to: [ssdf:PO.4]
   title: The gate index matches reality in both directions, and every test file is accounted for
   title_th: ดัชนี gate ตรงกับความจริงสองทิศ และไฟล์เทสต์ทุกไฟล์ถูกตัดสิน
   born_from: 'semgrep was scanning only 71 of 136 files because its scope was declared in two places
@@ -61,6 +62,7 @@ rules:
 - id: gates-carry-red-evidence
   layer: baseline
   pillar: devx
+  maps_to: [ssdf:PO.4]
   title: A new gate arrives with evidence that it went red on a real defect — the list of ones that
     have not can only shrink
   title_th: gate ใหม่ต้องมาพร้อมหลักฐานว่าเคยแดงตอนของเสียจริง — รายการที่ยังไม่มีหดได้ทางเดียว
@@ -251,6 +253,7 @@ rules:
 - id: session-hardening
   layer: baseline
   pillar: security
+  maps_to: [ssdf:PW.9]
   title: Idle and absolute timeouts are checked server-side · the cookie is bound to the current credential
   title_th: idle/absolute timeout ตรวจฝั่ง server · คุกกี้ผูกกับ credential ปัจจุบัน
   born_from: ADR 0020 — an expiry stamped on a cookie is something the client can edit · change the
@@ -346,6 +349,7 @@ rules:
 - id: csp-no-inline
   layer: baseline
   pillar: security
+  maps_to: [ssdf:PW.9]
   title: CSP is pure self — no inline script, style, or handler anywhere
   title_th: CSP เป็น self ล้วน — ไม่มี inline script/style/handler ที่ไหนเลย
   born_from: ADR 0010 — the browser blocks inline content silently with no server-side error, so the
@@ -363,6 +367,7 @@ rules:
 - id: config-fails-loud
   layer: baseline
   pillar: security
+  maps_to: [ssdf:PW.9]
   title: A missing SECRET_KEY or an unknown scheme means the app does not start — never a silent fallback
   title_th: ไม่มี SECRET_KEY หรือ scheme ที่ไม่รู้จัก = ไม่ start — ห้ามตกกลับเงียบ ๆ
   born_from: ADR 0026/0030 — production that is misconfigured yet "works" on SQLite fails on the day
@@ -378,6 +383,7 @@ rules:
 - id: no-debug-entrypoint
   layer: baseline
   pillar: security
+  maps_to: [ssdf:PW.9]
   title: No entrypoint file can open a debug console, even when the wrong one is run
   title_th: ไฟล์ entrypoint ไม่มีทางเปิด debug console ได้แม้รันผิดตัว
   born_from: The first SAST round pointed at an entrypoint that could enable debug and was being copied
@@ -410,6 +416,7 @@ rules:
 - id: api-fuzzed-from-spec
   layer: baseline
   pillar: security
+  maps_to: [scorecard:Fuzzing, ssdf:PW.8]
   title: The fuzzer builds requests from the spec itself — new endpoints are covered automatically
   title_th: fuzz สร้างคำขอจาก spec เอง — endpoint ใหม่ถูกครอบอัตโนมัติ
   born_from: The first round caught three things the hand-written tests had missed (an id past 64
@@ -485,6 +492,7 @@ rules:
 - id: declared-prohibitions-enforced
   layer: baseline
   pillar: devx
+  maps_to: [ssdf:PO.4]
   title: A prohibition a machine can check has a machine checking it — and the gate must quote a rule
     that still exists
   title_th: ข้อห้ามที่เครื่องตรวจได้ ต้องมีเครื่องตรวจ — และด่านต้องอ้างกฎที่ยังมีอยู่จริง
@@ -509,6 +517,7 @@ rules:
 - id: stack-images-pinned-and-moved
   layer: baseline
   pillar: security
+  maps_to: [scorecard:Dependency-Update-Tool, scorecard:Pinned-Dependencies]
   title: Stack images are pinned by digest · something moves them · and the mover asks only for digests,
     not new versions
   title_th: image ของ stack ตรึงด้วย digest · มีตัวขยับ · และตัวขยับขอแค่ digest ไม่ใช่รุ่นใหม่
@@ -777,6 +786,7 @@ rules:
 - id: licensing-no-copyleft
   layer: baseline
   pillar: security
+  maps_to: [scorecard:License]
   title: The LICENSE is the real text the ADR declares · the core carries no dependency with a copyleft
     obligation
   title_th: LICENSE เป็นของจริงตามที่ ADR ประกาศ · core ไม่มี dependency ที่แบกภาระ copyleft
@@ -800,6 +810,7 @@ rules:
 - id: security-policy-consistent
   layer: baseline
   pillar: security
+  maps_to: [scorecard:Security-Policy]
   title: The timeframes quoted in SECURITY.md agree across every copy, and no email address appears
     in the file
   title_th: ตัวเลขกรอบเวลาใน SECURITY.md ตรงกันทุกสำเนา และไม่มีอีเมลในไฟล์
@@ -847,6 +858,7 @@ rules:
 - id: actions-sha-pinned
   layer: baseline
   pillar: security
+  maps_to: [scorecard:Pinned-Dependencies]
   title: Every action is pinned to a commit SHA with the version in a comment
   title_th: ทุก action ถูก pin ด้วย commit SHA + คอมเมนต์เลขรุ่น
   born_from: Tags move, commits do not — upload-artifact once sat on @v4 at a single call site for
@@ -864,6 +876,7 @@ rules:
 - id: image-digest-pinned
   layer: baseline
   pillar: security
+  maps_to: [scorecard:Pinned-Dependencies]
   title: The base image is pinned to a manifest-index digest and Dependabot moves it
   title_th: base image ถูก pin ด้วย digest ของ manifest index และ Dependabot ขยับให้
   born_from: Pinning with nobody to move it freezes the vulnerabilities in place — the two must always
@@ -880,6 +893,7 @@ rules:
 - id: ci-tools-hash-pinned
   layer: baseline
   pillar: security
+  maps_to: [scorecard:Pinned-Dependencies]
   title: Tools CI installs for itself are pinned by hash, on both the Python and the Node side
   title_th: เครื่องมือที่ CI ติดตั้งเองถูกตรึงด้วย hash ทั้ง python และ node
   born_from: An unpinned install command takes whatever is newest at the second the job runs, and
@@ -898,6 +912,7 @@ rules:
 - id: checkers-proven-two-way
   layer: baseline
   pillar: security
+  maps_to: [ssdf:PO.4]
   title: A script that decides pass or fail has tests with a planted violation and with clean input
     · and its report may not contradict itself
   title_th: สคริปต์ที่ตัดสินผ่าน/ไม่ผ่าน ต้องมีเทสต์ planted violation + clean input · และรายงานต้องไม่ขัดกันเอง
@@ -957,6 +972,7 @@ rules:
 - id: dependabot-fits-the-gates
   layer: baseline
   pillar: security
+  maps_to: [scorecard:Dependency-Update-Tool]
   title: Dependabot's prefix is a type commit-lint accepts, and pip is constrained by path
   title_th: prefix ของ Dependabot เป็นชนิดที่ commit-lint รับ และ pip ถูกจำกัดด้วย path
   born_from: A machine's pull requests that are red from the first one teach the maintainer to ignore
@@ -970,6 +986,7 @@ rules:
 - id: suite-on-three-brands
   layer: business
   pillar: manageability
+  maps_to: [scorecard:CI-Tests, ssdf:PW.8]
   title: The whole test suite passes on MySQL 8 and MariaDB 11 for real, not only on SQLite
   title_th: ชุดเทสต์ทั้งชุดผ่านบน MySQL 8 และ MariaDB 11 จริง ไม่ใช่แค่ SQLite
   born_from: '"Supports several brands" that has never been fired at a real brand is advertising —
@@ -982,6 +999,7 @@ rules:
 - id: bare-clone-still-green
   layer: baseline
   pillar: manageability
+  maps_to: [scorecard:CI-Tests]
   title: A bare clone (with none of the optional extras installed) must be green — "remove it and
     the system still works" is measurable
   title_th: สภาพหลัง clone เปล่า ๆ (ยังไม่ติดตั้งของเสริมที่ไม่บังคับ) ต้องเขียว — "ถอดแล้วระบบยังทำงานได้"
@@ -996,6 +1014,7 @@ rules:
 - id: changed-lines-fully-tested
   layer: baseline
   pillar: devx
+  maps_to: [scorecard:CI-Tests, ssdf:PW.8]
   title: Lines a pull request changes must be 100% covered — a whole-file coverage floor cannot answer
     that question
   title_th: บรรทัดที่ PR แก้ต้องถูกเทสต์ครอบ 100% — coverage floor ทั้งไฟล์ตอบคำถามนี้ไม่ได้
@@ -1013,6 +1032,7 @@ rules:
 - id: static-quality-battery
   layer: baseline
   pillar: devx
+  maps_to: [ssdf:PO.4]
   title: ruff + format + xenon + interrogate + mypy + the ASVS worksheet — ratchets that only move
     up
   title_th: ruff + format + xenon + interrogate + mypy + asvs-worksheet — ratchet ขึ้นทางเดียว
@@ -1080,6 +1100,7 @@ rules:
 - id: core-deps-cve-audit
   layer: baseline
   pillar: security
+  maps_to: [scorecard:Vulnerabilities, ssdf:RV.1]
   title: pip-audit over the core — a CVE in something that cannot be removed must be able to stop
     the pipeline
   title_th: pip-audit ของ core — CVE ที่ถอดไม่ได้ต้องหยุด pipeline ได้
@@ -1094,6 +1115,7 @@ rules:
 - id: deploy-deps-cve-audit
   layer: baseline
   pillar: security
+  maps_to: [scorecard:Vulnerabilities, ssdf:RV.1]
   title: The deploy category is audited — nobody else watches the server that takes real requests
   title_th: audit หมวด deploy — server ที่รับคำขอจริงไม่มีใครเฝ้าให้ที่อื่น
   born_from: The deploy category is invisible to every tool installed with the dev set — found twice
@@ -1108,6 +1130,7 @@ rules:
 - id: ci-tools-cve-audit
   layer: baseline
   pillar: security
+  maps_to: [scorecard:Vulnerabilities, ssdf:RV.1]
   title: pins/ is audited on both the Python side (pip-audit) and the Node side (npm audit), in both
     directions
   title_th: audit ของ pins/ ทั้ง python (pip-audit) และ node (npm audit) สองทิศ
@@ -1122,6 +1145,7 @@ rules:
 - id: semgrep-sast
   layer: baseline
   pillar: security
+  maps_to: [scorecard:SAST, ssdf:PW.7]
   title: SAST with the framework and language rulesets — decided by the report, not by the exit code
   title_th: SAST ด้วย ruleset ของ framework และภาษา — ตัดสินด้วยรายงาน ไม่ใช่ exit code
   born_from: A scan that passes silently looks exactly like a scan that checked nothing — the decider
@@ -1135,6 +1159,7 @@ rules:
 - id: plugin-deps-cve-decided
   layer: business
   pillar: security
+  maps_to: [scorecard:Vulnerabilities, ssdf:RV.2]
   title: Every CVE in a plugin's libraries must have been decided (upgraded · removed · or accepted
     with a reason)
   title_th: CVE ในไลบรารีของ plugin ต้องถูกตัดสินแล้วทุกตัว (อัปเกรด · ถอด · หรือรับไว้พร้อมเหตุผล)
@@ -1186,6 +1211,7 @@ rules:
 - id: image-built-and-probed
   layer: baseline
   pillar: security
+  maps_to: [ssdf:PW.6]
   title: The image is really built and then probed — not running as root, code not writable, answers
     200
   title_th: build image จริงแล้วยิงใส่มัน — ไม่รัน root, โค้ดเขียนทับไม่ได้, ตอบ 200
@@ -1199,6 +1225,7 @@ rules:
 - id: dockerfile-linted
   layer: baseline
   pillar: security
+  maps_to: [ssdf:PW.6]
   title: The Dockerfile passes hadolint at every level including info — exceptions carry reasons in
     one config
   title_th: Dockerfile ผ่าน hadolint ทุกระดับรวม info — ข้อยกเว้นมีเหตุผลที่ config เดียว
@@ -1214,6 +1241,7 @@ rules:
 - id: image-os-cve-audit
   layer: baseline
   pillar: security
+  maps_to: [scorecard:Vulnerabilities, ssdf:RV.1]
   title: The image's OS layer is scanned for CVEs and decided against an exception list, in both directions
   title_th: OS layer ของ image ถูกสแกน CVE และตัดสินเทียบรายการยกเว้นสองทิศ
   born_from: 'Governance audit 2026-08-16 (ADR 0054) — the image''s SBOM had eight files and nobody
@@ -1336,6 +1364,7 @@ rules:
 - id: push-secret-scan
   layer: baseline
   pillar: security
+  maps_to: [ssdf:PW.7]
   title: gitleaks checks the commits in that push (a separate periodic script covers the whole history)
   title_th: gitleaks ตรวจ commit ที่อยู่ใน push นั้น (ทั้งประวัติมีสคริปต์แยกตามรอบ)
   born_from: A secret that reaches history cannot truly be deleted on GitHub — old objects are still
@@ -1348,6 +1377,7 @@ rules:
 - id: release-signed-and-attested
   layer: baseline
   pillar: security
+  maps_to: [scorecard:Signed-Releases, slsa:build-L2, ssdf:PS.2]
   title: A release's SBOM is generated in CI, signed keyless with provenance, and verified in both
     directions before it is attached
   title_th: SBOM ของ release ถูก generate ใน CI เซ็น keyless + provenance และ verify สองทิศก่อนแนบ
@@ -1362,6 +1392,7 @@ rules:
 - id: sbom-per-category
   layer: business
   pillar: security
+  maps_to: [scorecard:SBOM]
   title: SBOMs are split per category — able to answer which components disappear when a plugin is
     removed
   title_th: SBOM แยกต่อ category — ตอบได้ว่าถอด plugin แล้ว component ไหนหาย
@@ -1374,6 +1405,7 @@ rules:
 - id: codeql-sast
   layer: baseline
   pillar: security
+  maps_to: [scorecard:SAST, ssdf:PW.7]
   title: CodeQL security-extended for both Python and JavaScript — as a job, not the default setup
   title_th: CodeQL security-extended ทั้ง python และ javascript — เป็น job ไม่ใช่ default setup
   born_from: Something clicked into place in a UI cannot be reviewed and can disappear silently (the
@@ -1387,6 +1419,7 @@ rules:
 - id: platform-posture-verified
   layer: baseline
   pillar: security
+  maps_to: [scorecard:Branch-Protection]
   title: The platform-side posture (branch protection · required checks · auto-merge · alerts left
     standing on the Security tab) is machine-checked, not merely written down
   title_th: ท่าทีฝั่งแพลตฟอร์ม (branch protection · required check · auto-merge · alert ที่ค้างบนหน้า
@@ -1495,6 +1528,7 @@ rules:
 - id: exception-registers-are-reasoned
   layer: baseline
   pillar: security
+  maps_to: [ssdf:PO.4]
   title: A file that silences a gate needs a reason on every line, must actually be used, and may
     not relax a whole class at once
   title_th: แฟ้มที่ปิดเสียงด่านต้องมีเหตุผลทุกบรรทัด ถูกใช้จริง และผ่อนเกณฑ์ทั้งชั้นไม่ได้
@@ -1516,6 +1550,7 @@ rules:
 - id: ratchets-do-not-drift-below-reality
   layer: baseline
   pillar: devx
+  maps_to: [ssdf:PO.4]
   title: A ratchet's floor stays against reality in both directions · and what is removed has to be
     signed for
   title_th: พื้นของ ratchet ติดกับของจริงสองทิศ · และของที่ถูกถอดออกต้องมีคนเซ็นชื่อ

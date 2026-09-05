@@ -8,6 +8,20 @@ Notable changes to this project. The format follows
 
 ### Added
 
+- **`maps_to:` — where a rule sits in a vocabulary somebody else already speaks.** A rule may
+  name items of [OpenSSF Scorecard](https://github.com/ossf/scorecard/blob/main/docs/checks.md),
+  [SLSA v1.0](https://slsa.dev/spec/v1.0/levels) and
+  [NIST SSDF SP 800-218](https://csrc.nist.gov/pubs/sp/800/218/final), so an auditor who works
+  from one of those finds the rule from the item they already know, instead of learning this
+  catalogue's words first. **35 of the 92** carry one; the rest name nothing on purpose,
+  because no item of those three covers them. A mapping says the rule would *satisfy or
+  contribute to* the item, never that the two are equal. The item names are a **closed set,
+  read off the publications on 2026-09-05** and recorded with their URLs in `rules.py`: a
+  misspelling is refused rather than published as a map to nothing, and the list on a rule is
+  a sorted set. The sheets print `**Maps to:**` under the enforcement line, and the count is
+  advertised in both READMEs and measured by `own_numbers` (`DECISIONS.md`
+  `a-mapping-is-read-from-the-framework-not-from-memory`, T5 of the trust analysis).
+
 - **`docs/auditing.md` — audit this repository in an hour.** Twenty-four self-audit rounds
   are the root signing its own certificate: the same hand chose the questions, wrote the
   checks and read the answers. This is the form that lets somebody else check instead — the

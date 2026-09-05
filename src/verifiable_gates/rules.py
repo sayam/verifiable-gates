@@ -134,7 +134,7 @@ HELD_ON_REF = re.compile(r"^(pr|run)/\d+$")
 # it; `reads` is what that checker reads, in the checker's own words (a test holds the
 # two equal), and travels with `script` or not at all — a rule held by reading reads
 # nothing. A key added later is added here, in one place.
-OPTIONAL = frozenset({"script", "reads", "retracted"})
+OPTIONAL = frozenset({"script", "reads", "retracted", "maps_to"})
 KEYS = frozenset({*REQUIRED, *OPTIONAL})
 # What a withdrawal says. A rule that turned out to be wrong is **not deleted**: it stays
 # in the catalogue carrying the date it was withdrawn, the reason, and — when there is one
@@ -142,6 +142,55 @@ KEYS = frozenset({*REQUIRED, *OPTIONAL})
 # nothing to read; a certificate authority publishes a revocation list rather than
 # pretending the certificate was never issued, and for the same reason (`DECISIONS.md`
 # `a-withdrawal-is-published-not-deleted`).
+# Where a rule sits in a vocabulary somebody else already speaks. An auditor who works
+# from OpenSSF Scorecard, SLSA or NIST's SSDF can find a rule from the item they know,
+# without learning this catalogue's words first — which is the whole of what `maps_to`
+# buys, and the reason it is a closed set rather than free text: a misspelt item is a
+# mapping to nothing that reads like a mapping to something.
+#
+# A mapping says **this rule would satisfy or contribute to that item**, not that the two
+# are equal: a rule is often stricter, and an item usually needs more than one rule. The
+# three lists below were read from the publications themselves on 2026-09-05 — never from
+# memory (`DECISIONS.md` `a-mapping-is-read-from-the-framework-not-from-memory`).
+#
+# OpenSSF Scorecard's checks, from `ossf/scorecard` `docs/checks.md`.
+SCORECARD = frozenset(
+    {
+        "Binary-Artifacts",
+        "Branch-Protection",
+        "CI-Tests",
+        "CII-Best-Practices",
+        "Code-Review",
+        "Contributors",
+        "Dangerous-Workflow",
+        "Dependency-Update-Tool",
+        "Fuzzing",
+        "License",
+        "Maintained",
+        "Packaging",
+        "Pinned-Dependencies",
+        "SAST",
+        "SBOM",
+        "Security-Policy",
+        "Signed-Releases",
+        "Token-Permissions",
+        "Vulnerabilities",
+        "Webhooks",
+    }
+)
+# SLSA v1.0's build track, from `slsa.dev/spec/v1.0/levels`. The levels are cumulative, so
+# a rule names the highest one its own words reach.
+SLSA = frozenset({"build-L1", "build-L2", "build-L3"})
+# NIST SP 800-218 v1.1 (February 2022), the twenty practices. Tasks (`PW.7.1`) are not
+# here: a rule maps to a practice, and a task is one project's way of meeting it.
+SSDF = frozenset(
+    {f"PO.{n}" for n in range(1, 6)}
+    | {f"PS.{n}" for n in range(1, 4)}
+    | {f"PW.{n}" for n in range(1, 10)}
+    | {f"RV.{n}" for n in range(1, 4)}
+)
+FRAMEWORKS = {"scorecard": SCORECARD, "slsa": SLSA, "ssdf": SSDF}
+
 RETRACTED_REQUIRED = ("date", "reason")
 RETRACTED_KEYS = frozenset({*RETRACTED_REQUIRED, "replaced_by"})
 
@@ -245,6 +294,38 @@ def _key_problems(rule_id: str, rule: dict[str, Any]) -> list[str]:
             )
         else:
             found.append(f"{rule_id}: {key!r} is not a field of a rule — nothing reads it")
+    return found
+
+
+def _maps_to_problems(rule_id: str, maps_to: object) -> list[str]:
+    """Where the rule sits in somebody else's vocabulary — held to that vocabulary.
+
+    Free text here would be worse than nothing: an auditor searching for
+    `Pinned-Dependencies` and finding `pinned-deps` learns that this catalogue does not
+    map to Scorecard, which is false. So the framework and the item are both closed, and
+    the list is sorted and without repeats — a register a reviewer reads in one glance.
+    """
+    if maps_to is None:
+        return []
+    if not isinstance(maps_to, list) or not all(isinstance(item, str) for item in maps_to):
+        return [f"{rule_id}: maps_to must be a list of `framework:item` strings"]
+    found: list[str] = []
+    for item in maps_to:
+        framework, _, name = item.partition(":")
+        if framework not in FRAMEWORKS:
+            found.append(
+                f"{rule_id}: maps_to {item!r} names no framework this catalogue knows"
+                f" — one of {sorted(FRAMEWORKS)}"
+            )
+        elif name not in FRAMEWORKS[framework]:
+            found.append(
+                f"{rule_id}: maps_to {item!r} is not an item of {framework} —"
+                " read it off the publication, not off memory"
+            )
+    if len(set(maps_to)) != len(maps_to):
+        found.append(f"{rule_id}: maps_to repeats an item")
+    if maps_to != sorted(maps_to):
+        found.append(f"{rule_id}: maps_to is not in order — sorted, so a reader sees a set")
     return found
 
 
@@ -446,6 +527,7 @@ def problems(
         found += _leaks(rule)
         found += _script_problems(rule_id, rule.get("script"), package_dir)
         found += _reads_problems(rule_id, rule)
+        found += _maps_to_problems(rule_id, rule.get("maps_to"))
     return found
 
 
