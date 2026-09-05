@@ -1,6 +1,6 @@
 # verifiable-gates (ภาษาไทย)
 
-ฉบับภาษาอังกฤษคือ [`README.md`](README.md) — ไฟล์นี้เป็นคำแปลที่วางไว้ข้างกัน หัวข้อตรงกันหนึ่งต่อหนึ่ง
+ฉบับภาษาอังกฤษคือ [`README.md`](https://github.com/sayam/verifiable-gates/blob/main/README.md) — ไฟล์นี้เป็นคำแปลที่วางไว้ข้างกัน หัวข้อตรงกันหนึ่งต่อหนึ่ง
 (`DECISIONS.md` `the-thai-readme-is-a-file-beside-it`)
 
 ทะเบียน gate ของ CI สำหรับโปรเจกต์ที่สร้างด้วยหรือไม่ด้วย AI coding agent · gate ทุกด่านต้องพกหลักฐานว่าเคยแดง
@@ -47,7 +47,7 @@ waiting on this project's own tests: 0 gates
 จนกว่าโปรเจกต์จะมีอะไรให้ตรวจ · **exit 0 ตรงนี้แปลว่า "ไม่ได้วัดอะไร" ไม่ใช่ "โปรเจกต์ผ่าน"**
 
 เพิ่ม workflow หนึ่งไฟล์ที่มี tag ลอยกับคำสั่งติดตั้งที่ไม่ได้ pin แล้วคำสั่งเดิมตอบด้วย finding สองข้อและ exit 1
-(transcript เต็ม รวม finding ข้อที่สามที่ job ใหม่นั้นเองก่อขึ้น อยู่ใน [`docs/output-semantics.md`](docs/output-semantics.md)):
+(transcript เต็ม รวม finding ข้อที่สามที่ job ใหม่นั้นเองก่อขึ้น อยู่ใน [`docs/output-semantics.md`](https://github.com/sayam/verifiable-gates/blob/main/docs/output-semantics.md)):
 
 ```text
 [found] actions-sha-pinned — Every action is pinned to a commit SHA with the version in a comment
@@ -78,15 +78,15 @@ ci-tools-hash-pinned: .github/workflows/lint.yml: pip install ruff
 - พาธที่ `scaffold.json` *ตั้งชื่อไว้* แต่โปรเจกต์ไม่มี เป็น finding ไม่ใช่ `NA` — คอนฟิกที่พังคือของเสีย ไม่ใช่ของที่ไม่มี
 
 อนุกรมวิธานเต็ม — ทุกกรณีของ `NA` กับ `[error]` · record ของ `--installed` · `--rules` บนบันเดิลที่ถูกแก้ ·
-การแมปเป็น SARIF — อยู่ใน [`docs/output-semantics.md`](docs/output-semantics.md) (ภาษาอังกฤษ)
+การแมปเป็น SARIF — อยู่ใน [`docs/output-semantics.md`](https://github.com/sayam/verifiable-gates/blob/main/docs/output-semantics.md) (ภาษาอังกฤษ)
 
 ## สามทางที่จะรันมัน
 
 | ประตู | รันเมื่อ | คอนฟิก | ค่าเริ่มต้น |
 |-------|---------|--------|-------------|
-| GitHub Action | ทุก push / pull request | `uses: sayam/verifiable-gates@<commit-sha> # vX.Y.Z` · เลือกใส่ `with: sarif: gates.sarif` ได้ ([`action.yml`](action.yml)) | — |
-| pre-commit | ก่อนทุก commit | `repo: https://github.com/sayam/verifiable-gates` · hook `gates-doctor` หรือ hook ต่อ id ของกฎ ([`.pre-commit-hooks.yaml`](.pre-commit-hooks.yaml)) | — |
-| hook ตอน edit ใน Claude Code | หลังทุก `Edit` / `Write` | ติดตั้ง plugin (ข้างล่าง) · `"env": {"VERIFIABLE_GATES_AT_EDIT": "1"}` ใน `.claude/settings.json` ([`hooks/hooks.json`](hooks/hooks.json)) | ปิด · รายงาน ไม่ปฏิเสธ |
+| GitHub Action | ทุก push / pull request | `uses: sayam/verifiable-gates@<commit-sha> # vX.Y.Z` · เลือกใส่ `with: sarif: gates.sarif` ได้ ([`action.yml`](https://github.com/sayam/verifiable-gates/blob/main/action.yml)) | — |
+| pre-commit | ก่อนทุก commit | `repo: https://github.com/sayam/verifiable-gates` · hook `gates-doctor` หรือ hook ต่อ id ของกฎ ([`.pre-commit-hooks.yaml`](https://github.com/sayam/verifiable-gates/blob/main/.pre-commit-hooks.yaml)) | — |
+| hook ตอน edit ใน Claude Code | หลังทุก `Edit` / `Write` | ติดตั้ง plugin (ข้างล่าง) · `"env": {"VERIFIABLE_GATES_AT_EDIT": "1"}` ใน `.claude/settings.json` ([`hooks/hooks.json`](https://github.com/sayam/verifiable-gates/blob/main/hooks/hooks.json)) | ปิด · รายงาน ไม่ปฏิเสธ |
 
 ทั้งสามประตูรัน `tools/` ตามที่โปรเจกต์มี **และไม่พกสำเนาเลย** — SHA · `rev` · หรือ plugin ขยับ
 จึงไม่เปลี่ยนสิ่งที่โปรเจกต์ถูกบังคับ (`DECISIONS.md` `ci-runs-the-bundle-the-project-installed`)
@@ -103,15 +103,15 @@ action อยู่บน [GitHub Marketplace](https://github.com/marketplace/ac
 
 | id ของกฎ | จับอะไร | อ่านอะไร |
 |---|---|---|
-| [`gates-registry-total`](docs/checker-reference.md#gates-registry-total) | job ใน CI ที่ไม่มีแถวในทะเบียน · แถวที่ไม่มีอะไรทำให้ล้มได้ · ไฟล์เทสต์ที่ไม่มี gate ไหนอ้าง | `gates.yaml` · ทุก workflow ใต้ `.github/workflows` · ไฟล์เทสต์ |
-| [`actions-sha-pinned`](docs/checker-reference.md#actions-sha-pinned) | `uses:` บน tag ลอย หรือบน SHA ที่ไม่มี comment บอกเวอร์ชันข้าง ๆ | step `uses:` ของ workflow และ composite action ใต้ `.github` |
-| [`ci-tools-hash-pinned`](docs/checker-reference.md#ci-tools-hash-pinned) | เครื่องมือที่ CI ติดตั้งให้ตัวเองโดยไม่มี hash หรือ lock | บรรทัด pip · pipx · uv · poetry · pdm · pipenv · npm · npx · yarn · pnpm · `python -m build` ใน workflow สคริปต์ที่มันเรียก และ Dockerfile ที่ราก |
-| [`image-digest-pinned`](docs/checker-reference.md#image-digest-pinned) | base image ที่ไม่ได้ pin ด้วย manifest-index digest หรือ pin ไว้โดยไม่มีใครขยับให้ | บรรทัด `FROM` ของ Dockerfile ที่ราก · `.github/dependabot.yml` |
-| [`csp-no-inline`](docs/checker-reference.md#csp-no-inline) | script · style · handler แบบ inline ใน template | `.html` `.htm` `.jinja` `.jinja2` `.j2` ใต้พาธ template |
-| [`no-debug-entrypoint`](docs/checker-reference.md#no-debug-entrypoint) | entrypoint ที่เปิด debug console ได้ | `run.py` `wsgi.py` `app.py` `main.py` อ่านเป็น AST |
-| [`logic-knows-no-http`](docs/checker-reference.md#logic-knows-no-http) | โมดูล service ที่ import จากฝั่ง request | โมดูล Python ใต้พาธ services · import ของมัน |
-| [`delete-means-soft-delete`](docs/checker-reference.md#delete-means-soft-delete) | `session.delete` นอกทาง purge ทางเดียว (layer `business`) | โมดูล Python ใต้พาธ source |
-| [`adr-index-complete`](docs/checker-reference.md#adr-index-complete) | ADR ที่หายจาก index · เลขซ้ำหรือขาด · supersession ที่จดทางเดียว | บันทึก `.md` และ index `README.md` ใต้พาธ ADR |
+| [`gates-registry-total`](https://github.com/sayam/verifiable-gates/blob/main/docs/checker-reference.md#gates-registry-total) | job ใน CI ที่ไม่มีแถวในทะเบียน · แถวที่ไม่มีอะไรทำให้ล้มได้ · ไฟล์เทสต์ที่ไม่มี gate ไหนอ้าง | `gates.yaml` · ทุก workflow ใต้ `.github/workflows` · ไฟล์เทสต์ |
+| [`actions-sha-pinned`](https://github.com/sayam/verifiable-gates/blob/main/docs/checker-reference.md#actions-sha-pinned) | `uses:` บน tag ลอย หรือบน SHA ที่ไม่มี comment บอกเวอร์ชันข้าง ๆ | step `uses:` ของ workflow และ composite action ใต้ `.github` |
+| [`ci-tools-hash-pinned`](https://github.com/sayam/verifiable-gates/blob/main/docs/checker-reference.md#ci-tools-hash-pinned) | เครื่องมือที่ CI ติดตั้งให้ตัวเองโดยไม่มี hash หรือ lock | บรรทัด pip · pipx · uv · poetry · pdm · pipenv · npm · npx · yarn · pnpm · `python -m build` ใน workflow สคริปต์ที่มันเรียก และ Dockerfile ที่ราก |
+| [`image-digest-pinned`](https://github.com/sayam/verifiable-gates/blob/main/docs/checker-reference.md#image-digest-pinned) | base image ที่ไม่ได้ pin ด้วย manifest-index digest หรือ pin ไว้โดยไม่มีใครขยับให้ | บรรทัด `FROM` ของ Dockerfile ที่ราก · `.github/dependabot.yml` |
+| [`csp-no-inline`](https://github.com/sayam/verifiable-gates/blob/main/docs/checker-reference.md#csp-no-inline) | script · style · handler แบบ inline ใน template | `.html` `.htm` `.jinja` `.jinja2` `.j2` ใต้พาธ template |
+| [`no-debug-entrypoint`](https://github.com/sayam/verifiable-gates/blob/main/docs/checker-reference.md#no-debug-entrypoint) | entrypoint ที่เปิด debug console ได้ | `run.py` `wsgi.py` `app.py` `main.py` อ่านเป็น AST |
+| [`logic-knows-no-http`](https://github.com/sayam/verifiable-gates/blob/main/docs/checker-reference.md#logic-knows-no-http) | โมดูล service ที่ import จากฝั่ง request | โมดูล Python ใต้พาธ services · import ของมัน |
+| [`delete-means-soft-delete`](https://github.com/sayam/verifiable-gates/blob/main/docs/checker-reference.md#delete-means-soft-delete) | `session.delete` นอกทาง purge ทางเดียว (layer `business`) | โมดูล Python ใต้พาธ source |
+| [`adr-index-complete`](https://github.com/sayam/verifiable-gates/blob/main/docs/checker-reference.md#adr-index-complete) | ADR ที่หายจาก index · เลขซ้ำหรือขาด · supersession ที่จดทางเดียว | บันทึก `.md` และ index `README.md` ใต้พาธ ADR |
 
 พาธในตารางคือค่าเริ่มต้นที่ `scaffold.json` พกมา โปรเจกต์ย้ายมันได้ที่นั่น
 
@@ -119,7 +119,7 @@ action อยู่บน [GitHub Marketplace](https://github.com/marketplace/ac
 
 **คลังกฎ 92 ข้อ** (`rules.yaml`) ที่แต่ละข้อพกกับดักจริงที่ให้กำเนิดมันมาด้วย (`born_from`) เพราะกฎที่ไม่มีที่มา
 คือกฎที่ไม่มีใครรู้ว่าควรเอาออกเมื่อไร · **แผ่นกฎเป็น Agent Skill ตาม spec แล้ว** อยู่ที่ `skills/verifiable-gates/`
-(หน้าแรก [`SKILL.md`](skills/verifiable-gates/SKILL.md) + entry เต็มใน `references/`)
+(หน้าแรก [`SKILL.md`](https://github.com/sayam/verifiable-gates/blob/main/skills/verifiable-gates/SKILL.md) + entry เต็มใน `references/`)
 
 ติดตั้ง skill โดยไม่ต้อง clone ได้สองทางผ่านท่อที่ repo นี้ไม่ได้เป็นเจ้าของ:
 
@@ -131,7 +131,7 @@ action อยู่บน [GitHub Marketplace](https://github.com/marketplace/ac
 กฎที่มีตัวตรวจ (`script:` ใน `rules.yaml`) คือกฎที่ doctor กับ installer ตัดสิน และไม่ตัดสินอะไรมากกว่านั้น ·
 กฎที่เหลือคือแผ่นกฎที่ agent ถูกบังคับด้วยการอ่าน และบรรทัด *Enforced in the reference* ของแต่ละข้อบอกว่าโปรเจกต์หนึ่ง
 เปลี่ยนมันเป็นเทสต์อย่างไร · ท่อแต่ละท่อส่งอะไร ดึงอะไร และทำไมไม่มี registry ของ repo นี้เอง อยู่ใน
-[`docs/history.md`](docs/history.md#the-two-pipes) และ `DECISIONS.md` `distribution-is-two-pipes-nobody-here-owns`
+[`docs/history.md`](https://github.com/sayam/verifiable-gates/blob/main/docs/history.md#the-two-pipes) และ `DECISIONS.md` `distribution-is-two-pipes-nobody-here-owns`
 
 `rules.yaml` กับแผ่นกฎมากับ checkout ไม่ได้มากับ wheel — แพ็กเกจคือเครื่องจักรที่อ่านคลังกฎ:
 
@@ -160,7 +160,7 @@ for problem in verifiable_gates.rules.problems(catalogue, package_dir="src/verif
 
 **กฎกับตัวบังคับอยู่คนละไฟล์โดยตั้งใจ** เพราะอายุไม่เท่ากัน — `rules.yaml` คือสิ่งที่ repo นี้เผยแพร่
 ส่วน `gates.yaml` คือสิ่งที่ repo นี้ถูกบังคับด้วยตัวเอง · สิ่งที่ตั้งใจไม่ทำ พร้อมเงื่อนไขที่จะทำให้ข้อตัดสินนั้นหมดอายุ
-อยู่ใน [`DECISIONS.md`](DECISIONS.md)
+อยู่ใน [`DECISIONS.md`](https://github.com/sayam/verifiable-gates/blob/main/DECISIONS.md)
 
 ## ที่มาและสถานะ
 
@@ -168,20 +168,20 @@ for problem in verifiable_gates.rules.problems(catalogue, package_dir="src/verif
 (แต่ละ release มี DOI ของตัวเองด้วย) · tag `evidence-freeze-1` คือสถานะตอนวัด และ `v0.1.0` (2026-08-28)
 คือสถานะตอนแพ็กเกจออกครั้งแรก — เป็น**คนละคอมมิต**โดยตั้งใจ · การถอดออกจาก reference implementation
 [`flask-todolist`](https://github.com/sayam/flask-todolist) ครบทุกขั้นแล้ว · ตารางเวที สำมะโน และสิ่งที่ยังอยู่ที่นั่น
-อยู่ใน [`docs/history.md`](docs/history.md) (ภาษาอังกฤษ) · ใช้ผ่าน submodule ที่ pin ไว้หรือ dependency ที่ระบุรุ่น ไม่ใช่จาก `main`
+อยู่ใน [`docs/history.md`](https://github.com/sayam/verifiable-gates/blob/main/docs/history.md) (ภาษาอังกฤษ) · ใช้ผ่าน submodule ที่ pin ไว้หรือ dependency ที่ระบุรุ่น ไม่ใช่จาก `main`
 
 **คลังเก็บสองภาษา**: อังกฤษเป็นข้อความที่เผยแพร่ ส่วนถ้อยคำไทยต้นฉบับอยู่ในฟิลด์
 `*_th` คู่กัน เพราะคำแปลของบันทึกเหตุการณ์คือการเล่าใหม่ และการเล่าใหม่ไม่ใช่ตัวบันทึก
 
 ## สัญญาอนุญาต
 
-- โค้ด: [Apache-2.0](LICENSE) · ผู้ร่วมพัฒนาลงนาม [`CLA.md`](CLA.md) — หนึ่งบรรทัดใน pull request · คุณยังถือลิขสิทธิ์ของคุณ
-- กฎและเอกสาร: [CC BY 4.0](LICENSE-docs)
+- โค้ด: [Apache-2.0](https://github.com/sayam/verifiable-gates/blob/main/LICENSE) · ผู้ร่วมพัฒนาลงนาม [`CLA.md`](https://github.com/sayam/verifiable-gates/blob/main/CLA.md) — หนึ่งบรรทัดใน pull request · คุณยังถือลิขสิทธิ์ของคุณ
+- กฎและเอกสาร: [CC BY 4.0](https://github.com/sayam/verifiable-gates/blob/main/LICENSE-docs)
 
 แอปพลิเคชันที่ถอดมายังเป็น AGPL-3.0-or-later · ต่างกันโดยตั้งใจ: เครื่องมือ CI ไม่ใช่ network service
 และกฎที่ตั้งใจให้เอาไปใช้ในคู่มือภายในองค์กรต้องไม่บังคับ share-alike
 
 ---
 
-[`README.md`](README.md) · [`docs/`](docs/) · [`CONTRIBUTING.md`](CONTRIBUTING.md) ·
-[`SECURITY.md`](SECURITY.md) · [`CHANGELOG.md`](CHANGELOG.md) · [การทดลอง](docs/comparison/)
+[`README.md`](https://github.com/sayam/verifiable-gates/blob/main/README.md) · [`docs/`](https://github.com/sayam/verifiable-gates/tree/main/docs) · [`CONTRIBUTING.md`](https://github.com/sayam/verifiable-gates/blob/main/CONTRIBUTING.md) ·
+[`SECURITY.md`](https://github.com/sayam/verifiable-gates/blob/main/SECURITY.md) · [`CHANGELOG.md`](https://github.com/sayam/verifiable-gates/blob/main/CHANGELOG.md) · [การทดลอง](https://github.com/sayam/verifiable-gates/tree/main/docs/comparison)
