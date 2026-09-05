@@ -138,6 +138,9 @@ PLACES: dict[str, list[advertised.Place]] = {
         advertised.Place(".zenodo.json", r"ships (\w+) standalone checkers"),
         # The PyPI headline (pyproject `description`) states it too, since 2026-09-05.
         advertised.Place("pyproject.toml", r"agent skill: (\w+) checkers decide"),
+        # The plugin manifest and its marketplace entry say the count too (round 24, F3).
+        advertised.Place(".claude-plugin/plugin.json", r"; (\w+) of the rules are decided"),
+        advertised.Place(".claude-plugin/marketplace.json", r"; (\w+) of the rules are decided"),
     ],
     "checkers_word_th": [
         advertised.Place("README.th.md", r"stdlib " + PURELY_TH + r"(\S+?)" + CLASSIFIER_TH + r" "),

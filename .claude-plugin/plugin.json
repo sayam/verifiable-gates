@@ -2,7 +2,7 @@
   "name": "verifiable-gates",
   "displayName": "verifiable-gates",
   "version": "0.3.1",
-  "description": "Production-discipline rules for a software project, each carrying the real incident that produced it — the verifiable-gates skill, rendered from rules.yaml. Nine of the rules are decided mechanically by the bundle's own scanners once a project installs it.",
+  "description": "Production-discipline rules for a software project, each carrying the real incident that produced it — the verifiable-gates skill, rendered from rules.yaml; nine of the rules are decided mechanically by the bundle's own scanners once a project installs it (pip install verifiable-gates; python -m verifiable_gates.install). Installing this plugin lands the whole repository and adds a PostToolUse hook that runs the installed doctor after every Edit or Write — off by default; on with VERIFIABLE_GATES_AT_EDIT=1 in the project's .claude/settings.json under env. It reports and refuses nothing.",
   "author": {
     "name": "Sayam Sriphua",
     "url": "https://github.com/sayam"
