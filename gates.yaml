@@ -1626,6 +1626,14 @@ gates:
           traceback and exit 1, the code that means the numbers disagree,
           which they still did (self-audit round 5, 2026-09-01).
 
+      - kind: mutation
+        ref: pr/278
+        date: 2026-09-05
+        caught: >-
+          `facts` put back to counting every rule in `rules.yaml` rather than the rules in
+          force — red on a tree of two rules, one of them withdrawn. Measured against this
+          repository the two counts are the same number today, so the fixture is the whole
+          proof (T1).
   - id: the-about-field-is-read-not-remembered
     title: The description on the hosting platform is read live and held to what the tree measures
     kind: step
@@ -3068,6 +3076,13 @@ gates:
           from the scanner, and a scan gate with no `reads` at all accepted — each
           red here, because `--rules` prints the sentence off the installed
           overlay and a drift there is the one an agent reads (round 22, F2).
+      - kind: mutation
+        ref: pr/278
+        date: 2026-09-05
+        caught: >-
+          A rule withdrawn in `rules.yaml` while `overlay.json` still shipped it, red — the
+          bundle is what `gates_doctor --rules` and `--working` read, so a withdrawal that
+          did not reach it would be a note in a file nobody installs (T1).
   - id: the-shipped-reader-agrees-with-the-real-one
     title: The hand-written YAML reader agrees with PyYAML on this repository's own files
     kind: test
@@ -3317,6 +3332,15 @@ gates:
           on disk, `git diff` and a byte-for-byte restore check all agreed while the
           interpreter did not.
 
+      - kind: mutation
+        ref: pr/278
+        date: 2026-09-05
+        caught: >-
+          The withdrawal line dropped from the sheet, red; moved below the rule it withdraws,
+          red; the index counting withdrawn rules among the rules in force, red; the mark
+          dropped from an index line, red. With nothing withdrawn the render is byte-identical
+          to the shipped sheet, which is the test that says the mechanism costs today's reader
+          nothing (T1).
   - id: the-harness-never-passes-what-it-cannot-decide
     title: The fail-fix harness answers machine-readably, and reports skips rather than hiding them
     kind: test
@@ -3538,6 +3562,15 @@ gates:
           and the validator made to accept a scripted rule that says nothing
           (self-audit round 22, F2 — a Go project could not tell before running
           which of the nine rules could ever apply to it).
+      - kind: mutation
+        ref: pr/278
+        date: 2026-09-05
+        caught: >-
+          The withdrawal schema, planted six ways: a `retracted` with no reason, one with no
+          date, one that is a sentence rather than a mapping, a field it does not have, a
+          date of `9999-99-99` and one in 2099, a `replaced_by` naming a rule that is not in
+          the catalogue and one naming a rule itself withdrawn, and a withdrawn rule that
+          kept its `script:` — each its own red (T1).
   - id: the-sheets-match-the-catalogue
     title: The committed sheets are a fresh render, and between them they publish every rule
     kind: test

@@ -476,3 +476,77 @@ def test_a_preamble_this_renderer_cannot_decode_stops_the_render(
     assert "cannot read the preamble" in printed
     assert "not UTF-8" in printed
     assert not out.exists(), "nothing should be written from a preamble that could not be read"
+
+
+# ------------------------------------------------------------ a withdrawn rule
+# A rule that was taken back stays in the catalogue and stays on the sheet, because the
+# reader who needs to know it was taken back is the one who followed it (`DECISIONS.md`
+# `a-withdrawal-is-published-not-deleted`). What changes is what the page says about it,
+# and where: above the rule, not below three fields of it.
+
+A_WITHDRAWAL = {"date": "2026-09-05", "reason": "the incident behind it was misread"}
+
+
+def test_the_sheet_says_a_rule_was_withdrawn_before_it_says_the_rule() -> None:
+    sheet = skill.render([a_rule(retracted=A_WITHDRAWAL)], PREAMBLE)
+    heading, retracted, rule_line = sheet.split("\n\n")[2:5]
+    assert heading.strip() == "### `a-rule`"
+    assert retracted.strip() == (
+        "**Retracted:** 2026-09-05 — the incident behind it was misread"
+    ), retracted
+    assert rule_line.startswith("**Rule:**")
+
+
+def test_the_sheet_sends_the_reader_on_when_there_is_somewhere_to_go() -> None:
+    replaced = dict(A_WITHDRAWAL, replaced_by="a-second")
+    sheet = skill.render([a_rule(retracted=replaced), a_rule(id="a-second")], PREAMBLE)
+    assert (
+        "**Retracted:** 2026-09-05 — the incident behind it was misread"
+        " Replaced by `a-second`." in sheet
+    )
+
+
+def test_the_index_counts_the_rules_in_force_and_says_how_many_are_not() -> None:
+    """A catalogue that counted its withdrawn rules would look larger the more of it
+    turned out to be wrong."""
+    index = skill.render_index([a_rule(), a_rule(id="gone", retracted=A_WITHDRAWAL)], PREAMBLE)
+    assert "### baseline — 1 rules · 1 retracted · full entries" in index
+    assert "- [`gone`](references/baseline.md#gone) — **retracted 2026-09-05** — " in index
+    assert "- [`a-rule`](references/baseline.md#a-rule) — A rule that holds" in index
+
+
+def test_the_index_says_nothing_about_withdrawals_when_there_are_none() -> None:
+    """The line every reader sees today: the shape is unchanged while nothing is withdrawn,
+    which is what keeps the shipped sheet byte-identical to a fresh render."""
+    index = skill.render_index([a_rule()], PREAMBLE)
+    assert "### baseline — 1 rules · full entries" in index
+    assert "retracted" not in index
+
+
+def test_a_withdrawn_practice_is_marked_and_uncounted_too() -> None:
+    """The working catalogue takes it back the same way: a practice that stopped holding
+    is a lesson about the lesson, and deleting it would delete the record of both."""
+    practices: list[dict[str, Any]] = [
+        {
+            "id": "a-practice",
+            "layer": catalogue.WORKING,
+            "title": "A practice that held",
+            "born_from": "L-0001 · 2026-08-30 · the shell guard that did not guard",
+            "held_by": "reading",
+            "held_on": ["pr/1", "pr/2", "pr/3"],
+            "apply": "do the thing",
+        },
+        {
+            "id": "a-dropped-practice",
+            "layer": catalogue.WORKING,
+            "title": "A practice that stopped holding",
+            "born_from": "L-0002 · 2026-08-31 · the second one",
+            "held_by": "reading",
+            "held_on": ["pr/1", "pr/2", "pr/3"],
+            "apply": "do the other thing",
+            "retracted": A_WITHDRAWAL,
+        },
+    ]
+    index = skill.render_index([a_rule()], PREAMBLE, practices=practices)
+    assert "### working — 1 practices · 1 retracted · full entries" in index
+    assert "#a-dropped-practice) — **retracted 2026-09-05** — " in index

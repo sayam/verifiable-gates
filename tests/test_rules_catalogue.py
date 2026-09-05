@@ -8,6 +8,7 @@ validator only tested on broken input passes just as happily on everything.
 
 from __future__ import annotations
 
+import datetime
 import importlib
 import json
 import os
@@ -329,3 +330,101 @@ def test_reads_travels_with_a_script_or_not_at_all() -> None:
     )
     assert "without a script" in complaints(a_rule(reads="the moon"))
     assert "reads" not in complaints(a_rule())
+
+
+# ------------------------------------------------------------------ a withdrawal
+# Nothing in this catalogue could be taken back. A rule whose `born_from` turned out to
+# be wrong could only be deleted, which leaves every reader who followed it with nothing
+# to read and no way to learn they should stop — the one thing a published rule set owes
+# them. Public key infrastructure has the same shape and answers it the same way: a
+# certificate authority publishes a revocation, it does not pretend the certificate was
+# never issued (`DECISIONS.md` `a-withdrawal-is-published-not-deleted`, T1 of the trust
+# analysis, 2026-09-04).
+
+
+def a_withdrawal(**overrides: Any) -> dict[str, Any]:  # noqa: ANN401 — mixed field types
+    base: dict[str, Any] = {"date": "2026-09-05", "reason": "the incident behind it was misread"}
+    base.update(overrides)
+    return base
+
+
+def test_a_withdrawn_rule_is_accepted_whole() -> None:
+    """It stays a rule: every required field, and the withdrawal beside them."""
+    assert complaints(a_rule(retracted=a_withdrawal())) == ""
+    beside_its_replacement = complaints(
+        a_rule(retracted=a_withdrawal(replaced_by="a-second")), a_rule(id="a-second")
+    )
+    assert beside_its_replacement == ""
+
+
+def test_the_readers_split_the_catalogue_the_way_the_counts_need() -> None:
+    """`live` is what a reader is held to; `retracted` is what a reader who followed one
+    of them needs. Every advertised count is of the first."""
+    catalogue = [a_rule(), a_rule(id="withdrawn-one", retracted=a_withdrawal())]
+    assert [rule["id"] for rule in rules.live(catalogue)] == ["a-rule"]
+    assert [rule["id"] for rule in rules.retracted(catalogue)] == ["withdrawn-one"]
+
+
+def test_a_withdrawal_must_say_when_and_why() -> None:
+    assert "retracted is missing reason" in complaints(a_rule(retracted={"date": "2026-09-05"}))
+    assert "retracted is missing date" in complaints(a_rule(retracted={"reason": "wrong"}))
+    assert "must be a mapping" in complaints(a_rule(retracted="last tuesday"))
+    assert "no field 'why'" in complaints(a_rule(retracted=a_withdrawal(why="wrong")))
+
+
+def test_a_withdrawal_is_dated_like_any_other_evidence() -> None:
+    """The same hole `proved_by` closed on the gate side: `9999-99-99` has the shape of a
+    date and is not one, and a date that has not happened yet, anywhere on Earth, is not
+    a record of something that happened."""
+    assert "must be a real YYYY-MM-DD date" in complaints(
+        a_rule(retracted=a_withdrawal(date="9999-99-99"))
+    )
+    assert "has not happened yet" in complaints(a_rule(retracted=a_withdrawal(date="2099-01-01")))
+
+
+def test_a_date_yaml_already_parsed_is_taken_as_the_date_it_is() -> None:
+    """PyYAML turns an unquoted `date: 2026-09-05` into a `datetime.date` before this code
+    sees it — which is the shape every real withdrawal will arrive in, and the one a test
+    writing the date as a string never reaches. A `datetime` with a time on it is not a
+    day and is refused: a withdrawal is dated by the day it was decided."""
+    assert complaints(a_rule(retracted=a_withdrawal(date=datetime.date(2026, 9, 5)))) == ""
+    assert "has not happened yet" in complaints(
+        a_rule(retracted=a_withdrawal(date=datetime.date(2099, 1, 1)))
+    )
+    assert "must be a real YYYY-MM-DD date" in complaints(
+        a_rule(
+            retracted=a_withdrawal(date=datetime.datetime(2026, 9, 5, 12, 0, tzinfo=datetime.UTC))
+        )
+    )
+
+
+def test_a_withdrawal_points_at_a_rule_that_is_in_force_or_at_nothing() -> None:
+    """`replaced_by` is the sentence "read this instead". Pointing at a rule that is not
+    in the catalogue, or at one that was itself withdrawn, sends the reader nowhere —
+    which is the deletion this whole mechanism exists to avoid, with extra words."""
+    assert "is not a rule in force here" in complaints(
+        a_rule(retracted=a_withdrawal(replaced_by="never-written"))
+    )
+    assert "is not a rule in force here" in complaints(
+        a_rule(retracted=a_withdrawal(replaced_by="also-gone")),
+        a_rule(id="also-gone", retracted=a_withdrawal()),
+    )
+    assert "names itself" in complaints(a_rule(retracted=a_withdrawal(replaced_by="a-rule")))
+
+
+def test_a_withdrawn_rule_may_not_keep_its_checker() -> None:
+    """A withdrawal that changes nothing is a note. The checker of a rule nobody is held
+    to would go on deciding it on every push — enforcement with no rule behind it — so
+    the pull request that withdraws the rule takes the scanner out in the same breath."""
+    assert "keeps `script:`" in complaints(
+        a_rule(retracted=a_withdrawal(), script="checks/scan_adr_index.py", reads="ADR files"),
+        package_dir=PACKAGE,
+    )
+
+
+def test_no_rule_in_this_catalogue_is_withdrawn_yet() -> None:
+    """The mechanism ships before it is needed, and this is the line that says so: the
+    day it stops being true, the count in every document moves with it and this test is
+    the one that has to be re-decided rather than quietly edited."""
+    assert rules.retracted(rules.load(ROOT / "rules.yaml")) == []
+    assert rules.retracted(rules.load(ROOT / "working.yaml", "practices")) == []

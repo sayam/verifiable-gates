@@ -157,6 +157,8 @@ HELD = {
     "no-json-until-a-reader-asks": "",
     # 2026-09-05: round 23, D1 — the persona arm the comparison does not carry, and why.
     "the-comparison-has-no-persona-arm": "",
+    # 2026-09-05: T1 — a rule can be taken back, and the taking back is published.
+    "a-withdrawal-is-published-not-deleted": "",
 }
 
 # The rows whose `expires when` is `Never` — an expiry rewritten to "Never" was

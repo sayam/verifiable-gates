@@ -53,12 +53,15 @@ resolvable. Its evidence is a planted defect per rule in `tests/test_rules_catal
 
 from __future__ import annotations
 
+import datetime
 import pathlib
 import re
 import sys
 from typing import Any
 
 import yaml
+
+from verifiable_gates import registry
 
 __all__ = [
     "FRAMEWORK_NAMES",
@@ -118,7 +121,7 @@ HELD_BY = frozenset({"tool", "file", "reading"})
 # owner's number (2026-09-04), re-decided in DECISIONS.md and never here.
 HELD_ON_FLOOR = 3
 WORKING_REQUIRED = ("id", "layer", "title", "born_from", "held_by", "held_on", "apply")
-WORKING_KEYS = frozenset({*WORKING_REQUIRED, "tool", "file"})
+WORKING_KEYS = frozenset({*WORKING_REQUIRED, "tool", "file", "retracted"})
 # `L-0124 · 2026-09-03 · one sentence` — the ledger entry, its stamp, and what it cost.
 BORN_FROM_LEDGER = re.compile(r"^L-\d{4} · \d{4}-\d{2}-\d{2} · \S")
 HELD_ON_REF = re.compile(r"^(pr|run)/\d+$")
@@ -131,8 +134,16 @@ HELD_ON_REF = re.compile(r"^(pr|run)/\d+$")
 # it; `reads` is what that checker reads, in the checker's own words (a test holds the
 # two equal), and travels with `script` or not at all — a rule held by reading reads
 # nothing. A key added later is added here, in one place.
-OPTIONAL = frozenset({"script", "reads"})
+OPTIONAL = frozenset({"script", "reads", "retracted"})
 KEYS = frozenset({*REQUIRED, *OPTIONAL})
+# What a withdrawal says. A rule that turned out to be wrong is **not deleted**: it stays
+# in the catalogue carrying the date it was withdrawn, the reason, and — when there is one
+# — the rule that replaced it. A deletion leaves a reader who followed the old rule with
+# nothing to read; a certificate authority publishes a revocation list rather than
+# pretending the certificate was never issued, and for the same reason (`DECISIONS.md`
+# `a-withdrawal-is-published-not-deleted`).
+RETRACTED_REQUIRED = ("date", "reason")
+RETRACTED_KEYS = frozenset({*RETRACTED_REQUIRED, "replaced_by"})
 
 
 def load(path: str | pathlib.Path, key: str = "rules") -> list[dict[str, Any]]:
@@ -154,6 +165,22 @@ def load(path: str | pathlib.Path, key: str = "rules") -> list[dict[str, Any]]:
     if not isinstance(rules, list):
         raise TypeError(f"{path}: {key!r} must be a list, got {type(rules).__name__}")
     return rules
+
+
+def live(entries: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """The entries still in force — everything a reader is being asked to follow.
+
+    Every count this repository advertises is of these: "92 rules" has to mean 92 rules
+    somebody is held to, or the number grows every time one is withdrawn, which is the
+    direction that makes a catalogue look busier the more of it turns out to be wrong.
+    """
+    return [entry for entry in entries if not entry.get("retracted")]
+
+
+def retracted(entries: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """The entries that were withdrawn, in catalogue order — the list a reader who
+    followed one of them needs, and the one a deletion would have taken away."""
+    return [entry for entry in entries if entry.get("retracted")]
 
 
 def by_layer(rules: list[dict[str, Any]], layer: str | None = None) -> list[dict[str, Any]]:
@@ -219,6 +246,67 @@ def _key_problems(rule_id: str, rule: dict[str, Any]) -> list[str]:
         else:
             found.append(f"{rule_id}: {key!r} is not a field of a rule — nothing reads it")
     return found
+
+
+def _retracted_problems(
+    rule_id: str, entry: dict[str, Any], known: frozenset[str] | None = None
+) -> list[str]:
+    """A withdrawal is dated evidence like any other, and it has to *stop* something.
+
+    Three refusals, each a way a withdrawal could be decoration. A date that is not a
+    date, or is in the future, is the same hole `proved_by` closed on the gate side. A
+    `replaced_by` naming a rule that is not in the catalogue — or naming one that was
+    itself withdrawn — sends the reader who followed the old rule nowhere, which is the
+    one thing publishing the withdrawal instead of deleting it was for. And a withdrawn
+    rule may not keep a `script`: a checker that goes on deciding a rule nobody is held
+    to is enforcement without a rule, so the pull request that withdraws it takes the
+    checker out too.
+    """
+    record = entry.get("retracted")
+    if record is None:
+        return []
+    if not isinstance(record, dict):
+        return [f"{rule_id}: 'retracted' must be a mapping — date, reason, replaced_by"]
+    found = [
+        f"{rule_id}: retracted is missing {field}"
+        for field in RETRACTED_REQUIRED
+        if not record.get(field)
+    ]
+    found += [
+        f"{rule_id}: retracted has no field {key!r} — nothing reads it"
+        for key in sorted(set(record) - RETRACTED_KEYS)
+    ]
+    found += _retracted_date_problems(rule_id, record.get("date"))
+    replaced_by = record.get("replaced_by")
+    if replaced_by is not None and known is not None and replaced_by not in known:
+        found.append(
+            f"{rule_id}: retracted replaced_by {replaced_by!r} is not a rule in force here"
+            " — a withdrawal that points nowhere is a deletion with extra words"
+        )
+    if replaced_by == rule_id:
+        found.append(f"{rule_id}: retracted replaced_by names itself")
+    if entry.get("script"):
+        found.append(
+            f"{rule_id}: a withdrawn rule keeps `script:` — a checker that goes on deciding"
+            " a rule nobody is held to is enforcement with no rule behind it"
+        )
+    return found
+
+
+def _retracted_date_problems(rule_id: str, value: object) -> list[str]:
+    """The date it was withdrawn: a real one, and not one that has not happened yet."""
+    if value is None:
+        return []
+    if isinstance(value, datetime.date) and not isinstance(value, datetime.datetime):
+        date = value
+    else:
+        try:
+            date = datetime.date.fromisoformat(str(value))
+        except ValueError:
+            return [f"{rule_id}: retracted date must be a real YYYY-MM-DD date, got {value!r}"]
+    if date > registry.latest_today():
+        return [f"{rule_id}: retracted date {date} has not happened yet, anywhere on Earth"]
+    return []
 
 
 def _script_problems(
@@ -329,11 +417,19 @@ def problems(
     """
     found: list[str] = []
     seen: set[str] = set()
+    # A withdrawal may only point at a rule still in force, so the ids in force are read
+    # first: a `replaced_by` naming a rule further down the file is as good as one above it.
+    in_force = frozenset(
+        str(rule["id"])
+        for rule in rules
+        if isinstance(rule, dict) and rule.get("id") and not rule.get("retracted")
+    )
     for index, rule in enumerate(rules):
         if not isinstance(rule, dict):
             found.append(f"rule {index}: must be a mapping")
             continue
         rule_id = str(rule.get("id", f"<rule {index}>"))
+        found += _retracted_problems(rule_id, rule, in_force)
         if rule.get("layer") == WORKING:
             found += _working_problems(rule_id, rule, package_dir)
             if rule_id in seen:

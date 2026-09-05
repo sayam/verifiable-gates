@@ -82,6 +82,15 @@ def _holder(practice: dict[str, Any]) -> str:
     return "reading this line — nothing here refuses it for you"
 
 
+def _retraction(rule: dict[str, Any]) -> str:
+    """The withdrawal in one sentence: when, why, and where the reader goes instead."""
+    record = rule["retracted"]
+    reason = re.sub(r"\s+", " ", str(record["reason"])).strip()
+    said = f"{record['date']} — {reason}"
+    replaced_by = record.get("replaced_by")
+    return f"{said} Replaced by `{replaced_by}`." if replaced_by else said
+
+
 def _enforcement(rule: dict[str, Any]) -> str:
     """Point at what enforces the rule in the reference, rather than restating a command."""
     if rule.get("layer") == catalogue.WORKING:
@@ -106,6 +115,12 @@ def render(
     lines = [preamble]
     for rule in catalogue.by_layer(rules, layer):
         lines.append(f"### `{rule['id']}`\n")
+        if rule.get("retracted"):
+            # First, above the rule itself: a reader who came here from an old sheet or an
+            # old commit must not read three fields of a rule before learning it was
+            # withdrawn. The entry stays whole below it — that is what publishing the
+            # withdrawal rather than deleting the rule is for.
+            lines.append(f"**Retracted:** {_retraction(rule)}\n")
         lines.append(f"**{rule_label}:** {_field(rule, 'title', language)}\n")
         lines.append(f"**{born_label}:** {_field(rule, 'born_from', language)}\n")
         lines.append(f"**{enforced_label}:** {_enforcement(rule)}\n")
@@ -116,6 +131,18 @@ def render(
         if rule.get("layer") == catalogue.WORKING:
             lines.append(f"**Apply:** {_field(rule, 'apply', language)}\n")
     return "\n".join(lines)
+
+
+def _retracted_mark(entry: dict[str, Any]) -> str:
+    """What an index line says before the title of an entry nobody is held to any more."""
+    record = entry.get("retracted")
+    return f"**retracted {record['date']}** — " if record else ""
+
+
+def _also_retracted(entries: list[dict[str, Any]]) -> str:
+    """Said beside the count, and only when there is something to say."""
+    gone = len(catalogue.retracted(entries))
+    return f" · {gone} retracted" if gone else ""
 
 
 def render_index(
@@ -135,12 +162,16 @@ def render_index(
         chosen = catalogue.by_layer(rules, layer)
         if not chosen:
             continue
+        # The count is of the rules in force. A withdrawn one is still listed — it is
+        # why the reader who followed it can find out — but counting it would make the
+        # catalogue look larger the more of it turned out to be wrong.
         lines.append(
-            f"### {layer} — {len(chosen)} rules · full entries in `references/{layer}.md`\n"
+            f"### {layer} — {len(catalogue.live(chosen))} rules{_also_retracted(chosen)}"
+            f" · full entries in `references/{layer}.md`\n"
         )
         lines.extend(
             f"- [`{rule['id']}`](references/{layer}.md#{rule['id']}) — "
-            f"{_field(rule, 'title', language)}"
+            f"{_retracted_mark(rule)}{_field(rule, 'title', language)}"
             for rule in chosen
         )
         lines.append("")
@@ -149,7 +180,8 @@ def render_index(
         # is a layer beneath the rules, not more of them, and a reader who mistook one for
         # the other would think the bundle could decide it.
         lines.append(
-            f"### working — {len(practices)} practices · full entries in `references/working.md`\n"
+            f"### working — {len(catalogue.live(practices))} practices"
+            f"{_also_retracted(practices)} · full entries in `references/working.md`\n"
         )
         lines.append(
             "How the work is done, not what the code must be. Each carries the lesson that"
@@ -158,7 +190,7 @@ def render_index(
         )
         lines.extend(
             f"- [`{practice['id']}`](references/working.md#{practice['id']}) — "
-            f"{_field(practice, 'title', language)}"
+            f"{_retracted_mark(practice)}{_field(practice, 'title', language)}"
             for practice in practices
         )
         lines.append("")

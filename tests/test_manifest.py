@@ -19,6 +19,7 @@ import pytest
 import yaml
 
 from verifiable_gates import manifest as manifest_module
+from verifiable_gates import rules as catalogue
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 
@@ -177,6 +178,29 @@ def test_the_overlay_says_of_each_rule_exactly_what_the_catalogue_says() -> None
     }
     assert shipped == scripted, (
         "an id, title, layer, born_from or reads differs between overlay.json and rules.yaml"
+    )
+
+
+def test_the_bundle_ships_nothing_that_has_been_withdrawn() -> None:
+    """A withdrawal has to reach the reader, and the reader reads the *bundle*.
+
+    `gates_doctor --rules` and `--working` print what `overlay.json` carries, not what
+    `rules.yaml` says today, so a rule or a practice taken back in the catalogue while
+    its copy stayed in the overlay would go on being printed to every agent as a rule in
+    force — the withdrawal would be a note in a file nobody installs. The schema already
+    refuses `script:` on a withdrawn rule, which keeps the scan gates clean; this is the
+    other half, and the practices, which no schema can reach (`DECISIONS.md`
+    `a-withdrawal-is-published-not-deleted`).
+    """
+    overlay = json.loads((ROOT / "src" / "verifiable_gates" / "overlay.json").read_text("utf-8"))
+    withdrawn = {
+        entry["id"]
+        for path, key in (("rules.yaml", "rules"), ("working.yaml", "practices"))
+        for entry in catalogue.retracted(catalogue.load(ROOT / path, key))
+    }
+    shipped = set(overlay["gates"]) | {practice["id"] for practice in overlay["working"]}
+    assert not (shipped & withdrawn), (
+        f"the bundle still ships {sorted(shipped & withdrawn)}, withdrawn in the catalogue"
     )
 
 

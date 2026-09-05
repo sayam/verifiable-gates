@@ -875,7 +875,7 @@ def test_a_body_edit_reruns_the_checks_that_read_the_body() -> None:
 # 118 → 119 on 2026-09-04: one `ANN401` in `tests/test_working_catalogue.py`, for the
 # `**overrides` that builds a practice with one field replaced — the same shape, and the
 # same reason, as the one `tests/test_rules_catalogue.py` already carries.
-SUPPRESSED_LINES = 119  # every one with a reason; a new one moves this number, visibly
+SUPPRESSED_LINES = 120  # every one with a reason; a new one moves this number, visibly
 
 
 def test_every_job_in_our_own_workflows_declares_a_time_budget() -> None:
