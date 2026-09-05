@@ -718,6 +718,26 @@ def _index(root: pathlib.Path) -> tuple[tuple[pathlib.Path, dict[str, object]] |
     return None, 0
 
 
+def _back(
+    gates: list[dict[str, Any]], root: pathlib.Path, config: dict[str, object], index: str
+) -> list[str]:
+    """The tests half, or the sentence saying why `tests_path` could not be read."""
+    named, wrong = _configured_path(config, "tests_path", "tests")
+    if named is None:
+        return [wrong]
+    tests_dir = root / named
+    if not _inside(root, tests_dir):
+        return [OUTSIDE.format(key="tests_path", path=named)]
+    if "tests_path" in config and not tests_dir.is_dir():
+        # The same rule `gates_path` is held to, and the one place it was not: on a
+        # brownfield the test-file half of this gate is the whole first-day wall
+        # (627 of django's 772 findings), and a `tests_path` pointing at nothing
+        # made all of it vanish with no sentence — the cheapest move, and a silent
+        # one (self-audit round 26, 2026-09-05).
+        return [MISCONFIGURED.format(key="tests_path", path=named)]
+    return _partition(gates, root, tests_dir, index)
+
+
 def _judge(root: pathlib.Path) -> int:
     if not root.is_dir():
         # NA means "this project has nothing of that kind"; a root that is not
@@ -766,14 +786,7 @@ def _judge(root: pathlib.Path) -> int:
             f" kind: job, severity, enforced_by: {{job: {job}}}"
             for job in sorted(set(jobs) - covered)
         ]
-        named, wrong = _configured_path(config, "tests_path", "tests")
-        tests_dir = root / (named or "")
-        if named is None:
-            findings.append(wrong)
-        elif _inside(root, tests_dir):
-            findings += _partition(gates, root, tests_dir, index)
-        else:
-            findings.append(OUTSIDE.format(key="tests_path", path=named))
+        findings += _back(gates, root, config, index)
 
     for finding in findings:
         print(f"gates-registry-total: {_shown(finding)}")
