@@ -99,6 +99,14 @@ gates:
           it off the picture and the regex over raw markdown did not — red; the DOI in
           `README.th.md` changed, red; the DOI on `docs/history.md` changed, red. All
           three were green before this change.
+      - kind: mutation
+        ref: pr/277
+        date: 2026-09-05
+        caught: >-
+          The CI badge's shields path made to name `ci.yaml`, red; the link beside it made
+          to name `cy.yml`, red; the badge moved to `github.com`, which serves its own
+          images and is not in `BADGE_HOSTS`, red in the host check. A badge names a
+          workflow twice and neither name is a `blob`/`tree` link, so nothing else reads them.
 
   - id: the-archive-is-read-back
     title: The archive reader holds Zenodo's versions to the releases both ways, and posture's cron runs it live

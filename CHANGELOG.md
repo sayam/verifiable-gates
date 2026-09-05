@@ -6,6 +6,19 @@ Notable changes to this project. The format follows
 
 ## [Unreleased]
 
+### Added
+
+- **A CI badge, on the host that was measured.** `README.md` shows the status of `ci.yml` on
+  `main`, linked to the workflow. It is an `img.shields.io` image because that is the one host
+  in `BADGE_HOSTS`, measured through GitHub's camo proxy: 200 on a cache MISS three times on
+  2026-09-05. GitHub's own `…/actions/workflows/ci.yml/badge.svg` was measured the same day and
+  not chosen — it is never proxied at all (GitHub serves its own images), so it would enter that
+  register for the opposite reason to every other host and would put a new image host on a page
+  PyPI also renders. A test holds the other half a badge can claim without the network: the
+  workflow a badge names is a file in `.github/workflows/`, in the shields path and in the link
+  beside it — neither is a `blob`/`tree` link, so the check that holds every README link steps
+  over both.
+
 ### Fixed
 
 - Every link in `README.md` and `README.th.md` is absolute

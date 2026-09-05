@@ -81,9 +81,26 @@ DOI_ADVERTISED_IN = ("README.md", "README.th.md", "docs/history.md")
 # Hosts whose badge images GitHub's camo proxy was **measured** to fetch, with
 # the reason each one earned its place. See the test at the end of this file.
 BADGE_HOSTS = {
-    "https://img.shields.io/": "every badge in use: 200 on all three fetches",
+    "https://img.shields.io/": (
+        "every badge in use: 200 on all three fetches (2026-09-01), and the CI badge "
+        "added 2026-09-05 answered 200 on a camo cache MISS three times"
+    ),
 }
+# The other candidate for the CI badge, measured the same day and not chosen:
+# `github.com/<owner>/<repo>/actions/workflows/ci.yml/badge.svg` is **not proxied at
+# all** — `POST /markdown` renders it as itself, because GitHub serves its own images,
+# so camo never sees it (200 · 200 · 200 direct, `CI - passing`). It would have entered
+# this register for the opposite reason to every other host, and it would have put an
+# image host on a page PyPI also renders, where nothing here has measured what happens.
+# `img.shields.io` already renders there for five badges, so the CI badge is a sixth of
+# the same kind rather than the first of a new one.
 IMAGE = re.compile(r"!\[[^\]]*\]\((https?://[^)\s]+)\)")
+# A badge that names a workflow is a claim about `.github/workflows/`: shields reads the
+# file name out of its own path, GitHub's own badge and the link beside it out of theirs.
+WORKFLOW_NAMED = re.compile(
+    r"(?:img\.shields\.io/github/actions/workflow/status/sayam/verifiable-gates|"
+    r"github\.com/sayam/verifiable-gates/actions/workflows)/([\w.-]+\.ya?ml)"
+)
 
 
 def citation() -> dict[str, Any]:
@@ -278,6 +295,31 @@ def test_every_badge_image_comes_from_a_host_camo_was_measured_to_fetch() -> Non
     assert not strangers, (
         f"badge images from unmeasured hosts: {strangers} — fetch each one through "
         "GitHub's camo proxy several times, then record it in BADGE_HOSTS with the reason"
+    )
+
+
+def test_a_badge_that_names_a_workflow_names_one_that_exists() -> None:
+    """A status badge is a claim about a file, and the file is the part that moves.
+
+    The CI badge names `ci.yml` twice — once in the shields path that reads the
+    workflow's status, once in the link a reader clicks — and neither is a link to a
+    path in the tree, so the check that holds every README link to a `blob`/`tree`
+    path steps over both. A workflow renamed or split would leave the badge rendering
+    a grey "no status" where a reader reads green, which is the failure mode this
+    file exists for: the further a statement travels, the fewer machines watch it.
+
+    This is the half of a badge that can be held without the network. Whether the
+    host answers at all is the measurement recorded in ``BADGE_HOSTS`` above.
+    """
+    named = set(WORKFLOW_NAMED.findall(README.read_text(encoding="utf-8")))
+    assert named, "no badge names a workflow — if the CI badge is gone on purpose, delete this test"
+
+    missing = sorted(
+        name for name in named if not (ROOT / ".github" / "workflows" / name).is_file()
+    )
+    assert not missing, (
+        f"a badge names {missing}, which is not in .github/workflows/ — the badge renders "
+        "no status while the README shows it as one"
     )
 
 
