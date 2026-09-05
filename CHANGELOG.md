@@ -6,6 +6,20 @@ Notable changes to this project. The format follows
 
 ## [Unreleased]
 
+## [0.3.1] - 2026-09-05
+
+A patch, because the v0.3.0 wheel on PyPI could not run the README it shipped with:
+`python -m verifiable_gates.install` refused — the working's two defaults under `local/`
+were missing from the wheel and the sdist, while every test, run from the checkout,
+was green. Found by running the new README's quickstart from a fresh venv, the day
+the README was rewritten for a stranger. The wheel now carries them, a test expands
+the package-data globs the way setuptools does, and the release workflow installs the
+bundle from the wheel it built before attesting anything. Around it, the documents:
+`README.md` restructured with real transcripts and tables, its Thai as `README.th.md`
+beside it, the rest of the old README moved under `docs/`, and the two identity cards
+and the PyPI headline in plain words. Nothing in the package's behaviour changes
+except that it installs.
+
 ### Changed
 
 - The Thai README is its own file, `README.th.md`, beside the English one; `README.md`
@@ -3031,7 +3045,8 @@ order it happened.
 - **`gates.yaml`, deliberately empty.** This repository will not list a gate
   before the thing that enforces it exists.
 
-[Unreleased]: https://github.com/sayam/verifiable-gates/compare/v0.3.0...HEAD
+[Unreleased]: https://github.com/sayam/verifiable-gates/compare/v0.3.1...HEAD
+[0.3.1]: https://github.com/sayam/verifiable-gates/releases/tag/v0.3.1
 [0.3.0]: https://github.com/sayam/verifiable-gates/releases/tag/v0.3.0
 [0.2.0]: https://github.com/sayam/verifiable-gates/releases/tag/v0.2.0
 [0.1.12]: https://github.com/sayam/verifiable-gates/releases/tag/v0.1.12
