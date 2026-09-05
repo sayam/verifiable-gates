@@ -400,6 +400,13 @@ def test_the_action_is_listable_on_the_marketplace_and_the_checklist_says_so() -
         "github.com/marketplace/actions/verifiable-gates",
     ):
         assert phrase in step_four, f"checklist step 4 does not say: {phrase}"
+    # Listed on 2026-09-05 (v0.2.0, the box ticked on the release form; the form read
+    # `action.yml` from the default branch, so the branding showed before any tag carried
+    # it). The README says so in both languages, and says to pin the SHA, not the tag.
+    readme = (ROOT / "README.md").read_text(encoding="utf-8")
+    listing = "https://github.com/marketplace/actions/verifiable-gates"
+    assert readme.count(listing) >= 2, "the README names the listing in both languages"
+    assert "pin the SHA, not the tag the listing offers" in readme
 
 
 def test_the_sbom_is_taken_from_a_clean_environment_holding_the_wheel() -> None:
