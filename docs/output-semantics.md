@@ -112,6 +112,7 @@ reviewdog or an IDE. The mapping, measured against GitHub's Security tab in roun
 | `NA` | a **notification** on the invocation, never a result | GitHub keeps a SARIF's results and drops its invocation, so a reader counting results must not see "could not look" as "looked and found nothing". |
 | a scan that did not answer | **both** — an error notification, and a result of the doctor's own rule `scan-did-not-answer` | Same reason: the result is the one shape that reader keeps. |
 | every result | carries a **location** the tree has — the file the finding names, else `scaffold.json` | GitHub refuses a whole file over one result without one. |
+| every result | carries a **fingerprint** (`partialFingerprints.primaryLocationLineHash`): the rule, the message with its line number taken out, and its place among identical sentences in the run | GitHub matches an alert across commits on it; a line inserted above a finding moves its region and its `:N`, and must not re-open it (round 26). |
 | the run | the invocation names the doctor's exit code and why | The one line about the run that GitHub keeps; the notifications it drops. |
 
 A file already at that path is replaced only if it is this doctor's run over the same

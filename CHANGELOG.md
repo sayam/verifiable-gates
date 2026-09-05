@@ -6,6 +6,18 @@ Notable changes to this project. The format follows
 
 ## [Unreleased]
 
+### Added
+
+- **Every SARIF result carries a fingerprint that survives an edit.** Round 26 measured one
+  finding before and after a single line inserted above it: `region.startLine` moved, the `:N`
+  inside the message moved with it, and the file carried no `partialFingerprints` — every
+  field the file had about that finding changed except the rule id and the path, so anything
+  keyed on the file as written re-opened it on every edit above it. Each result now carries
+  `partialFingerprints.primaryLocationLineHash`: the rule id, the message with its line number
+  taken out, and the result's place among identical sentences in the run. The line stays in
+  the message and the region, for a reader. Measured on django: 772 results, 772 distinct
+  fingerprints, the set identical across the edit (#291).
+
 ### Fixed
 
 - **A `tests_path` you named and do not have is a finding, not silence.** Round 26 measured
