@@ -9,7 +9,7 @@
   },
   "homepage": "https://github.com/sayam/verifiable-gates",
   "repository": "https://github.com/sayam/verifiable-gates",
-  "license": "CC-BY-4.0",
+  "license": "Apache-2.0 AND CC-BY-4.0",
   "keywords": [
     "software governance",
     "AI-assisted development",

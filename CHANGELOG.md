@@ -87,6 +87,13 @@ Notable changes to this project. The format follows
 
 ### Fixed
 
+- **The plugin manifest declares both licences.** `.claude-plugin/plugin.json` said `CC-BY-4.0`,
+  the sheets' licence, while what the marketplace pipe lands is the whole repository, code
+  included (round 23, D3, measured on Claude Code 2.1.261). It now says `Apache-2.0 AND
+  CC-BY-4.0`, the SPDX expression for what lands, in the order `CITATION.cff` lists them;
+  `tests/test_identity_cards.py` holds the manifest to the citation card and the sheet's own
+  frontmatter to one of the two. `claude plugin validate` still passes. Owner's decision,
+  2026-09-05 (D6).
 - **A scan that did not answer is a SARIF result of the doctor's own rule, and `NA` stays a
   note.** The second D2 run (round 23, measured 2026-09-05) fetched the SARIF GitHub stores: no
   `invocations` at all — the `NA` notes, the `[error]` and `executionSuccessful: false` were gone,

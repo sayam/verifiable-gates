@@ -310,10 +310,18 @@ def test_the_plugin_carries_the_cards_keywords() -> None:
     assert plugin()["keywords"] == list(citation()["keywords"])
 
 
-def test_the_plugin_licence_is_the_skills_licence_and_one_the_cards_declare() -> None:
-    """The plugin ships the skill and nothing else: its licence is the sheets', not the code's."""
-    assert plugin()["license"] == skill_frontmatter()["license"]
-    assert plugin()["license"] in citation()["license"]
+def test_the_plugin_licence_is_both_because_the_plugin_lands_the_whole_repository() -> None:
+    """The manifest declared the sheets' licence alone while what the marketplace pipe lands
+    is the repository — its plugin is the root, code included (measured on Claude Code
+    2.1.261, round 23, D3). A manifest naming one licence for a thing that carries two is
+    the overclaim the cards were audited for on 2026-08-29, one card further out. So the
+    plugin declares both, as an SPDX expression, in the order the citation card lists them;
+    the sheet's own frontmatter still names the sheets' licence, and it is one of the two.
+    Owner's decision, 2026-09-05.
+    """
+    declared = plugin()["license"]
+    assert declared == " AND ".join(citation()["license"]), declared
+    assert skill_frontmatter()["license"] in declared.split(" AND ")
 
 
 def test_the_plugin_names_the_cards_repository() -> None:
