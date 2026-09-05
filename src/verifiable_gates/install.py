@@ -289,6 +289,57 @@ def _note_what_landed(dest: pathlib.Path, written: list[pathlib.Path], *, finish
         raise SystemExit(1) from unwritable
 
 
+def _decided_before(dest: pathlib.Path) -> tuple[set[str] | None, str | None]:
+    """The scan ids already deciding this project, read before the overlay is replaced.
+
+    `(ids, None)` on an upgrade, `(None, None)` on a first install, and `(None, sentence)`
+    when a bundle is there and its manifest cannot be read — because "there was nothing
+    before" and "what was before could not be read" are different facts, and only one of
+    them means the line below has nothing to say.
+    """
+    previous = dest / "tools" / "overlay.json"
+    if not previous.is_file():
+        return None, None
+    try:
+        return set(manifest_module.scripts(manifest_module.load(previous))), None
+    except (OSError, ValueError, KeyError, TypeError) as unreadable:
+        return None, (
+            f"the bundle already here could not be read ({unreadable}), so this install"
+            " cannot say what changes about the scans that decide your tree"
+        )
+
+
+def _say_what_this_upgrade_decides(
+    before: set[str] | None, now: set[str], unreadable: str | None = None
+) -> None:
+    """What an upgrade changes about the *decided* set — the half a version number hides.
+
+    A project that upgrades and finds its build red wants to know whether the tree moved or
+    the bundle did. Measured in round 25 (2026-09-05): from v0.1.11 to v0.4.0 nothing moved —
+    the same nine scans in every release since v0.1.0, and the same four findings before and
+    after — so the pitfall of a rule arriving switched on has never happened here. It was also
+    never *prevented*: the installer printed the same count both times and compared nothing.
+    This is the line that would have said so.
+    """
+    if unreadable:
+        print(unreadable)
+    if before is None:
+        return
+    arrived, gone = sorted(now - before), sorted(before - now)
+    if not arrived and not gone:
+        print(
+            f"the same {len(now)} scans you had — this upgrade decides nothing new about your tree"
+        )
+        return
+    if arrived:
+        print(
+            f"{len(arrived)} new scan(s) decide your tree from now, which nothing here decided"
+            f" before: {', '.join(arrived)}"
+        )
+    if gone:
+        print(f"{len(gone)} scan(s) no longer decide anything here: {', '.join(gone)}")
+
+
 def install(
     dest: pathlib.Path,
     manifest: dict[str, Any],
@@ -299,6 +350,9 @@ def install(
 ) -> int:
     kept_registry = False
     written: list[pathlib.Path] = []
+    # Read before anything is written: the overlay is replaced by the copy below, and after
+    # that there is nothing left to compare this bundle's decided set against.
+    decided_before, unreadable_before = _decided_before(dest)
     names = [n for n in manifest_module.shipped(manifest) if working or n not in WORKING_ONLY]
 
     # Refuse before touching the destination: the directories used to be made
@@ -357,11 +411,12 @@ def install(
             f" `enforced_by: {{job: {TEMPLATE_JOB}}}` or drop the job.",
             file=sys.stderr,
         )
-    scans = len(manifest_module.scripts(manifest))
+    decides = set(manifest_module.scripts(manifest))
     print(
-        f"installed into {dest} — {len(manifest['gates'])} gates ({scans} scan) · "
+        f"installed into {dest} — {len(manifest['gates'])} gates ({len(decides)} scan) · "
         "check with: python3 tools/gates_doctor.py"
     )
+    _say_what_this_upgrade_decides(decided_before, decides, unreadable_before)
     # The rules are read off the installed manifest, never copied into a file: a copy is
     # something this installer would never overwrite, and an agent reading yesterday's copy
     # while the scanner enforces today's is a skew nobody would see (2026-09-02).
