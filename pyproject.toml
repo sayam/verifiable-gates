@@ -33,9 +33,13 @@ where = ["src"]
 
 # The bundle travels with the package: a manifest, the defaults it installs, and
 # the starting workflow. Without this they are absent from a built wheel and
-# `install.py` fails only for people who installed rather than cloned.
+# `install.py` fails only for people who installed rather than cloned. A glob here
+# does not descend: `*.default` misses `local/*.default`, and the v0.3.0 wheel on
+# PyPI refused to install for exactly that (found 2026-09-05, from a fresh venv).
+# `tests/test_install_and_doctor.py` expands these the way setuptools does and
+# holds them to the manifest's ship list.
 [tool.setuptools.package-data]
-verifiable_gates = ["overlay.json", "*.default", "ci-template.yml"]
+verifiable_gates = ["overlay.json", "*.default", "ci-template.yml", "local/*.default"]
 
 # ---------------------------------------------------------------- ruff
 [tool.ruff]
