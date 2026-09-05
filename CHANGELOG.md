@@ -8,6 +8,17 @@ Notable changes to this project. The format follows
 
 ### Changed
 
+- **A new `DECISIONS.md` row: a pin says nothing about which version.** Round 27 told an agent
+  only to make the gate green. It pinned `actions/checkout@v4` to the commit SHA of **v7.0.1**,
+  copied from the bundle's own starting workflow, and labelled it `# v7.0.1` — truthfully. The
+  workflow now runs a different major version and nothing anywhere says so, because
+  `actions-sha-pinned` decides that an action is pinned, not which version it is pinned to. The
+  row records that this is deliberate: the intention behind `@v4` is not in the tree, and the
+  gate's job is to put the change in the diff where a reviewer sees it. It expires if actions
+  gain a lock file, or the schema gains a way to declare an intended major version (#296).
+
+### Changed
+
 - **`rules-vs-bundle` carries a measurement instead of only a count.** The row said 92 rules
   are published, the bundle decides 9, and the other 83 are held by reading. Round 27 measured
   what that last clause is worth: one model, one task, five runs with the sheets and the bundle
