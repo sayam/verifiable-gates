@@ -165,6 +165,8 @@ HELD = {
     "the-listings-primary-category-is-not-ours-to-hold": "2027-02-28",
     # 2026-09-05: D7 of the 2026-08-31 audit, recorded at last — silence with exit 0 is clean.
     "a-silent-scan-is-clean-because-zero-is-the-contract": "",
+    # 2026-09-05: no Scorecard badge — the score would measure the shape of an organisation.
+    "no-scorecard-badge-until-the-score-describes-us": "2027-02-28",
 }
 
 # The rows whose `expires when` is `Never` — an expiry rewritten to "Never" was

@@ -8,6 +8,20 @@ Notable changes to this project. The format follows
 
 ### Changed
 
+- **A decision: no OpenSSF Scorecard badge.** `DECISIONS.md`
+  `no-scorecard-badge-until-the-score-describes-us`. Measured 2026-09-05: the public dataset has
+  no entry for this repository (404) and the badge renders `score: invalid repo path`, so today
+  it would advertise an error. The licence is not the obstacle — `ossf/scorecard-action` is
+  Apache-2.0 and active. The reason is the number: several of its checks measure the shape of an
+  organisation rather than the discipline of the work (Contributors wants several organisations,
+  Code-Review a second approver, Fuzzing and CII-Best-Practices things this kind of tool has no
+  use for, Branch-Protection a token with `administration:read` handed to a third party's
+  action), and each would be structurally low here. The rules keep their `maps_to:` Scorecard
+  items, which is the half that helps a reader who speaks it. The row carries what would bring
+  the badge back.
+
+### Changed
+
 - **A decision, at last, about a silent scan.** `DECISIONS.md`
   `a-silent-scan-is-clean-because-zero-is-the-contract`: a scan that prints nothing and exits 0
   is `[ pass]` — the same line as a scan that read the tree and found nothing — because exit 0
