@@ -15,7 +15,10 @@ Notable changes to this project. The format follows
   name, description, author and branding to what GitHub accepts (the nine colours, a Feather icon
   not among the omitted ones) together with the checklist sentence. The listing itself is the
   owner's, once, after the Marketplace Developer Agreement; the name is free (no user, organisation
-  or action carries it, read 2026-09-05). Nothing about what the action runs changes.
+  or action carries it, read 2026-09-05). Nothing about what the action runs changes. Listed the
+  same day, on v0.2.0: the release form validated `action.yml` from the default branch, so the
+  branding showed before any tag carried it. The README names the listing in both languages and
+  says to pin the SHA, not the tag the listing offers; the test holds both sentences.
 - **A decision: the comparison carries no persona arm.** Round 23 (D1) asked whether the sheet
   does anything at the agent's end that a security-flavoured instruction with no rules in it
   does not, which needs a fourth arm and, by the battery's own rule, a fresh run of twenty apps

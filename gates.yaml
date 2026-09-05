@@ -285,6 +285,14 @@ gates:
       whose harness had never been asked about that tree.
     proved_by:
       - kind: mutation
+        ref: pr/261
+        date: 2026-09-05
+        caught: >-
+          The README's Marketplace sentence dropped from one language, and its "pin
+          the SHA, not the tag" clause reworded — each red in the test that holds the
+          listing's metadata, the checklist step and the README's two sentences
+          together (listed 2026-09-05 on v0.2.0).
+      - kind: mutation
         ref: pr/260
         date: 2026-09-05
         caught: >-

@@ -93,7 +93,9 @@ holds it.
 **Three front doors for a project that has installed the bundle.** In CI,
 `uses: sayam/verifiable-gates@<commit-sha>` runs the doctor the project installed —
 [`action.yml`](action.yml) is `run:` steps only, with nothing inside it to pin, and an
-optional `sarif:` input. With pre-commit, `repo: https://github.com/sayam/verifiable-gates`
+optional `sarif:` input; it is listed on the
+[GitHub Marketplace](https://github.com/marketplace/actions/verifiable-gates) as
+`verifiable-gates` (since 2026-09-05) — pin the SHA, not the tag the listing offers. With pre-commit, `repo: https://github.com/sayam/verifiable-gates`
 offers [`gates-doctor`](.pre-commit-hooks.yaml) and one hook per scanner, by the id of
 the rule it decides. **All three run `tools/` as the project has it and none carries a
 copy**, so a SHA, a `rev` or a plugin update moving changes nothing about what the project
@@ -323,7 +325,7 @@ README ของ Skills CLI (ที่ `435076e`) บอกว่า `npx skills
 ไม่มีไฟล์ที่ ship ไป import network module และ `tests/test_checks_are_standalone.py` ถือไว้
 
 **สามประตูหน้าสำหรับโปรเจกต์ที่ติดตั้ง bundle แล้ว** — ใน CI `uses: sayam/verifiable-gates@<commit-sha>` รัน doctor
-ที่โปรเจกต์ติดตั้งไว้ (`action.yml` เป็น `run:` ล้วน ไม่มีอะไรข้างในให้ pin · มี input `sarif:` ให้เลือก) · ใน pre-commit
+ที่โปรเจกต์ติดตั้งไว้ (`action.yml` เป็น `run:` ล้วน ไม่มีอะไรข้างในให้ pin · มี input `sarif:` ให้เลือก · อยู่บน [GitHub Marketplace](https://github.com/marketplace/actions/verifiable-gates) ในชื่อ `verifiable-gates` ตั้งแต่ 2026-09-05 — pin ด้วย SHA ไม่ใช่ tag ที่หน้า listing เสนอ) · ใน pre-commit
 `repo: https://github.com/sayam/verifiable-gates` มี hook `gates-doctor` กับ hook ต่อ scanner ตาม id ของกฎ · ทั้งสองรัน `tools/`
 ตามที่โปรเจกต์มี **ทั้งสามประตูไม่พกสำเนาเลย** — SHA · `rev` · หรือ plugin ขยับ จึงไม่เปลี่ยนสิ่งที่โปรเจกต์ถูกบังคับ · ประตูที่สามเปิดตอน edit: เปิด plugin
 ใน Claude Code แล้วตั้ง `VERIFIABLE_GATES_AT_EDIT=1` ใน `.claude/settings.json` ของโปรเจกต์ใต้ `env` — hook (`hooks/hooks.json`)
