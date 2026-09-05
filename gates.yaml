@@ -76,6 +76,14 @@ gates:
           changed on one card only, a keyword dropped from one, the description
           reworded away from the abstract, the author renamed on the other, and
           both cards moved together to a licence this repository does not carry.
+      - kind: mutation
+        ref: pr/272
+        date: 2026-09-05
+        caught: >-
+          The plugin description put back to what it said before round 24 — the rules
+          and nothing about what installing does — red; the hook's switch dropped from
+          it, red; the count word changed on the manifest alone, red in own_numbers
+          (round 24, F3: the third card is what Claude Code shows before install).
 
   - id: the-archive-is-read-back
     title: The archive reader holds Zenodo's versions to the releases both ways, and posture's cron runs it live

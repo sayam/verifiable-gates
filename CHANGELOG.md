@@ -6,6 +6,13 @@ Notable changes to this project. The format follows
 
 ## [Unreleased]
 
+### Changed
+
+- The plugin's description — the one text Claude Code shows before `plugin install` — says
+  what installing does: it lands the whole repository and adds a `PostToolUse` hook that
+  is off until `VERIFIABLE_GATES_AT_EDIT=1` and refuses nothing, and how the scanners get
+  there. A test holds the sentences; `own_numbers` holds the count it states (round 24).
+
 ### Fixed
 
 - The pre-commit hooks say, before the click, that they run what the project installed

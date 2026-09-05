@@ -341,6 +341,26 @@ def test_the_marketplace_lists_this_plugin_at_the_root_and_nothing_else() -> Non
     assert entries[0]["description"] == plugin()["description"]
 
 
+def test_the_plugin_says_what_installing_it_does() -> None:
+    """The description is the one text Claude Code shows before `plugin install`.
+
+    Round 24 (2026-09-05) read it as a stranger: it said what the rules are and nothing
+    about what installing does — that the plugin lands the whole repository (D3) and adds
+    a PostToolUse hook, off until `VERIFIABLE_GATES_AT_EDIT=1`, that reports and refuses
+    nothing. Each of those is a DECISIONS row; the description is where a stranger reads it.
+    """
+    said = plugin()["description"]
+    for phrase in (
+        "lands the whole repository",
+        "PostToolUse hook",
+        "off by default",
+        "VERIFIABLE_GATES_AT_EDIT=1",
+        "refuses nothing",
+        "python -m verifiable_gates.install",
+    ):
+        assert phrase in said, f"the plugin description does not say: {phrase}"
+
+
 # ---------------------------------------------------------------- the fourth card
 
 
