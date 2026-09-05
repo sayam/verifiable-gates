@@ -184,7 +184,9 @@ reviewdog or an IDE — a finding is a result, while `NA` and a scan that did no
 are notifications on the invocation, never results, so a reader counting results cannot
 mistake "could not look" for "looked and found nothing"; and every result carries a
 location the tree has — the file the finding names, else `scaffold.json` — because GitHub
-refuses a whole file over one result without one (measured, round 23). A file already at that path is
+refuses a whole file over one result without one (measured, round 23); and the
+invocation names the doctor's exit code and why, the one line about the run that
+GitHub keeps — the notifications it drops (measured, round 23). A file already at that path is
 replaced only if it is this doctor's run over the same root; another tree's run, or
 anything else, is left where it is and named — two trees given one path lose no answer.
 
@@ -351,7 +353,8 @@ manifest ถูกแก้ · scanner ถูกแก้ · หรือไม�
 พิมพ์แค่ชื่อ gate กับหนึ่งบรรทัดบอกว่าทำไม ส่วน finding พิมพ์ทั้งสองกรณี · และ `gates_doctor --sarif FILE` เขียนผลรอบเดียวกันเป็น SARIF 2.1.0
 ให้ code scanning, reviewdog หรือ IDE — finding เป็น result ส่วน `NA` กับสแกนที่ตอบไม่ได้เป็น notification บน invocation ไม่ใช่ result
 คนที่นับ result จึงเข้าใจ "ดูไม่ได้" เป็น "ดูแล้วไม่เจอ" ไม่ได้ · ทุก result มี location ที่ต้นไม้มีจริง — ไฟล์ที่ finding เอ่ยถึง
-ไม่งั้น `scaffold.json` — เพราะ GitHub ปฏิเสธทั้งไฟล์ถ้า result เดียวไม่มี location (วัดแล้ว รอบ 23) · ไฟล์ที่มีอยู่แล้วที่ path นั้นจะถูกแทนที่ก็ต่อเมื่อเป็นผลรอบของ doctor
+ไม่งั้น `scaffold.json` — เพราะ GitHub ปฏิเสธทั้งไฟล์ถ้า result เดียวไม่มี location (วัดแล้ว รอบ 23) · invocation บอก exit code ของ doctor และเหตุผล
+ซึ่งเป็นบรรทัดเดียวเกี่ยวกับ run ที่ GitHub เก็บ — notification มันทิ้ง (วัดแล้ว รอบ 23) · ไฟล์ที่มีอยู่แล้วที่ path นั้นจะถูกแทนที่ก็ต่อเมื่อเป็นผลรอบของ doctor
 ตัวนี้บน root เดียวกัน ถ้าเป็นผลของต้นไม้อื่นหรืออย่างอื่นจะถูกทิ้งไว้และบอกชื่อ — สองต้นไม้ที่ใช้ path เดียวกันไม่เสียคำตอบ · ตัวตรวจ pin อ่าน workflow ทุกไฟล์
 composite action ที่ `uses: ./<path>` ชี้ไม่ว่าอยู่ที่ไหนหรือพับบรรทัดอย่างไร และเชลล์สคริปต์ที่ `run:`
 เรียกต่อ ไม่ว่าจะรู้จากชื่อ `.sh` หรือจาก shebang ใส่เครื่องหมายคำพูดหรือไม่ก็ตาม จากที่ที่เชลล์ยืนอยู่ (`cd dir &&` ก่อนหน้า หรือ `working-directory:` ของ step) โดยตัดคอมเมนต์ก่อน — `#` ที่อยู่ในคำ (`$#`, `${#PKGS}`, `\#`) ไม่ใช่คอมเมนต์ · ใน workflow ตัดสินเฉพาะสิ่งที่
