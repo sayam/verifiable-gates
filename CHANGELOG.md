@@ -6,6 +6,21 @@ Notable changes to this project. The format follows
 
 ## [Unreleased]
 
+### Added
+
+- **An id this project has published is never taken away.** `tests/test_released_ids.py` reads
+  every released tag out of git and refuses a rule or practice id that was released and is no
+  longer here; additions are free. The id is what leaves the repository and does not come back —
+  round 25 measured that the doctor's SARIF labels every result with the **rule id**, which is
+  the string GitHub code scanning stores per alert, a dismissal is attached to, and a consumer's
+  own `gates.yaml` row names. Seventeen releases had never removed one (92 rule ids at every tag
+  from v0.1.0 to v0.4.0, the same nine shipped scan ids throughout) and **nothing held it**:
+  renaming a rule id was red only because the committed sheets stopped matching a fresh render,
+  so regenerating them in the same change made it green, and renaming a gate id left all 2312
+  tests passing. Taking a rule out of force needs no removal — `retracted:` withdraws it in
+  place and the id stays. This repository's own `gates.yaml` ids are deliberately outside the
+  check: they are its enforcement, they are not shipped, and no consumer sees one.
+
 ### Changed
 
 - **A decision: no OpenSSF Scorecard badge.** `DECISIONS.md`
