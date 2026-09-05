@@ -87,6 +87,15 @@ Notable changes to this project. The format follows
 
 ### Fixed
 
+- **The Actions policy admits the PyPI publisher, and a test reads the policy against the
+  workflows.** `release.yml` dispatched for v0.2.0 on 2026-09-05 lasted one second —
+  `startup_failure`, *pypa/gh-action-pypi-publish@… is not allowed … all actions must be from a
+  repository owned by sayam or created by GitHub* — after #243 had added the step and every check
+  had been green: the platform's policy is `selected`, and nothing read
+  `pins/dev/posture-declared.json` against the workflows' `uses:` lines. The register now names
+  the one pattern, `pypa/gh-action-pypi-publish@*`, with why; the platform says the same; and
+  `tests/test_instruments_dogfood.py` holds the two ends both ways — every `uses:` is admitted by
+  the declared policy, and every pattern the register admits is one a workflow uses.
 - **The SARIF invocation names the doctor's exit code and why.** GitHub code scanning keeps a
   SARIF's results and drops its invocation — every notification, the `executionSuccessful` flag —
   and writes one string about it on the analysis: `warning: unsuccessful tool execution, exit code

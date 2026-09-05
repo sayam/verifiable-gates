@@ -702,7 +702,7 @@ HELD: dict[str, object] = {
     "selected_actions": {
         "github_owned_allowed": True,
         "verified_allowed": False,
-        "patterns_allowed": [],
+        "patterns_allowed": ["pypa/gh-action-pypi-publish@*"],
     },
 }
 
