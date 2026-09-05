@@ -2361,6 +2361,94 @@ def test_the_sarif_carries_what_code_scanning_requires(installed: pathlib.Path) 
     assert run["invocations"][0]["executionSuccessful"] is True
 
 
+def test_a_finding_keeps_its_fingerprint_when_the_line_above_it_moves(
+    installed: pathlib.Path,
+) -> None:
+    """Round 26 (2026-09-05) measured a finding before and after one line inserted above it:
+    `region.startLine` moved and the `:N` inside the message moved with it, and the file
+    carried no `partialFingerprints` — so every field the file has about that finding had
+    changed except the rule id and the path, and anything keyed on the file as written (a
+    baseline, a diff of two runs, a dashboard that is not GitHub) re-opened it. The
+    fingerprint is what survives: the rule, the file, and what the line says."""
+    manifest = gates_doctor.load_manifest(installed / "tools" / "overlay.json")
+
+    def fingerprint(said: str) -> str:
+        outcomes: list[gates_doctor.Outcome] = [("csp-no-inline", "found", [said], "")]
+        (result,) = gates_doctor.sarif_log(installed, manifest, outcomes)["runs"][0]["results"]
+        key: str = result["partialFingerprints"]["primaryLocationLineHash"]
+        return key
+
+    at_17 = fingerprint("csp-no-inline: app/templates/a.html:17 inline <style>")
+    at_18 = fingerprint("csp-no-inline: app/templates/a.html:18 inline <style>")
+    assert at_17 == at_18, "one line inserted above the finding must not re-open it"
+    assert at_17 != fingerprint("csp-no-inline: app/templates/a.html:17 inline <script>")
+    assert at_17 != fingerprint("csp-no-inline: app/templates/b.html:17 inline <style>")
+    assert len(at_17) == 64
+    assert set(at_17) <= set("0123456789abcdef")
+
+
+def test_the_same_sentence_under_two_rules_is_two_fingerprints(installed: pathlib.Path) -> None:
+    """The rule is an ingredient: two scans that happen to say the same thing about the
+    same file are two alerts, dismissed separately."""
+    manifest = gates_doctor.load_manifest(installed / "tools" / "overlay.json")
+    said = "app/a.py:3 session.delete(x)"
+
+    def alone(gid: str) -> dict[str, Any]:
+        outcomes: list[gates_doctor.Outcome] = [(gid, "found", [f"{gid}: {said}"], "")]
+        results: list[dict[str, Any]] = gates_doctor.sarif_log(installed, manifest, outcomes)[
+            "runs"
+        ][0]["results"]
+        (result,) = results
+        return result
+
+    one, two = alone("delete-means-soft-delete"), alone("logic-knows-no-http")
+    # Each in a run of its own, so the ordinal among identical sentences is 0 for both and
+    # only the rule id can tell them apart.
+    assert one["message"]["text"] == two["message"]["text"]
+    assert one["partialFingerprints"] != two["partialFingerprints"]
+
+
+def test_two_findings_saying_the_same_thing_in_one_file_are_two_fingerprints(
+    installed: pathlib.Path,
+) -> None:
+    """Two `session.delete(x)` lines in one file are two findings and stay two alerts:
+    the second carries its place among the identical ones, so it is neither folded into
+    the first nor re-keyed when a line above both of them moves."""
+    manifest = gates_doctor.load_manifest(installed / "tools" / "overlay.json")
+
+    def keys(*lines: str) -> list[str]:
+        outcomes: list[gates_doctor.Outcome] = [
+            ("delete-means-soft-delete", "found", list(lines), "")
+        ]
+        results = gates_doctor.sarif_log(installed, manifest, outcomes)["runs"][0]["results"]
+        return [r["partialFingerprints"]["primaryLocationLineHash"] for r in results]
+
+    first, second = keys(
+        "delete-means-soft-delete: app/a.py:3 session.delete(x)",
+        "delete-means-soft-delete: app/a.py:9 session.delete(x)",
+    )
+    assert first != second
+    assert keys(
+        "delete-means-soft-delete: app/a.py:4 session.delete(x)",
+        "delete-means-soft-delete: app/a.py:10 session.delete(x)",
+    ) == [first, second]
+
+
+def test_the_shipped_sarif_carries_the_fingerprint(installed: pathlib.Path) -> None:
+    """The file as it ships, not only the function: GitHub matches alerts across commits
+    on `partialFingerprints.primaryLocationLineHash` when the file carries one."""
+    _plant(
+        installed,
+        "scan_write_discipline.py",
+        "print('delete-means-soft-delete: app/a.py:3 session.delete(x)')\nraise SystemExit(1)\n",
+    )
+    (installed / "app").mkdir()
+    (installed / "app" / "a.py").write_text("\n\nsession.delete(x)\n", encoding="utf-8")
+    _, log, _ = _sarif_after(installed)
+    (result,) = log["runs"][0]["results"]
+    assert set(result["partialFingerprints"]) == {"primaryLocationLineHash"}
+
+
 # The same roads in-process, so coverage sees them; the subprocess tests above are the
 # ones that prove the file as it ships.
 

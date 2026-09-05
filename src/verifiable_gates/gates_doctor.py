@@ -651,6 +651,37 @@ def _located(root: pathlib.Path, rule_id: str, text: str) -> dict[str, Any]:
     return result
 
 
+def _fingerprint(results: list[dict[str, Any]]) -> None:
+    """Give every result the key that survives an edit: the rule, the file, what the line
+    says — and its place among results saying the same thing in the same file.
+
+    Round 26 (2026-09-05) measured one finding before and after a line inserted above it:
+    `region.startLine` moved, the `:N` inside the message moved with it, and the file
+    carried no fingerprint — so everything the file said about that finding had changed
+    but the rule and the path, and anything keyed on the file as written (a baseline, a
+    diff of two runs, a dashboard) re-opened it on every edit above it. GitHub matches
+    alerts across commits on `partialFingerprints.primaryLocationLineHash` when a file
+    carries one; the line number is left out of it and kept in the message, for a reader.
+    Two identical findings in one file are two alerts: the second is keyed with its
+    ordinal among the identical ones, which an insert above both leaves alone.
+
+    The location's `uri` is deliberately not an ingredient: it is read out of this same
+    text (`_sarif_location`), so it would add nothing a test could hold — a mutation
+    dropping it stayed green (2026-09-05), which is the sign of a register nobody keeps.
+    """
+    seen: dict[tuple[str, str], int] = {}
+    for result in results:
+        text = result["message"]["text"]
+        head = LOCATION.match(text)
+        if head is not None and head.group("line"):
+            text = head.group("path") + text[head.end("line") :]
+        key = (result["ruleId"], text)
+        ordinal = seen.get(key, 0)
+        seen[key] = ordinal + 1
+        digest = hashlib.sha256("\0".join([*key, str(ordinal)]).encode("utf-8")).hexdigest()
+        result["partialFingerprints"] = {"primaryLocationLineHash": digest}
+
+
 def _exit_of(outcomes: list[Outcome]) -> tuple[int, str]:
     """The doctor's exit for this run and the sentence behind it, for the invocation.
 
@@ -732,6 +763,7 @@ def sarif_log(
             )
             if kind == "error":
                 results.append(_sarif_unanswered(root, gid, sentence))
+    _fingerprint(results)
     exit_code, exit_sentence = _exit_of(outcomes)
     driver: dict[str, Any] = {
         "name": "verifiable-gates",
