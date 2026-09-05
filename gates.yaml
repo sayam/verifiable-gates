@@ -1948,7 +1948,12 @@ gates:
       the Thai half stripped from CLA.md, and the allowlist pointed at a file that does not
       exist. It also caught two defects in itself: walking the filesystem picked up
       verifiable_gates.egg-info/PKG- INFO, a build artefact embedding the bilingual README
-      that exists only where the package was installed in editable mode.
+      that exists only where the package was installed in editable mode. On 2026-09-05 the
+      README left the bilingual list: `README.md` is what PyPI renders and the wheel embeds,
+      so its Thai half had been travelling to every adopter, and it became `README.th.md`
+      beside the English — a fourth shape, a translation kept as its own file at the root,
+      held to contain Thai and to have its English counterpart (`DECISIONS.md`
+      `the-thai-readme-is-a-file-beside-it`).
     proved_by:
       - kind: mutation
         ref: pr/8

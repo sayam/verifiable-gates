@@ -41,8 +41,8 @@ repository keeps on itself").
 
 ## Conventions a job or a test enforces
 
-- English in every file; `README.md` and `CLA.md` are bilingual
-  (`tests/test_language_policy.py`).
+- English in every file; `CLA.md` is bilingual, and the Thai README is
+  `README.th.md` beside the English one (`tests/test_language_policy.py`).
 - Commits: Conventional Commits, a subject of at most 72 characters,
   `git commit -s`, and no `Co-authored-by:` or `Claude-Session:` trailer
   (`src/verifiable_gates/lint_commits.py`, job `commit-lint`).

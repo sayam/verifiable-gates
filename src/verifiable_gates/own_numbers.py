@@ -43,8 +43,8 @@ __all__ = ["ABOUT", "PLACES", "as_word", "expectations", "facts", "main"]
 
 # A number that appears in prose appears as a word; the counts here are small.
 WORDS = ("zero", "one", "two", "three", "four", "five", "six", "seven", "eight", "nine", "ten")
-# The Thai half of README writes the same small counts out in words too — zero to
-# ten, as escapes, because this file is held to the language policy like every other.
+# The Thai README (`README.th.md`) writes the same small counts out in words too — zero
+# to ten, as escapes, because this file is held to the language policy like every other.
 WORDS_TH = (
     "\u0e28\u0e39\u0e19\u0e22\u0e4c",  # 0
     "\u0e2b\u0e19\u0e36\u0e48\u0e07",  # 1
@@ -58,7 +58,7 @@ WORDS_TH = (
     "\u0e40\u0e01\u0e49\u0e32",  # 9
     "\u0e2a\u0e34\u0e1a",  # 10
 )
-# The Thai words around a count of checkers in README — "purely" before, the
+# The Thai words around a count of checkers in README.th.md — "purely" before, the
 # classifier after — as escapes for the same reason.
 PURELY_TH = "\u0e25\u0e49\u0e27\u0e19"
 CLASSIFIER_TH = "\u0e15\u0e31\u0e27"
@@ -93,13 +93,13 @@ PLACES: dict[str, list[advertised.Place]] = {
         advertised.Place("README.md", r"— (\d+) rules, each carrying"),
         advertised.Place("DECISIONS.md", SPLIT_ROW + r"(\d+) rules are published"),
         advertised.Place("README.md", r"Of the (\d+) rules"),
-        # The Thai half is matched by its shape — bold phrase, number, phrase —
+        # The Thai README is matched by its shape — bold phrase, number, phrase —
         # because this file is held to the language policy like every other.
-        advertised.Place("README.md", r"\*\*\S+ (\d+) \S+\*\* \(`rules\.yaml`\)"),
-        advertised.Place("README.md", r"\*\*\S+ \d+ \S+ (\d+)\*\* —"),
+        advertised.Place("README.th.md", r"\*\*\S+ (\d+) \S+\*\* \(`rules\.yaml`\)"),
+        advertised.Place("README.th.md", r"\*\*\S+ \d+ \S+ (\d+)\*\* —"),
     ],
     "checkers": [
-        advertised.Place("README.md", r"\*\*\S+ (\d+) \S+ \d+\*\* —"),
+        advertised.Place("README.th.md", r"\*\*\S+ (\d+) \S+ \d+\*\* —"),
     ],
     # The decision row that states the split quotes three counts by hand; the
     # third is the difference, measured as its own fact so the row cannot say
@@ -112,11 +112,11 @@ PLACES: dict[str, list[advertised.Place]] = {
             "DECISIONS.md",
             SPLIT_ROW + DECIDES + r"\d+ of them\. The other (\d+)",
         ),
-        # README says the split too, in both halves — three places `--write` never
+        # README says the split too, in both languages — three places `--write` never
         # reached, so a rule added left "The other 83" behind (self-audit, 2026-08-31).
         advertised.Place("README.md", r"The other (\d+) are the rule sheets"),
-        # The Thai half by its shape — a word, the count, a word, then `agent`.
-        advertised.Place("README.md", r"\S+ (\d+) \S+ agent "),
+        # The Thai README by its shape — a word, the count, a word, then `agent`.
+        advertised.Place("README.th.md", r"\S+ (\d+) \S+ agent "),
     ],
     "checkers_word": [
         advertised.Place("README.md", r"the (\w+) stdlib-only checkers"),
@@ -126,7 +126,7 @@ PLACES: dict[str, list[advertised.Place]] = {
         advertised.Place(".zenodo.json", r"ships (\w+) standalone checkers"),
     ],
     "checkers_word_th": [
-        advertised.Place("README.md", r"stdlib " + PURELY_TH + r"(\S+?)" + CLASSIFIER_TH + r" "),
+        advertised.Place("README.th.md", r"stdlib " + PURELY_TH + r"(\S+?)" + CLASSIFIER_TH + r" "),
     ],
     # README counts the files the `npx` pipe lands; it kept saying "three" after
     # `references/working.md` made it four (2026-09-04), and nothing held the number
@@ -136,9 +136,9 @@ PLACES: dict[str, list[advertised.Place]] = {
             "README.md", r"lands the \*\*(\w+)\*\* files under `skills/verifiable-gates/`"
         ),
     ],
-    # The Thai half by its shape — `npx`, a word, the bold count, a word, the path.
+    # The Thai README by its shape — `npx`, a word, the bold count, a word, the path.
     "skill_files_word_th": [
-        advertised.Place("README.md", r"`npx` \S+ \*\*(\S+)\*\* \S+ `skills/verifiable-gates/`"),
+        advertised.Place("README.th.md", r"`npx` \S+ \*\*(\S+)\*\* \S+ `skills/verifiable-gates/`"),
     ],
 }
 

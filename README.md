@@ -2,6 +2,8 @@
 
 [![DOI 10.5281/zenodo.22103110](https://img.shields.io/badge/DOI-10.5281%2Fzenodo.22103110-blue)](https://doi.org/10.5281/zenodo.22103110)
 
+Thai: [`README.th.md`](README.th.md).
+
 A gate registry that is enforced two ways against the tests and CI jobs behind
 it, gates that must carry evidence of having gone red on a real defect, and a
 portable rule set that lets an AI coding agent work under the same rules in
@@ -278,105 +280,3 @@ The application this was extracted from stays AGPL-3.0-or-later. The two differ
 on purpose: a CI tool is not a network service, and a rule meant to be adopted
 inside an organisation's internal handbook must not require share-alike.
 
----
-
-## ภาษาไทย
-
-ทะเบียน gate ที่ถูกบังคับให้ตรงกับความจริงสองทิศ · gate ที่ต้องพกหลักฐานว่าเคยแดง
-ตอนของเสียจริง · และชุดกฎที่ส่งออกไปให้ AI agent ทำงานใต้กติกาเดียวกันในโปรเจกต์อื่นได้
-
-**เก็บถาวรใต้ DOI แล้ว** — สถานะที่ข้ออ้างชี้ถึงถูกตรึงไว้ที่ tag `evidence-freeze-1`
-ทั้ง repo นี้และ reference implementation · archive อยู่ที่
-[doi:10.5281/zenodo.22103110](https://doi.org/10.5281/zenodo.22103110) ซึ่งชี้รุ่นล่าสุดเสมอ
-(แต่ละ release มี DOI ของตัวเองด้วย) · `evidence-freeze-1` กับ `v0.1.0` เป็น**คนละคอมมิต**โดยตั้งใจ —
-tag แรกคือสถานะตอนวัด tag หลังคือสถานะตอนแพ็กเกจออกครั้งแรก
-
-**สถานะ: ถอดครบทุกขั้นแล้ว (2026-08-28)** — ที่
-[`flask-todolist`](https://github.com/sayam/flask-todolist) เหลือ *ทะเบียน*
-(เทสต์ไหน · job ไหน · พื้นเท่าไหร่) กับ adapter บาง ๆ บนพาธเดิม ตาม ADR 0075
-ข้อ 6 และ `extraction.yaml` ที่นั่น ซึ่งไม่เหลืออะไรค้างแล้ว (move 0 · stay 58 · split 13) ·
-**รุ่นแรก `v0.1.0` (2026-08-28)** คือจุดที่สอง repo แยกทางกัน — ใช้ผ่าน submodule
-ที่ pin ไว้หรือ dependency ที่ระบุรุ่น ไม่ใช่จาก `main`
-
-วันนี้มี **คลังกฎ 92 ข้อ** (`rules.yaml`) ที่แต่ละข้อพกกับดักจริงที่ให้กำเนิดมันมาด้วย
-· ตัวตรวจ stdlib ล้วนเก้าตัว · ตัวติดตั้งกับ doctor · preflight · ตัวเรนเดอร์แผ่นกฎ
-· harness ของ fail-fix loop · **ตัวตัดสินฝั่ง governance กับ supply chain**
-(ratchet · สำมะโนของที่ถอด · ตัวซิงก์เลขที่โฆษณา · ท่าทีแพลตฟอร์ม · advisory ของ
-pip/npm/image · ขอบเขตของตัวสแกน · สำมะโนตารางเวลากับสายแดงที่ CI มองไม่เห็น ·
-แผ่นงาน ASVS กับ crosswalk) · และ **เครื่องมือวิจัย** (ASVS probe + battery)
-พร้อม[การทดลอง](docs/comparison/)ที่มันวัด — ทุกตัวรับถ้อยคำเป็น input
-โปรเจกต์ปลายทางจึงพิมพ์ภาษาของตัวเองได้
-
-**กฎกับตัวบังคับอยู่คนละไฟล์โดยตั้งใจ** เพราะอายุไม่เท่ากัน — `rules.yaml` คือสิ่งที่
-repo นี้เผยแพร่ ส่วน `gates.yaml` คือสิ่งที่ repo นี้ถูกบังคับด้วยตัวเอง
-
-**แผ่นกฎเป็น Agent Skill ตาม spec แล้ว** อยู่ที่ `skills/verifiable-gates/` (หน้าแรก `SKILL.md` + entry เต็มใน `references/`)
-· ติดตั้งโดยไม่ต้อง clone ได้สองทางผ่านท่อที่ repo นี้ไม่ได้เป็นเจ้าของ: `npx skills add sayam/verifiable-gates`
-(Skills CLI ลงให้ agent ที่คุณใช้) หรือใน Claude Code `claude plugin marketplace add sayam/verifiable-gates` แล้ว
-`claude plugin install verifiable-gates@verifiable-gates` · ท่อ `npx` ลง **สี่** ไฟล์ใต้ `skills/verifiable-gates/` (แผ่นกฎกับ references) แบบ copy และไม่มีอะไรอื่น
-ส่วนท่อ marketplace ลง**ทั้ง repo** (plugin คือ root `"source": "./"` เพราะ hook รัน `src/verifiable_gates/edit_hook.py`)
-เป็น git clone ของ marketplace บวก copy ต่อเวอร์ชันใน plugin cache ของ Claude Code (วัดกับ 2.1.261, 2026-09-05) manifest จึงประกาศทั้งสอง licence `Apache-2.0 AND CC-BY-4.0` — skill คือคำสั่ง ส่วนตัวสแกนยังเป็น `pip install verifiable-gates` + `python -m verifiable_gates.install`
-เพราะตัวตรวจไม่ใช่ของที่จะยื่นให้ agent เป็นร้อยแก้ว · ท่อไม่ใช่ของ repo นี้ สิ่งที่ท่อทำระหว่างทางจึงเป็นเรื่องที่ท่อบอกเอง:
-README ของ Skills CLI (ที่ `435076e`) บอกว่า `npx skills add` ส่ง identifier ของ repo และ skill เป็น install telemetry
-ปิดได้ด้วย `DISABLE_TELEMETRY=1` หรือ `DO_NOT_TRACK=1` ส่วนท่อ marketplace ยังไม่ได้วัด · ท่อ `npx` ดึง default branch ณ เวลาที่สั่ง ไม่รับ ref (`@<sha>` ถูกอ่านเป็นชื่อ skill)
-`skills-lock.json` ของมันบันทึก hash ที่ไม่ได้บังคับ และ `skills update` ดึงใหม่แล้วย้ายสำเนาไป `.agents/skills/` ทิ้ง symlink ไว้แทน —
-ผ่านท่อนี้จึงได้ `main` ณ ขณะนั้น ทางที่ pin ได้คือ submodule กับ dependency ที่ระบุเวอร์ชันข้างบน (วัดกับ Skills CLI 1.5.23, 2026-09-05)
-· ตัว bundle เองไม่เปิดเครือข่าย —
-ไม่มีไฟล์ที่ ship ไป import network module และ `tests/test_checks_are_standalone.py` ถือไว้
-
-**สามประตูหน้าสำหรับโปรเจกต์ที่ติดตั้ง bundle แล้ว** — ใน CI `uses: sayam/verifiable-gates@<commit-sha>` รัน doctor
-ที่โปรเจกต์ติดตั้งไว้ (`action.yml` เป็น `run:` ล้วน ไม่มีอะไรข้างในให้ pin · มี input `sarif:` ให้เลือก · อยู่บน [GitHub Marketplace](https://github.com/marketplace/actions/verifiable-gates) ในชื่อ `verifiable-gates` ตั้งแต่ 2026-09-05 — pin ด้วย SHA ไม่ใช่ tag ที่หน้า listing เสนอ) · ใน pre-commit
-`repo: https://github.com/sayam/verifiable-gates` มี hook `gates-doctor` กับ hook ต่อ scanner ตาม id ของกฎ · ทั้งสองรัน `tools/`
-ตามที่โปรเจกต์มี **ทั้งสามประตูไม่พกสำเนาเลย** — SHA · `rev` · หรือ plugin ขยับ จึงไม่เปลี่ยนสิ่งที่โปรเจกต์ถูกบังคับ · ประตูที่สามเปิดตอน edit: เปิด plugin
-ใน Claude Code แล้วตั้ง `VERIFIABLE_GATES_AT_EDIT=1` ใน `.claude/settings.json` ของโปรเจกต์ใต้ `env` — hook (`hooks/hooks.json`)
-จะรัน doctor ที่ติดตั้งไว้หลังทุก `Edit`/`Write` แล้วส่ง finding กลับให้ agent ตอนที่ยังถือไฟล์อยู่ · ปิดเป็นค่าเริ่มต้น · รายงาน ไม่ปฏิเสธ
-(`DECISIONS.md` `the-edit-hook-reports-and-does-not-refuse`)
-
-**บันเดิลตัดสินได้ 9 จาก 92** — เฉพาะกฎที่มี `script:` เท่านั้นที่ doctor กับ installer
-ตัดสินให้ อีก 83 ข้อคือแผ่นกฎที่ agent ถูกบังคับด้วยการอ่าน · doctor รายงานกฎที่ตัดสินไม่ได้เป็น `NA`
-และโปรเจกต์ที่ทุกข้อเป็น `NA` ออก 0 แปลว่า "ไม่ได้วัดอะไร" ไม่ใช่ "ผ่าน" · ไดเรกทอรีที่ *มีอยู่* แต่ไม่มีไฟล์ชนิดที่ตัวตรวจอ่านเลย
-— `app/` ที่มีแต่ Go หรือไดเรกทอรี template ที่มีแต่ `.ejs` — เป็น `NA` พร้อมบอกว่าไปหาอะไร ไม่ใช่ `pass`
-เพราะกฎที่เครื่องมือตรวจไม่ได้ต้องไม่หน้าตาเหมือนกฎที่ตรวจแล้ว · สแกนที่ล่ม ค้างเกินเวลา พิมพ์คำตัดสินได้ครึ่งเดียวแล้วพัง
-เจอไฟล์ที่ถอดรหัสไม่ได้ ไม่มีสิทธิ์เปิด หรือใหญ่เกิน 8 MiB ที่ตัวสแกนอ่านทั้งไฟล์ อ่าน `scaffold.json` เป็นคอนฟิกไม่ได้เลย
-หรือเดินต้นไม้ที่ถูกชี้ให้ดูไม่ทั่ว — ไดเรกทอรีที่ปิดไม่ให้เข้าไม่ใช่คำตอบเดียวกับไดเรกทอรีที่ *ไม่มีอยู่* ซึ่งยังเป็น `NA` —
-รายงานเป็น `[error]` พร้อมส่ง stderr ต่อ ไม่ใช่ `[found]` · หลังติดตั้งใหม่
-ด่านเดียวที่ `pass` คือทะเบียนที่ส่งมากับบันเดิล (`gates-registry-total`) ส่วน workflow
-ตั้งต้นที่ตัวติดตั้งเขียนให้เป็น `NA` สำหรับตัวตรวจ pin ทั้งสองจนกว่าจะมีบรรทัดถูกแก้ —
-เขียวบนไฟล์ของบันเดิลเองไม่ได้บอกอะไรเกี่ยวกับโปรเจกต์ · ตัวตรวจทะเบียนอ่านทิศของตัวเองด้วย: gate ที่งานของมัน
-ทำให้ build แดงไม่ได้ — workflow ที่ไม่มี trigger, `if: false`, หรือ `continue-on-error: true` — เป็น finding
-เพราะแถวที่ไม่มีอะไรทำให้ล้มได้คือแถวเปล่า ๆ · และ finding แต่ละข้อของมันบอกชื่อไฟล์ที่ต้องเปิดกับแถวที่ต้องเพิ่มหรือแก้
-บรรทัดแรกที่คนแปลกหน้าอ่านจึงชี้ไปที่บรรทัดถัดไป · และบันเดิลจดสิ่งที่มันติดตั้งไว้: `gates_doctor --installed`
-ถือทุกไฟล์ที่มันเขียนไว้กับ *เนื้อ* ที่มันเขียน ไม่ใช่แค่ว่ามีไฟล์อยู่ — และไม่เขียนอะไรลงต้นไม้ที่มันตรวจ แม้แต่ bytecode · และตอนอัปเกรด มันบอกว่ารุ่นนี้เลิกส่งอะไร
-แล้วปล่อยไฟล์นั้นไว้ เพราะไฟล์ในรีโปของคุณเป็นสิทธิ์ของคุณที่จะลบ · การติดตั้งที่หยุดกลางทางถูกอ่านว่าอย่างนั้น —
-doctor ขึ้นต้นด้วย *การติดตั้งครั้งล่าสุดลงในต้นไม้นี้ยังไม่จบ* แทนที่จะรายงานไฟล์ที่ลงไปแล้วว่าเป็นไฟล์ที่ถูกใครแก้ · และ `gates_doctor --rules` พิมพ์กฎที่บันเดิล
-ตัดสินได้ — แต่ละข้อพร้อมที่มาและตัวสแกนที่อ่านมัน — ให้ไฟล์คำสั่งที่โปรเจกต์เก็บไว้ให้ agent (`AGENTS.md`, `CLAUDE.md`)
-ชี้มาหา: อ่านตอนรันจาก manifest ที่ติดตั้งอยู่ การอัปเกรดจึงทิ้ง agent ไว้กับกฎเมื่อวานไม่ได้ และมีเฉพาะกฎที่ตัวสแกน
-ตรงนี้ตัดสินได้ จึงไม่มีคำสั่งข้อไหนยืนอยู่โดยไม่มีด่านหนุนหลัง · และมันพิมพ์กฎเฉพาะจากบันเดิลที่ record ยังรับรอง —
-manifest ถูกแก้ · scanner ถูกแก้ · หรือไม่มี record เลย = ไม่พิมพ์กฎสักข้อ exit 2 เพราะไฟล์ที่มันอ่านอยู่ในโปรเจกต์ที่มันกำลังตรวจเอง
-(`DECISIONS.md` `the-rules-are-read-off-a-bundle-that-is-still-intact`) · finding ในรายงานพกสองบรรทัดเดียวกัน —
-`[found] <gate> — <กฎ>` และ `born from: <เหตุการณ์>` เหนือบรรทัดของตัวสแกน — และจากบันเดิลที่ record ไม่รับรองแล้ว
-พิมพ์แค่ชื่อ gate กับหนึ่งบรรทัดบอกว่าทำไม ส่วน finding พิมพ์ทั้งสองกรณี · และ `gates_doctor --sarif FILE` เขียนผลรอบเดียวกันเป็น SARIF 2.1.0
-ให้ code scanning, reviewdog หรือ IDE — finding เป็น result · `NA` เป็น notification บน invocation ไม่ใช่ result
-· สแกนที่ตอบไม่ได้เป็นทั้งสองอย่าง — error notification และ result ของกฎของ doctor เอง `scan-did-not-answer` — เพราะ GitHub เก็บ result
-แต่ทิ้ง invocation ทั้งก้อน (วัดแล้ว รอบ 23) คนที่นับ result จึงเข้าใจ "ดูไม่ได้" เป็น "ดูแล้วไม่เจอ" ไม่ได้ · ทุก result มี location ที่ต้นไม้มีจริง — ไฟล์ที่ finding เอ่ยถึง
-ไม่งั้น `scaffold.json` — เพราะ GitHub ปฏิเสธทั้งไฟล์ถ้า result เดียวไม่มี location (วัดแล้ว รอบ 23) · invocation บอก exit code ของ doctor และเหตุผล
-ซึ่งเป็นบรรทัดเดียวเกี่ยวกับ run ที่ GitHub เก็บ — notification มันทิ้ง (วัดแล้ว รอบ 23) · ไฟล์ที่มีอยู่แล้วที่ path นั้นจะถูกแทนที่ก็ต่อเมื่อเป็นผลรอบของ doctor
-ตัวนี้บน root เดียวกัน ถ้าเป็นผลของต้นไม้อื่นหรืออย่างอื่นจะถูกทิ้งไว้และบอกชื่อ — สองต้นไม้ที่ใช้ path เดียวกันไม่เสียคำตอบ · ตัวตรวจ pin อ่าน workflow ทุกไฟล์
-composite action ที่ `uses: ./<path>` ชี้ไม่ว่าอยู่ที่ไหนหรือพับบรรทัดอย่างไร และเชลล์สคริปต์ที่ `run:`
-เรียกต่อ ไม่ว่าจะรู้จากชื่อ `.sh` หรือจาก shebang ใส่เครื่องหมายคำพูดหรือไม่ก็ตาม จากที่ที่เชลล์ยืนอยู่ (`cd dir &&` ก่อนหน้า หรือ `working-directory:` ของ step) โดยตัดคอมเมนต์ก่อน — `#` ที่อยู่ในคำ (`$#`, `${#PKGS}`, `\#`) ไม่ใช่คอมเมนต์ · ใน workflow ตัดสินเฉพาะสิ่งที่
-`run:` รันจริง (`name:` หรือ `env:` ที่ยกคำสั่งมาพูดถึงเป็นแค่ข้อความ) และ `--require-hashes` นับเมื่อเป็น
-อาร์กิวเมนต์ของคำสั่งติดตั้งเองเท่านั้น (จะอยู่ในเครื่องหมายคำพูดหรือไม่ก็ตาม) · `PIP_REQUIRE_HASHES=1` บนคำสั่งหรือใน `env:` ของ step และไฟล์ requirements ที่ทุกบรรทัดมี `--hash=` ก็นับ เพราะ pip บังคับ hash เองในกรณีเหล่านั้น · `--no-index` และ wheel ที่ติดตั้งด้วย `--no-deps` ไม่ดึงอะไรจาก index จึงไม่ถูกตัดสิน · คำสั่งใน `$( )` backtick subshell สตริงของ `sh -c` (รวม `-c` ที่พับกับ flag อื่นเช่น `bash -lc`) สตริงที่ `python -c` ส่งให้ `os.system` หรือหลัง `&` เดี่ยว รันจริงจึงถูกตัดสิน
-ส่วน `echo` ที่แค่พูดคำนั้นเป็นข้อความ — เว้นแต่คำนั้นถูกส่งให้เชลล์ผ่าน pipe (`echo … | bash`) here-string หรือ `eval` และค่าเริ่มต้นของ `${PIP:-pip}` ถูกอ่านเป็นคำนั้น · รูป YAML `uses :` และ `- {uses: …}` ถูกอ่านแบบเดียวกับที่แพลตฟอร์มอ่าน — เช่นเดียวกับคีย์ในเครื่องหมายคำพูด (`"run":`) alias ของ anchor ที่ตั้งไว้ที่ใดก็ได้ในไฟล์ (`run: *cmd`, `uses: *co` พร้อม comment เวอร์ชันของ anchor) ค่าที่มี tag (`!!str`) และ scalar แบบ plain quoted หรือ folded (`>`) ที่ต่อลงบรรทัดถัดไป ซึ่ง YAML เชื่อมด้วยช่องว่างก่อนถึงเชลล์ · มีแต่ literal block (`|`) ที่คงบรรทัดแยกกัน และ `uses` ใต้ `with:` เป็น input ไม่ใช่ step · `actions-sha-pinned` ตัดสินทั้งสองครึ่งของชื่อกฎ: tag ลอยเป็น finding และ
-commit SHA ที่ไม่มี comment บอกเวอร์ชันข้าง ๆ ก็เป็น finding (digest ของ `docker://` ไม่ต้องมี) ·
-`adr-index-complete` รายงานบันทึกสองฉบับที่ใช้เลขเดียวกันเช่นเดียวกับเลขที่ขาด · `csp-no-inline` อ่าน
-`ONCLICK=` `STYLE=` และ `<style>` แบบไม่สนตัวพิมพ์และไม่สนการตัดบรรทัด (รวม `=` ที่อยู่บรรทัดถัดจากชื่อ) เหมือนที่เบราว์เซอร์อ่าน
-โดยลบคอมเมนต์ก่อน (คอมเมนต์ที่ไม่ปิดกินถึงท้ายไฟล์) ถอด entity ในค่าของ attribute ก่อนอ่าน scheme (`&#106;avascript:`) และอ่าน `.htm` `.jinja` `.jinja2` `.j2` เหมือน `.html` · `Dockerfile*` ที่มีอยู่แต่ไม่ได้ตั้งชื่อไว้ใน `scaffold.json` ถือเป็น
-finding ไม่ใช่ "ไม่มี Dockerfile" · ค่าใน `scaffold.json` ที่ผิดรูป — ลิสต์ในที่ที่ต้องเป็นพาธเดียว หรือสตริงในที่ที่ต้อง
-เป็นลิสต์ของชื่อ — และพาธที่พาออกไปนอกโปรเจกต์ เป็น finding ที่บอกชื่อคีย์ เช่นเดียวกับพาธที่ตั้งชื่อไว้แต่ไม่มีอยู่จริง
-· คีย์ที่ไม่มี scanner ตัวไหนอ่าน (`templates_pth` แทน `templates_path`) เป็น finding ที่บอกคีย์ใกล้เคียงที่ bundle อ่านจริง เพราะทุก scanner
-จะตอบจากค่า default ขณะที่โปรเจกต์ชี้ไปที่อื่น
-
-**คลังเก็บสองภาษา**: อังกฤษเป็นข้อความที่เผยแพร่ ส่วนถ้อยคำไทยต้นฉบับอยู่ในฟิลด์
-`*_th` คู่กัน เพราะคำแปลของบันทึกเหตุการณ์คือการเล่าใหม่ และการเล่าใหม่ไม่ใช่ตัวบันทึก
-
-โค้ด: Apache-2.0 (ผู้ร่วมพัฒนาลงนาม `CLA.md`) · กฎและเอกสาร: CC BY 4.0
