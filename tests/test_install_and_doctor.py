@@ -2951,6 +2951,43 @@ def test_every_hook_says_before_the_click_that_it_runs_what_the_project_installe
         )
 
 
+# The three numbers that say what the doctor costs, measured in round 25 (2026-09-05): the
+# floor of nine interpreter starts, the slope per Python file under `src_path`, and the far
+# end of the curve. They are held **here, across the three files a reader meets them in** —
+# the hook `pre-commit` shows before the click, and both READMEs — because a cost stated in
+# one place and not the others is the half-corrected register this project keeps finding.
+COST = ("0.4 s", "1.6 ms", "14.5 s")
+
+
+def test_the_hook_that_runs_everything_says_what_it_costs() -> None:
+    """A gate that gets slow is moved from pre-commit to CI to nightly to nowhere — the
+    pitfall the ecosystem has already paid for (P9). This one is not slow, and until round 25
+    nobody could have known either way: no document in this repository named a second.
+
+    Measured then: 0.4 s empty · 0.5 s here (98 modules) · 2.5 s at 907 · 14.5 s at 7 256,
+    linear at ~1.6 ms per module, ~90% of it `scan_write_discipline`. And every hook is
+    `always_run` with `pass_filenames: false`, so the whole tree is re-read on every commit —
+    which is the part a reader has to know before adopting the hook, not after.
+    """
+    doctor = next(hook for hook in _hooks() if hook["id"] == "gates-doctor")
+    description = doctor["description"]
+    for number in COST:
+        assert number in description, f"the gates-doctor hook does not say {number}"
+    assert "always_run" in description, "it does not say the whole tree is re-read every commit"
+
+    dominant = next(hook for hook in _hooks() if hook["id"] == "delete-means-soft-delete")
+    assert "every module" in dominant["description"], "the scan that dominates does not say so"
+
+
+@pytest.mark.parametrize("name", ["README.md", "README.th.md"])
+def test_both_readmes_carry_the_same_cost_as_the_hook(name: str) -> None:
+    """One register, three files. A number that moved in the hook and not in a README — or in
+    the English and not the Thai — is the drift this repository exists to catch."""
+    said = (ROOT_OF_REPO / name).read_text(encoding="utf-8")
+    for number in COST:
+        assert number in said, f"{name} does not say {number}"
+
+
 def test_a_hook_refuses_a_tree_with_no_bundle_in_a_sentence(tmp_path: pathlib.Path) -> None:
     """The same sentence and exit code as the action, for the same reason."""
     empty = tmp_path / "nothing-installed"

@@ -167,6 +167,8 @@ HELD = {
     "a-silent-scan-is-clean-because-zero-is-the-contract": "",
     # 2026-09-05: no Scorecard badge — the score would measure the shape of an organisation.
     "no-scorecard-badge-until-the-score-describes-us": "2027-02-28",
+    # 2026-09-05: round 25 F3 — the cost is written where a reader meets the hook, not gated.
+    "the-cost-is-stated-and-not-gated": "2027-02-28",
 }
 
 # The rows whose `expires when` is `Never` — an expiry rewritten to "Never" was

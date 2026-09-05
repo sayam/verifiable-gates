@@ -8,6 +8,21 @@ Notable changes to this project. The format follows
 
 ### Added
 
+- **The hook says what it costs.** Round 25 measured the doctor for the first time: about
+  **0.4 s** of interpreter starts (nine scans, nine processes) plus roughly **1.6 ms per Python
+  file** under `src_path` — 0.5 s on this repository, 2.5 s at 907 modules, **14.5 s at 7 256**,
+  linear, with ~90% of it in `scan_write_discipline`. Every pre-commit hook is `always_run`, so
+  each commit re-reads the whole tree however small the change, and **no document in this
+  repository named a second**. The `gates-doctor` hook's description and both READMEs now carry
+  the numbers and that sentence, held to one another by a test — one register in three files —
+  and `delete-means-soft-delete` says that it reads every module and is most of the cost.
+  `DECISIONS.md` `the-cost-is-stated-and-not-gated` records why there is no timing gate: a
+  threshold on wall clock is a ratchet against the runner's hardware, not against the code
+  (round 25, F3 — the pitfall is P9, a gate that gets slow is moved to CI, then nightly, then
+  nowhere).
+
+### Added
+
 - **An id this project has published is never taken away.** `tests/test_released_ids.py` reads
   every released tag out of git and refuses a rule or practice id that was released and is no
   longer here; additions are free. The id is what leaves the repository and does not come back —
