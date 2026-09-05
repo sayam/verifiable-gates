@@ -6,6 +6,20 @@ Notable changes to this project. The format follows
 
 ## [Unreleased]
 
+### Changed
+
+- **`rules-vs-bundle` carries a measurement instead of only a count.** The row said 92 rules
+  are published, the bundle decides 9, and the other 83 are held by reading. Round 27 measured
+  what that last clause is worth: one model, one task, five runs with the sheets and the bundle
+  in front of the agent and five without. The three rules a tool decides went from 0 of 5 to
+  5 of 5. Of the six reading-held rules the task could break, one moved — the one whose whole
+  content is a line in a file the agent was already editing — and the five that ask for a
+  system to be built did not move at all. What the sheets bought was elsewhere: every run
+  repaired a registry finding nobody mentioned, three of five mutation-proved their own new
+  tests unprompted, and one named the five rules it was not implementing and why. The row now
+  says that a rule held by reading buys an agent that can name what it is not doing, and does
+  not buy the thing being done (#295).
+
 ### Fixed
 
 - **`preflight` knows an install by any of its names, and stops running them on your
