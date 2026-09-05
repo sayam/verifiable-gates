@@ -153,6 +153,8 @@ HELD = {
     "reads-is-what-the-tool-reads-not-a-stack-label": "",
     # 2026-09-05: the Thai README moved out of README.md into README.th.md beside it.
     "the-thai-readme-is-a-file-beside-it": "",
+    # 2026-09-05: round 24, P16 — two formats, text and SARIF, and no --json until a reader asks.
+    "no-json-until-a-reader-asks": "",
     # 2026-09-05: round 23, D1 — the persona arm the comparison does not carry, and why.
     "the-comparison-has-no-persona-arm": "",
 }

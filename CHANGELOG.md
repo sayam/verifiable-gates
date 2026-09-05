@@ -26,6 +26,11 @@ Notable changes to this project. The format follows
 
 ### Changed
 
+- **A decision: no `--json` until a reader asks.** Round 24 (P16) measured what a machine gets
+  from the doctor and the catalogue — text with the rule and its incident, or SARIF with
+  locations — and found no consumer asking for a third format. `DECISIONS.md`
+  `no-json-until-a-reader-asks` records the two formats, why a third would be a register
+  nobody holds, and the condition that brings one: a consumer with the fields it needs.
 - The plugin's description — the one text Claude Code shows before `plugin install` — says
   what installing does: it lands the whole repository and adds a `PostToolUse` hook that
   is off until `VERIFIABLE_GATES_AT_EDIT=1` and refuses nothing, and how the scanners get
