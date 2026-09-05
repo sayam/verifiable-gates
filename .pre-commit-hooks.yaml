@@ -15,7 +15,7 @@
 - id: gates-doctor
   name: verifiable-gates — every installed scan
   description: >-
-    Every scan the project installed under tools/, run by its own gates_doctor.py; exits 2 with a sentence when nothing is installed. Install first: python -m verifiable_gates.install <project>
+    Every scan the project installed under tools/, run by its own gates_doctor.py; exits 2 with a sentence when nothing is installed. Install first: python -m verifiable_gates.install <project>. Cost: every hook here is always_run, so each commit re-reads the whole tree however small the change — about 0.4 s of interpreter starts plus roughly 1.6 ms per Python file under src_path, which was 2.5 s at 907 modules and 14.5 s at 7256 (measured 2026-09-05). Most of it is delete-means-soft-delete, which reads every module.
   entry: >-
     bash -c 'test -f tools/gates_doctor.py || { echo "verifiable-gates: no bundle installed under . — this hook runs the doctor a project installed (python -m verifiable_gates.install); it carries no copy of its own" >&2; exit 2; }; python3 tools/gates_doctor.py --root .'
   language: system
@@ -65,7 +65,7 @@
 - id: delete-means-soft-delete
   name: verifiable-gates — delete-means-soft-delete
   description: >-
-    The scanner for rule delete-means-soft-delete the project installed under tools/checks/; exits 2 with a sentence when nothing is installed. Install first: python -m verifiable_gates.install <project>
+    The scanner for rule delete-means-soft-delete the project installed under tools/checks/; exits 2 with a sentence when nothing is installed. Install first: python -m verifiable_gates.install <project>. It reads every module under src_path and is most of what the gates-doctor hook costs.
   entry: >-
     bash -c 'test -f tools/checks/scan_write_discipline.py || { echo "verifiable-gates: no bundle installed under . — this hook runs the scanner a project installed (python -m verifiable_gates.install); it carries no copy of its own" >&2; exit 2; }; python3 tools/checks/scan_write_discipline.py .'
   language: system

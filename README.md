@@ -101,6 +101,16 @@ off an edited bundle, the SARIF mapping — is in
 | pre-commit            | before each commit           | `repo: https://github.com/sayam/verifiable-gates` · hook `gates-doctor`, or one hook per rule id ([`.pre-commit-hooks.yaml`](https://github.com/sayam/verifiable-gates/blob/main/.pre-commit-hooks.yaml)) | —                    |
 | Claude Code edit hook | after every `Edit` / `Write` | plugin installed (below) · `"env": {"VERIFIABLE_GATES_AT_EDIT": "1"}` in `.claude/settings.json` ([`hooks/hooks.json`](https://github.com/sayam/verifiable-gates/blob/main/hooks/hooks.json)) | off; reports, never refuses |
 
+**What it costs.** The doctor is about **0.4 s** of interpreter starts — nine scans, nine
+processes — plus roughly **1.6 ms per Python file** under `src_path`: 0.5 s on this repository
+(98 modules), 2.5 s at 907, and **14.5 s** at 7 256 (measured 2026-09-05, one laptop; the
+numbers and the method are in `.local/` of that day's audit round). Most of it is one scan,
+`delete-means-soft-delete`, which reads every module. Every pre-commit hook here is
+`always_run`, so each commit re-reads the whole tree however small the change — on a large tree
+prefer the action, or the one hook whose rule you care about. There is no timing gate: a
+threshold on wall clock is a ratchet against the runner's hardware, not against the code
+(`DECISIONS.md` `the-cost-is-stated-and-not-gated`).
+
 All three run `tools/` as the project has it, and none carries a copy of the
 checkers. Moving the SHA, the `rev` or the plugin version changes nothing about what
 the project is held to (`DECISIONS.md` `ci-runs-the-bundle-the-project-installed`).

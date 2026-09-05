@@ -88,6 +88,14 @@ ci-tools-hash-pinned: .github/workflows/lint.yml: pip install ruff
 | pre-commit | ก่อนทุก commit | `repo: https://github.com/sayam/verifiable-gates` · hook `gates-doctor` หรือ hook ต่อ id ของกฎ ([`.pre-commit-hooks.yaml`](https://github.com/sayam/verifiable-gates/blob/main/.pre-commit-hooks.yaml)) | — |
 | hook ตอน edit ใน Claude Code | หลังทุก `Edit` / `Write` | ติดตั้ง plugin (ข้างล่าง) · `"env": {"VERIFIABLE_GATES_AT_EDIT": "1"}` ใน `.claude/settings.json` ([`hooks/hooks.json`](https://github.com/sayam/verifiable-gates/blob/main/hooks/hooks.json)) | ปิด · รายงาน ไม่ปฏิเสธ |
 
+**ราคาของมัน** — doctor ใช้เวลาราว **0.4 s** ไปกับการเริ่ม interpreter (เก้า scan เก้าโพรเซส)
+บวกอีกราว **1.6 ms ต่อไฟล์ Python** ใต้ `src_path`: 0.5 s บน repo นี้ (98 โมดูล) · 2.5 s ที่ 907 โมดูล ·
+และ **14.5 s** ที่ 7256 โมดูล (วัด 2026-09-05 บนแล็ปท็อปเครื่องเดียว วิธีวัดกับตัวเลขดิบอยู่ในบันทึกรอบ audit ของวันนั้น)
+· ส่วนใหญ่เป็น scan ตัวเดียวคือ `delete-means-soft-delete` ที่อ่านทุกโมดูล · hook ของ pre-commit ทุกตัวเป็น
+`always_run` ทุก commit จึงอ่านทั้งต้นไม้ใหม่ไม่ว่าจะแก้เล็กแค่ไหน — ต้นไม้ใหญ่ให้ใช้ action หรือเลือก hook
+เฉพาะกฎที่สนใจ · **ไม่มีด่านวัดเวลา** เพราะเพดานเวลาคือ ratchet ที่วัดฮาร์ดแวร์ของ runner ไม่ใช่วัดโค้ด
+(`DECISIONS.md` `the-cost-is-stated-and-not-gated`)
+
 ทั้งสามประตูรัน `tools/` ตามที่โปรเจกต์มี **และไม่พกสำเนาเลย** — SHA · `rev` · หรือ plugin ขยับ
 จึงไม่เปลี่ยนสิ่งที่โปรเจกต์ถูกบังคับ (`DECISIONS.md` `ci-runs-the-bundle-the-project-installed`)
 
