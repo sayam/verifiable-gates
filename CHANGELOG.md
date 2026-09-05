@@ -29,6 +29,17 @@ Notable changes to this project. The format follows
   checkers decide, what the rest is for — and three new `own_numbers` places hold the
   counts they state.
 
+### Fixed
+
+- The wheel carries the two working defaults, `local/LESSONS.md.default` and
+  `local/README.md.default`. The v0.3.0 wheel and sdist on PyPI did not — `*.default` in
+  `package-data` does not descend into `local/` — so `python -m verifiable_gates.install`
+  from `pip install verifiable-gates` answered *the bundle is incomplete … refusing to
+  install* while every test, run from the checkout, stayed green. A test now expands the
+  package-data globs the way setuptools does and holds them to the manifest's ship list,
+  and the release workflow installs the bundle from the wheel it just built before
+  anything is attested or published.
+
 ## [0.3.0] - 2026-09-05
 
 The doctor's third answer now survives the hop out of the doctor. Round 23 asked what

@@ -2941,6 +2941,15 @@ gates:
           `--rules` made to print no `reads:` line — the one line a project on
           another stack needs to learn, before running, which of the nine rules can
           ever apply to it (round 22, F2).
+      - kind: mutation
+        ref: pr/267
+        date: 2026-09-05
+        caught: >-
+          `local/*.default` taken back out of `package-data` — the shape the v0.3.0
+          wheel on PyPI shipped in, refusing to install its own bundle from a fresh
+          venv while every test here, run from the checkout, was green — is red; so is
+          `overlay.json` dropped. The globs are expanded as setuptools expands them,
+          because `fnmatch` called the broken configuration complete.
   - id: the-manifest-is-an-input
     title: The manifest is validated as data, and a rule the bundle cannot decide cannot carry a script
     kind: test

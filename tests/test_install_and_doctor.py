@@ -31,6 +31,7 @@ import stat
 import subprocess
 import sys
 import threading
+import tomllib
 from typing import TYPE_CHECKING, Any
 
 import pytest
@@ -3842,4 +3843,38 @@ def test_the_exit_in_the_sarif_is_the_exit_the_doctor_returned(
     assert invocation["exitCode"] == code
     assert invocation["exitCodeDescription"].startswith(
         "scans found problems in 1 gates: adr-index"
+    )
+
+
+# ------------------------------------------------ the wheel carries what the installer ships
+
+
+def test_every_shipped_data_file_is_in_the_wheel() -> None:
+    """Every non-Python file the manifest ships must be matched by a `package-data` glob.
+
+    The v0.3.0 wheel on PyPI could not install its own bundle: `install` answered *the bundle
+    is incomplete: ship lists local/LESSONS.md.default, which is not in the bundle* and
+    refused. `pyproject.toml` said `*.default`, and a setuptools glob does not descend into
+    `local/`. Every test here ran from the checkout, where the file exists, so nothing was
+    red (found 2026-09-05 by running the README quickstart from a fresh venv).
+
+    The globs are expanded **the way setuptools expands them** — `Path.glob`, where `*`
+    stops at `/` — not with `fnmatch`, whose `*` crosses `/` and would have called the
+    broken configuration complete.
+    """
+    root = pathlib.Path(__file__).resolve().parent.parent
+    package = root / "src" / "verifiable_gates"
+    pyproject = tomllib.loads((root / "pyproject.toml").read_text(encoding="utf-8"))
+    globs = pyproject["tool"]["setuptools"]["package-data"]["verifiable_gates"]
+    carried = {
+        path.relative_to(package).as_posix() for pattern in globs for path in package.glob(pattern)
+    }
+    shipped = manifest_module.load(package / "overlay.json")["ship"]
+    data_files = [name for name in shipped if not name.endswith(".py")]
+
+    assert data_files, "the manifest ships no data file — if that is deliberate, delete this test"
+    missing = sorted(name for name in data_files if name not in carried)
+    assert not missing, (
+        f"shipped by the manifest but matched by no package-data glob, so absent from the wheel: "
+        f"{missing} — add a pattern to [tool.setuptools.package-data] in pyproject.toml"
     )
