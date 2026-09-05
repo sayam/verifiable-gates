@@ -77,7 +77,9 @@ teaches rules it does not follow, and the answer was 2.7%.
   proved there before it moved here). A ref is `pr/N`, `run/N` or
   `commit/<sha>`, with `owner/repo#` in front when it is not this repository —
   the schema holds the shape, and a real calendar date beside it, because a
-  ref nobody can look up is not evidence. The ref is the pull request or run
+  ref nobody can look up is not evidence — and `posture.yml` looks every ref up,
+  weekly: a 404, or a run whose log has expired, is red there
+  (`verifiable_gates.proved_by_refs`). The ref is the pull request or run
   where the red *was seen*, not the one that added the job: the two security
   proofs cited the pull request that added `codeql` and `secret-scan`, whose
   every check is green, while the red sat on a throwaway pull request and its

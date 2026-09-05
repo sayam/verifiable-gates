@@ -3778,3 +3778,41 @@ gates:
           The pinned standard was written in place: a reader arriving mid-write saw an
           empty pin, and a writer killed there left one (self-audit round 20,
           2026-09-03). The pin put back to `write_text` is red.
+
+  - id: proved-by-refs-resolve-on-the-platform
+    title: Every proved_by ref is resolved against the platform weekly, and a run whose log is gone is red
+    kind: test
+    severity: blocking
+    enforced_by: {job: test, tests: [tests/test_proved_by_refs.py]}
+    layer: internal
+    pillar: devx
+    portable: false
+    born_from: >-
+      `registry.py` holds a `proved_by.ref` to its shape and the suite runs with no
+      network, so `pr/999999999` passed every test — filed three times by outside
+      audits and decided as `proved-by-ref-is-a-shape` (2026-09-01) with the day the
+      six `run/N` proofs' logs would expire as its revisit date. Round 24 (B1,
+      2026-09-05) measured the tree first: 169 distinct refs, all resolving, eight
+      of them runs, the oldest from 2026-08-29 — and the platform answers 410 Gone
+      for a run's log after the retention window while the run record stays, so
+      "points at nothing" is a measurable state, not a date on a calendar.
+      `verifiable_gates.proved_by_refs` asks GitHub about every distinct ref from
+      `posture.yml` — weekly and on every push to main, where the token already is —
+      and is red on a 404, on a shape it cannot ask about, and on a run whose log is
+      gone, naming the gates that cite the ref and what to do. This gate is the
+      resolver's behaviour, proved offline on fakes in the `test` job; the live read
+      is a step of `posture.yml`, whose own gate is watched within seven days. The
+      test job stays no-network.
+    proved_by:
+      - kind: mutation
+        ref: pr/273
+        date: 2026-09-05
+        caught: >-
+          The 404 branch made to return None (a ref that names nothing read as
+          resolved) — red; the 410 branch made to return None (an expired log read
+          as readable) — red; the posture step removed — red in the test that holds
+          the live half to the workflow. Run live against the registry as on main
+          the same day: exit 0, 172 distinct refs across 254 rows, 7 runs whose logs
+          are readable — the eighth, `startup_failure`, has none and is the record
+          itself, which the first draft had reported as a finding.
+

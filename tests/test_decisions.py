@@ -119,7 +119,8 @@ HELD = {
     "write-scanner-reads-session-delete": "",
     "dependency-licences-read-at-the-pin": "",
     # The seven the owner decided on 2026-09-01, closing §B of the self-audit.
-    "proved-by-ref-is-a-shape": "2026-11-27",
+    # 2026-09-05: re-decided in round 24 (B1) — resolved weekly by posture, so no clock.
+    "proved-by-ref-is-a-shape": "",
     "removals-census-not-run-here": "",
     "asvs-worksheet-not-kept-here": "",
     "pillar-is-content-a-reviewer-sees": "",
