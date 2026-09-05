@@ -77,13 +77,17 @@ readers learning anything about this bundle. The text report stays on stdout and
 stays the default; SARIF is a format, not a second opinion. The scanners are not
 touched: each is shipped standalone and speaks one line per finding, and the doctor
 already reads all nine, so the doctor translates. What the translation refuses to
-lose is the third answer. A finding is a `result`; `NA` and *the scan did not answer*
-are **not** — they are `toolExecutionNotifications` on the invocation (level `note`
-and `error`), and any error marks the invocation `executionSuccessful: false`. A
-reader that only counts results sees a clean run where a scan could not look, which
-is the sentence the manifest forbids; a reader that reads invocations sees the
-truth — and the invocation names the doctor's exit code and why, because GitHub keeps
-that one string of an invocation and drops the rest (round 23, D2). Every result
+lose is the third answer. A finding is a `result`; `NA` is **not** — it is a
+`toolExecutionNotification` on the invocation (level `note`), because nothing is
+missing from a run that answered NA and its exit is 0. *The scan did not answer* is
+both: an `error` notification that marks the invocation `executionSuccessful: false`,
+and a `result` of the doctor's own rule `scan-did-not-answer` — because GitHub code
+scanning keeps a SARIF's results and drops its invocation whole, so a notification
+alone made "could not look" vanish one hop out, and a reader counting results saw a
+clean run over a scan that could not look, which is the sentence the manifest forbids
+(round 23, D2, measured 2026-09-05; owner's decision the same day). The invocation
+also names the doctor's exit code and why, the one string of an invocation GitHub
+keeps (round 23, D2). Every result
 carries a location the tree has: the path the scanner named when it exists, else the
 first file the sentence names, else `scaffold.json` — GitHub refuses a whole file over
 one result without one (round 23, D2). The SARIF file that cannot
@@ -606,10 +610,24 @@ def _sarif_location(root: pathlib.Path, text: str) -> tuple[pathlib.Path, dict[s
     return LAST_RESORT, {}
 
 
+UNANSWERED = "scan-did-not-answer"
+
+
 def _sarif_result(root: pathlib.Path, gid: str, line: str) -> dict[str, Any]:
     """One finding line as a SARIF result, always located where the tree agrees."""
-    text = line.removeprefix(f"{gid}:").strip()
-    result: dict[str, Any] = {"ruleId": gid, "level": "error", "message": {"text": text}}
+    return _located(root, gid, line.removeprefix(f"{gid}:").strip())
+
+
+def _sarif_unanswered(root: pathlib.Path, gid: str, sentence: str) -> dict[str, Any]:
+    """A scan that did not answer, as a result of the doctor's own rule — the one shape
+    GitHub keeps. The message is the report's own line, `<gate> — <why>`, and it lands on
+    the file the sentence names when the tree has it, else on the last resort."""
+    return _located(root, UNANSWERED, f"{gid} — {sentence}")
+
+
+def _located(root: pathlib.Path, rule_id: str, text: str) -> dict[str, Any]:
+    """A result under `rule_id` saying `text`, located where the tree agrees."""
+    result: dict[str, Any] = {"ruleId": rule_id, "level": "error", "message": {"text": text}}
     path, region = _sarif_location(root, text)
     # "Under the root" is decided on the **path**, not on what the path leads to.
     # `is_absolute()` was the whole check, and `..` walked straight through it: a finding
@@ -657,10 +675,9 @@ def _exit_of(outcomes: list[Outcome]) -> tuple[int, str]:
     return 1, "; ".join(parts)
 
 
-def sarif_log(
-    root: pathlib.Path, manifest: dict[str, Any], outcomes: list[Outcome]
-) -> dict[str, Any]:
-    """The whole run as one SARIF 2.1.0 log. Pure: the same outcomes give the same log."""
+def _sarif_rules(manifest: dict[str, Any], outcomes: list[Outcome]) -> list[dict[str, Any]]:
+    """The driver's rules: one per installed scan, and the doctor's own two only when a
+    result of this run hangs on them — a key no scanner reads, a scan that did not answer."""
     gates = manifest["gates"]
     rules = []
     for gid, _script in scan_entries(manifest):
@@ -680,17 +697,41 @@ def sarif_log(
         rules.append(
             {"id": "scaffold.json", "shortDescription": {"text": "a key no scanner reads"}}
         )
+    if any(kind == "error" for _gid, kind, _said, _sentence in outcomes):
+        rules.append(
+            {
+                "id": UNANSWERED,
+                "shortDescription": {"text": "a scan did not answer, which is no verdict"},
+                "fullDescription": {
+                    "text": "The scanner named in the message exited without a verdict — "
+                    "a crash, a timeout, a tree it could not read. Nothing was checked; "
+                    "this is not a clean run."
+                },
+            }
+        )
+    return rules
+
+
+def sarif_log(
+    root: pathlib.Path, manifest: dict[str, Any], outcomes: list[Outcome]
+) -> dict[str, Any]:
+    """The whole run as one SARIF 2.1.0 log. Pure: the same outcomes give the same log."""
+    rules = _sarif_rules(manifest, outcomes)
     results: list[dict[str, Any]] = []
     notes: list[dict[str, Any]] = []
     for gid, kind, said, sentence in outcomes:
         if kind == "found":
             results += [_sarif_result(root, gid, line) for line in said if line.strip()]
         elif kind in {"na", "error"}:
-            # The third answer, kept as what it is: neither a result nor silence.
+            # The third answer, kept as what it is: neither a finding nor silence. NA is a
+            # note and nothing else; an unanswered scan is an error note **and** a result
+            # of the doctor's own rule, since GitHub drops the notes (round 23, D2).
             level = "note" if kind == "na" else "error"
             notes.append(
                 {"level": level, "message": {"text": sentence}, "associatedRule": {"id": gid}}
             )
+            if kind == "error":
+                results.append(_sarif_unanswered(root, gid, sentence))
     exit_code, exit_sentence = _exit_of(outcomes)
     driver: dict[str, Any] = {
         "name": "verifiable-gates",
