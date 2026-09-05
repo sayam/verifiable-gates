@@ -6,6 +6,17 @@ Notable changes to this project. The format follows
 
 ## [Unreleased]
 
+### Changed
+
+- **A severity is what something reads: `warning` is retired.** Round 26 measured that
+  `severity: warning` existed in the registry schema and was read by nothing at run time —
+  not the doctor, not any scan, not the census — so a gate marked with it was exactly as red
+  as one marked `blocking`, and no document said what any severity meant. The vocabulary is
+  now `blocking` (every gate on a run) and `watched` (a `watched_by` promise the red-streak
+  census measures); a `watched` row without its watcher, or a `blocking` row with one, is
+  refused. Both READMEs say so. What a project wants to say "not yet" about goes through a
+  waiver with a reason and a date, not a label (#292).
+
 ### Added
 
 - **Every SARIF result carries a fingerprint that survives an edit.** Round 26 measured one
