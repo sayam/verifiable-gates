@@ -180,8 +180,10 @@ carries the same two lines — `[found] <gate> — <rule>` and `born from: <inci
 the scanner's own — and off a bundle the record no longer vouches for it carries the gate
 alone and one line saying why, the findings printed either way. And
 `gates_doctor --sarif FILE` writes the same run as SARIF 2.1.0 for code scanning,
-reviewdog or an IDE — a finding is a result, while `NA` and a scan that did not answer
-are notifications on the invocation, never results, so a reader counting results cannot
+reviewdog or an IDE — a finding is a result; `NA` is a notification on the invocation,
+never a result; and a scan that did not answer is both — an error notification, and a
+result of the doctor's own rule `scan-did-not-answer` — because GitHub keeps a SARIF's
+results and drops its invocation (measured, round 23), so a reader counting results cannot
 mistake "could not look" for "looked and found nothing"; and every result carries a
 location the tree has — the file the finding names, else `scaffold.json` — because GitHub
 refuses a whole file over one result without one (measured, round 23); and the
@@ -351,8 +353,9 @@ manifest ถูกแก้ · scanner ถูกแก้ · หรือไม�
 (`DECISIONS.md` `the-rules-are-read-off-a-bundle-that-is-still-intact`) · finding ในรายงานพกสองบรรทัดเดียวกัน —
 `[found] <gate> — <กฎ>` และ `born from: <เหตุการณ์>` เหนือบรรทัดของตัวสแกน — และจากบันเดิลที่ record ไม่รับรองแล้ว
 พิมพ์แค่ชื่อ gate กับหนึ่งบรรทัดบอกว่าทำไม ส่วน finding พิมพ์ทั้งสองกรณี · และ `gates_doctor --sarif FILE` เขียนผลรอบเดียวกันเป็น SARIF 2.1.0
-ให้ code scanning, reviewdog หรือ IDE — finding เป็น result ส่วน `NA` กับสแกนที่ตอบไม่ได้เป็น notification บน invocation ไม่ใช่ result
-คนที่นับ result จึงเข้าใจ "ดูไม่ได้" เป็น "ดูแล้วไม่เจอ" ไม่ได้ · ทุก result มี location ที่ต้นไม้มีจริง — ไฟล์ที่ finding เอ่ยถึง
+ให้ code scanning, reviewdog หรือ IDE — finding เป็น result · `NA` เป็น notification บน invocation ไม่ใช่ result
+· สแกนที่ตอบไม่ได้เป็นทั้งสองอย่าง — error notification และ result ของกฎของ doctor เอง `scan-did-not-answer` — เพราะ GitHub เก็บ result
+แต่ทิ้ง invocation ทั้งก้อน (วัดแล้ว รอบ 23) คนที่นับ result จึงเข้าใจ "ดูไม่ได้" เป็น "ดูแล้วไม่เจอ" ไม่ได้ · ทุก result มี location ที่ต้นไม้มีจริง — ไฟล์ที่ finding เอ่ยถึง
 ไม่งั้น `scaffold.json` — เพราะ GitHub ปฏิเสธทั้งไฟล์ถ้า result เดียวไม่มี location (วัดแล้ว รอบ 23) · invocation บอก exit code ของ doctor และเหตุผล
 ซึ่งเป็นบรรทัดเดียวเกี่ยวกับ run ที่ GitHub เก็บ — notification มันทิ้ง (วัดแล้ว รอบ 23) · ไฟล์ที่มีอยู่แล้วที่ path นั้นจะถูกแทนที่ก็ต่อเมื่อเป็นผลรอบของ doctor
 ตัวนี้บน root เดียวกัน ถ้าเป็นผลของต้นไม้อื่นหรืออย่างอื่นจะถูกทิ้งไว้และบอกชื่อ — สองต้นไม้ที่ใช้ path เดียวกันไม่เสียคำตอบ · ตัวตรวจ pin อ่าน workflow ทุกไฟล์

@@ -87,6 +87,16 @@ Notable changes to this project. The format follows
 
 ### Fixed
 
+- **A scan that did not answer is a SARIF result of the doctor's own rule, and `NA` stays a
+  note.** The second D2 run (round 23, measured 2026-09-05) fetched the SARIF GitHub stores: no
+  `invocations` at all — the `NA` notes, the `[error]` and `executionSuccessful: false` were gone,
+  and the pull request check read *No new alerts in code changed*. A result is the one shape
+  GitHub keeps, so an unanswered scan now travels as one too: rule `scan-did-not-answer`, level
+  `error`, the report's own `<gate> — <why>` line as its message, located on the file the
+  sentence names when the tree has it, else `scaffold.json`; the rule is listed only when a
+  result hangs on it. The notification stays beside it for readers that keep invocations. `NA`
+  is still a note and never a result — exit 0, nothing missing. Owner's decision, 2026-09-05;
+  `DECISIONS.md` `text-is-the-default-sarif-is-a-format` re-decided, clock unchanged.
 - **The Actions policy admits the PyPI publisher, and a test reads the policy against the
   workflows.** `release.yml` dispatched for v0.2.0 on 2026-09-05 lasted one second —
   `startup_failure`, *pypa/gh-action-pypi-publish@… is not allowed … all actions must be from a

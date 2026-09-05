@@ -2052,6 +2052,15 @@ def test_a_scan_that_did_not_answer_marks_the_invocation_unsuccessful(
     assert error["associatedRule"] == {"id": "actions-sha-pinned"}
     assert "did not answer (exit 2)" in error["message"]["text"]
     assert "Permission denied" in error["message"]["text"], "the scan's own words travel"
+    # And a result of the doctor's own rule — the one shape GitHub keeps (round 23, D2:
+    # the stored SARIF had no invocations at all; the owner decided 2026-09-05).
+    (result,) = [r for r in run["results"] if r["ruleId"] == "scan-did-not-answer"]
+    assert result["level"] == "error"
+    assert result["message"]["text"].startswith("actions-sha-pinned — the scan did not answer")
+    assert "Permission denied" in result["message"]["text"]
+    assert _artifact(result)["uri"] == "scaffold.json", "names no file the tree has"
+    (rule,) = [r for r in run["tool"]["driver"]["rules"] if r["id"] == "scan-did-not-answer"]
+    assert rule["shortDescription"]["text"] == "a scan did not answer, which is no verdict"
 
 
 def test_sarif_is_a_run_of_the_scans_and_refuses_the_other_two_questions(
@@ -2274,6 +2283,62 @@ def test_in_process_a_scan_that_hangs_is_an_error_notification(
     assert invocation["executionSuccessful"] is False
     (error,) = [n for n in invocation["toolExecutionNotifications"] if n["level"] == "error"]
     assert "timed out after 1s" in error["message"]["text"]
+    (result,) = [r for r in log["runs"][0]["results"] if r["ruleId"] == "scan-did-not-answer"]
+    assert result["message"]["text"] == (
+        "actions-sha-pinned — the scan did not answer (timed out after 1s)"
+    )
+
+
+def test_in_process_an_unanswered_scan_lands_on_the_file_its_words_name(
+    installed: pathlib.Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """The scanner's stderr travels in the result's message, and when it names a file the
+    tree has — the undecodable template, the directory it could not read — the alert lands
+    there, where a reader would start; else on the last resort like any other result."""
+    (installed / "app" / "templates").mkdir(parents=True)
+    (installed / "app" / "templates" / "odd.html").write_bytes(b"\xff\xfe\x00")
+    _plant(
+        installed,
+        "scan_templates_inline.py",
+        "import sys\nprint('cannot decode app/templates/odd.html', file=sys.stderr)\n"
+        "raise SystemExit(2)\n",
+    )
+    code, log = _sarif_in_process(installed)
+    capsys.readouterr()
+    assert code == 1
+    run = log["runs"][0]
+    (result,) = [r for r in run["results"] if r["ruleId"] == "scan-did-not-answer"]
+    assert result["message"]["text"] == (
+        "csp-no-inline — the scan did not answer (exit 2)\ncannot decode app/templates/odd.html"
+    )
+    assert _artifact(result)["uri"] == "app/templates/odd.html"
+    assert "region" not in result["locations"][0]["physicalLocation"]
+
+
+def test_na_is_a_note_only_and_the_unanswered_rule_is_listed_only_when_used(
+    installed: pathlib.Path,
+) -> None:
+    """Pure, over `sarif_log`: NA never becomes a result (exit 0, nothing missing), an
+    unanswered scan is a note and a result, and the doctor's own rule appears in the
+    driver only when a result of this run hangs on it."""
+    manifest = gates_doctor.load_manifest(installed / "tools" / "overlay.json")
+    gone: gates_doctor.Outcome = ("csp-no-inline", "error", [], "the scan did not answer (exit 2)")
+    na: gates_doctor.Outcome = ("adr-index-complete", "na", ["NA: no docs/adr"], "no docs/adr")
+
+    run = gates_doctor.sarif_log(installed, manifest, [gone, na])["runs"][0]
+    assert [r["ruleId"] for r in run["results"]] == ["scan-did-not-answer"]
+    assert run["results"][0]["message"]["text"] == (
+        "csp-no-inline — the scan did not answer (exit 2)"
+    )
+    assert {n["level"] for n in run["invocations"][0]["toolExecutionNotifications"]} == {
+        "error",
+        "note",
+    }
+    assert "scan-did-not-answer" in {r["id"] for r in run["tool"]["driver"]["rules"]}
+
+    quiet = gates_doctor.sarif_log(installed, manifest, [na])["runs"][0]
+    assert quiet["results"] == [], "NA is exit 0 — nothing is missing, so nothing to alert on"
+    assert "scan-did-not-answer" not in {r["id"] for r in quiet["tool"]["driver"]["rules"]}
 
 
 def test_in_process_the_misuse_and_the_unwritable_file_are_exit_two(

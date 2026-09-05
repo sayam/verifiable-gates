@@ -2484,6 +2484,17 @@ gates:
       subprocess where a wrong exit code is easy to lose.
     proved_by:
       - kind: mutation
+        ref: pr/257
+        date: 2026-09-05
+        caught: >-
+          An unanswered scan dropped from the SARIF results — red in the subprocess
+          test, the in-process timeout test and the pure test over `sarif_log`
+          (round 23, out of D2: GitHub stores the results and no invocation, so a
+          notification alone made "could not look" vanish one hop out; owner's
+          decision 2026-09-05). Three more plants, each red on its own: the result
+          hung on the gate's own rule instead of `scan-did-not-answer`; the rule
+          left out of the driver; `NA` made a result too.
+      - kind: mutation
         ref: pr/255
         date: 2026-09-05
         caught: >-
