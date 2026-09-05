@@ -875,7 +875,7 @@ def test_a_body_edit_reruns_the_checks_that_read_the_body() -> None:
 # 118 → 119 on 2026-09-04: one `ANN401` in `tests/test_working_catalogue.py`, for the
 # `**overrides` that builds a practice with one field replaced — the same shape, and the
 # same reason, as the one `tests/test_rules_catalogue.py` already carries.
-SUPPRESSED_LINES = 121  # every one with a reason; a new one moves this number, visibly
+SUPPRESSED_LINES = 125  # every one with a reason; a new one moves this number, visibly
 
 
 def test_every_job_in_our_own_workflows_declares_a_time_budget() -> None:
@@ -974,6 +974,7 @@ RUFF_OFF_PER_FILE = {
     "src/verifiable_gates/posture.py": ("T201",),
     "src/verifiable_gates/zenodo.py": ("T201",),
     "src/verifiable_gates/proved_by_refs.py": ("T201",),
+    "src/verifiable_gates/marketplace.py": ("T201",),
     "tests/**": ("INP001", "PLR2004", "S101"),
 }
 

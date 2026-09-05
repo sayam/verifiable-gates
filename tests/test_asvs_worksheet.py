@@ -15,6 +15,7 @@ from typing import TYPE_CHECKING, Any
 import pytest
 
 from verifiable_gates import asvs_worksheet as ws
+from verifiable_gates import net
 
 if TYPE_CHECKING:
     import pathlib
@@ -234,8 +235,8 @@ def test_an_upstream_answer_longer_than_the_ceiling_is_refused(
     """`urlopen(timeout=N)` bounds the gap between packets, not the download — measured at
     twelve times the declared ceiling against a server that dripped (self-audit round 19,
     2026-09-02) — and `json.load(response)` had no ceiling in bytes at all."""
-    monkeypatch.setattr(ws, "MAX_ANSWER_BYTES", 64)
-    monkeypatch.setattr(ws, "READ_CHUNK", 16)
+    monkeypatch.setattr(net, "MAX_ANSWER_BYTES", 64)
+    monkeypatch.setattr(net, "READ_CHUNK", 16)
     monkeypatch.setattr(urllib.request, "urlopen", lambda *_a, **_k: io.BytesIO(b"x" * 4096))
 
     with pytest.raises(RuntimeError, match="longer than 64 bytes"):

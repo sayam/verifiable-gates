@@ -3945,3 +3945,40 @@ gates:
           red; a guide heading reworded away from the rule it repeats, red; the guide
           running `verifiable_gates.preflght`, red; the guide naming `docs/history.mb`,
           red. Before the guide existed there was nothing to be red.
+  - id: the-listing-shows-the-categories-we-declared
+    title: The Marketplace listing's categories are the ones this repository declares, in order
+    kind: test
+    severity: blocking
+    enforced_by: {job: test, tests: [tests/test_marketplace.py]}
+    layer: internal
+    pillar: devx
+    portable: false
+    born_from: >-
+      The two categories of a listed action are set on a release form, by a person, and no
+      API writes them. On 2026-09-05 the owner opened that form and found them the other way
+      round from the runbook that listed the action — Continuous integration where Code
+      quality had been chosen — and asked whether something had swapped them. Nothing in this
+      repository could answer: the only capture of the page (round 24, 07:43 UTC the same
+      day) already showed the new order, no capture existed from before it, and no check had
+      ever read the listing. A setting a person can change on a web form that nobody reads
+      back is a setting that drifts in silence, which is the same shape as the branch
+      protection switches `posture.yml` already reads, one surface along. So the order is
+      declared in `marketplace.py`, copied into the test, and compared with the page weekly.
+      The reader can only report: the fix is a person on the release form, and the message
+      says which form and which field. A page that is not the listing — a login wall, a
+      challenge, a 404 body served with 200 — is the third answer and not a finding, because
+      "no categories" and "the listing was emptied" would otherwise be the same sentence
+      (measured the same day on another host: pypi.org answers `curl` with a challenge page,
+      HTTP 200).
+    proved_by:
+      - kind: mutation
+        ref: pr/283
+        date: 2026-09-05
+        caught: >-
+          The declared order reversed, red in the copy that holds it; the categories parsed
+          as a set rather than in order, red on the fixture of the live page; the guard that
+          refuses a page which is not the listing removed, so a challenge page read as a
+          listing with no categories — red, and the answer went from 2 to 1, which is the
+          difference between "could not ask" and "the listing is wrong". Run live against the
+          real listing on 2026-09-05: **exit 1**, naming both orders — the finding this gate
+          was built to make visible.
