@@ -6,6 +6,17 @@ Notable changes to this project. The format follows
 
 ## [Unreleased]
 
+### Changed
+
+- The documents say the two things this release added to the catalogue's shape, where a
+  reader meets them: both READMEs say a rule is **withdrawn in place, never deleted**, and
+  `docs/auditing.md` gains the section an outside auditor needs — what a withdrawal looks
+  like, and that `maps_to:` is the door in for somebody who audits by Scorecard, SLSA or the
+  SSDF. `AGENTS.md` points at the guide, so an agent working here knows which claims an
+  outsider is invited to check (`CONTRIBUTING.md` § "Releasing" step 0: the documents are
+  brought up to date in their own pull request, before any cut, because a cut whose documents
+  lag its code archives the lag under a DOI where it cannot be corrected).
+
 ### Added
 
 - **`maps_to:` — where a rule sits in a vocabulary somebody else already speaks.** A rule may

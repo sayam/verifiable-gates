@@ -24,6 +24,8 @@ rendered into an agent skill. Start with `README.md`. The skill is
 - Every module states its role in its docstring (`Role:`). A tool that decides
   answers 0 = clean, 1 = findings, 2 = could not answer — a rule the tool cannot
   check must never look like a rule it checked.
+- What an outside reader is invited to check, and with which command: `docs/auditing.md`.
+  A claim made here that page cannot be checked against is a claim nobody outside can use.
 
 ## Run what CI runs
 

@@ -166,6 +166,23 @@ python -m verifiable_gates.install /tmp/a-project     # the bundle, into an empt
 python /tmp/a-project/tools/gates_doctor.py /tmp/a-project
 ```
 
+## Two things to look for that are not checks
+
+**A rule can be withdrawn, and the withdrawal is published.** `retracted: {date, reason,
+replaced_by}` on a rule or a practice keeps it in the catalogue and on its sheet, marked, and
+takes it out of every count — a certificate authority publishes a revocation rather than
+pretending the certificate was never issued. Nothing is withdrawn today, and
+`test_no_rule_in_this_catalogue_is_withdrawn_yet` says so, so the day one is, it is a red
+somebody re-decides rather than a quiet edit. What to check: that a rule you think is wrong
+could be taken back this way, and that a withdrawn one would still be readable.
+
+**A rule may say where it sits in your vocabulary.** `maps_to:` names items of OpenSSF
+Scorecard, SLSA v1.0 and NIST SSDF SP 800-218 — 35 of the 92 carry one, the rest name nothing
+because no item of those three covers them. A mapping says the rule would satisfy or
+contribute to that item, never that the two are equal. The item names are a closed set read
+off the publications; a misspelling is refused. If you audit by one of those frameworks, this
+is the door in.
+
 ## What you cannot check from here
 
 - **Which defect was planted.** Mutation proofs show a test can go red; the choice of
