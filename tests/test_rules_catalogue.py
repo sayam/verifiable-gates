@@ -428,3 +428,52 @@ def test_no_rule_in_this_catalogue_is_withdrawn_yet() -> None:
     the one that has to be re-decided rather than quietly edited."""
     assert rules.retracted(rules.load(ROOT / "rules.yaml")) == []
     assert rules.retracted(rules.load(ROOT / "working.yaml", "practices")) == []
+
+
+# --------------------------------------------------- where a rule sits outside
+# `maps_to` is the one field written for a reader who does not speak this catalogue: an
+# auditor working from OpenSSF Scorecard or NIST's SSDF finds a rule from the item they
+# already know. That only holds while the item names are the publications' own, so they
+# are a closed set read off those publications and refused otherwise (`DECISIONS.md`
+# `a-mapping-is-read-from-the-framework-not-from-memory`, T5 of the trust analysis).
+
+
+def test_a_mapping_to_a_known_item_is_accepted() -> None:
+    assert complaints(a_rule(maps_to=["scorecard:Pinned-Dependencies"])) == ""
+    assert complaints(a_rule(maps_to=["scorecard:SAST", "slsa:build-L2", "ssdf:PW.7"])) == ""
+
+
+def test_the_vocabularies_are_the_ones_that_were_read() -> None:
+    """Sizes, as a register: Scorecard's twenty checks, SLSA v1.0's three build levels
+    above L0, and the SSDF's twenty practices (5 + 3 + 9 + 3). A list that grew or shrank
+    without somebody re-reading the publication is the drift the field exists to avoid."""
+    assert len(rules.SCORECARD) == 20
+    assert len(rules.SLSA) == 3
+    assert len(rules.SSDF) == 20
+    assert sorted(rules.FRAMEWORKS) == ["scorecard", "slsa", "ssdf"]
+
+
+def test_an_item_the_publication_does_not_have_is_refused() -> None:
+    """A misspelling here is a map to nothing that reads like a map to something."""
+    assert "is not an item of scorecard" in complaints(a_rule(maps_to=["scorecard:pinned-deps"]))
+    assert "is not an item of ssdf" in complaints(a_rule(maps_to=["ssdf:PW.7.1"]))
+    assert "is not an item of slsa" in complaints(a_rule(maps_to=["slsa:L2"]))
+    assert "names no framework" in complaints(a_rule(maps_to=["cis:1.1"]))
+    assert "must be a list" in complaints(a_rule(maps_to="scorecard:SAST"))
+
+
+def test_a_mapping_list_is_a_sorted_set() -> None:
+    """Sorted and without repeats, so a reviewer reads a set rather than a history of
+    what was added when."""
+    assert "repeats an item" in complaints(a_rule(maps_to=["ssdf:PW.7", "ssdf:PW.7"]))
+    assert "not in order" in complaints(a_rule(maps_to=["ssdf:PW.7", "scorecard:SAST"]))
+
+
+def test_the_catalogue_maps_what_it_maps_and_says_nothing_about_the_rest() -> None:
+    """A rule with no mapping is the normal case. This holds the two ends of that: the map
+    reaches something, and it does not quietly claim to cover the catalogue."""
+    catalogue = rules.load(ROOT / "rules.yaml")
+    mapped = [rule for rule in catalogue if rule.get("maps_to")]
+    assert 20 < len(mapped) < len(catalogue), len(mapped)
+    for rule in mapped:
+        assert rules.problems([rule]) == [], rule["id"]

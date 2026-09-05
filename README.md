@@ -154,6 +154,15 @@ it into a test. What each pipe sends and fetches, and why there is no registry o
 project's own, is in [`docs/history.md`](https://github.com/sayam/verifiable-gates/blob/main/docs/history.md#the-two-pipes) and
 `DECISIONS.md` `distribution-is-two-pipes-nobody-here-owns`.
 
+A rule may also say where it sits in a vocabulary somebody else already speaks:
+`maps_to:` names items of [OpenSSF Scorecard](https://github.com/ossf/scorecard/blob/main/docs/checks.md),
+[SLSA v1.0](https://slsa.dev/spec/v1.0/levels) and
+[NIST SSDF](https://csrc.nist.gov/pubs/sp/800/218/final) — 35 of them name where they sit,
+and the rest deliberately name nothing, because no item of those three covers them. A
+mapping says the rule would satisfy or contribute to that item, never that the two are
+equal; the item names are a closed set read off the publications, so a misspelling is
+refused rather than published as a map to nothing.
+
 `rules.yaml` and the sheets come with the checkout, not with the wheel. The package
 is the machinery that reads the catalogue:
 

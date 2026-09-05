@@ -133,6 +133,13 @@ action อยู่บน [GitHub Marketplace](https://github.com/marketplace/ac
 เปลี่ยนมันเป็นเทสต์อย่างไร · ท่อแต่ละท่อส่งอะไร ดึงอะไร และทำไมไม่มี registry ของ repo นี้เอง อยู่ใน
 [`docs/history.md`](https://github.com/sayam/verifiable-gates/blob/main/docs/history.md#the-two-pipes) และ `DECISIONS.md` `distribution-is-two-pipes-nobody-here-owns`
 
+กฎหนึ่งข้อบอกได้ด้วยว่ามันอยู่ตรงไหนในคำศัพท์ที่คนอื่นใช้กันอยู่แล้ว: `maps_to:` อ้างรายการของ
+[OpenSSF Scorecard](https://github.com/ossf/scorecard/blob/main/docs/checks.md) ·
+[SLSA v1.0](https://slsa.dev/spec/v1.0/levels) · [NIST SSDF](https://csrc.nist.gov/pubs/sp/800/218/final)
+— 35 ข้อที่มี `maps_to:` และที่เหลือตั้งใจไม่อ้างอะไรเลย เพราะไม่มีรายการไหนในสามชุดนั้นครอบมัน ·
+การแมปแปลว่ากฎข้อนี้**ทำให้รายการนั้นสำเร็จหรือช่วยให้สำเร็จ** ไม่ใช่ว่าเท่ากัน · ชื่อรายการเป็นชุดปิดที่อ่านมาจาก
+เอกสารต้นทาง สะกดผิดจึงถูกปฏิเสธ แทนที่จะถูกเผยแพร่เป็นแผนที่ที่ชี้ไปที่ไม่มีอะไร
+
 `rules.yaml` กับแผ่นกฎมากับ checkout ไม่ได้มากับ wheel — แพ็กเกจคือเครื่องจักรที่อ่านคลังกฎ:
 
 ```python

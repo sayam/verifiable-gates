@@ -1634,6 +1634,12 @@ gates:
           force — red on a tree of two rules, one of them withdrawn. Measured against this
           repository the two counts are the same number today, so the fixture is the whole
           proof (T1).
+      - kind: mutation
+        ref: pr/280
+        date: 2026-09-05
+        caught: >-
+          A mapping taken off one rule while both READMEs still said 35, red in `own_numbers`
+          — the count of mapped rules is advertised, so it is measured (T5, L-0184).
   - id: the-about-field-is-read-not-remembered
     title: The description on the hosting platform is read live and held to what the tree measures
     kind: step
@@ -3350,6 +3356,13 @@ gates:
           answered *differs from a fresh render*, exit 1, with nothing red here — and the
           layer swapped on the baseline sheet's line. Each red in the new test that runs
           the printed command with `--check` in front of it (T3).
+      - kind: mutation
+        ref: pr/280
+        date: 2026-09-05
+        caught: >-
+          The `**Maps to:**` line dropped from the sheet, red; moved above the enforcement
+          line it belongs under, red; the baseline sheet's ceiling left at 690 while the
+          sheet grew to 742, red in the ratchet that holds a ceiling against reality (T5).
   - id: the-harness-never-passes-what-it-cannot-decide
     title: The fail-fix harness answers machine-readably, and reports skips rather than hiding them
     kind: test
@@ -3580,6 +3593,14 @@ gates:
           date of `9999-99-99` and one in 2099, a `replaced_by` naming a rule that is not in
           the catalogue and one naming a rule itself withdrawn, and a withdrawn rule that
           kept its `script:` — each its own red (T1).
+      - kind: mutation
+        ref: pr/280
+        date: 2026-09-05
+        caught: >-
+          `maps_to` planted six ways: a framework this catalogue does not know, an item
+          Scorecard does not have, an SSDF *task* where a practice belongs (`PW.7.1`), a
+          SLSA level written the short way, a repeated item and an unsorted list — each its
+          own red. A map to nothing reads exactly like a map to something (T5).
   - id: the-sheets-match-the-catalogue
     title: The committed sheets are a fresh render, and between them they publish every rule
     kind: test

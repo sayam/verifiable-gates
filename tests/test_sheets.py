@@ -253,7 +253,9 @@ CEILING_LINES = {
     # 190 → 200 on 2026-09-04: the index gained a `working` section, ten lines of
     # practices under their own heading.
     INDEX: 200,
-    f"{SKILL_DIR}/references/baseline.md": 690,
+    # 690 → 750 on 2026-09-05: thirty-two baseline rules gained a `**Maps to:**` line,
+    # two lines each, saying where they sit in Scorecard, SLSA or the SSDF (T5).
+    f"{SKILL_DIR}/references/baseline.md": 750,
     f"{SKILL_DIR}/references/business.md": 160,
     # New on 2026-09-04 with the sheet itself: ten practices, each with its lesson,
     # its holder and what to do.

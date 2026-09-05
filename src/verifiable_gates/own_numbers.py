@@ -104,6 +104,13 @@ PLACES: dict[str, list[advertised.Place]] = {
     "checkers": [
         advertised.Place("README.th.md", r"\*\*\S+ (\d+) \S+ \d+\*\* —"),
     ],
+    # How many rules say where they sit in a vocabulary an outside auditor already
+    # speaks. Advertised because it is the number that says how far the map reaches —
+    # and a number nothing measures is the one that drifts (L-0184).
+    "rules_mapped": [
+        advertised.Place("README.md", r"(\d+) of them name where they sit"),
+        advertised.Place("README.th.md", r"(\d+) \S+ `maps_to:`"),
+    ],
     # The decision row that states the split quotes three counts by hand; the
     # third is the difference, measured as its own fact so the row cannot say
     # 92, 9 and 84 at once (re-audit round 13, 2026-08-30).
@@ -191,6 +198,7 @@ def facts(root: pathlib.Path) -> dict[str, str]:
         "skill_files_word": as_word(len(skill_files)),
         "skill_files_word_th": as_word(len(skill_files), WORDS_TH),
         "rules_scripted": str(scripted),
+        "rules_mapped": str(sum(1 for rule in catalogue if rule.get("maps_to"))),
         "rules_sheet_only": str(len(catalogue) - scripted),
         "version": __version__,
         "released": newest.group(2),

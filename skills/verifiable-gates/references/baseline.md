@@ -37,6 +37,8 @@ a theory) · **Enforced in the reference** (how one project enforces it today).
 
 **Enforced in the reference:** `tests/test_gates.py`
 
+**Maps to:** `ssdf:PO.4`
+
 **Reads:** the gate index at gates.yaml (scaffold.json gates_path), the jobs of every workflow under .github/workflows, and the test files under tests
 
 ### `gates-carry-red-evidence`
@@ -46,6 +48,8 @@ a theory) · **Enforced in the reference** (how one project enforces it today).
 **Born from:** Governance audit round 6 (2026-08-17) — measured across the last 200 runs and found **21 jobs that had never once gone red**, which from the outside is indistinguishable between "the code really is fine" and "the gate checks nothing" · a gate nobody has seen fail is a gate nobody has proved checks anything — collect the evidence when it happens, not when you need it.
 
 **Enforced in the reference:** `tests/test_gate_evidence.py`
+
+**Maps to:** `ssdf:PO.4`
 
 ### `logic-knows-no-http`
 
@@ -113,6 +117,8 @@ a theory) · **Enforced in the reference** (how one project enforces it today).
 
 **Enforced in the reference:** `tests/test_session_security.py`
 
+**Maps to:** `ssdf:PW.9`
+
 ### `login-rate-limited-two-ways`
 
 **Rule:** Login quotas apply per IP and per username · once throttled the answer is 429 even for the right password
@@ -161,6 +167,8 @@ a theory) · **Enforced in the reference** (how one project enforces it today).
 
 **Enforced in the reference:** `tests/test_security_headers.py`
 
+**Maps to:** `ssdf:PW.9`
+
 **Reads:** .html, .htm, .jinja, .jinja2 and .j2 templates under app/templates (scaffold.json templates_path)
 
 ### `config-fails-loud`
@@ -171,6 +179,8 @@ a theory) · **Enforced in the reference** (how one project enforces it today).
 
 **Enforced in the reference:** `tests/test_config.py` · `tests/test_secrets.py`
 
+**Maps to:** `ssdf:PW.9`
+
 ### `no-debug-entrypoint`
 
 **Rule:** No entrypoint file can open a debug console, even when the wrong one is run
@@ -178,6 +188,8 @@ a theory) · **Enforced in the reference** (how one project enforces it today).
 **Born from:** The first SAST round pointed at an entrypoint that could enable debug and was being copied into the image — run the wrong one and you have a debug console that executes code from a web page.
 
 **Enforced in the reference:** `tests/test_entrypoint.py`
+
+**Maps to:** `ssdf:PW.9`
 
 **Reads:** the Python entrypoints run.py, wsgi.py, app.py and main.py (scaffold.json entrypoints), as an AST
 
@@ -196,6 +208,8 @@ a theory) · **Enforced in the reference** (how one project enforces it today).
 **Born from:** The first round caught three things the hand-written tests had missed (an id past 64 bits returning 500, an unparseable date returning 500, and requests rejected at the routing layer returning HTML).
 
 **Enforced in the reference:** `tests/test_api_fuzz.py`
+
+**Maps to:** `scorecard:Fuzzing` · `ssdf:PW.8`
 
 ### `fk-enforced-measured`
 
@@ -237,6 +251,8 @@ a theory) · **Enforced in the reference** (how one project enforces it today).
 
 **Enforced in the reference:** `tests/test_declared_prohibitions.py`
 
+**Maps to:** `ssdf:PO.4`
+
 ### `stack-images-pinned-and-moved`
 
 **Rule:** Stack images are pinned by digest · something moves them · and the mover asks only for digests, not new versions
@@ -244,6 +260,8 @@ a theory) · **Enforced in the reference** (how one project enforces it today).
 **Born from:** Audit round 15 — the project had three gates enforcing pinning (action to SHA, base image to digest, CI tools by hash) and none of them opened a compose file · measured: 11 images pulled by tag, running in 11 of 25 jobs on every push · among them ghcr.io/zaproxy/zaproxy:stable, a floating tag that decides a security outcome — so last week's green dast run cannot be reproduced · Dependabot separates docker-compose from docker (which reads only the Dockerfile) and we had declared only the latter, so pinning without a mover would have frozen the vulnerabilities in place; this gate enforces both halves together · audit round 16 added a third: the mover must ignore major and minor bumps — the first batch this ecosystem opened proposed mysql 8 → 26, redis 7 → 8 and vault 1.18 → 2.0 among nine at once · the reasoning for the ignore rules had lived only in a comment, and it was measured that they could be removed with nothing complaining.
 
 **Enforced in the reference:** `tests/test_stack_image_pinning.py`
+
+**Maps to:** `scorecard:Dependency-Update-Tool` · `scorecard:Pinned-Dependencies`
 
 ### `test-databases-must-be-throwaway`
 
@@ -311,6 +329,8 @@ a theory) · **Enforced in the reference** (how one project enforces it today).
 
 **Enforced in the reference:** `tests/test_licensing.py`
 
+**Maps to:** `scorecard:License`
+
 ### `security-policy-consistent`
 
 **Rule:** The timeframes quoted in SECURITY.md agree across every copy, and no email address appears in the file
@@ -318,6 +338,8 @@ a theory) · **Enforced in the reference** (how one project enforces it today).
 **Born from:** A policy whose numbers disagree in three places is a policy where the reporter can always choose whichever copy suits them.
 
 **Enforced in the reference:** `tests/test_security_policy.py`
+
+**Maps to:** `scorecard:Security-Policy`
 
 ### `contributor-docs-truthful`
 
@@ -343,6 +365,8 @@ a theory) · **Enforced in the reference** (how one project enforces it today).
 
 **Enforced in the reference:** `tests/test_workflow_pinning.py`
 
+**Maps to:** `scorecard:Pinned-Dependencies`
+
 **Reads:** the uses: steps of workflows and composite actions under .github
 
 ### `image-digest-pinned`
@@ -352,6 +376,8 @@ a theory) · **Enforced in the reference** (how one project enforces it today).
 **Born from:** Pinning with nobody to move it freezes the vulnerabilities in place — the two must always arrive together, and the test enforces that the pair is not separated.
 
 **Enforced in the reference:** `tests/test_dockerfile_pinning.py`
+
+**Maps to:** `scorecard:Pinned-Dependencies`
 
 **Reads:** the FROM lines of the root Dockerfile (scaffold.json dockerfiles), and .github/dependabot.yml for a docker ecosystem
 
@@ -363,6 +389,8 @@ a theory) · **Enforced in the reference** (how one project enforces it today).
 
 **Enforced in the reference:** `tests/test_ci_pinning.py`
 
+**Maps to:** `scorecard:Pinned-Dependencies`
+
 **Reads:** pip, pipx, npm/npx/yarn/pnpm, uv/uvx/poetry/pdm/pipenv and python -m build lines in workflows, composite actions, the scripts they run, and the root Dockerfile
 
 ### `checkers-proven-two-way`
@@ -372,6 +400,8 @@ a theory) · **Enforced in the reference** (how one project enforces it today).
 **Born from:** Governance audit round 4 (2026-08-17) — the three deciders of the supply-chain axis (`audit_pins` · `audit_image` · `check_semgrep`) had matching test files, but those tests checked only the index and the wiring · invert a line of set arithmetic and everything stayed green while CI reported "nothing new" forever without deciding anything — the rules we export to others (the overlay's eight checkers) had always been tested in both directions; the deciders we use ourselves must not be held to less · **audit round 27, item 3**: `bestpractices.dev` is the one row in the provider register that answers "no machine check", and the clock is entirely theirs — they can change the criteria while we do nothing and the badge quietly drops a level, with only a 12-month review row to chase it · `audit_posture.py` reads the live JSON answer and compares it with the percentage table in the documentation (setting the gate up immediately found a real staleness: the document said gold 26% while the site answered 57%).
 
 **Enforced in the reference:** `tests/test_checker_logic.py`
+
+**Maps to:** `ssdf:PO.4`
 
 ### `pins-exceptions-honest`
 
@@ -397,6 +427,8 @@ a theory) · **Enforced in the reference** (how one project enforces it today).
 
 **Enforced in the reference:** `tests/test_dependabot.py`
 
+**Maps to:** `scorecard:Dependency-Update-Tool`
+
 ### `bare-clone-still-green`
 
 **Rule:** A bare clone (with none of the optional extras installed) must be green — "remove it and the system still works" is measurable
@@ -404,6 +436,8 @@ a theory) · **Enforced in the reference** (how one project enforces it today).
 **Born from:** ADR 0025 — importorskip is forbidden because it makes the main job skip that test silently when the library is missing, which is precisely the case we most want to be red.
 
 **Enforced in the reference:** job `bare`
+
+**Maps to:** `scorecard:CI-Tests`
 
 ### `changed-lines-fully-tested`
 
@@ -413,6 +447,8 @@ a theory) · **Enforced in the reference** (how one project enforces it today).
 
 **Enforced in the reference:** job `test` step "diff-cover (บรรทัดที่แก้ต้องมีเทสต์ 100%)"
 
+**Maps to:** `scorecard:CI-Tests` · `ssdf:PW.8`
+
 ### `static-quality-battery`
 
 **Rule:** ruff + format + xenon + interrogate + mypy + the ASVS worksheet — ratchets that only move up
@@ -420,6 +456,8 @@ a theory) · **Enforced in the reference** (how one project enforces it today).
 **Born from:** Every step carries if !cancelled() because xenon once went red first and hid a mypy failure behind it — the first gate to go red must not mask the ones after it.
 
 **Enforced in the reference:** job `lint`
+
+**Maps to:** `ssdf:PO.4`
 
 ### `n-minus-one-served`
 
@@ -461,6 +499,8 @@ a theory) · **Enforced in the reference** (how one project enforces it today).
 
 **Enforced in the reference:** job `security` step "pip-audit ของ core (ตรึงรุ่น pip ใน venv ก่อน — ตัว pip เองก็ถูก audit)"
 
+**Maps to:** `scorecard:Vulnerabilities` · `ssdf:RV.1`
+
 ### `deploy-deps-cve-audit`
 
 **Rule:** The deploy category is audited — nobody else watches the server that takes real requests
@@ -468,6 +508,8 @@ a theory) · **Enforced in the reference** (how one project enforces it today).
 **Born from:** The deploy category is invisible to every tool installed with the dev set — found twice in one day from two different directions · the component handling every real request had nobody watching it.
 
 **Enforced in the reference:** job `security` step "pip-audit ของ deploy (gunicorn ฯลฯ — ไม่มีใครเฝ้าให้ที่อื่น)"
+
+**Maps to:** `scorecard:Vulnerabilities` · `ssdf:RV.1`
 
 ### `ci-tools-cve-audit`
 
@@ -477,6 +519,8 @@ a theory) · **Enforced in the reference** (how one project enforces it today).
 
 **Enforced in the reference:** job `security` step "audit ของ pins/ (เครื่องมือของ CI เอง — ทั้ง python และ node)"
 
+**Maps to:** `scorecard:Vulnerabilities` · `ssdf:RV.1`
+
 ### `semgrep-sast`
 
 **Rule:** SAST with the framework and language rulesets — decided by the report, not by the exit code
@@ -484,6 +528,8 @@ a theory) · **Enforced in the reference** (how one project enforces it today).
 **Born from:** A scan that passes silently looks exactly like a scan that checked nothing — the decider is check_semgrep.py, which compares the set of files actually scanned.
 
 **Enforced in the reference:** job `security` step "semgrep (flask + python rulesets)"
+
+**Maps to:** `scorecard:SAST` · `ssdf:PW.7`
 
 ### `good-first-issue-not-taken-silently`
 
@@ -509,6 +555,8 @@ a theory) · **Enforced in the reference** (how one project enforces it today).
 
 **Enforced in the reference:** job `image`
 
+**Maps to:** `ssdf:PW.6`
+
 ### `dockerfile-linted`
 
 **Rule:** The Dockerfile passes hadolint at every level including info — exceptions carry reasons in one config
@@ -517,6 +565,8 @@ a theory) · **Enforced in the reference** (how one project enforces it today).
 
 **Enforced in the reference:** job `lint` step "lint Dockerfile (hadolint — ADR 0055)"
 
+**Maps to:** `ssdf:PW.6`
+
 ### `image-os-cve-audit`
 
 **Rule:** The image's OS layer is scanned for CVEs and decided against an exception list, in both directions
@@ -524,6 +574,8 @@ a theory) · **Enforced in the reference** (how one project enforces it today).
 **Born from:** Governance audit 2026-08-16 (ADR 0054) — the image's SBOM had eight files and nobody scanned the OS layer at all: having an SBOM is not the same as having a reader · a CVE in the glibc or openssl inside the image is something we would learn about only when somebody else told us.
 
 **Enforced in the reference:** job `image` step "ตัดสินผลสแกนเทียบรายการยกเว้น — สองทิศ"
+
+**Maps to:** `scorecard:Vulnerabilities` · `ssdf:RV.1`
 
 ### `image-exceptions-honest`
 
@@ -589,6 +641,8 @@ a theory) · **Enforced in the reference** (how one project enforces it today).
 
 **Enforced in the reference:** job `secret-scan`
 
+**Maps to:** `ssdf:PW.7`
+
 ### `release-signed-and-attested`
 
 **Rule:** A release's SBOM is generated in CI, signed keyless with provenance, and verified in both directions before it is attached
@@ -596,6 +650,8 @@ a theory) · **Enforced in the reference** (how one project enforces it today).
 **Born from:** Governance audit 2026-08-16 (ADR 0058) — releases had attached an SBOM since v1.0.0 with no file signed: a downloader could not verify it came from CI at all, and something built outside CI cannot say what it was built from even if signed.
 
 **Enforced in the reference:** job `release-sign`
+
+**Maps to:** `scorecard:Signed-Releases` · `slsa:build-L2` · `ssdf:PS.2`
 
 ### `codeql-sast`
 
@@ -605,6 +661,8 @@ a theory) · **Enforced in the reference** (how one project enforces it today).
 
 **Enforced in the reference:** job `codeql`
 
+**Maps to:** `scorecard:SAST` · `ssdf:PW.7`
+
 ### `platform-posture-verified`
 
 **Rule:** The platform-side posture (branch protection · required checks · auto-merge · alerts left standing on the Security tab) is machine-checked, not merely written down
@@ -612,6 +670,8 @@ a theory) · **Enforced in the reference** (how one project enforces it today).
 **Born from:** Governance audit round 7 (2026-08-17) — the rules everything else leans on ("main takes changes only through pull requests · enforce_admins on · required checks for every job that runs on a pull request" — ADR 0053) are provider-side settings that **nothing in the repository reads** · switch them off in the settings page and the documentation still claims otherwise · checking the API that day also found `sha_pinning_required` switched off, although we enforce SHA pinning with our own test.
 
 **Enforced in the reference:** job `posture`
+
+**Maps to:** `scorecard:Branch-Protection`
 
 ### `watched-promises-are-measured`
 
@@ -653,6 +713,8 @@ a theory) · **Enforced in the reference** (how one project enforces it today).
 
 **Enforced in the reference:** `tests/test_exception_registers.py`
 
+**Maps to:** `ssdf:PO.4`
+
 ### `ratchets-do-not-drift-below-reality`
 
 **Rule:** A ratchet's floor stays against reality in both directions · and what is removed has to be signed for
@@ -660,6 +722,8 @@ a theory) · **Enforced in the reference** (how one project enforces it today).
 **Born from:** Audit round 12 — `pyproject.toml` was annotated "moves up only" in both places, but nothing was moving it · six days after the number was set, real coverage had climbed to 97.11% while the floor was still 96 (set when it measured 96.31%) — that 1.11 points of slack was roughly 54 covered lines that could vanish with nothing going red · the right mechanism already existed in this project (`LINE_SLACK` from ADR 0065), it had simply never been applied to any other ratchet · audit round 14 added mypy's strict list — a ratchet written as a sentence survived the first chaser, because that chaser read only numeric floors in tool config · reality covered 34 of 72 modules while the annotated target had expired sixteen phases earlier · audit round 16 added the pile guarding against *removal* (ADR 0069): measured by really deleting things 11 times, and found that a gate could be removed with CI fully green if you tidied 6 places, and that 37 rows across three paper registers could be deleted in complete silence, because deleting both sides at once still counts as "matching".
 
 **Enforced in the reference:** job `test` step "พื้นของ ratchet ต้องไม่ลอยต่ำกว่าของจริง"
+
+**Maps to:** `ssdf:PO.4`
 
 ### `jobs-declare-a-time-budget`
 

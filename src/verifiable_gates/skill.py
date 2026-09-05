@@ -91,6 +91,11 @@ def _retraction(rule: dict[str, Any]) -> str:
     return f"{said} Replaced by `{replaced_by}`." if replaced_by else said
 
 
+def _mapping(rule: dict[str, Any]) -> str:
+    """The external items this rule would satisfy or contribute to — never equivalence."""
+    return " · ".join(f"`{item}`" for item in rule["maps_to"])
+
+
 def _enforcement(rule: dict[str, Any]) -> str:
     """Point at what enforces the rule in the reference, rather than restating a command."""
     if rule.get("layer") == catalogue.WORKING:
@@ -124,6 +129,11 @@ def render(
         lines.append(f"**{rule_label}:** {_field(rule, 'title', language)}\n")
         lines.append(f"**{born_label}:** {_field(rule, 'born_from', language)}\n")
         lines.append(f"**{enforced_label}:** {_enforcement(rule)}\n")
+        if rule.get("maps_to"):
+            # After the enforcement, before what a scanner reads: an auditor who came from
+            # Scorecard or the SSDF is looking for their own words, and finding them under
+            # the rule rather than above it says which is the source and which the map.
+            lines.append(f"**Maps to:** {_mapping(rule)}\n")
         if rule.get("reads"):
             # A scanner-decided rule says what its scanner reads, so a reader on another
             # stack knows before installing which rules can ever apply (round 22, F2).

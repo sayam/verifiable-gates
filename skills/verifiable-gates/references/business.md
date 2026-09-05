@@ -116,6 +116,8 @@ enforces it today).
 
 **Enforced in the reference:** job `dialects`
 
+**Maps to:** `scorecard:CI-Tests` · `ssdf:PW.8`
+
 ### `plugin-deps-cve-decided`
 
 **Rule:** Every CVE in a plugin's libraries must have been decided (upgraded · removed · or accepted with a reason)
@@ -124,6 +126,8 @@ enforces it today).
 
 **Enforced in the reference:** job `plugin-audit`
 
+**Maps to:** `scorecard:Vulnerabilities` · `ssdf:RV.2`
+
 ### `sbom-per-category`
 
 **Rule:** SBOMs are split per category — able to answer which components disappear when a plugin is removed
@@ -131,3 +135,5 @@ enforces it today).
 **Born from:** A single SBOM cannot answer the first question of the day a CVE lands — "if I remove this, what goes with it?"
 
 **Enforced in the reference:** job `sbom`
+
+**Maps to:** `scorecard:SBOM`
