@@ -47,8 +47,11 @@ def build(
 
 
 def a_project(root: pathlib.Path, registry: str, **extra: str) -> pathlib.Path:
+    """A project on the defaults. `tests_path` is *not* named here: a path the
+    project names and does not have is a finding (round 26), and most cases below
+    build no tests directory — the default `tests` is the same path, unnamed."""
     files = {".github/workflows/ci.yml": PINNED, "gates.yaml": registry, **extra}
-    return build(root, files, {"tests_path": "tests"})
+    return build(root, files, {})
 
 
 # ---------------------------------------------------------------- the reader
@@ -542,6 +545,48 @@ def test_an_index_named_in_scaffold_and_missing_is_a_finding_not_na(
     assert "NA:" not in out
 
 
+# One job gate on the fixture's one job — an index that matches reality, so the only
+# thing left for the scanner to say is about the tests.
+A_JOB_GATE = (
+    "version: 1\ngates:\n  - id: a-rule\n    title: t\n    kind: job\n"
+    "    enforced_by: {job: test}\n"
+)
+
+
+def test_a_tests_path_named_in_scaffold_and_missing_is_a_finding_not_silence(
+    tmp_path: pathlib.Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """`tests_path` the project wrote and does not have is a broken configuration.
+
+    The same rule as `gates_path` above, and it was not held here: on a brownfield
+    where the test-file half of this gate is the whole first-day wall (627 of
+    django's 772 findings, self-audit round 26, 2026-09-05), pointing `tests_path`
+    at a directory that does not exist made every one of those findings vanish
+    with no sentence saying the tests were not read — the cheapest move, and a
+    silent one. A named path that is missing is a finding; an unnamed, absent
+    `tests` stays the NA half it always was.
+    """
+    files = {".github/workflows/ci.yml": PINNED, "gates.yaml": A_JOB_GATE}
+    build(tmp_path, files, {"tests_path": "no-such-dir"})
+    assert scanner.main(tmp_path) == 1
+    out = capsys.readouterr().out
+    assert (
+        "gates-registry-total: scaffold.json names tests_path no-such-dir, which is not there"
+        in out
+    )
+    assert "NA:" not in out
+
+
+def test_an_unnamed_absent_tests_directory_is_still_the_quiet_half(
+    tmp_path: pathlib.Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """The default `tests` not being there is "nothing of that kind", not a finding."""
+    files = {".github/workflows/ci.yml": PINNED, "gates.yaml": A_JOB_GATE}
+    build(tmp_path, files, {})
+    assert scanner.main(tmp_path) == 0
+    assert "tests_path" not in capsys.readouterr().out
+
+
 def test_an_empty_index_enforces_nothing_and_says_so(
     tmp_path: pathlib.Path, capsys: pytest.CaptureFixture[str]
 ) -> None:
@@ -602,7 +647,7 @@ def test_the_index_path_can_be_configured(
     build(
         tmp_path,
         {".github/workflows/ci.yml": PINNED, "docs/gates.yaml": registry},
-        {"gates_path": "docs/gates.yaml", "tests_path": "tests"},
+        {"gates_path": "docs/gates.yaml"},
     )
     assert scanner.main(tmp_path) == 0
     assert capsys.readouterr().out == ""
