@@ -3313,6 +3313,16 @@ gates:
           without it), and borrowing in silence (the name was lent but never
           printed).
 
+      - kind: mutation
+        ref: pr/294
+        date: 2026-09-05
+        caught: >-
+          The install skip weakened five ways — `search` back to `match`, the pip pattern
+          narrowed to a bare `pip install`, the npm family dropped, the uv family dropped,
+          and the prose filter removed — each red. Round 27: an agent wrote
+          `python3 -m pip install …` into a workflow and preflight ran it into the
+          developer's own virtual environment, downgrading a tool there, while printing
+          "your machine already has an environment" as the reason it would not.
   - id: the-sheet-is-rendered-not-written
     title: A rule sheet is a pure function of a catalogue, a preamble and a language
     kind: test
