@@ -8,6 +8,13 @@ Notable changes to this project. The format follows
 
 ### Added
 
+- **A decision: the comparison carries no persona arm.** Round 23 (D1) asked whether the sheet
+  does anything at the agent's end that a security-flavoured instruction with no rules in it
+  does not, which needs a fourth arm and, by the battery's own rule, a fresh run of twenty apps
+  on one day. `DECISIONS.md` `the-comparison-has-no-persona-arm` records that it is not run,
+  why — the second arm already answered the same shape of question once, and what the arm would
+  measure is the sheets as prose, not the scanners, gates or doctor — and what would expire it.
+  `docs/comparison/README.md` names the question under what the experiment does not answer.
 - **Every scanner-decided rule says what its scanner reads.** `reads:` on the nine rules that
   carry a `script`, in the scanner's own words and held equal to a `READS` constant in the
   scanner by a test — *Python modules under app/services (scaffold.json services_path) — their
