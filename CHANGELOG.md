@@ -6,6 +6,19 @@ Notable changes to this project. The format follows
 
 ## [Unreleased]
 
+## [0.8.0] - 2026-09-06
+
+A minor release with one entry, and it is the smallest kind this project cuts: a rule this
+checkout has worked to since 0.4.0 becomes the fourteenth practice in the published catalogue.
+A badge is not a picture of a repository. It is a live fetch by somebody else's cache, so the
+badge's source being right and the reader seeing it right are two facts, and only one of them
+has ever been checked. The practice asks for the second: fetch what the reader's host actually
+serves, record what each cache says and how old its copy is, know each badge's window, and
+report both answers rather than one — a value still stale after its window has passed is a
+finding, a value stale inside it is a wait. It enters on three releases' evidence, which is the
+floor the catalogue asks for, and on nothing else: no rule, gate or scanner changed, and no
+published id moved.
+
 ### Added
 
 - **A fourteenth practice: `a-badge-is-somebody-elses-cache`.** What a badge shows a reader
@@ -3734,7 +3747,8 @@ order it happened.
 - **`gates.yaml`, deliberately empty.** This repository will not list a gate
   before the thing that enforces it exists.
 
-[Unreleased]: https://github.com/sayam/verifiable-gates/compare/v0.7.0...HEAD
+[Unreleased]: https://github.com/sayam/verifiable-gates/compare/v0.8.0...HEAD
+[0.8.0]: https://github.com/sayam/verifiable-gates/releases/tag/v0.8.0
 [0.7.0]: https://github.com/sayam/verifiable-gates/releases/tag/v0.7.0
 [0.6.0]: https://github.com/sayam/verifiable-gates/releases/tag/v0.6.0
 [0.5.0]: https://github.com/sayam/verifiable-gates/releases/tag/v0.5.0
