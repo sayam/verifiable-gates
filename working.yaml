@@ -233,3 +233,23 @@ practices:
       notes back and compare them with the section they were cut from. A red here is a
       blocker, not a note — say so in the same breath as the release, and let the fix be the
       next change. Record what was run, what it answered, and what could not be run here.
+
+  - id: a-release-body-is-the-section-it-was-cut-from
+    layer: working
+    title: The notes a release carries are the changelog section it was cut from, handed over as a file
+    born_from: >-
+      L-0179 · 2026-09-05 · A release was published whose entire body was the version
+      string, because the runbook said "notes from the tag" beside a tag message the same
+      runbook had asked for in one word. Every earlier release carried its changelog
+      section — the summary and the entries, which is what the archive keeps and what a
+      reader on the releases page is given.
+    held_by: tool
+    tool: release_body.py
+    held_on: [run/33960735354, run/34003278676, run/34013666112]
+    apply: >-
+      Extract the section into a file before the runbook is handed over and publish with
+      that file, never from the tag message and never from the platform's own commit list.
+      Read the body back afterwards and compare it with the section on disk, folding the
+      carriage returns the platform stores — without that fold a body that matches reports
+      every line different, which is a check that cannot tell wrong from wrong line endings.
+      Releases from before the convention go in a register that can only shrink.

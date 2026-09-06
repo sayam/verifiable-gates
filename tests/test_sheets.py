@@ -258,8 +258,10 @@ CEILING_LINES = {
     f"{SKILL_DIR}/references/baseline.md": 750,
     f"{SKILL_DIR}/references/business.md": 160,
     # New on 2026-09-04 with the sheet itself: ten practices, each with its lesson,
-    # its holder and what to do.
-    WORKING_SHEET: 170,
+    # its holder and what to do. 170 → 180 on 2026-09-06: three practices promoted out
+    # of the working rules of the project that writes them, the last of which is the
+    # thirteenth entry and the first to carry a checker of its own.
+    WORKING_SHEET: 180,
 }
 SLACK = 40
 

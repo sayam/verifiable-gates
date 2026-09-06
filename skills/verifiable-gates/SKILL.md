@@ -28,7 +28,7 @@ metadata:
    entry is the rule, the incident that produced it, and how one real project enforces it.
 3. **The index below names every rule.** Skim it once to know what exists.
 4. **[`references/working.md`](references/working.md) is a different kind of sheet** and
-   optional. It is not rules — it is how the work is done: twelve practices, each with the
+   optional. It is not rules — it is how the work is done: thirteen practices, each with the
    ledger entry that paid for it and the pull requests it held on. Nothing there is
    decided by a scanner, and `--rules` never prints one. Read it once, then keep your own
    ledger; in a few months your entries will be better for your project than ours are.
@@ -164,7 +164,7 @@ on each is its full entry.
 - [`plugin-deps-cve-decided`](references/business.md#plugin-deps-cve-decided) — Every CVE in a plugin's libraries must have been decided (upgraded · removed · or accepted with a reason)
 - [`sbom-per-category`](references/business.md#sbom-per-category) — SBOMs are split per category — able to answer which components disappear when a plugin is removed
 
-### working — 12 practices · full entries in `references/working.md`
+### working — 13 practices · full entries in `references/working.md`
 
 How the work is done, not what the code must be. Each carries the lesson that paid for it and the pull requests it held on; none is decided by a scanner, and `gates_doctor --rules` never prints one.
 
@@ -180,3 +180,4 @@ How the work is done, not what the code must be. Each carries the lesson that pa
 - [`no-ai-trailers`](references/working.md#no-ai-trailers) — The authorship a commit claims is the project's decision, not the harness's default
 - [`an-instruction-is-run-from-what-the-reader-gets`](references/working.md#an-instruction-is-run-from-what-the-reader-gets) — An instruction a document will carry is run first, from the artefact the reader will have
 - [`a-release-is-verified-from-what-it-published`](references/working.md#a-release-is-verified-from-what-it-published) — A release is not finished until its own documents run from the artefacts it published
+- [`a-release-body-is-the-section-it-was-cut-from`](references/working.md#a-release-body-is-the-section-it-was-cut-from) — The notes a release carries are the changelog section it was cut from, handed over as a file

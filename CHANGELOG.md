@@ -32,6 +32,16 @@ Notable changes to this project. The format follows
   `held_on` refs are release runs rather than pull requests — the shape `run/N`, which the
   validator has always accepted and which is the only ref a release-time practice can name:
   v0.4.0, v0.5.0 and v0.6.0.
+- **And a thirteenth: `a-release-body-is-the-section-it-was-cut-from`** — the only one of the
+  three held by something that refuses it rather than by an agent reading a line, because the
+  reader shipped in 0.6.0 is what refuses it. A release here was once published with a body of
+  one word, the version, because the runbook said *notes from the tag* beside a tag message the
+  same runbook had asked for in one word, while every earlier release carried its changelog
+  section — the summary and the entries, which is what an archive keeps and what a reader on the
+  releases page is given. So the section is extracted into a file before the runbook is handed
+  over and published from that file, and the body is read back afterwards with the platform's
+  carriage returns folded — without that fold a body that matches reports every line different,
+  and a check that cannot tell *wrong* from *wrong line endings* reports neither.
 
 ## [0.6.0] - 2026-09-06
 
