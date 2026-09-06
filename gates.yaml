@@ -4265,7 +4265,9 @@ gates:
           a `born from:` line in `docs/output-semantics.md` reworded, red; a `[found]` title
           changed in the same transcript, red; a rule id in a transcript renamed to one the
           catalogue does not carry, red in the check that reads ids rather than sentences.
-          Then each of the four patterns is blinded in turn, and each is red. That last part
+          The install transcript's own counts are held too — a tenth scanner and an eleventh
+          practice, each shown in the line a reader copies from, are both red. Then each of
+          the four patterns is blinded in turn, and each is red. That last part
           is why the guard is a count of every kind per document rather than a presence
           check: the first version asked only whether a page yielded *anything*, and blinding
           the `NA` pattern came back **green** — the other three still matched, so six unread

@@ -19,8 +19,9 @@ Notable changes to this project. The format follows
   Measured the same day: 59 catalogue sentences are quoted across the tree, 55 of them right
   by hand, and the four that were wrong were the four the change had touched.
   `tests/test_quoted_transcripts.py` and the gate `a-quoted-transcript-is-what-the-tool-prints`
-  hold every quoted `title`, `reads:` and `born from:` to `rules.yaml`, and hold the *number*
-  of each kind per document — because a guard that asks only whether a page yields anything
+  hold every quoted `title`, `reads:` and `born from:` to `rules.yaml`, hold the two counts the
+  install transcript shows — the gates the bundle installs and the practices it carries, which
+  nothing held either — and hold the *number* of quotations of each kind per document — because a guard that asks only whether a page yields anything
   survives a blinded pattern, which is how the first version of it did. `CHANGELOG.md` is
   excluded on purpose: its sections are published release bodies (#309).
 
