@@ -21,6 +21,11 @@ Notable changes to this project. The format follows
   answered for its gates rather than refused; a working catalogue that exists and cannot be
   read is exit 2, because a green answered from half a look is the failure this repository
   is organised against.
+- **And the step that runs it says so.** `posture.yml`'s step was still named *every
+  proved_by ref still points at something readable* while the job printed *286 proved_by rows
+  and 59 held_on refs* underneath it — the paragraph describing a mechanism going stale one
+  change after the mechanism moved, which is the seam this project keeps failing at. The step
+  name and the comment above it are the description a reader of the run sees first.
 
 ### Added
 
