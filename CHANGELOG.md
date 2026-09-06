@@ -6,6 +6,24 @@ Notable changes to this project. The format follows
 
 ## [Unreleased]
 
+### Fixed
+
+- **A Dockerfile your own git ignores is not yours to name.** The one scan that sweeps a
+  whole tree — `image-digest-pinned` looking for a Dockerfile nobody named — pruned dotted
+  directories and nothing else, so a project whose `.gitignore` holds `node_modules/` and
+  `vendor/` was told to *name it under `dockerfiles`* about two vendored copies: advice
+  that, if taken, puts somebody else's file under a rule the project cannot fix. The sweep
+  now asks `git check-ignore` and drops what the project ignores. git is asked rather than
+  `.gitignore` read, because the patterns live in every directory in the path, in
+  `.git/info/exclude` and in the user's global file — and because `check-ignore` consults
+  the index, so a file the project **tracks** stays its own however the patterns read. When
+  git cannot answer — not installed, not a repository, too slow — every candidate is
+  reported, as before: the sweep exists so that a Dockerfile nobody named cannot pass
+  unseen. The conversation is in bytes, because a file name this machine cannot decode
+  raises `UnicodeEncodeError` out of `subprocess` itself, which is neither an `OSError` nor
+  a `SubprocessError` — the suite's own undecodable-name case was red on the first draft
+  (#305).
+
 ### Changed
 
 - **Three releases were given their CHANGELOG section, and the register of exceptions is

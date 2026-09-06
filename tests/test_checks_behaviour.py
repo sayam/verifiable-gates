@@ -18,6 +18,8 @@ import ast
 import importlib
 import json
 import re
+import shutil
+import subprocess
 import time
 from typing import TYPE_CHECKING, Any, NamedTuple
 
@@ -310,6 +312,110 @@ def test_a_dockerfile_under_a_hidden_directory_is_somebody_elses(
     root = build(tmp_path, {".venv/lib/x/Dockerfile": "FROM python:3.13-slim\n"})
     assert scan_dockerfile_digest.main(root) == 0
     assert capsys.readouterr().out.startswith("NA:")
+
+
+# -------------------------------- the sweep asks git which files are this project's
+#
+# The sweep above reports every `Dockerfile*` in a tree that named none, and it pruned
+# dotted directories only. Measured on a scratch project (2026-09-06): a `.gitignore`
+# holding `node_modules/` and `vendor/` stopped neither, and both vendored copies came
+# back with *name it under `dockerfiles`* — advice that, taken, puts somebody else's
+# file under a rule the project cannot fix. git is asked because the patterns live in
+# more places than one file, and because its answer already knows that a tracked file
+# is the project's whatever the patterns say.
+
+
+def _git(root: pathlib.Path, *args: str) -> None:
+    """git in `root` — the tests below need a repository that has an opinion."""
+    binary = shutil.which("git")
+    assert binary, "these tests ask git what this project ignores"
+    subprocess.run(  # noqa: S603 — git from shutil.which, args are test literals
+        [binary, *args], cwd=root, check=True, capture_output=True, timeout=60
+    )
+
+
+def _repository(root: pathlib.Path, ignore: str) -> pathlib.Path:
+    """`root`, made a repository that ignores `ignore`."""
+    (root / ".gitignore").write_text(ignore, encoding="utf-8")
+    _git(root, "init", "-q", "-b", "main")
+    _git(root, "config", "user.email", "nobody@example.invalid")
+    _git(root, "config", "user.name", "Nobody")
+    return root
+
+
+def test_a_dockerfile_this_project_ignores_is_not_its_own(
+    tmp_path: pathlib.Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """A vendored copy under an ignored directory is nothing to check, not a finding."""
+    root = _repository(
+        build(tmp_path, {"node_modules/pkg/Dockerfile": "FROM node:20\n"}), "node_modules/\n"
+    )
+    assert scan_dockerfile_digest.main(root) == 0
+    assert capsys.readouterr().out.startswith("NA:")
+
+
+def test_an_ignored_dockerfile_does_not_hide_the_one_beside_it(
+    tmp_path: pathlib.Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """Dropping the vendored copy must not drop the project's own unnamed Dockerfile."""
+    files = {
+        "node_modules/pkg/Dockerfile": "FROM node:20\n",
+        "docker/Dockerfile": "FROM python:3.13-slim\n",
+    }
+    root = _repository(build(tmp_path, files), "node_modules/\n")
+    assert scan_dockerfile_digest.main(root) == 1
+    out = capsys.readouterr().out
+    assert "docker/Dockerfile" in out
+    assert "node_modules" not in out, "a file the project ignores is not its own to name"
+
+
+def test_a_dockerfile_the_project_tracks_is_its_own_whatever_the_patterns_say(
+    tmp_path: pathlib.Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """`git add -f` says this one is ours; the ignore line is about the rest of the directory."""
+    root = _repository(
+        build(tmp_path, {"vendor/kept/Dockerfile": "FROM python:3.13-slim\n"}), "vendor/\n"
+    )
+    _git(root, "add", "-f", "vendor/kept/Dockerfile")
+    assert scan_dockerfile_digest.main(root) == 1
+    assert "vendor/kept/Dockerfile" in capsys.readouterr().out
+
+
+def test_a_tree_that_is_no_repository_is_swept_the_way_it_always_was(
+    tmp_path: pathlib.Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """git answers 128 here. The sweep exists to prevent silence, so it stays noisy."""
+    root = build(tmp_path, {"node_modules/pkg/Dockerfile": "FROM node:20\n"})
+    assert scan_dockerfile_digest.main(root) == 1
+    assert "node_modules/pkg/Dockerfile" in capsys.readouterr().out
+
+
+def test_with_no_git_to_ask_every_dockerfile_is_reported(
+    tmp_path: pathlib.Path, capsys: pytest.CaptureFixture[str], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A machine with no git is the same case as a tree with no repository."""
+    root = _repository(
+        build(tmp_path, {"node_modules/pkg/Dockerfile": "FROM node:20\n"}), "node_modules/\n"
+    )
+    monkeypatch.setattr(shutil, "which", lambda _name: None)
+    assert scan_dockerfile_digest.main(root) == 1
+    assert "node_modules/pkg/Dockerfile" in capsys.readouterr().out
+
+
+def test_a_git_that_does_not_answer_in_time_leaves_the_sweep_as_it_was(
+    tmp_path: pathlib.Path, capsys: pytest.CaptureFixture[str], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The question is an optimisation of a finding list; it may not become a verdict."""
+    root = _repository(
+        build(tmp_path, {"node_modules/pkg/Dockerfile": "FROM node:20\n"}), "node_modules/\n"
+    )
+
+    def _slow(*_args: object, **_kwargs: object) -> None:
+        raise subprocess.TimeoutExpired(cmd="git", timeout=1)
+
+    monkeypatch.setattr(subprocess, "run", _slow)
+    assert scan_dockerfile_digest.main(root) == 1
+    assert "node_modules/pkg/Dockerfile" in capsys.readouterr().out
 
 
 def test_a_project_that_named_its_dockerfiles_has_decided(

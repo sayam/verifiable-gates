@@ -889,7 +889,7 @@ rules:
     - tests/test_dockerfile_pinning.py
   script: checks/scan_dockerfile_digest.py
   reads: >-
-    the FROM lines of the root Dockerfile (scaffold.json dockerfiles), and .github/dependabot.yml for a docker ecosystem
+    the FROM lines of the root Dockerfile (scaffold.json dockerfiles), .github/dependabot.yml for a docker ecosystem, and — when the project named no Dockerfile — every Dockerfile* in the tree that git does not ignore
 - id: ci-tools-hash-pinned
   layer: baseline
   pillar: security

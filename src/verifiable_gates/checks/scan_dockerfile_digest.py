@@ -35,6 +35,8 @@ import json
 import os
 import pathlib
 import re
+import shutil
+import subprocess
 import sys
 
 # Characters a finding line may not carry, and what is printed instead. The C0 controls
@@ -47,8 +49,9 @@ import sys
 # project read `nothing to check yet` about files it would never have (self-audit
 # round 22, 2026-09-04): an NA says what the rule reads, and "yet" is not a word in it.
 READS = (
-    "the FROM lines of the root Dockerfile (scaffold.json dockerfiles), and "
-    ".github/dependabot.yml for a docker ecosystem"
+    "the FROM lines of the root Dockerfile (scaffold.json dockerfiles), .github/dependabot.yml "
+    "for a docker ecosystem, and — when the project named no Dockerfile — every Dockerfile* in "
+    "the tree that git does not ignore"
 )
 _ESCAPED = {
     **{c: f"\\x{c:02x}" for c in (*range(0x20), 0x7F)},
@@ -272,15 +275,74 @@ def _configured_list(
     return None, MISSHAPEN.format(key=key, value=json.dumps(value)[:40], want="a list of strings")
 
 
+# The one question this scanner asks of another program, and how long it may take to
+# answer. A scanner that hangs is a runner nobody gets back, and this answer only ever
+# shortens a list of findings — it never decides a file the project named.
+GIT_TIMEOUT = 10
+
+
+def _ignored(root: pathlib.Path, paths: list[pathlib.Path]) -> set[str]:
+    """Of `paths`, the ones this project's own git ignores, as paths relative to `root`.
+
+    The sweep below reports every `Dockerfile*` in a tree that named none, and it pruned
+    dotted directories only. Measured on a scratch project (2026-09-06): a `.gitignore`
+    holding `node_modules/` and `vendor/` stopped neither, so two vendored Dockerfiles were
+    reported with the advice *name it under `dockerfiles`* — advice that, if taken, puts
+    somebody else's file under a rule this project cannot fix.
+
+    git is **asked** rather than `.gitignore` read, because that file is not the rule: the
+    patterns come from every directory in the path, from `.git/info/exclude` and from the
+    user's global file, and reading one of them would be a second, quieter answer beside
+    the one the project already trusts. `check-ignore` consults the index too, so a file
+    the project **tracks** is not ignored however the patterns read — which is exactly the
+    sentence this scanner wants to say.
+
+    When git cannot answer — not installed, not a repository (exit 128), or too slow —
+    every candidate is reported, which is what this scanner did before. The safe side of
+    this question is the noisy one: the sweep exists so that a Dockerfile nobody named
+    cannot pass unseen, and a missing git must not turn that into silence.
+
+    The conversation is in **bytes**, not text: a file name this machine cannot decode
+    arrives as a surrogate, and handing that to a text-mode pipe raises
+    `UnicodeEncodeError` out of `subprocess` itself — which is neither `OSError` nor a
+    `SubprocessError`, so it would have escaped the guard below and taken the whole scan
+    down. `tests/test_checks_behaviour.py` plants exactly such a name and was red on the
+    first draft of this function (2026-09-06). `-z` makes git print the names unquoted,
+    so what comes back is the same bytes that went in.
+    """
+    git = shutil.which("git")
+    if not paths or git is None:
+        return set()
+    asked = [path.relative_to(root).as_posix() for path in paths]
+    try:
+        answer = subprocess.run(  # noqa: S603 — argv is built here, from constants and a path
+            [git, "-C", str(root), "check-ignore", "--stdin", "-z"],
+            input=b"\0".join(os.fsencode(name) for name in asked) + b"\0",
+            capture_output=True,
+            check=False,
+            timeout=GIT_TIMEOUT,
+        )
+    except (OSError, subprocess.SubprocessError):
+        return set()
+    # 0 = some of them are ignored, 1 = none are. Anything else is git declining to
+    # answer the question, not an answer of "nothing is ignored".
+    if answer.returncode not in {0, 1}:
+        return set()
+    return {os.fsdecode(raw) for raw in answer.stdout.split(b"\0") if raw}
+
+
 def _unnamed(root: pathlib.Path) -> list[str]:
     """Every `Dockerfile*` in the tree, when the project named none and has no default one.
 
-    Hidden directories (`.git`, `.venv`) hold copies of other things.
+    Hidden directories (`.git`, `.venv`) hold copies of other things, and so do the
+    vendored ones a project's own git ignores (`node_modules/`, `vendor/`).
     """
+    found = [path for path in _walk(root) if path.is_file() and path.name.startswith("Dockerfile")]
+    ignored = _ignored(root, found)
     return [
-        UNNAMED.format(path=_shown(found.relative_to(root)))
-        for found in _walk(root)
-        if found.is_file() and found.name.startswith("Dockerfile")
+        UNNAMED.format(path=_shown(path.relative_to(root)))
+        for path in found
+        if path.relative_to(root).as_posix() not in ignored
     ]
 
 
