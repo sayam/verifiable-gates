@@ -6,6 +6,33 @@ Notable changes to this project. The format follows
 
 ## [Unreleased]
 
+## [0.7.0] - 2026-09-06
+
+A minor release about the other half of an idea this project keeps circling: evidence nobody
+resolves is evidence nobody has. A gate's `proved_by.ref` has been asked of the platform
+weekly since 0.6.0 — a 404, a shape nothing can ask about, a run whose log has expired, each
+red on the cron. Two other kinds of ref made the same promise and were held by nothing at all.
+A practice's `held_on` names the pull requests where it was applied; thirteen practices carry
+**fifty-nine** of them, and until this release one could have cited a run that never existed
+and stayed green for ever. And the prose: `CHANGELOG.md` alone points at more than a hundred
+pull requests, each saying *this is where it happened, go and read it*. Measured the day the
+reader was written — **112 distinct numbers across 39 tracked documents, 108 of which open**;
+the four that do not are the pull requests deleted at the owner's request in the orphan purge,
+a register in the reader that only shrinks. Code is not prose, so fenced blocks and code spans
+are stripped before the scan, and `*.py` is not read at all, because four of the thirteen
+numbers in the suite are invented fixtures.
+
+The working catalogue grew from ten practices to **thirteen**, and every one of the three was a
+rule of this checkout first, promoted on the evidence the catalogue asks of everything else:
+the ledger entry that paid for it, and at least three pull requests where it was applied and
+nothing had to be re-learned. An instruction a document will carry is run first, from the
+artefact the reader will have — born from the day a published wheel could not run the README it
+shipped with. A release is not finished until its own documents run from what it published.
+And the notes a release carries are the changelog section they were cut from — the first
+practice here held by a checker rather than by an agent reading a line. Two of the three name
+`run/N` refs, because a release-time practice has no pull request behind it; the validator has
+accepted that shape since it was written, and nothing had ever used it.
+
 ### Fixed
 
 - **The weekly resolver reads both catalogues, because a practice's evidence was held by
@@ -3693,7 +3720,8 @@ order it happened.
 - **`gates.yaml`, deliberately empty.** This repository will not list a gate
   before the thing that enforces it exists.
 
-[Unreleased]: https://github.com/sayam/verifiable-gates/compare/v0.6.0...HEAD
+[Unreleased]: https://github.com/sayam/verifiable-gates/compare/v0.7.0...HEAD
+[0.7.0]: https://github.com/sayam/verifiable-gates/releases/tag/v0.7.0
 [0.6.0]: https://github.com/sayam/verifiable-gates/releases/tag/v0.6.0
 [0.5.0]: https://github.com/sayam/verifiable-gates/releases/tag/v0.5.0
 [0.4.0]: https://github.com/sayam/verifiable-gates/releases/tag/v0.4.0
