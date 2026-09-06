@@ -71,6 +71,34 @@ by a project that has installed nothing else; none imports a network module, and
 findings, 2 when it could not answer. A path below is the default `scaffold.json`
 carries; the project moves it there.
 
+## What each one decides, and what a pass does not say
+
+The criticism this catalogue takes seriously about check suites in general — Scorecard's
+`Security-Policy` is the usual example — is that a check can measure *presence*: a file
+exists, a field is filled, a row is there. Presence is cheap to satisfy and cheap to fake,
+and a suite that never says which of its checks are presence checks lets the two kinds be
+read as one. Here is which is which, and the more useful half beside it: what a green from
+each one still does not tell you. Nothing in this table is new behaviour; it is what the
+sections below already do, said in one place.
+
+| checker | what a finding is about | what a pass does **not** say |
+|---|---|---|
+| `gates-registry-total` | **presence**, both ways — a test file no row claims, a row naming a job that is not there — **and one effect check**: a gate whose job cannot turn the build red, because it has no trigger, an `if: false`, or `continue-on-error: true` | that the tests behind those rows catch anything. Whether a gate has ever gone red is `proved_by`'s question, and this repository holds itself to it in a different file |
+| `actions-sha-pinned` | **content**: every `uses:` in every workflow and composite action, read as a line | that the commit pinned is one you want. A pin says nothing about which version (`DECISIONS.md` `a-pin-says-nothing-about-which-version`) — an agent once pinned `@v4` to the SHA of v7.0.1, truthfully labelled |
+| `ci-tools-hash-pinned` | **content**: every install line in a workflow, a composite action, or a script a `run:` hands off to | that the lock or hash resolves to something safe, nor that tools arriving another way — a container image, the runner's pre-installed set — are pinned at all |
+| `image-digest-pinned` | **content** (the `FROM` and `COPY --from` lines) **and presence** (a `docker` ecosystem in `.github/dependabot.yml`; a `Dockerfile*` the project never named and git does not ignore) | that the image is free of vulnerabilities. A digest fixes *which* image you get, and the Dependabot half is there because a pin nobody moves freezes what it pinned |
+| `csp-no-inline` | **content**: every template under the templates path, read the way a browser reads one | that the application sends a Content-Security-Policy header, or that it holds at run time. Nothing here makes a request |
+| `no-debug-entrypoint` | **content**: the named entrypoints, as an AST | that no debug console can be opened another way — a framework default, a server flag, a value this scanner cannot see (`debug=settings.DEBUG` is unknown, and unknown is not a finding) |
+| `logic-knows-no-http` | **content**: the imports of the modules under the services path | that the layer is free of request-shaped coupling. A function handed the request object as an argument imports nothing and passes |
+| `delete-means-soft-delete` | **content**: `session.delete` calls outside the declared purge paths | that the deletes it left alone are the right ones. The purge path is a declaration, and this scanner reads the declaration |
+| `adr-index-complete` | **presence and consistency**: records against the index, both ways | that a decision was ever recorded. A decision nobody wrote down has no record to be missing from — which is why `DECISIONS.md` is a register with a test, not a directory nobody has to fill |
+
+Two things follow from the table. **A pass is about what the scanner read**, and every one
+of the nine says what it reads, in `--rules` and in its `NA` line, so a green can be
+checked against a question. And **presence is never the whole of a rule here**: the two
+presence checks are about this repository's own registers, where the register *is* the
+subject, and the seven that decide a project's code all read the code.
+
 ## gates-registry-total
 
 Reads `gates.yaml` (`gates_path`), the jobs of every workflow under
