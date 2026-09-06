@@ -4272,3 +4272,34 @@ gates:
           check: the first version asked only whether a page yielded *anything*, and blinding
           the `NA` pattern came back **green** — the other three still matched, so six unread
           quotations per README looked like six read ones.
+
+  - id: the-list-of-registers-is-itself-a-register
+    title: Every two-way copy in this repository is named where an auditor is told to look
+    kind: test
+    severity: blocking
+    enforced_by: {job: test, tests: [tests/test_registers_are_named.py]}
+    layer: internal
+    pillar: manageability
+    portable: false
+    born_from: >-
+      `CONTRIBUTING.md` enumerates the registers held by a copy in a test, and `docs/auditing.md`
+      turns that enumeration into a command an outside auditor runs — believing it covers every
+      register in the tree. On 2026-09-06, before the v0.6.0 cut, the check that asked *is
+      anything left* found the enumeration naming five while the tree held eight: the Marketplace
+      categories had been missing since they arrived, and the anti-moves and the quoted-transcript
+      counts were added the same day, by the pull requests that were closing the previous round of
+      exactly this kind of drift. The sentence describing the mechanism was the prose that had
+      gone stale while every test around it stayed green. It is a register now, held both ways —
+      each entry has to exist where it says and be named on both pages — with one convention check
+      beside it: a module-level `HELD…` constant in `tests/` that nobody declared is a finding.
+    proved_by:
+      - kind: mutation
+        ref: pr/310
+        date: 2026-09-06
+        caught: >-
+          A register dropped from CONTRIBUTING's bullet, red; the same dropped from the guide's
+          section 8 command, red; a declared constant renamed in its test so the page points at a
+          name nobody holds, red; and a new `HELD` constant added to a test without being
+          declared, red in the convention check. The list itself was verified against the tree
+          the way this gate was found: by counting `HELD`-shaped copies rather than reading the
+          page.

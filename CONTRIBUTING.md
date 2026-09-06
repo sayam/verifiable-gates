@@ -100,19 +100,25 @@ teaches rules it does not follow, and the answer was 2.7%.
   ci.yml's line to the row `xenon-floor-at-reality` *and* to where reality sits
   (measured with `radon`) — a ceiling reality has dropped below is red until the
   line and the row move up together.
-- **A register is held by a copy in a test, two-way.** The switches in
-  `pins/dev/posture-declared.json` and what each wants (`HELD` in
+- **A register is held by a copy in a test, two-way.** There are eight, and
+  `tests/test_registers_are_named.py` holds this list to them — a register that
+  reaches the tree without reaching this sentence is one an auditor running the
+  guide believes they checked:
+  the switches in `pins/dev/posture-declared.json` and what each wants (`HELD` in
   `tests/test_posture.py`), the row ids of `DECISIONS.md` in order (`HELD` in
   `tests/test_decisions.py`), the gates one named step enforces and the step
   each names (`HELD_STEP_GATES` in `tests/test_instruments_dogfood.py`), the
-  shipped overlay's scan-gate ids and titles held to `rules.yaml`
-  (`tests/test_manifest.py`), and the
   number of suppression lines under `src/` and `tests/` (`SUPPRESSED_LINES` in
-  the same file). A switch turned, a row or a step gate removed or added, a
-  suppression added: red until the same
-  pull request changes the copy too, where a reviewer sees both. Every
-  suppression carries a reason on its line; every job in every workflow declares
-  `timeout-minutes`.
+  the same file), the shipped overlay's scan-gate ids and titles held to
+  `rules.yaml` (`tests/test_manifest.py`), the categories the Marketplace
+  listing declares (`HELD` in `tests/test_marketplace.py`), the five anti-moves
+  and the holders each names (`HELD` in `tests/test_anti_moves.py`), and how
+  many catalogue sentences each document quotes (`QUOTED_PER_DOCUMENT` in
+  `tests/test_quoted_transcripts.py`). A switch turned, a row or a step gate
+  removed or added, a suppression added, a category changed, a transcript line
+  gained or lost: red until the same pull request changes the copy too, where a
+  reviewer sees both. Every suppression carries a reason on its line; every job
+  in every workflow declares `timeout-minutes`.
 - **A proof is dated no later than today** — anywhere on Earth (UTC+14), so a
   proof written here at 02:00 and dated tomorrow-in-UTC is not "from the
   future"; `2099-01-01` is.
