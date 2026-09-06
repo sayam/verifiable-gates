@@ -6,6 +6,22 @@ Notable changes to this project. The format follows
 
 ## [Unreleased]
 
+### Fixed
+
+- **The weekly resolver reads both catalogues, because a practice's evidence was held by
+  nothing.** `verifiable_gates.proved_by_refs` asked the platform about every
+  `proved_by.ref` in `gates.yaml` and about nothing else, while `working.yaml` carries
+  `held_on` refs that make the same promise — the pull request or run where a practice was
+  applied and nothing had to be re-learned. Their *shape* was checked at test time and the
+  suite reaches no network, which is exactly the hole RC-12 named for gates: a practice
+  could cite `pr/999999999`, or a run that never existed, and stay green for ever. It
+  resolves both in one pass now, and a finding says which file to go and fix — `gate <id>`
+  or `practice <id>`, since the same id may exist in both. A checkout with no working
+  catalogue, which is every project that installed the bundle without `--working`, is
+  answered for its gates rather than refused; a working catalogue that exists and cannot be
+  read is exit 2, because a green answered from half a look is the failure this repository
+  is organised against.
+
 ### Added
 
 - **The working carries an eleventh practice: `an-instruction-is-run-from-what-the-reader-gets`.**

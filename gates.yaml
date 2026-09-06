@@ -4032,7 +4032,7 @@ gates:
           2026-09-03). The pin put back to `write_text` is red.
 
   - id: proved-by-refs-resolve-on-the-platform
-    title: Every proved_by ref is resolved against the platform weekly, and a run whose log is gone is red
+    title: Every ref offered as evidence resolves on the platform weekly, in both catalogues
     kind: test
     severity: blocking
     enforced_by: {job: test, tests: [tests/test_proved_by_refs.py]}
@@ -4054,8 +4054,26 @@ gates:
       gone, naming the gates that cite the ref and what to do. This gate is the
       resolver's behaviour, proved offline on fakes in the `test` job; the live read
       is a step of `posture.yml`, whose own gate is watched within seven days. The
-      test job stays no-network.
+      test job stays no-network. Widened on 2026-09-06 to the other catalogue: a
+      practice's `held_on` ref in `working.yaml` makes the same promise a gate's
+      `proved_by.ref` does — the pull request or run where it was applied — and it was
+      held to its shape by `rules.py` and resolved by nothing, so a practice could name a
+      run that never existed and stay green for ever. The resolver reads both files in one
+      pass and says which one to go and fix, `gate <id>` or `practice <id>`; a checkout
+      with no working catalogue is answered for its gates rather than refused.
     proved_by:
+      - kind: mutation
+        ref: pr/316
+        date: 2026-09-06
+        caught: >-
+          The working half, planted five ways: the practices' refs never collected (the
+          gap itself — a `held_on` naming `pr/999999999` read as resolved); the citation
+          left as a bare id, so a finding cannot say which file holds the ref; a missing
+          `working.yaml` made fatal, which would refuse every project that installed the
+          bundle without `--working`; a `working.yaml` that cannot be read as a catalogue
+          answered from the gates alone, which is a green from half a look; and the
+          summary's two counts collapsed into one, so a reader cannot tell how much of the
+          evidence came from where. Each red on its own.
       - kind: mutation
         ref: pr/273
         date: 2026-09-05

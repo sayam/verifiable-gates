@@ -72,21 +72,23 @@ teaches rules it does not follow, and the answer was 2.7%.
 - **A deliberate "we do not do this" goes in [`DECISIONS.md`](DECISIONS.md)**
   with its reason and the condition that expires it; a `revisit` date that has
   passed turns the suite red until the row is re-decided.
-- **`proved_by.ref` names where the red was seen, which may be the reference
-  implementation** (`sayam/flask-todolist#pr/151`, for an instrument that was
-  proved there before it moved here). A ref is `pr/N`, `run/N` or
-  `commit/<sha>`, with `owner/repo#` in front when it is not this repository —
-  the schema holds the shape, and a real calendar date beside it, because a
-  ref nobody can look up is not evidence — and `posture.yml` looks every ref up,
-  weekly: a 404, or a run whose log has expired, is red there
+- **A ref offered as evidence names where it was seen, and resolves on the
+  platform** — a gate's `proved_by.ref` and a practice's `held_on` alike, and
+  where it was seen may be the reference implementation
+  (`sayam/flask-todolist#pr/151`, for an instrument that was proved there before
+  it moved here). A ref is `pr/N`, `run/N` or `commit/<sha>`, with `owner/repo#`
+  in front when it is not this repository — the schema holds the shape, and a
+  real calendar date beside it, because a ref nobody can look up is not evidence
+  — and `posture.yml` looks every ref up, weekly, in **both** catalogues: a 404,
+  or a run whose log has expired, is red there, naming what cites it
   (`verifiable_gates.proved_by_refs`). The ref is the pull request or run
   where the red *was seen*, not the one that added the job: the two security
   proofs cited the pull request that added `codeql` and `secret-scan`, whose
   every check is green, while the red sat on a throwaway pull request and its
   run — an outside reader followed the ref and called the proof unverifiable
-  (2026-08-30). Prefer `run/N` when the run is what went red. `proved_by` itself is optional for exactly one reason: the
-  list of gates that have never gone red can only shrink, and a gate that has not
-  yet had its defect is still a gate.
+  (2026-08-30). Prefer `run/N` when the run is what went red. `proved_by` itself
+  is optional for exactly one reason: the list of gates that have never gone red
+  can only shrink, and a gate that has not yet had its defect is still a gate.
 - **`preflight --root` runs the workflow's `run:` steps in a local bash**, because
   that is what the runner will do — so point it only at a checkout you would run
   CI on. A step is lent a fixed baseline (`PATH`, `HOME`, locale, temp), the
