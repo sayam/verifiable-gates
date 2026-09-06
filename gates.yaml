@@ -141,6 +141,14 @@ gates:
           left in the section (every release then differs by the footer), the register's
           names-something-real half removed, and the empty-CHANGELOG floor made unreachable
           (a run that compared nothing reports clean) — each red.
+      - kind: mutation
+        ref: pr/304
+        date: 2026-09-06
+        caught: >-
+          A name put back into `BODY_PREDATES_THE_RULE`, and the report's excused clause
+          printed when nothing is excused — each red. The register was emptied the same day
+          it was written: v0.1.0, v0.1.6 and v0.1.7 were each given their CHANGELOG section
+          on the platform, so the reader holds all eighteen releases and excuses none.
   - id: the-archive-is-read-back
     title: The archive reader holds Zenodo's versions to the releases both ways, and posture's cron runs it live
     kind: test

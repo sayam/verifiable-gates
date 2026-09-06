@@ -52,17 +52,14 @@ LINKS = re.compile(r"^\[\d", re.MULTILINE)
 # there is no section for it to equal.
 VERSION_TAG = re.compile(r"^v(\d+\.\d+\.\d+.*)$")
 
-# The three releases published before the rule existed, whose bodies were written by hand.
-# **This register only shrinks.** Each entry is held two ways by
-# `tests/test_release_body.py`: the release must exist, and it must really differ — so a
-# name cannot be parked here to hide a body that drifted afterwards. To empty it, give the
-# release its section: `gh release edit vX.Y.Z --notes-file <the section>`, which starts no
-# workflow and mints nothing at Zenodo (measured 2026-09-05).
-BODY_PREDATES_THE_RULE = {
-    "v0.1.0": "the first release, whose body was a hand-written announcement",
-    "v0.1.6": "a hand-written summary, cut before the body was taken from the file",
-    "v0.1.7": "the same, the day after",
-}
+# Releases whose body predates the rule and is allowed to differ. **Shrink only, and empty
+# since 2026-09-06**: v0.1.0, v0.1.6 and v0.1.7 carried hand-written announcements from
+# before the convention, and on that day they were each given their section with
+# `gh release edit vX.Y.Z --notes-file …` — which starts no workflow and mints nothing at
+# Zenodo (measured 2026-09-05, and again on the three edits themselves). It is kept rather
+# than deleted because the mechanism is what makes emptying it visible: an entry here is
+# held both ways below, so a name cannot be parked to hide a body that drifted afterwards.
+BODY_PREDATES_THE_RULE: dict[str, str] = {}
 
 
 def sections(text: str) -> dict[str, str]:
@@ -161,10 +158,8 @@ def main(argv: list[str] | None = None) -> int:
         return 1
     judged = sum(1 for r in releases if VERSION_TAG.match(str(r.get("tag_name", ""))))
     excused = len(BODY_PREDATES_THE_RULE)
-    print(
-        f"every release says what its section says: {judged - excused} of {judged} held"
-        f", {excused} whose body predates the rule"
-    )
+    said = f"every release says what its section says: {judged - excused} of {judged} held"
+    print(said + (f", {excused} whose body predates the rule" if excused else ""))
     return 0
 
 
