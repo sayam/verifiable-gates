@@ -6,6 +6,20 @@ Notable changes to this project. The format follows
 
 ## [Unreleased]
 
+### Added
+
+- **A fourteenth practice: `a-badge-is-somebody-elses-cache`.** What a badge shows a reader
+  is checked where the reader is, not at the badge's own source. It was a rule of this
+  checkout from the hour after 0.4.0 shipped, when the repository page still showed the
+  previous version while the image host already had the new one — served through the page
+  host's own image proxy, on a cache miss, with nothing in the post-release check asking what
+  a reader is actually served. It enters the catalogue on three releases: 0.5.0, where the
+  proxy caught up in under seventeen minutes; 0.6.0, where it was already current at the first
+  reading; and 0.7.0, where two readings twenty minutes apart both said the old version while
+  a direct fetch of the source said the new one — which is exactly the report the practice
+  asks for, naming both answers and the window rather than calling it broken or calling it
+  fine. Its `held_on` refs are the three release runs.
+
 ## [0.7.0] - 2026-09-06
 
 A minor release about the other half of an idea this project keeps circling: evidence nobody
