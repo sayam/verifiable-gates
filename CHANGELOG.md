@@ -6,6 +6,19 @@ Notable changes to this project. The format follows
 
 ## [Unreleased]
 
+### Fixed
+
+- **A truthy default is the debug console on.** `no-debug-entrypoint` promises that no
+  entrypoint can open a debug console even when the wrong one is run, and it read a truthy
+  literal written directly in the keyword. So `run(debug=os.environ.get("DEBUG", True))`
+  answered `pass` — a debug console on every machine where the variable is unset. Round 28
+  found it by running the tools an adopter already runs against a tree that breaks all nine
+  rules: bandit's `B201` misses the same shapes, and misses the factory form this scanner
+  already caught, so the comparison found the hole in ours rather than in theirs. A truthy
+  literal in a fallback position is now read — the second argument of a `get`-shaped call and
+  the right of an `or` — while any other computed expression stays unjudged, because
+  `debug=settings.DEBUG` is how a well-run project spells it (#297).
+
 ### Changed
 
 - **A new `DECISIONS.md` row: a pin says nothing about which version.** Round 27 told an agent

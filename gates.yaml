@@ -2505,6 +2505,15 @@ gates:
           advice recommends (self-audit round 22, F4: the finding said `use npm ci
           instead — npx eslint .` on a tree with no `package-lock.json`, where
           `npm ci` exits 1 before it installs anything).
+      - kind: mutation
+        ref: pr/297
+        date: 2026-09-06
+        caught: >-
+          The truthy-default read broken five ways — dropped entirely, the `or` branch
+          removed, the wrong argument index read, `getenv` dropped from the fallback
+          names, and the two-argument guard loosened — each red. Round 28, F2: comparing
+          the nine against the tools an adopter already runs found the hole in ours,
+          not in theirs — `debug=os.environ.get("DEBUG", True)` answered `pass`.
   - id: rules-we-ship-we-keep
     title: Scanners that apply to this repository are run against this repository
     kind: test
