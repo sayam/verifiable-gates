@@ -28,7 +28,7 @@ metadata:
    entry is the rule, the incident that produced it, and how one real project enforces it.
 3. **The index below names every rule.** Skim it once to know what exists.
 4. **[`references/working.md`](references/working.md) is a different kind of sheet** and
-   optional. It is not rules — it is how the work is done: twelve practices, each with the
+   optional. It is not rules — it is how the work is done: thirteen practices, each with the
    ledger entry that paid for it and the pull requests it held on. Nothing there is
    decided by a scanner, and `--rules` never prints one. Read it once, then keep your own
    ledger; in a few months your entries will be better for your project than ours are.

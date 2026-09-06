@@ -161,3 +161,13 @@ not learnt yet.
 **Held by:** reading this line — nothing here refuses it for you
 
 **Apply:** After every tag, before the release is called done: install the published artefact into a fresh environment and run the documents' own commands from it; open the page each host renders and fetch every link and image it shows a reader; read the release notes back and compare them with the section they were cut from. A red here is a blocker, not a note — say so in the same breath as the release, and let the fix be the next change. Record what was run, what it answered, and what could not be run here.
+
+### `a-release-body-is-the-section-it-was-cut-from`
+
+**Practice:** The notes a release carries are the changelog section it was cut from, handed over as a file
+
+**Born from:** L-0179 · 2026-09-05 · A release was published whose entire body was the version string, because the runbook said "notes from the tag" beside a tag message the same runbook had asked for in one word. Every earlier release carried its changelog section — the summary and the entries, which is what the archive keeps and what a reader on the releases page is given.
+
+**Held by:** `release_body.py` — a shipped tool refuses it
+
+**Apply:** Extract the section into a file before the runbook is handed over and publish with that file, never from the tag message and never from the platform's own commit list. Read the body back afterwards and compare it with the section on disk, folding the carriage returns the platform stores — without that fold a body that matches reports every line different, which is a check that cannot tell wrong from wrong line endings. Releases from before the convention go in a register that can only shrink.
