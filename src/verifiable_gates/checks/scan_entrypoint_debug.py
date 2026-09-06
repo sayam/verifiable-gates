@@ -90,19 +90,49 @@ def _truthy_constant(node: ast.AST) -> bool:
     return isinstance(node, ast.Constant) and bool(node.value) and node.value is not Ellipsis
 
 
+# The two places a value falls back to when nothing supplied it: the second argument of a
+# `get`-shaped call, and the right of an `or`.
+FALLBACK_CALLS = frozenset({"get", "getenv"})
+
+
+def _truthy_default(node: ast.AST) -> bool:
+    """A truthy literal sitting where the value falls back to — `get("D", True)`, `x or 1`.
+
+    `debug=os.environ.get("DEBUG", True)` is a debug console on every machine where the
+    variable is unset, which is most of them, and the scanner answered `pass` because it
+    read only the literal in the keyword (self-audit round 28, 2026-09-06: bandit's B201
+    misses these too, and so did we). What is deliberately **not** read is any computed
+    expression: `debug=settings.DEBUG` is how a well-run project spells it, and a rule that
+    called that a finding would be turned off within the week.
+    """
+    if isinstance(node, ast.BoolOp) and isinstance(node.op, ast.Or):
+        return any(_truthy_constant(value) for value in node.values)
+    if not (isinstance(node, ast.Call) and len(node.args) == 2):
+        return False
+    named = node.func.attr if isinstance(node.func, ast.Attribute) else None
+    if named is None and isinstance(node.func, ast.Name):
+        named = node.func.id
+    return named in FALLBACK_CALLS and _truthy_constant(node.args[1])
+
+
+def _opens_the_console(node: ast.AST) -> bool:
+    """The switch is on here, or it is on wherever nobody set it."""
+    return _truthy_constant(node) or _truthy_default(node)
+
+
 def _run_call_debug(node: ast.Call) -> tuple[int, str] | None:
     """`<x>.run(debug=1)`, `.run(use_debugger=True)` or `.run(**{"debug": True})`."""
     if not (isinstance(node.func, ast.Attribute) and node.func.attr == "run"):
         return None
     for keyword in node.keywords:
-        if keyword.arg in DEBUG_KEYWORDS and _truthy_constant(keyword.value):
+        if keyword.arg in DEBUG_KEYWORDS and _opens_the_console(keyword.value):
             return node.lineno, f".run({keyword.arg}={ast.unparse(keyword.value)})"
         if keyword.arg is None and isinstance(keyword.value, ast.Dict):
             for key, value in zip(keyword.value.keys, keyword.value.values, strict=True):
                 if (
                     isinstance(key, ast.Constant)
                     and key.value in DEBUG_KEYWORDS
-                    and _truthy_constant(value)
+                    and _opens_the_console(value)
                 ):
                     return node.lineno, f".run(**{{{key.value!r}: {ast.unparse(value)}}})"
     return None
@@ -110,7 +140,7 @@ def _run_call_debug(node: ast.Call) -> tuple[int, str] | None:
 
 def _assignment_debug(node: ast.Assign) -> tuple[int, str] | None:
     """`<x>.debug = True` or `<x>.config["DEBUG"] = True` — the switch flipped before the run."""
-    if not _truthy_constant(node.value):
+    if not _opens_the_console(node.value):
         return None
     for target in node.targets:
         if isinstance(target, ast.Attribute) and target.attr == "debug":

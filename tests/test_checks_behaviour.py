@@ -1634,6 +1634,28 @@ def test_the_dockerfile_scanner_stays_quiet_when_every_image_is_pinned(
         ("app.run(**{'debug': True})\n", ".run(**{'debug': True})"),
         ("app.run(**{'port': 5000, 'debug': True})\n", ".run(**{'debug': True})"),
         ('app.config["DEBUG"] = True\napp.run()\n', '.config["DEBUG"] = True'),
+        # A truthy literal sitting in a **default** is the same console on any machine
+        # where the variable is unset — and the scanner read only the literal, so all of
+        # these answered `pass` (round 28, F2: bandit misses them too).
+        (
+            'app.run(debug=os.environ.get("DEBUG", True))\n',
+            ".run(debug=os.environ.get('DEBUG', True))",
+        ),
+        ('app.run(debug=os.getenv("DEBUG", 1))\n', ".run(debug=os.getenv('DEBUG', 1))"),
+        (
+            'app.run(debug=os.environ.get("DEBUG") or True)\n',
+            ".run(debug=os.environ.get('DEBUG') or True)",
+        ),
+        (
+            'app.config["DEBUG"] = os.getenv("D", "yes")\napp.run()\n',
+            ".config[\"DEBUG\"] = os.getenv('D', 'yes')",
+        ),
+        # `from os import getenv` — the same fallback with no module in front of it.
+        ('app.run(debug=getenv("DEBUG", True))\n', ".run(debug=getenv('DEBUG', True))"),
+        (
+            'app.debug = os.environ.get("D", 1)\napp.run()\n',
+            ".debug = os.environ.get('D', 1)",
+        ),
     ],
 )
 def test_every_spelling_that_opens_the_debugger_is_a_finding(
@@ -1641,9 +1663,9 @@ def test_every_spelling_that_opens_the_debugger_is_a_finding(
 ) -> None:
     """Flask does `self.debug = bool(debug)` and hands werkzeug `use_debugger=self.debug` —
     five spellings, one console (self-audit, 2026-08-31, each proved live on Flask 3.1.3)."""
-    files = {"run.py": "app = object()\n" + source}
+    files = {"run.py": "import os\napp = object()\n" + source}
     assert scan_entrypoint_debug.main(build(tmp_path, files)) == 1
-    assert f"run.py:2 {shape}" in capsys.readouterr().out
+    assert f"run.py:3 {shape}" in capsys.readouterr().out
 
 
 @pytest.mark.parametrize(
@@ -1656,13 +1678,23 @@ def test_every_spelling_that_opens_the_debugger_is_a_finding(
         "app.run(debug=DEBUG)\n",
         "app.run(**{'port': 5000})\n",
         'app.config["TESTING"] = True\napp.run()\n',
+        # The other side of round 28's F2: a default that is **not** truthy is off, and a
+        # value with no literal anywhere in it is still unknown. Widening the read to any
+        # computed expression would make `debug=settings.DEBUG` a finding, which it is not.
+        'app.run(debug=os.environ.get("DEBUG", False))\n',
+        'app.run(debug=os.environ.get("DEBUG", ""))\n',
+        'app.run(debug=os.environ.get("DEBUG") or DEBUG)\n',
+        "app.run(debug=settings.DEBUG)\n",
+        'app.run(debug=os.environ.get("DEBUG", "0") == "1")\n',
     ],
 )
 def test_a_switch_left_off_or_computed_at_runtime_is_not_judged(
     tmp_path: pathlib.Path, capsys: pytest.CaptureFixture[str], source: str
 ) -> None:
     """A false constant is off; a value read at runtime is unknown, and unknown is not a finding."""
-    files = {"run.py": "import os\napp = object()\ncache = object()\n" + source}
+    files = {
+        "run.py": "import os\napp = object()\ncache = object()\nsettings = object()\n" + source
+    }
     assert scan_entrypoint_debug.main(build(tmp_path, files)) == 0
     assert capsys.readouterr().out == ""
 
