@@ -162,6 +162,7 @@ python -m verifiable_gates.own_numbers    # every number the documents advertise
 python -m verifiable_gates.skill --check --index --preamble preambles/skill.md \
   --practices working.yaml --out skills/verifiable-gates/SKILL.md   # generated, not written
 python -m verifiable_gates.zenodo --root .            # the archive, read back (network)
+python -m verifiable_gates.release_body --root .      # every release body, against its CHANGELOG section (network)
 python -m verifiable_gates.install /tmp/a-project     # the bundle, into an empty project
 python /tmp/a-project/tools/gates_doctor.py /tmp/a-project
 ```

@@ -975,6 +975,7 @@ RUFF_OFF_PER_FILE = {
     "src/verifiable_gates/zenodo.py": ("T201",),
     "src/verifiable_gates/proved_by_refs.py": ("T201",),
     "src/verifiable_gates/marketplace.py": ("T201",),
+    "src/verifiable_gates/release_body.py": ("T201",),
     "tests/**": ("INP001", "PLR2004", "S101"),
 }
 

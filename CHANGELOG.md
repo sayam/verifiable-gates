@@ -6,6 +6,23 @@ Notable changes to this project. The format follows
 
 ## [Unreleased]
 
+### Added
+
+- **`verifiable_gates.release_body`: every release says what its CHANGELOG section says.** A
+  release body is the one part of a cut that lives entirely on the platform, and on
+  2026-09-05 that cost a release — **v0.3.1 shipped with the body `v0.3.1`**, one word,
+  because the runbook that session handed over said `--notes-from-tag` and the tag message
+  was the one word the same runbook had asked for. Nothing in the tree could have said so.
+  The rule that followed was kept by hand for two cuts, v0.4.0 and v0.5.0, each verified byte
+  for byte; this reader replaces the hand and runs on posture's weekly cron. Half of it is
+  line endings: GitHub stores a body with CRLF, so a comparison that does not fold them
+  reports every line different on two texts identical on screen (144 carriage returns on
+  v0.4.0's body, 268 on v0.5.0's), and a check that cannot tell *wrong* from *wrong line
+  endings* reports neither. Three releases published before the rule existed are named in
+  `BODY_PREDATES_THE_RULE` with a reason each, and the register is held both ways: a name
+  whose body has since been fixed must come out, and a name that is not a release is a
+  finding — so it cannot hide a body that drifted afterwards (#303).
+
 ## [0.5.0] - 2026-09-06
 
 A minor release, and all of it comes from four audit rounds that stopped asking whether this

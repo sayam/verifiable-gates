@@ -176,7 +176,12 @@ field was one release away from proving it (2026-08-29).
    so a release pull request whose About still says the old version is red. The
    first release cut under this checklist (`v0.1.1`) found that out — this step
    used to sit after the merge, where it could never have been reached.
-4. Merge; tag `vx.y.z` on the merged commit and publish the GitHub release —
+4. Merge; tag `vx.y.z` on the merged commit and publish the GitHub release. **The body is
+   the CHANGELOG's `## [x.y.z]` section, handed to `--notes-file` as a file, never typed and
+   never `--notes-from-tag`**: v0.3.1 shipped with the body `v0.3.1`, one word, because a
+   runbook said otherwise and the tag message was that word. `python -m
+   verifiable_gates.release_body --root .` holds every release to its section afterwards, on
+   posture's cron, folding the CRLF GitHub stores a body with. Publish it —
    on the release form, with **Publish this Action to the GitHub Marketplace**
    ticked, so the listing at `github.com/marketplace/actions/verifiable-gates`
    moves to the new version (`action.yml` carries the name, description and
