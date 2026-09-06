@@ -6,6 +6,30 @@ Notable changes to this project. The format follows
 
 ## [Unreleased]
 
+## [0.6.0] - 2026-09-06
+
+A minor release about the seam this repository keeps failing at: the sentence that
+*describes* the machinery, which nothing holds while every test around it stays green. It
+starts with a scanner. The one scan that sweeps a whole tree told a project to name
+`node_modules/pkg/Dockerfile` under `dockerfiles` — advice it cannot act on — so the sweep
+now asks `git check-ignore` and drops what the project ignores, in bytes rather than text,
+because a file name this machine cannot decode raises `UnicodeEncodeError` out of
+`subprocess` itself. That one-line change to what the rule reads moved correctly in all four
+places held by tests, and stayed wrong in the **four documents that quote the line in a
+transcript** — the quickstart among them. Measured while fixing it: 59 catalogue sentences
+are quoted across the tree, 55 right by hand, and the four that were wrong were the four the
+change had touched. So transcripts are held now, counts and all. Then the same question
+asked of the pages themselves: `CONTRIBUTING.md` enumerated **five** registers while the
+tree held **eight**, and `docs/auditing.md` turns that enumeration into a command an outside
+auditor runs believing it covers everything — two of the three gaps opened the same day, by
+the pull requests closing the previous round of this. The list of registers is a register
+now. Beside those: the five anti-moves this repository will not trade away, each with what
+would trade it away and what holds it — and two saying out loud that nothing but the row
+holds them; what every checker decides and, more usefully, **what a pass does not say**; the
+numbers this repository quotes about its own behaviour, each with the sample it was measured
+on and what it does not mean; and `verifiable_gates.release_body`, which holds every release
+body to its CHANGELOG section — eighteen of eighteen, with the register of exceptions empty.
+
 ### Fixed
 
 - **The list of registers was prose, and it had gone stale.** `CONTRIBUTING.md` says a register
@@ -3582,7 +3606,8 @@ order it happened.
 - **`gates.yaml`, deliberately empty.** This repository will not list a gate
   before the thing that enforces it exists.
 
-[Unreleased]: https://github.com/sayam/verifiable-gates/compare/v0.5.0...HEAD
+[Unreleased]: https://github.com/sayam/verifiable-gates/compare/v0.6.0...HEAD
+[0.6.0]: https://github.com/sayam/verifiable-gates/releases/tag/v0.6.0
 [0.5.0]: https://github.com/sayam/verifiable-gates/releases/tag/v0.5.0
 [0.4.0]: https://github.com/sayam/verifiable-gates/releases/tag/v0.4.0
 [0.3.1]: https://github.com/sayam/verifiable-gates/releases/tag/v0.3.1
