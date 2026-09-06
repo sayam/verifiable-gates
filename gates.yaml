@@ -4031,6 +4031,43 @@ gates:
           empty pin, and a writer killed there left one (self-audit round 20,
           2026-09-03). The pin put back to `write_text` is red.
 
+  - id: a-number-a-document-points-at-opens
+    title: Every number this project's documents point at still opens on the platform
+    kind: test
+    severity: blocking
+    enforced_by: {job: test, tests: [tests/test_document_refs.py]}
+    layer: internal
+    pillar: devx
+    portable: false
+    born_from: >-
+      The catalogues' refs were resolved weekly from 2026-09-05 (gates) and 2026-09-06
+      (practices), and the prose was not: `CHANGELOG.md` alone points at more than a
+      hundred pull requests, each one the same claim — this is where it happened, go and
+      read it — with no shape check, no resolution, and nothing to notice a typo, a
+      renumbering, or a pull request that is not there any more. Measured on the day this
+      gate was written: 112 distinct numbers across 39 tracked documents, 108 of which
+      open. The four that do not are the pull requests GitHub Support deleted at the
+      owner's request in the orphan purge of 2026-09-04, because their merge commits
+      carried an address that must never be published — they are a register in the reader,
+      held both ways, and the CHANGELOG entry that names them is the record of the purge
+      and is not rewritten. Code is not prose: a fenced block and a code span are stripped
+      before the scan, because `echo "step #1"` and `&#10;` are in this repository's own
+      documents and a check that reported them is one nobody keeps. Python is not read at
+      all — thirteen such numbers live in the suite and four of them are invented fixtures.
+      This gate is the reader's behaviour, proved offline on fakes in the `test` job; the
+      live read is a step of `posture.yml`, weekly and on every push to main.
+    proved_by:
+      - kind: mutation
+        ref: pr/318
+        date: 2026-09-06
+        caught: >-
+          Five planted defects, each red on its own: code spans and fences left in the scan
+          (a shell line's `#1` reported as a reference, which is how a check gets switched
+          off); the register consulted only for refs that fail, so a deleted number that
+          came back would stay excused for ever; the register's other direction dropped, so
+          it could park a number no document says; a tree git cannot be asked about read as
+          empty and answered green — the "could not look" that must never be a pass; and
+          `*.py` added to what is read, which turns the suite's own fixtures into findings.
   - id: proved-by-refs-resolve-on-the-platform
     title: Every ref offered as evidence resolves on the platform weekly, in both catalogues
     kind: test

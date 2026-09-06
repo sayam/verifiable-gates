@@ -166,6 +166,21 @@ This one is a habit, not a command: before changing what a decider answers, grep
 and `DECISIONS.md` for that answer. What you can audit is whether it was kept — pick a
 decider, grep, and see whether the answer it gives is written down somewhere as decided.
 
+### 12. A number a document points at is a number a reader can open.
+
+```bash
+python -m verifiable_gates.document_refs --root .   # needs the network and a GitHub token
+```
+
+Every `#N` in a tracked `.md`, `.yaml` or `.yml` — 112 of them across 39 files the day this
+was written — asked of the platform, code spans and fenced blocks skipped because
+`echo "step #1"` is not a reference to anything. Four numbers are excused by a register in
+the reader: the pull requests GitHub Support deleted at the owner's request in the orphan
+purge of 2026-09-04, whose merge commits carried an address that must not be published. The
+register is held both ways, so a number that opens again, or one no document points at, is a
+finding. What you cannot get from the reader is whether a number says what the sentence
+around it claims — open two or three and read them.
+
 ## Four more, because they are cheap
 
 ```bash

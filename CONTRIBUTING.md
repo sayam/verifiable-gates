@@ -135,6 +135,14 @@ teaches rules it does not follow, and the answer was 2.7%.
   that answer, and run the full suite before the mutation proofs: making every
   scan `NA` on a fresh install would have undone `tests/test_box_opens_true.py`,
   which holds the shipped index to *pass*, never `NA` (2026-08-30).
+- **A number a document points at is a number a reader can open.** A `#N` in
+  `CHANGELOG.md`, in a `DECISIONS.md` row, in a gate's `born_from` or in a
+  workflow comment is the same claim a `proved_by.ref` makes — *this is where it
+  happened* — and until 2026-09-06 nothing resolved one. `posture.yml` opens
+  every one of them weekly (`verifiable_gates.document_refs`); code spans and
+  fenced blocks are not prose and are skipped, `*.py` is not read at all because
+  a fixture in the suite says `#1` and means a fixture, and the numbers deleted
+  at the owner's request are a register in the reader that only shrinks.
 
 ## Where the work happens
 
