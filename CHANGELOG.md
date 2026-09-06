@@ -32,6 +32,19 @@ body to its CHANGELOG section — eighteen of eighteen, with the register of exc
 
 ### Fixed
 
+- **The link block at the foot of the file belongs to no release, and it was inside the
+  oldest section.** `verifiable_gates.release_body` stopped a section at the first `[0.` of
+  the link block, and the line above it — `[Unreleased]: …compare/vX.Y.Z...HEAD`, rewritten
+  at **every** cut — stayed inside. Only the oldest section is followed by that block, so
+  v0.1.0's body matched until the next version was cut and then never again: measured an
+  hour after the reader said *18 of 18 held*, the v0.6.0 cut moved that one line and v0.1.0
+  went red with two texts of 19 711 characters each. The block is now recognised by what a
+  link definition looks like rather than by its first character, and it is stripped from
+  **both** sides — from the section because those lines are the file's plumbing, and from
+  the published body because three bodies were written from an extraction that kept them and
+  stripping one side only would make each a finding forever. The test fixture now carries
+  the `[Unreleased]` line the real file has, which is what its absence had hidden.
+
 - **The list of registers was prose, and it had gone stale.** `CONTRIBUTING.md` says a register
   is held by a copy in a test, two-way, and then names them; `docs/auditing.md` § 8 turns that
   into a command an outside auditor runs believing it covers every register in the tree. The
