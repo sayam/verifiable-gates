@@ -108,6 +108,39 @@ gates:
           images and is not in `BADGE_HOSTS`, red in the host check. A badge names a
           workflow twice and neither name is a `blob`/`tree` link, so nothing else reads them.
 
+  - id: the-release-body-is-the-changelog-section
+    title: Every release says what its CHANGELOG section says, and posture's cron reads it live
+    kind: test
+    severity: blocking
+    enforced_by: {job: test, tests: [tests/test_release_body.py]}
+    layer: internal
+    pillar: devx
+    portable: false
+    born_from: >-
+      A release body is the one part of a cut that lives entirely on the platform, and on
+      2026-09-05 that cost a release: **v0.3.1 shipped with the body `v0.3.1`** — one word —
+      because the runbook that session handed over said `--notes-from-tag` and the tag message
+      was the one word the same runbook had asked for. Every earlier cut carried the
+      CHANGELOG's `## [x.y.z]` section, which is what Zenodo archives and what a reader on the
+      releases page is given. Nothing in the tree could have said so: `own_numbers` holds the
+      cards to each other, `zenodo` reads the archive, and neither reads the notes. The rule
+      was kept by hand for two cuts — v0.4.0 and v0.5.0, each verified byte for byte — and
+      this is the reader that replaced the hand. Half of it is line endings: GitHub stores a
+      body with CRLF, so a comparison that does not fold them says every line differs on two
+      texts that are identical on screen (measured: 144 carriage returns on v0.4.0's body, 268
+      on v0.5.0's), and a check that cannot tell "wrong" from "wrong line endings" reports
+      neither.
+    proved_by:
+      - kind: mutation
+        ref: pr/303
+        date: 2026-09-06
+        caught: >-
+          The reader broken six ways — the CRLF fold dropped (every release then differs),
+          the comparison made unconditional (a body of one word passes), the register's
+          shrink-only half removed (a name stays after its body was fixed), the link block
+          left in the section (every release then differs by the footer), the register's
+          names-something-real half removed, and the empty-CHANGELOG floor made unreachable
+          (a run that compared nothing reports clean) — each red.
   - id: the-archive-is-read-back
     title: The archive reader holds Zenodo's versions to the releases both ways, and posture's cron runs it live
     kind: test

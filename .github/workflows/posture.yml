@@ -95,6 +95,13 @@ jobs:
         run: python -m verifiable_gates.zenodo --root .
         env:
           GH_TOKEN: ${{ github.token }}
+      # The one part of a cut that lives only on the platform. v0.3.1 shipped with the
+      # body `v0.3.1` — one word — and nothing in the tree could have said so.
+      - name: every release says what its CHANGELOG section says
+        if: ${{ !cancelled() }}
+        run: python -m verifiable_gates.release_body --root .
+        env:
+          GH_TOKEN: ${{ github.token }}
       # Every proved_by.ref, resolved: the schema holds a ref to its shape and the
       # suite runs with no network, so `pr/999999999` passed every test (filed by
       # three outside audits; RC-12). Here the platform is asked — a 404 is a ref
