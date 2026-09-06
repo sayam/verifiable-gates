@@ -8,6 +8,19 @@ Notable changes to this project. The format follows
 
 ### Fixed
 
+- **The list of registers was prose, and it had gone stale.** `CONTRIBUTING.md` says a register
+  is held by a copy in a test, two-way, and then names them; `docs/auditing.md` § 8 turns that
+  into a command an outside auditor runs believing it covers every register in the tree. The
+  check before this cut counted **eight** two-way copies and found **five** named: the Marketplace
+  categories had been missing since they arrived, and the anti-moves and the quoted-transcript
+  counts were added the same day — by the pull requests that were closing the previous round of
+  exactly this drift. Both pages now name all eight, and
+  `tests/test_registers_are_named.py` holds the list: each entry must exist where it says, be
+  named in `CONTRIBUTING.md`, and be run by the guide's command, and a module-level `HELD…`
+  constant in `tests/` that nobody declared is a finding. What it cannot catch — a register named
+  some other way — its docstring says out loud (#310).
+
+
 - **Four documents showed a reader output the tool no longer produces.** When the sweep for
   an unnamed Dockerfile learned to ask git (#305), the sentence that says what the rule reads
   moved in all four places that are held to each other — the catalogue, the shipped overlay,

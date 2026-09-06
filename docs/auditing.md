@@ -124,12 +124,20 @@ ceiling reality has dropped below is red until the line and the row move togethe
 
 ```bash
 python -m pytest -q tests/test_posture.py tests/test_decisions.py \
-  tests/test_instruments_dogfood.py tests/test_manifest.py
+  tests/test_instruments_dogfood.py tests/test_manifest.py \
+  tests/test_marketplace.py tests/test_anti_moves.py \
+  tests/test_quoted_transcripts.py tests/test_registers_are_named.py
 ```
 
-Branch-protection switches, decision ids, the gates a named step enforces, the shipped
-overlay against `rules.yaml`, the number of lint suppressions. Each is a copy a reviewer
-sees change in the same diff.
+Eight registers: branch-protection switches, decision ids, the gates a named step enforces,
+the number of lint suppressions, the shipped overlay against `rules.yaml`, the Marketplace
+categories, the five anti-moves with the holders each names, and how many catalogue
+sentences each document quotes. Each is a copy a reviewer sees change in the same diff.
+
+The last file in that command is the list itself: on 2026-09-06 two registers reached the
+tree without reaching this page, and the sentence describing the mechanism was the thing
+that had gone stale. It is held now — which is also the honest limit, since a register
+nobody declares is caught only by the naming convention that file explains.
 
 ### 9. A proof is dated no later than today.
 
