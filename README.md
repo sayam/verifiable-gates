@@ -36,7 +36,7 @@ install line's absolute path is shortened to `<your-project>`):
 $ python -m verifiable_gates.install .
 installed into <your-project> — 9 gates (9 scan) · check with: python3 tools/gates_doctor.py
 for the instruction file your agents read (AGENTS.md, CLAUDE.md), add one line: `run python3 tools/gates_doctor.py --rules before editing`
-this bundle also carries the working: 10 practices, each with the lesson behind it and the pull requests it held on — off here; read `python3 tools/gates_doctor.py --working`, turn on with `install <dest> --working`
+this bundle also carries the working: 11 practices, each with the lesson behind it and the pull requests it held on — off here; read `python3 tools/gates_doctor.py --working`, turn on with `install <dest> --working`
 $ python3 tools/gates_doctor.py
 [   NA] actions-sha-pinned — only the bundle's own starting workflow, untouched — nothing of yours to read
 [   NA] adr-index-complete — no docs/adr — this rule reads the .md records and the README.md index under docs/adr (scaffold.json adr_path)

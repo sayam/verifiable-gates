@@ -3635,6 +3635,20 @@ gates:
           the manifest does not ship is refused. A holder is only checkable on the day it
           is claimed.
       - kind: mutation
+        ref: pr/313
+        date: 2026-09-06
+        caught: >-
+          The eleventh practice entering the catalogue, and the three ways a practice
+          enters it wrongly, planted on the entry itself rather than on a fixture: its
+          `held_on` trimmed to two pull requests, one below the floor the decision names;
+          its `born_from` replaced by a sentence of prose, which is what a preference looks
+          like; and `held_by: reading` changed to `tool` with no tool named. Each red on
+          its own. The other four planted that day belong to the gates that own those
+          files and are recorded there: the published sheet edited by hand instead of
+          regenerated, the index keeping the old count, and the count in each quickstart
+          transcript — the last two being what a new practice actually moves in the
+          documents a reader runs.
+      - kind: mutation
         ref: pr/240
         date: 2026-09-04
         caught: >-
