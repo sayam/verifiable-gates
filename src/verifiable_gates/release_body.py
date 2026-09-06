@@ -45,8 +45,13 @@ __all__ = [
 
 # `## [0.4.0] - 2026-09-05` — the heading `own_numbers` already holds the version to.
 HEADING = re.compile(r"^## \[(\d[^\]]*)\] - \d{4}-\d{2}-\d{2}", re.MULTILINE)
-# The link block at the foot of the file, which belongs to no section.
-LINKS = re.compile(r"^\[\d", re.MULTILINE)
+# A link definition at the foot of the file: `[0.5.0]: https://…`, and `[Unreleased]: …`
+# with it. It belongs to the file, not to any release — and the `[Unreleased]` line is
+# **rewritten at every cut**, so a section that keeps it puts the oldest release's body out
+# of step the moment the next version is cut. Measured 2026-09-06, an hour after this reader
+# said 18 of 18 held: the v0.6.0 cut moved that one line and v0.1.0 — the last section in the
+# file, the only one the block follows — went red with two texts of 19 711 characters each.
+LINKS = re.compile(r"^\[[^\]]+\]:\s*\S+\s*$", re.MULTILINE)
 # A release this reader judges. `evidence-freeze-1` is a tag, not a version, and it is a
 # different commit from `v0.1.0` on purpose (`DECISIONS.md` `freeze-tag-vs-release`);
 # there is no section for it to equal.
@@ -72,9 +77,23 @@ def sections(text: str) -> dict[str, str]:
     found: dict[str, str] = {}
     for index, head in enumerate(heads):
         end = heads[index + 1].start() if index + 1 < len(heads) else len(text)
-        body = text[head.end() : end]
-        found[head.group(1)] = LINKS.split(body, maxsplit=1)[0].strip("\n")
+        found[head.group(1)] = without_the_link_block(text[head.end() : end])
     return found
+
+
+def without_the_link_block(text: str) -> str:
+    """`text` with the trailing run of link definitions, and the blank lines above it, gone.
+
+    Applied to **both** sides of every comparison: to the section, because those lines are
+    the file's plumbing and no reader wants them in release notes; and to the published
+    body, because three bodies were written from an extraction that kept them, and the block
+    changes at every cut. Stripping it on one side only would make every one of those a
+    finding forever, about a line nobody reads.
+    """
+    lines = text.split("\n")
+    while lines and (not lines[-1].strip() or LINKS.match(lines[-1])):
+        lines.pop()
+    return "\n".join(lines).strip("\n")
 
 
 def body_of(release: dict[str, Any]) -> str:
@@ -84,7 +103,8 @@ def body_of(release: dict[str, Any]) -> str:
     "these two texts differ" and one that answers "these two texts differ in a way a
     reader can see".
     """
-    return str(release.get("body") or "").replace("\r\n", "\n").replace("\r", "\n").strip("\n")
+    folded = str(release.get("body") or "").replace("\r\n", "\n").replace("\r", "\n")
+    return without_the_link_block(folded)
 
 
 def problems(written: dict[str, str], releases: list[dict[str, Any]]) -> list[str]:

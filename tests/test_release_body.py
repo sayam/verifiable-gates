@@ -46,6 +46,7 @@ The second one.
 
 The first one.
 
+[Unreleased]: https://example.invalid/compare/v0.2.0...HEAD
 [0.2.0]: https://example.invalid/2
 [0.1.0]: https://example.invalid/1
 """
@@ -80,6 +81,46 @@ def test_a_section_is_its_entries_without_the_heading_or_the_link_block() -> Non
     assert found["0.1.0"] == FIRST
     assert "[0.1.0]: https" not in found["0.1.0"]
     assert "## [" not in found["0.2.0"]
+
+
+def test_the_unreleased_link_is_part_of_the_block_not_of_the_oldest_section() -> None:
+    """The line that is rewritten at every cut.
+
+    `[Unreleased]: …compare/vX.Y.Z...HEAD` sits at the top of the link block, and the block
+    follows the **oldest** section — so a reader that stopped at the first `[0.` kept that
+    line inside it. Measured on the real file 2026-09-06, an hour after this reader said
+    18 of 18 held: the v0.6.0 cut moved that one line and v0.1.0 went red, two texts of
+    19 711 characters each differing in the line nobody reads.
+    """
+    found = release_body.sections(CHANGELOG)
+
+    assert found["0.1.0"] == FIRST
+    assert "Unreleased" not in found["0.1.0"]
+    assert "compare" not in found["0.1.0"]
+
+
+@pytest.mark.usefixtures("unexcused")
+def test_a_body_published_with_the_link_block_still_matches_its_section() -> None:
+    """Three bodies were written from an extraction that kept the block. Stripping it on
+    the file's side only would make each of them a finding forever, about a line that is
+    the file's plumbing — so both sides are read the same way."""
+    published = (
+        FIRST
+        + "\n\n[Unreleased]: https://example.invalid/compare/v0.1.0...HEAD\n[0.1.0]: https://example.invalid/1"
+    )
+
+    assert (
+        release_body.problems(release_body.sections(CHANGELOG), [a_release("v0.1.0", published)])
+        == []
+    )
+
+
+@pytest.mark.usefixtures("unexcused")
+def test_a_body_that_differs_above_the_link_block_is_still_a_finding() -> None:
+    """The control: the stripping must not swallow the prose it protects."""
+    published = "The first one, edited by hand.\n\n[0.1.0]: https://example.invalid/1"
+
+    assert release_body.problems(release_body.sections(CHANGELOG), [a_release("v0.1.0", published)])
 
 
 def test_unreleased_is_not_a_section() -> None:
