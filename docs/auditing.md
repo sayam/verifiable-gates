@@ -184,6 +184,26 @@ contribute to that item, never that the two are equal. The item names are a clos
 off the publications; a misspelling is refused. If you audit by one of those frameworks, this
 is the door in.
 
+## The numbers this repository quotes about its own behaviour
+
+A measurement is a claim with a sample behind it, and the sample is the first thing lost when
+the number travels. These are the numbers this repository quotes about how it *behaves* — not
+the counts of rules, gates and checkers, which are read off the files by
+`python -m verifiable_gates.own_numbers` and need no sample. Each row says where the number is
+quoted, what it was measured on, and what it does not say. `tests/test_auditing_guide.py`
+holds the table: a number whose document no longer carries it is red, and so is a row whose
+sample or caveat has been emptied.
+
+| the number | quoted in | measured on | what it does not say |
+|---|---|---|---|
+| **one time in six** — of the six rules held only by reading that the task could break, one moved the agent's behaviour; the three a tool decides went from 0 of 5 to 5 of 5 | `CHANGELOG.md`, the 0.5.0 section; the measurement itself is `DECISIONS.md` row `rules-vs-bundle`, in its own words | one model, one task (a login endpoint), five runs with the sheets and the bundle in front of the agent and five without — 2026-09-06 | that reading buys nothing: five of five repaired a registry finding nobody mentioned and one listed the rules it was *not* implementing. And not a rate: five runs of one model on one task is a reading, not a distribution over models, tasks or prompts |
+| **772** findings on day one, **627** of them one gate's test-file half | `CHANGELOG.md`, the 0.5.0 section | django at one commit, the bundle installed with a scaffold naming its real paths, the doctor run once — 2026-09-05 | that any of them is wrong. They are what the rules say, on a tree that grew up before the registry existed; the wall is the rule meeting a history, which is why `waivers:` exists |
+| **none of 799 findings was wrong by the rule's text**, and one is arguable by shape | this page | three trees on 2026-09-05 — django (772 finding lines), pallets/flask (30), flask-todolist (1) — every finding read and classified by hand. The four *job defined twice* lines on django were not classified, so this is 799 of 803 | a false-positive rate for this bundle. Three trees in one afternoon, all Python, two of them frameworks rather than applications — and the one arguable case is exactly that, a business-layer rule applied to a framework's own admin templates |
+
+The first two are quoted elsewhere in the tree and can be read there. The third is published
+here first: it is the answer to *how often is a finding here simply wrong*, and the honest
+form of it is the sample, not the ratio.
+
 ## What you cannot check from here
 
 - **Which defect was planted.** Mutation proofs show a test can go red; the choice of
