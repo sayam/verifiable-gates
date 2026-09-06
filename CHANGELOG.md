@@ -8,6 +8,23 @@ Notable changes to this project. The format follows
 
 ### Fixed
 
+- **Four documents showed a reader output the tool no longer produces.** When the sweep for
+  an unnamed Dockerfile learned to ask git (#305), the sentence that says what the rule reads
+  moved in all four places that are held to each other — the catalogue, the shipped overlay,
+  the scanner's own constant and the `NA` line it prints. It did not move in the four
+  documents that **quote** that line in a transcript: the quickstart in `README.md`, the same
+  in `README.th.md`, the `--rules` transcript in `docs/checker-reference.md` and the finding
+  transcript in `docs/output-semantics.md`. All three transcripts were re-run from this tree
+  and differ from what is now committed in exactly that one line — nothing else had drifted.
+  Measured the same day: 59 catalogue sentences are quoted across the tree, 55 of them right
+  by hand, and the four that were wrong were the four the change had touched.
+  `tests/test_quoted_transcripts.py` and the gate `a-quoted-transcript-is-what-the-tool-prints`
+  hold every quoted `title`, `reads:` and `born from:` to `rules.yaml`, and hold the *number*
+  of each kind per document — because a guard that asks only whether a page yields anything
+  survives a blinded pattern, which is how the first version of it did. `CHANGELOG.md` is
+  excluded on purpose: its sections are published release bodies (#309).
+
+
 - **A Dockerfile your own git ignores is not yours to name.** The one scan that sweeps a
   whole tree — `image-digest-pinned` looking for a Dockerfile nobody named — pruned dotted
   directories and nothing else, so a project whose `.gitignore` holds `node_modules/` and

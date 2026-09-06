@@ -21,6 +21,9 @@ reported rather than passed over: an outside audit on 2026-08-30 planted an
 unpinned `Dockerfile.prod` and an unpinned `docker/Dockerfile`, each alone, and
 both answered "no Dockerfile". NA means nothing to check, not nothing looked at.
 A project that *has* named its Dockerfiles has decided; other files are its own.
+So is a file the project's own git ignores: the sweep asks `git check-ignore` and
+skips what comes back, because telling a project to name `node_modules/pkg/Dockerfile`
+under `dockerfiles` is advice it cannot act on (2026-09-06).
 
 exit 0 = clean or N/A · 1 = findings · 2 = called wrongly
 

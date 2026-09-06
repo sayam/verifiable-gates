@@ -4234,3 +4234,39 @@ gates:
           A checker's row deleted from the table, red; the table reordered against the
           sections a reader walks, red; a caveat emptied to a shrug, red; a cited
           `DECISIONS.md` id misspelt, red.
+
+  - id: a-quoted-transcript-is-what-the-tool-prints
+    title: Every catalogue sentence a document quotes is the sentence the catalogue carries
+    kind: test
+    severity: blocking
+    enforced_by: {job: test, tests: [tests/test_quoted_transcripts.py]}
+    layer: internal
+    pillar: devx
+    portable: false
+    born_from: >-
+      `reads:` and `born_from:` already had three copies held to `rules.yaml` — the scanner's
+      own constant, the shipped `overlay.json`, and the `NA` line the scanner prints — so the
+      day the Dockerfile sweep learned to ask git (2026-09-06, #305) all four moved together.
+      Four **documents** quoted the old sentence in a transcript and nothing looked:
+      `README.md`, `README.th.md`, `docs/checker-reference.md` and `docs/output-semantics.md`
+      each showed a reader output the tool no longer produces, the quickstart among them.
+      Measured the same day: 59 catalogue sentences are quoted across the tree, 55 of them
+      right by hand, and the four that were wrong were exactly the four the change had
+      touched — a copy that is right by hand is right until the day it matters. What is held
+      is the part with a source, the rule id and the sentence beside it; the rest of a
+      transcript is re-run from the published artefacts at every release.
+    proved_by:
+      - kind: mutation
+        ref: pr/309
+        date: 2026-09-06
+        caught: >-
+          The `reads:` sentence in the README's quickstart put back as it was before #305,
+          red — the case this gate exists for, and the one that was green for four hours;
+          a `born from:` line in `docs/output-semantics.md` reworded, red; a `[found]` title
+          changed in the same transcript, red; a rule id in a transcript renamed to one the
+          catalogue does not carry, red in the check that reads ids rather than sentences.
+          Then each of the four patterns is blinded in turn, and each is red. That last part
+          is why the guard is a count of every kind per document rather than a presence
+          check: the first version asked only whether a page yielded *anything*, and blinding
+          the `NA` pattern came back **green** — the other three still matched, so six unread
+          quotations per README looked like six read ones.
