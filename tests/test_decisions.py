@@ -171,6 +171,7 @@ HELD = {
     "the-cost-is-stated-and-not-gated": "2027-02-28",
     "a-pin-says-nothing-about-which-version": "",
     "workflow-triggers-are-zizmors-not-ours": "2027-02-28",
+    "one-maintainer-and-no-promise": "2027-02-28",
 }
 
 # The rows whose `expires when` is `Never` — an expiry rewritten to "Never" was

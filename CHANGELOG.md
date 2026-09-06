@@ -6,6 +6,23 @@ Notable changes to this project. The format follows
 
 ## [Unreleased]
 
+### Added
+
+- **`GOVERNANCE.md`: one maintainer, and no promise about how long.** Round 28 asked the
+  question an adopter asks first — who maintains this, and what happens to the rules I have
+  installed if they stop — and found no answer anywhere in the repository. The page gives the
+  honest one, and then the useful half: what survives if this stops. Your CI keeps working,
+  because the bundle is stdlib-only and reaches nothing off your machine. Your alerts keep
+  meaning what they meant, because published rule ids are never removed. A fork is complete,
+  because the catalogue and its sheets are wholly in the tree under Apache-2.0 and archived at
+  Zenodo. What does not survive is new rules, and the page says so. It also says how a rule is
+  withdrawn and by whom (`retracted:`, with a reason and a date), that no staleness threshold
+  is declared because nine days of history cannot calibrate one, and why there is no
+  `CODEOWNERS` file. `tests/test_governance.py` holds it: the maintainer it names is the one
+  `CITATION.cff` names, every path it cites is here, the posture cadence it quotes is the one
+  in the workflow, and **a period of time anywhere in the file is a finding** — that number
+  would be the promise the first section exists to refuse (#300).
+
 ### Changed
 
 - **A new `DECISIONS.md` row, and the checker reference now says what the nine do not

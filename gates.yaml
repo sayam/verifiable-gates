@@ -463,6 +463,38 @@ gates:
           answered 404 for 31 of them (round 24, F4, found by the owner) — red; an
           absolute link pointed at a file that is not in the tree, red; an anchor
           misspelt on `docs/history.md`, red.
+  - id: the-governance-page-promises-nothing-it-cannot-keep
+    title: GOVERNANCE.md names one maintainer, promises no period, and points only at what is here
+    kind: test
+    severity: blocking
+    enforced_by: {job: test, tests: [tests/test_governance.py]}
+    layer: internal
+    pillar: manageability
+    portable: false
+    born_from: >-
+      Round 28 (2026-09-06) asked the four questions whose subject is somebody else, and the
+      one an adopter asks first had no answer anywhere in the repository: who maintains this,
+      and what happens to the rules I have installed if they stop. There was no `CODEOWNERS`,
+      no governance page and no deprecation policy — for a project whose own catalogue
+      publishes `bus factor` as a pitfall it names in other people's tools. The page that
+      answers it is one maintainer and no promise about how long, which is the truth and is
+      also the sentence most likely to soften on a quiet afternoon into something kinder. So
+      the page is held: the maintainer it names is the one `CITATION.cff` names, every path it
+      cites is in the tree, the posture cadence it tells a reader to watch is the one in the
+      workflow, `retracted:` is a key the schema really has, and **a number of days, weeks,
+      months or years anywhere in the file is a finding** — that number would be the promise
+      the first section exists to refuse.
+    proved_by:
+      - kind: mutation
+        ref: pr/300
+        date: 2026-09-06
+        caught: >-
+          The page softened five ways — the maintainer's name taken out of the sentence that
+          names them, "no promise about how long" replaced with a promise of two years, the
+          posture cron moved off Monday while the page still says Monday, a cited test path
+          misspelt, and the section explaining the absence of `CODEOWNERS` retitled — each
+          red. Round 28: the honest answer is also the one most likely to soften on a quiet
+          afternoon into something kinder, so it is held rather than trusted.
   - id: the-security-policy-quotes-one-set-of-numbers
     title: SECURITY.md exists, quotes one set of timeframes, names no address, and points at a live channel
     kind: test

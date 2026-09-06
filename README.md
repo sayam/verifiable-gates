@@ -241,6 +241,13 @@ None of this has to be taken on trust. [`docs/auditing.md`](https://github.com/s
 hour: the eleven rules this repository states about itself, the command that decides each
 one, and — said plainly — what no command here can answer.
 
+## Who maintains this
+
+One maintainer, and no promise about how long. What survives if that stops — your CI, your
+alerts' ids, and a fork that is complete — is in
+[`GOVERNANCE.md`](https://github.com/sayam/verifiable-gates/blob/main/GOVERNANCE.md),
+together with how a rule is withdrawn and how you would tell whether anybody is still here.
+
 ## Licence
 
 - Code: [Apache-2.0](https://github.com/sayam/verifiable-gates/blob/main/LICENSE). Contributors sign [`CLA.md`](https://github.com/sayam/verifiable-gates/blob/main/CLA.md) — one line in
