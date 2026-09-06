@@ -196,3 +196,22 @@ practices:
       Decide what a commit may claim, write it into a checker that runs in CI, and let the
       checker be what refuses. A convention that only lives in an instruction file is one
       the next tool's default overwrites silently.
+
+  - id: an-instruction-is-run-from-what-the-reader-gets
+    layer: working
+    title: An instruction a document will carry is run first, from the artefact the reader will have
+    born_from: >-
+      L-0177 · 2026-09-05 · The README quickstart was verified from this checkout, whose
+      editable install has files the wheel does not: `pip install verifiable-gates` then
+      `python -m verifiable_gates.install .` answered "the bundle is incomplete … refusing
+      to install", exit 1. Every transcript was real, every sentence was true here, and
+      every one of them was false for a reader.
+    held_by: reading
+    held_on: [pr/271, pr/274, pr/279, pr/310]
+    apply: >-
+      Before a document proposes a command, run it once from what the reader gets — the
+      published wheel in a fresh venv, the tag the hook fetches, the page the host renders
+      — and record the command, the output, the exit code, the date and the version beside
+      the work. A transcript in a document is that record: re-run it when the tool's output
+      moves. What cannot be run here is run as close as the tree allows, and the document
+      says which half was run.

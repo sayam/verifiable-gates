@@ -6,6 +6,22 @@ Notable changes to this project. The format follows
 
 ## [Unreleased]
 
+### Added
+
+- **The working carries an eleventh practice: `an-instruction-is-run-from-what-the-reader-gets`.**
+  A document's commands are run once from the artefact a reader will have — the published
+  wheel in a fresh venv, the tag the hook fetches, the page the host renders — before the
+  document proposes them, and a transcript in a page is that record, re-run when the tool's
+  output moves. It was a local rule from the day the v0.3.0 wheel could not run the README
+  it shipped with: every quickstart line was true in the checkout, whose editable install
+  has files the wheel does not, and false for everybody else. It enters the catalogue on
+  the same evidence every practice needs — the ledger entry that paid for it, and four pull
+  requests where it was applied and nothing had to be re-learned: the `npx` clause measured
+  from the pipe itself (#271), every README link fetched from the host that renders it, where
+  31 of 43 were 404 (#274), every command of the new auditing page run from a fresh clone with
+  its exit code (#279), and the doctor transcripts re-run and diffed before a documentation
+  change landed (#310).
+
 ## [0.6.0] - 2026-09-06
 
 A minor release about the seam this repository keeps failing at: the sentence that
