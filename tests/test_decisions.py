@@ -170,6 +170,7 @@ HELD = {
     # 2026-09-05: round 25 F3 — the cost is written where a reader meets the hook, not gated.
     "the-cost-is-stated-and-not-gated": "2027-02-28",
     "a-pin-says-nothing-about-which-version": "",
+    "workflow-triggers-are-zizmors-not-ours": "2027-02-28",
 }
 
 # The rows whose `expires when` is `Never` — an expiry rewritten to "Never" was

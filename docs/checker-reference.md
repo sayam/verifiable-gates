@@ -181,3 +181,25 @@ Reads the `.md` records and the `README.md` index under the ADR path (`adr_path`
 reports two records sharing a number as well as a gap, and a supersession recorded in
 one direction only. Records that exist with no `README.md` index is a finding; no ADR
 directory at all is `NA`.
+
+
+## What the nine deliberately do not decide
+
+A rule this bundle does not carry is worth as much to an adopter as one it does, if it says
+who does carry it. Measured 2026-09-06 by running each tool against a tree that breaks all
+nine rules above, one violation each — not by reading their documentation.
+
+| what you might expect here | who decides it | measured |
+|---|---|---|
+| `pull_request_target` and other triggers that run with your secrets against somebody else's code | **zizmor** | Its `dangerous-triggers` audit is exactly this. This catalogue publishes no rule for it and grows no scanner (`DECISIONS.md` `workflow-triggers-are-zizmors-not-ours`). |
+| an unpinned action | zizmor, **and** `actions-sha-pinned` here | zizmor answered `error[unpinned-uses]` at high confidence on the same file and line, with an auto-fix. If you run zizmor, you have this one twice. |
+| a debug console in an entrypoint | bandit `B201`, **partly** | It catches `app.run(debug=True)`. It missed `create_app().run(debug=True)` and every truthy default; `no-debug-entrypoint` catches all of them. |
+| the service layer importing HTTP | **import-linter**, if you configure it | It decides the same thing, after you write a `forbidden` contract naming the packages. `logic-knows-no-http` reads `scaffold.json`'s `services_path` and needs nothing written. |
+| an unpinned `pip install` in CI | nobody else that was run | zizmor's whole output mentioned `pip` zero times on a workflow whose `run:` was `pip install ruff`; checkov's 36 GitHub Actions checks all passed. |
+| an unpinned base image | nobody else that was run | checkov read the same Dockerfile and reported the missing `HEALTHCHECK` and `USER`, not `FROM python:3.12`. |
+
+`ruff --select ALL` on that tree found twelve things and none of them was one of the nine.
+
+Not run, and so not claimed: semgrep, actionlint, hadolint, trivy, CodeQL and OpenSSF
+Scorecard. Scorecard's `Pinned-Dependencies` is documented to read both action pins and pip
+installs, which would overlap two of the nine — read, not measured.
