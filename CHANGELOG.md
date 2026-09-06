@@ -6,6 +6,17 @@ Notable changes to this project. The format follows
 
 ## [Unreleased]
 
+### Changed
+
+- **Three releases were given their CHANGELOG section, and the register of exceptions is
+  empty.** v0.1.0, v0.1.6 and v0.1.7 carried hand-written announcements from before the rule
+  that a release body is the section it was cut from — 1.4–2 kB where the sections are
+  10–20 kB. Each was given its section with `gh release edit … --notes-file`, which started
+  no workflow and left Zenodo at nineteen versions, exactly as measured the day before. The
+  reader now holds **18 of 18** and excuses none; `BODY_PREDATES_THE_RULE` is kept but empty,
+  shrink-only, so that an entry appearing there has to be argued for in a pull request rather
+  than added quietly (#304).
+
 ### Added
 
 - **`verifiable_gates.release_body`: every release says what its CHANGELOG section says.** A

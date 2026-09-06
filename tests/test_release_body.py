@@ -165,9 +165,29 @@ def test_a_register_entry_that_is_not_a_release_is_a_finding(
     assert "v9.9.9 is in BODY_PREDATES_THE_RULE and is not a release here" in said
 
 
-def test_every_name_in_the_shipped_register_carries_a_reason() -> None:
-    """A register entry with no reason is a suppression."""
-    assert release_body.BODY_PREDATES_THE_RULE, "the register is empty — this test proves nothing"
+def test_the_shipped_register_is_empty() -> None:
+    """**Shrink only, and empty since 2026-09-06.** v0.1.0, v0.1.6 and v0.1.7 carried
+    hand-written announcements from before the rule; each was given its section that day.
+    An entry appearing here is a body somebody chose not to fix, and it should have to be
+    argued for in a pull request rather than added quietly."""
+    assert release_body.BODY_PREDATES_THE_RULE == {}, (
+        f"releases excused from saying what their section says: "
+        f"{sorted(release_body.BODY_PREDATES_THE_RULE)} — give each one its section with"
+        " `gh release edit <tag> --notes-file …`, or argue for the entry here"
+    )
+
+
+def test_a_name_in_the_register_must_be_a_version_with_a_reason(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The shape the register would have to keep if it ever filled again: a version tag and
+    a reason that says something. Held on a planted entry, because the shipped one is empty
+    and a test over nothing proves nothing."""
+    monkeypatch.setattr(
+        release_body,
+        "BODY_PREDATES_THE_RULE",
+        {"v0.1.0": "a hand-written announcement from before the rule"},
+    )
     for tag, why in release_body.BODY_PREDATES_THE_RULE.items():
         assert release_body.VERSION_TAG.match(tag), f"{tag} is not a version tag"
         assert len(why.split()) >= 4, f"{tag} is excused by {why!r}, which says nothing"
@@ -188,7 +208,9 @@ def test_every_release_matching_is_exit_zero_and_says_how_many(
     tmp_path: pathlib.Path, capsys: pytest.CaptureFixture[str]
 ) -> None:
     assert _run(tmp_path, CHANGELOG, both_match()) == 0
-    assert "every release says what its section says: 2 of 2 held" in capsys.readouterr().out
+    said = capsys.readouterr().out
+    assert "every release says what its section says: 2 of 2 held" in said
+    assert "predates" not in said, "with nothing excused the report should not mention it"
 
 
 def test_the_count_says_how_many_are_excused(
