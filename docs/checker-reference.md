@@ -74,8 +74,10 @@ carries; the project moves it there.
 ## gates-registry-total
 
 Reads `gates.yaml` (`gates_path`), the jobs of every workflow under
-`.github/workflows`, and the test files under `tests`. It reads its own direction
-too: a gate whose job cannot turn the build red — a workflow with no trigger,
+`.github/workflows`, and the test files under the tests path (`tests_path`). A
+`tests_path` the project **names** and does not have is a finding, like every other
+configured path; the default `tests`, absent and unnamed, is the quiet half. It
+reads its own direction too: a gate whose job cannot turn the build red — a workflow with no trigger,
 `if: false`, or `continue-on-error: true` — is a finding, because a row nothing can
 fail is a row and nothing else. Each of its findings names the file to open and the
 row to add or change, so the first line a stranger reads points at the second. On a
@@ -159,7 +161,15 @@ looked for.
 ## no-debug-entrypoint
 
 Reads the Python entrypoints `run.py`, `wsgi.py`, `app.py` and `main.py`
-(`entrypoints`), as an AST, for the call that can open a debug console.
+(`entrypoints`), as an AST, for the call that can open a debug console. Flask does
+`self.debug = bool(debug)` and hands werkzeug `use_debugger=self.debug`, so the
+spellings are one console: `run(debug=1)`, `run(use_debugger=True)`,
+`run(**{"debug": True})`, `app.debug = True` and `app.config["DEBUG"] = True`
+before the run. It also reads a truthy literal sitting in a **default** —
+`run(debug=os.environ.get("DEBUG", True))`, `os.getenv("DEBUG", 1)`,
+`... or True` — because that is a debug console on every machine where the
+variable is unset. A value with no literal in it, `debug=settings.DEBUG`, is
+unknown and is not a finding.
 
 ## logic-knows-no-http
 
