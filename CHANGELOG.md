@@ -19,6 +19,16 @@ Notable changes to this project. The format follows
   the right of an `or` — while any other computed expression stays unjudged, because
   `debug=settings.DEBUG` is how a well-run project spells it (#297).
 
+- **The offline promise now covers every file the bundle ships.** The test that says in its
+  own docstring that it holds the README's *"the bundle opens no network"* walked ten files.
+  The installer writes thirteen, and the one outside its reach, `preflight.py`, is the one
+  that imports `socket` — a 0.25 s connect to `127.0.0.1` to ask whether a local service is
+  up before running a step that needs it. Nothing left the machine, so the spirit held and
+  the sentence did not. The check now walks everything shipped, that one socket is named in a
+  permission held to a loopback address, and two guards were added because two mutations came
+  back green: narrowing the walked list, and padding the permission with names nobody needs.
+  Three documents that claimed more than was true now say what is (#298).
+
 ### Changed
 
 - **A new `DECISIONS.md` row: a pin says nothing about which version.** Round 27 told an agent
