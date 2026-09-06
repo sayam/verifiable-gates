@@ -37,6 +37,20 @@ Notable changes to this project. The format follows
 
 ### Added
 
+- **The five anti-moves are written down, and every holder they name is held.** The
+  2026-09-04 survey of what the gate, rule and action ecosystem has already paid for ended
+  with a table of pitfalls to close and one sentence, outside the table, naming five
+  strengths to keep. Rounds 22 to 28 closed every row of the table; the sentence under it
+  was still undone two days later, because work is tracked at the granularity of rows and a
+  commitment with no row is one nothing reports as open. `CONTRIBUTING.md` § "Anti-moves"
+  now names them — one record per project and no second dialect, a scanner with a pair of
+  trees of its own, two severities that something reads, an instruction file that points
+  rather than copies, a gate that carries the incident it caught — each with what would
+  trade it away and what holds it. The last column is the honest one: two of the five are
+  held by nothing but the row, and say so, because a page that claims a holder it does not
+  have is the failure this repository is about. `tests/test_anti_moves.py` holds the five in
+  order and every path and `DECISIONS.md` id they cite, in both directions (#306).
+
 - **`verifiable_gates.release_body`: every release says what its CHANGELOG section says.** A
   release body is the one part of a cut that lives entirely on the platform, and on
   2026-09-05 that cost a release — **v0.3.1 shipped with the body `v0.3.1`**, one word,

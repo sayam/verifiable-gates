@@ -4174,3 +4174,33 @@ gates:
           was green before this gate existed — red; a rule entry deleted outright, red; a
           practice id renamed, red; `released_tags` made to answer nothing, red in the guard
           that refuses a comparison over an empty list (round 25, F1).
+
+  - id: the-anti-moves-are-a-register-with-holders
+    title: Every anti-move CONTRIBUTING names is held to the file or decision that keeps it
+    kind: test
+    severity: blocking
+    enforced_by: {job: test, tests: [tests/test_anti_moves.py]}
+    layer: internal
+    pillar: manageability
+    portable: false
+    born_from: >-
+      The 2026-09-04 survey of what the gate, rule and action ecosystem has already paid for
+      ended with a table of pitfalls to close and one sentence, outside the table, naming five
+      strengths to keep — one record per project, a scanner with a pair of trees, two
+      severities that are read, instructions that point rather than copy, and a gate that
+      carries its incident. Rounds 22 to 28 closed every row of that table, and the sentence
+      under it was still undone two days later, because work is tracked at the granularity of
+      the rows: a commitment with no row is one nothing ever reports as open (re-measurement,
+      2026-09-06). The five are now a section of `CONTRIBUTING.md`, and this gate holds what a
+      machine can hold about it — the five in order, and every path and `DECISIONS.md` id the
+      page cites, in both directions, so a renamed test file cannot leave the page pointing at
+      nothing and a holder added to the page is one this register knows.
+    proved_by:
+      - kind: mutation
+        ref: pr/306
+        date: 2026-09-06
+        caught: >-
+          An anti-move deleted from the page, red; two of them swapped, red (the page is
+          walked in order, like the audit guide); a cited test path misspelt so the page
+          points at nothing, red; a holder cited on the page but not held here, red in the
+          check that reads the other direction.
