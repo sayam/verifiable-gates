@@ -102,5 +102,7 @@ submodule and the versioned dependency. A skill is instructions. The scanners ar
 still `pip install verifiable-gates` and `python -m verifiable_gates.install`,
 because a checker is not something to be handed an agent as prose. Neither pipe is
 this repository's, so what each does on the way is the pipe's to say. The bundle
-itself opens no network — no shipped file imports one, and
-`tests/test_checks_are_standalone.py` holds it.
+itself reaches nothing off the machine — of the thirteen files the installer writes,
+one imports a network module, and its socket asks whether a service is listening on
+`127.0.0.1`; `tests/test_checks_are_standalone.py` holds both halves, the twelve that
+may not and the one that may, together with the address it is held to.

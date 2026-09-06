@@ -130,7 +130,8 @@ hands a finding back to the agent while it still holds the file, and refuses not
 ## What the nine checkers decide
 
 Each of the nine stdlib-only checkers is one Python file under `tools/checks/`, run by
-the doctor or on its own; the bundle opens no network. `python3 tools/gates_doctor.py --rules` prints
+the doctor or on its own; nothing the bundle installs reaches off this machine (its one
+socket asks whether a service is listening on `127.0.0.1`). `python3 tools/gates_doctor.py --rules` prints
 this list off the installed bundle, with each rule's incident.
 
 | Rule id | What it catches | What it reads |
