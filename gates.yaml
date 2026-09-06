@@ -4204,3 +4204,33 @@ gates:
           walked in order, like the audit guide); a cited test path misspelt so the page
           points at nothing, red; a holder cited on the page but not held here, red in the
           check that reads the other direction.
+
+  - id: the-reference-says-what-a-pass-does-not-say
+    title: Every checker the bundle ships has a row saying what a green from it does not mean
+    kind: test
+    severity: blocking
+    enforced_by: {job: test, tests: [tests/test_checker_reference.py]}
+    layer: internal
+    pillar: devx
+    portable: false
+    born_from: >-
+      Round 22's second track asked which of the nine checkers measure *presence* — a file
+      exists, a row is there — and which read the thing itself, because the criticism that
+      lands on check suites is that presence is cheap to satisfy and cheap to fake, and a
+      suite that never says which kind a check is lets the two be read as one. The question
+      outlived every round meant to answer it: `docs/checker-reference.md` grew a table of
+      what each checker *reads* (round 22) and one of what each *overlaps* with other tools
+      (round 28), and neither is that question (re-measurement, 2026-09-06). The table that
+      answers it carries a second cell that is the more useful half — what a pass does **not**
+      say — and that cell is the one a tidy-up drops first, because no run reads it. So it is
+      read here: the nine rows are the nine rules that ship a scanner, in the page's own
+      section order, each with a caveat that is more than a shrug, and every `DECISIONS.md`
+      id the page cites is a row in the record.
+    proved_by:
+      - kind: mutation
+        ref: pr/307
+        date: 2026-09-06
+        caught: >-
+          A checker's row deleted from the table, red; the table reordered against the
+          sections a reader walks, red; a caveat emptied to a shrug, red; a cited
+          `DECISIONS.md` id misspelt, red.

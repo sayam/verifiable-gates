@@ -37,6 +37,20 @@ Notable changes to this project. The format follows
 
 ### Added
 
+- **The checker reference says what a pass does *not* say.** Round 22 asked which of the nine
+  measure presence — a file exists, a row is there — and which read the thing itself; the
+  criticism that lands on check suites is that presence is cheap to satisfy and cheap to fake,
+  and a suite that never says which kind a check is lets the two be read as one. The question
+  outlived every round meant to answer it: the page grew a table of what each checker *reads*
+  and one of what each *overlaps*, and neither is that. It now opens with the table that is:
+  one row per checker, what a finding is about — presence, content, or both — and beside it
+  the more useful half, what a green from it still does not tell you. That a digest is fixed
+  is not that the image is safe; that no template carries an inline handler is not that the
+  application sends a CSP header; that `session.delete` sits inside the declared purge path is
+  not that the deletes left alone were the right ones. `tests/test_checker_reference.py` holds
+  it against the catalogue, in both directions and in the page's own order, and refuses a
+  caveat that has been emptied to a shrug (#307).
+
 - **The five anti-moves are written down, and every holder they name is held.** The
   2026-09-04 survey of what the gate, rule and action ecosystem has already paid for ended
   with a table of pitfalls to close and one sentence, outside the table, naming five
