@@ -21,6 +21,17 @@ Notable changes to this project. The format follows
   31 of 43 were 404 (#274), every command of the new auditing page run from a fresh clone with
   its exit code (#279), and the doctor transcripts re-run and diffed before a documentation
   change landed (#310).
+- **And a twelfth: `a-release-is-verified-from-what-it-published`.** The other direction of
+  the same idea. A version of this project was attested, verified, uploaded and listed —
+  every automated step green — and could not run the quickstart it shipped with, because
+  nothing after the tag ever tried the documents against what the release had put on the
+  index. So after every tag the published artefact is installed into a fresh environment and
+  the documents' own commands are run from it, every link and image the rendering host shows
+  a reader is fetched, and the release notes are read back against the section they were cut
+  from; a red is a blocker for calling the release done, not a note for later. Its three
+  `held_on` refs are release runs rather than pull requests — the shape `run/N`, which the
+  validator has always accepted and which is the only ref a release-time practice can name:
+  v0.4.0, v0.5.0 and v0.6.0.
 
 ## [0.6.0] - 2026-09-06
 

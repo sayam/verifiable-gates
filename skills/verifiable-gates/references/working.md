@@ -151,3 +151,13 @@ not learnt yet.
 **Held by:** reading this line — nothing here refuses it for you
 
 **Apply:** Before a document proposes a command, run it once from what the reader gets — the published wheel in a fresh venv, the tag the hook fetches, the page the host renders — and record the command, the output, the exit code, the date and the version beside the work. A transcript in a document is that record: re-run it when the tool's output moves. What cannot be run here is run as close as the tree allows, and the document says which half was run.
+
+### `a-release-is-verified-from-what-it-published`
+
+**Practice:** A release is not finished until its own documents run from the artefacts it published
+
+**Born from:** L-0178 · 2026-09-05 · A version was attested, verified, uploaded and listed — every automated step green — and could not run the quickstart it shipped with. Nothing after the tag ever tried the documents against what the release had actually put on the index, so the first person to find out would have been a stranger.
+
+**Held by:** reading this line — nothing here refuses it for you
+
+**Apply:** After every tag, before the release is called done: install the published artefact into a fresh environment and run the documents' own commands from it; open the page each host renders and fetch every link and image it shows a reader; read the release notes back and compare them with the section they were cut from. A red here is a blocker, not a note — say so in the same breath as the release, and let the fix be the next change. Record what was run, what it answered, and what could not be run here.
