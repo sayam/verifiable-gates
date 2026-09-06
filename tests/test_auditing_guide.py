@@ -96,3 +96,56 @@ def test_every_command_the_guide_prints_names_something_that_is_here() -> None:
         path for path in named if not ((GUIDE.parent / path).exists() or (ROOT / path).exists())
     ]
     assert not absent, f"the guide names {absent}, which is not in the tree"
+
+
+# The numbers the guide's own table carries, each with the files that must still quote it.
+# A register, held both ways: a row added to the page and not here is a number nothing
+# checks; a number here that its document has stopped carrying is a citation gone stale.
+# `this page` in the table means the guide itself, which is where the third one was
+# published first.
+QUOTED: dict[str, tuple[str, ...]] = {
+    "one time in six": ("CHANGELOG.md",),
+    "**772**": ("CHANGELOG.md",),
+    "**627**": ("CHANGELOG.md",),
+    "none of 799 findings was wrong by the rule's text": (),
+}
+NUMBERS = "## The numbers this repository quotes about its own behaviour"
+# The number cell is bold in every row, which is also what tells a row from the header.
+NUMBER_ROW = re.compile(
+    r"^\| (?P<number>\*\*.+?) \| (?P<where>.+?) \| (?P<sample>.+?) \| (?P<caveat>.+?) \|$",
+    re.MULTILINE,
+)
+
+
+def numbers_table() -> list[re.Match[str]]:
+    text = GUIDE.read_text(encoding="utf-8")
+    assert NUMBERS in text, f"{NUMBERS!r} is gone from the guide — the section was renamed"
+    section = text.split(NUMBERS, 1)[1].split("\n## ", 1)[0]
+    return list(NUMBER_ROW.finditer(section))
+
+
+def test_every_number_the_guide_quotes_is_still_in_the_document_it_names() -> None:
+    """A number whose document has stopped carrying it is a citation to nothing — and the
+    document is where a reader goes to check the claim, not this table."""
+    section = "".join(row[0] for row in numbers_table())
+    for number, files in QUOTED.items():
+        assert number in section, f"the guide no longer quotes {number!r} — remove it here too"
+        for name in files:
+            assert number.strip("*") in (ROOT / name).read_text(encoding="utf-8"), (
+                f"{name} no longer carries {number!r}, which the guide says it quotes"
+            )
+
+
+def test_every_number_carries_its_sample_and_what_it_does_not_say() -> None:
+    """The sample is the first thing lost when a number travels, and the caveat is the
+    first cell a tidy-up empties, because nothing else reads either of them."""
+    rows = numbers_table()
+    assert len(rows) == len({row["number"] for row in rows}) == 3, (
+        f"the table has {len(rows)} rows — add the new one to QUOTED and to this count"
+    )
+    for row in rows:
+        assert len(row["sample"].strip()) > 40, f"{row['number'][:30]!r}: the sample is a shrug"
+        assert len(row["caveat"].strip()) > 40, f"{row['number'][:30]!r}: the caveat is a shrug"
+        assert re.search(r"\d{4}-\d{2}-\d{2}", row["sample"]), (
+            f"{row['number'][:30]!r}: the sample names no date — when was this measured?"
+        )

@@ -37,6 +37,20 @@ Notable changes to this project. The format follows
 
 ### Added
 
+- **A number this repository quotes about its own behaviour now carries its sample.** Two
+  rounds ended by stating their own limits — *one time in six* is one model, one task and five
+  runs an arm; the false-positive count is three trees in one afternoon — and both sentences
+  live where an outside reader never goes, while the numbers themselves travel in bold. The
+  audit guide gains a table: the number, the document that quotes it, what it was measured on
+  with a date, and what it does not say. One of the three is published there first — none of
+  799 findings on three trees was wrong by the rule's text, and the four *job defined twice*
+  lines that were never classified are named, so the count is 799 of 803. The counts of rules,
+  gates and checkers are deliberately not in it: they are read off the files by
+  `python -m verifiable_gates.own_numbers` and need no sample. `tests/test_auditing_guide.py`
+  holds each number to the document it cites and refuses a sample or a caveat emptied to a
+  shrug. The 0.5.0 section was left exactly as published — it is a release body, byte for
+  byte, and `verifiable_gates.release_body` holds all eighteen of them (#308).
+
 - **The checker reference says what a pass does *not* say.** Round 22 asked which of the nine
   measure presence — a file exists, a row is there — and which read the thing itself; the
   criticism that lands on check suites is that presence is cheap to satisfy and cheap to fake,
