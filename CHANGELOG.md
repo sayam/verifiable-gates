@@ -6,6 +6,19 @@ Notable changes to this project. The format follows
 
 ## [Unreleased]
 
+### Changed
+
+- **A new `DECISIONS.md` row, and the checker reference now says what the nine do not
+  decide.** `workflow-triggers-are-zizmors-not-ours`: this catalogue publishes no rule about
+  `pull_request_target` or any other trigger that runs with your secrets against somebody
+  else's code, and the bundle grows no scanner for it. Two reasons, one measured. The trap is
+  not ours, and a rule whose `born_from` is somebody else's news article is one nobody here
+  can say when to remove. And round 28 ran zizmor, ruff, bandit, checkov and import-linter
+  against a tree that breaks all nine rules: on the one workflow rule shared with zizmor, it
+  answered at high confidence on the same line with an auto-fix. `docs/checker-reference.md`
+  gains the table an adopter actually needs — what each of the nine overlaps, and the six that
+  no tool run there decided at all (#299).
+
 ### Fixed
 
 - **A truthy default is the debug console on.** `no-debug-entrypoint` promises that no
