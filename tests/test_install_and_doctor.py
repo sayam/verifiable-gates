@@ -3659,7 +3659,7 @@ def test_nothing_under_local_lands_unless_it_is_asked_for(
 
     assert not (project / ".local").exists()
     printed = capsys.readouterr().out
-    assert "this bundle also carries the working: 13 practices" in printed
+    assert "this bundle also carries the working: 14 practices" in printed
     assert "off here" in printed
     assert "--working" in printed, "a project that is not told cannot ask"
 
@@ -3677,7 +3677,7 @@ def test_the_flag_lands_the_two_files_and_asks_for_the_gitignore_line(
     assert not re.search(r"^## L-\d{4} — ", ledger, re.MULTILINE), "the ledger ships empty"
 
     printed = capsys.readouterr().out
-    assert "the working is on: 13 practices" in printed
+    assert "the working is on: 14 practices" in printed
     assert "Add `.local/` to .gitignore" in printed
     assert not (project / ".gitignore").exists(), "the installer wrote a file of their decisions"
 
@@ -3718,7 +3718,7 @@ def test_the_doctor_prints_the_practices_and_says_they_are_off(installed: pathli
     done = run_doctor(installed, "--working")
 
     assert done.returncode == 0, done.stderr
-    assert "The practices this bundle carries: 13. None is decided by a scanner." in done.stdout
+    assert "The practices this bundle carries: 14. None is decided by a scanner." in done.stdout
     assert "no-ai-trailers" in done.stdout
     assert "held by:   tool — lint_commits.py" in done.stdout
     assert "held by:   reading" in done.stdout

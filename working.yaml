@@ -253,3 +253,22 @@ practices:
       carriage returns the platform stores — without that fold a body that matches reports
       every line different, which is a check that cannot tell wrong from wrong line endings.
       Releases from before the convention go in a register that can only shrink.
+
+  - id: a-badge-is-somebody-elses-cache
+    layer: working
+    title: What a badge shows a reader is checked where the reader is, not at the badge's own source
+    born_from: >-
+      L-0197 · 2026-09-05 · An hour after a release was published the repository page still
+      showed the previous version's badge. The image host had the new one; the copy served
+      through the host's own image proxy was old, on a cache miss, and nothing in the
+      post-release check had ever asked what a reader is served rather than what the source
+      says.
+    held_by: reading
+    held_on: [run/34003278676, run/34013666112, run/34031741928]
+    apply: >-
+      After every release, fetch each badge through whatever proxy the page a reader opens
+      puts in front of it, and record what it says with its cache headers. Know which badges
+      should move and which are static, and know each one's window. Inside the window the
+      honest report names both answers — the source says the new version, the proxy is still
+      serving the old one, its window is N hours. **After** the window has passed, a stale
+      value is a finding and not a wait: it means the badge's own source is wrong.

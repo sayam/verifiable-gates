@@ -260,8 +260,10 @@ CEILING_LINES = {
     # New on 2026-09-04 with the sheet itself: ten practices, each with its lesson,
     # its holder and what to do. 170 → 180 on 2026-09-06: three practices promoted out
     # of the working rules of the project that writes them, the last of which is the
-    # thirteenth entry and the first to carry a checker of its own.
-    WORKING_SHEET: 180,
+    # thirteenth entry and the first to carry a checker of its own. 180 → 190 the same
+    # day: a fourteenth, about what a badge shows a reader — read the ceiling before the
+    # entry this time, which is what L-0229 asked for.
+    WORKING_SHEET: 190,
 }
 SLACK = 40
 
