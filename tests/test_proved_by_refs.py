@@ -1,4 +1,4 @@
-"""Every `proved_by.ref` resolved against the platform — on fakes; the live read is posture's cron.
+"""Every ref offered as evidence resolved against the platform — on fakes; the live read is a cron.
 
 Role: the offline half of the gate `proved-by-refs-resolve-on-the-platform`. Nothing here
 reaches GitHub: `gh.api` and `gh.run` are replaced with answers that say what the platform
@@ -41,6 +41,19 @@ def registry(tmp_path: pathlib.Path, refs: list[tuple[str, str]]) -> pathlib.Pat
     return path
 
 
+def working(tmp_path: pathlib.Path, held: list[tuple[str, list[str]]]) -> pathlib.Path:
+    """A working catalogue of practices, each with the refs it held on."""
+    rows = "".join(
+        f"  - id: {pid}\n    layer: working\n    title: t\n"
+        f"    born_from: L-0001 · 2026-09-05 · c\n    held_by: reading\n"
+        f"    held_on: [{', '.join(refs)}]\n    apply: a\n"
+        for pid, refs in held
+    )
+    path = tmp_path / "working.yaml"
+    path.write_text(f"version: 1\npractices:\n{rows}", encoding="utf-8")
+    return path
+
+
 # ---------------------------------------------------------------- the shapes
 
 
@@ -70,9 +83,49 @@ def test_every_ref_in_this_registry_has_a_shape_the_platform_can_be_asked_about(
     assert unaskable == []
 
 
-def test_collect_groups_the_gates_behind_each_distinct_ref(tmp_path: pathlib.Path) -> None:
+def test_collect_groups_what_cites_each_distinct_ref(tmp_path: pathlib.Path) -> None:
     path = registry(tmp_path, [("a", "pr/1"), ("b", "pr/1"), ("c", "run/9")])
-    assert proved_by_refs.collect(path) == {"pr/1": ["a", "b"], "run/9": ["c"]}
+    assert proved_by_refs.collect(path) == {"pr/1": ["gate a", "gate b"], "run/9": ["gate c"]}
+
+
+def test_a_practices_held_on_refs_are_collected_beside_the_gates(tmp_path: pathlib.Path) -> None:
+    """The gap this closes: `held_on` is held to its shape at test time and was resolved by
+    nothing, so a practice could name a run that never existed and stay green for ever."""
+    path = registry(tmp_path, [("a", "pr/1")])
+    sheet = working(tmp_path, [("p", ["pr/1", "run/9"]), ("q", ["run/9"])])
+    assert proved_by_refs.collect(path, sheet) == {
+        "pr/1": ["gate a", "practice p"],
+        "run/9": ["practice p", "practice q"],
+    }
+
+
+def test_a_citation_says_which_catalogue_to_go_and_fix(tmp_path: pathlib.Path) -> None:
+    """A bare id would send the reader to search both files; the prefix is the address."""
+    cited = proved_by_refs.collect(
+        registry(tmp_path, [("same-name", "pr/1")]),
+        working(tmp_path, [("same-name", ["pr/1"])]),
+    )
+    assert cited == {"pr/1": ["gate same-name", "practice same-name"]}
+
+
+def test_a_checkout_with_no_working_catalogue_is_answered_for_its_gates(
+    tmp_path: pathlib.Path,
+) -> None:
+    """A project that installed the bundle without `--working` has no such file, and the
+    resolver answers rather than refusing."""
+    path = registry(tmp_path, [("a", "pr/1")])
+    assert proved_by_refs.collect(path, tmp_path / "working.yaml") == {"pr/1": ["gate a"]}
+    assert proved_by_refs.collect(path, None) == {"pr/1": ["gate a"]}
+
+
+def test_every_held_on_ref_in_this_working_catalogue_can_be_asked_about() -> None:
+    """The same standing check the registry gets, on the other catalogue."""
+    cited = proved_by_refs.collect(ROOT / "gates.yaml", ROOT / "working.yaml")
+    held = [
+        text for text, citers in cited.items() if any(c.startswith("practice ") for c in citers)
+    ]
+    assert held, "the working catalogue cites no ref at all"
+    assert [text for text in held if proved_by_refs.parse(text).path is None] == []
 
 
 # ---------------------------------------------------------------- resolving one ref
@@ -170,11 +223,13 @@ def test_a_registry_where_everything_resolves_exits_zero_and_counts(
     tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
 ) -> None:
     registry(tmp_path, [("a", "pr/1"), ("b", "pr/1"), ("c", "run/9")])
+    working(tmp_path, [("p", ["pr/1", "run/9"])])
     monkeypatch.setattr(gh, "api", lambda _path: {})
     monkeypatch.setattr(gh, "run", lambda _args: "")
     assert proved_by_refs.main(["--root", str(tmp_path)]) == 0
     out = capsys.readouterr().out
-    assert "2 distinct refs across 3 rows" in out
+    assert "2 distinct refs across 5 citations" in out
+    assert "3 proved_by rows and 2 held_on refs" in out
     assert "1 of them runs" in out
 
 
@@ -192,7 +247,27 @@ def test_one_missing_ref_exits_one_and_names_the_gates_that_cite_it(
     assert proved_by_refs.main(["--root", str(tmp_path)]) == 1
     err = capsys.readouterr().err
     assert "FAIL pr/999999999: the platform answers 404" in err
-    assert "cited by: b, c" in err
+    assert "cited by: gate b, gate c" in err
+
+
+def test_a_held_on_ref_that_names_nothing_is_a_finding_against_its_practice(
+    tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """The whole point of the change: a practice's evidence is resolved like a gate's, and
+    the finding says which practice to go and fix."""
+    registry(tmp_path, [("a", "pr/1")])
+    working(tmp_path, [("a-practice-that-held", ["pr/1", "pr/999999999"])])
+
+    def api(path: str) -> object:
+        if path.endswith("/999999999"):
+            raise PermissionError("gh: Not Found (HTTP 404)")
+        return {}
+
+    monkeypatch.setattr(gh, "api", api)
+    assert proved_by_refs.main(["--root", str(tmp_path)]) == 1
+    err = capsys.readouterr().err
+    assert "FAIL pr/999999999: the platform answers 404" in err
+    assert "cited by: practice a-practice-that-held" in err
 
 
 def test_a_platform_that_cannot_be_asked_exits_two(
@@ -218,6 +293,17 @@ def test_an_unreadable_registry_exits_two(
     assert "cannot read" in capsys.readouterr().err
     (tmp_path / "gates.yaml").write_text("gates: [{id: a, proved_by: [{}]}]\n", encoding="utf-8")
     assert proved_by_refs.main(["--root", str(tmp_path)]) == 2
+
+
+def test_a_working_catalogue_that_cannot_be_read_is_exit_two_not_a_pass(
+    tmp_path: pathlib.Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """A catalogue whose refs could not be collected is "could not look", the same as a
+    platform that could not be asked — never a green answered from the gates alone."""
+    registry(tmp_path, [("a", "pr/1")])
+    (tmp_path / "working.yaml").write_text("version: 1\nnot-practices: []\n", encoding="utf-8")
+    assert proved_by_refs.main(["--root", str(tmp_path)]) == 2
+    assert "cannot read the catalogues" in capsys.readouterr().err
 
 
 def test_posture_runs_the_resolver_live_with_the_workflow_token() -> None:

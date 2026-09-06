@@ -91,15 +91,18 @@ Every row has a reason and an expiry condition; the row ids are copied into the 
 row added or removed without touching the test is red. A `revisit` date that has passed
 turns the suite red until somebody re-decides the row.
 
-### 5. `proved_by.ref` names where the red was seen, which may be the reference implementation
+### 5. A ref offered as evidence names where it was seen, and resolves on the platform
 
 ```bash
 python -m verifiable_gates.proved_by_refs      # needs the network and a GitHub token
 ```
 
-It resolves every ref against GitHub: a 404, a shape it cannot ask about, or a run whose
-log has expired is red. Then do it by hand, once — `gh pr view 274` — and read whether the
-pull request really shows the red the row claims.
+It resolves every ref against GitHub — a gate's `proved_by.ref` in `gates.yaml` **and a
+practice's `held_on` ref in `working.yaml`**, which say the same kind of thing: where the
+red was seen, and where the practice was applied. A 404, a shape it cannot ask about, or a
+run whose log has expired is red, and the finding names what cites the ref — `gate <id>` or
+`practice <id>`, because the two are fixed in different files. Then do it by hand, once —
+`gh pr view 274` — and read whether the pull request really shows the red the row claims.
 
 ### 6. `preflight --root` runs the workflow's `run:` steps in a local bash.
 

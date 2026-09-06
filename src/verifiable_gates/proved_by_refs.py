@@ -1,21 +1,27 @@
-"""Every `proved_by.ref` in the registry, resolved against the platform — read-only.
+"""Every ref this repository offers as evidence, resolved against the platform — read-only.
 
-`registry.py` holds a ref to its *shape* (`pr/N`, `run/N`, `commit/<hex>`, an
-`owner/repo#` prefix when the red was seen elsewhere), and the suite is held to
-no-network-at-test-time, so a ref that names nothing — `pr/999999999` — passed
-every test (filed three times by outside audits; RC-12). This module is the other
-half: it asks GitHub whether each distinct ref still points at something, and for a
-`run/N` whether its log can still be read — GitHub keeps run logs for a retention
-window and answers **410 Gone** after it, while the run's record stays. It runs from
-`posture.yml`, weekly and on every push to `main`, where the platform is already
-being asked; never from the test job.
+Two catalogues make the same kind of promise. A gate's `proved_by.ref` says where its
+red was seen; a practice's `held_on` ref in `working.yaml` says where it was applied and
+nothing had to be re-learned. Both are held to their *shape* at test time (`pr/N`,
+`run/N`, `commit/<hex>`, an `owner/repo#` prefix when it was seen elsewhere) by
+`registry.py` and `rules.py`, and the suite is held to no-network-at-test-time — so a ref
+that names nothing, `pr/999999999`, passed every test (filed three times by outside
+audits; RC-12). This module is the other half: it asks GitHub whether each distinct ref
+still points at something, and for a `run/N` whether its log can still be read — GitHub
+keeps run logs for a retention window and answers **410 Gone** after it, while the run's
+record stays. It runs from `posture.yml`, weekly and on every push to `main`, where the
+platform is already being asked; never from the test job.
+
+The working catalogue is optional: a project that installed the bundle without `--working`
+has no `working.yaml`, and the resolver answers for the gates alone rather than refusing.
 
 Three answers, as every decider here:
 
 - exit 0 — every distinct ref resolves and every run's log is readable;
 - exit 1 — a ref answers 404, has a shape this module cannot ask about, or is a run
-  whose log is gone: each is printed with the gates that cite it and what to do
-  (rewrite the ref to the `pr/N` that carries the same proof, or re-decide the row);
+  whose log is gone: each is printed with what cites it — `gate <id>`, `practice <id>` —
+  and what to do (rewrite the ref to the `pr/N` that carries the same proof, or re-decide
+  the row);
 - exit 2 — the platform could not be asked (no `gh`, no token, a timeout): "could
   not look" is not a pass.
 
@@ -65,13 +71,25 @@ def parse(text: str, default_repo: str = DEFAULT_REPO) -> Ref:
     return Ref(text, default_repo)
 
 
-def collect(registry: pathlib.Path) -> dict[str, list[str]]:
-    """Every distinct ref in the registry, with the ids of the gates that cite it."""
+def collect(registry: pathlib.Path, working: pathlib.Path | None = None) -> dict[str, list[str]]:
+    """Every distinct ref in the catalogues, with what cites each one.
+
+    A citation says which file it came from — `gate <id>` or `practice <id>` — because
+    the two are fixed in different places: a gate's ref is rewritten in `gates.yaml`, a
+    practice's in `working.yaml`, and a reader given a bare id would have to search both.
+    `working` may be None, or name a file that is not there: a project without the working
+    catalogue is answered for its gates.
+    """
     loaded = yaml.safe_load(registry.read_text(encoding="utf-8"))
     cited: dict[str, list[str]] = collections.defaultdict(list)
     for gate in loaded["gates"]:
         for row in gate.get("proved_by") or []:
-            cited[str(row["ref"])].append(str(gate["id"]))
+            cited[str(row["ref"])].append(f"gate {gate['id']}")
+    if working is not None and working.is_file():
+        practices = yaml.safe_load(working.read_text(encoding="utf-8"))["practices"]
+        for practice in practices:
+            for ref in practice.get("held_on") or []:
+                cited[str(ref)].append(f"practice {practice['id']}")
     return dict(cited)
 
 
@@ -137,16 +155,21 @@ def _report(findings: dict[str, str], cited: dict[str, list[str]]) -> None:
 def main(argv: list[str] | None = None) -> int:
     """Resolve every ref, print the findings, return the code."""
     parser = argparse.ArgumentParser(
-        description="Every proved_by.ref in gates.yaml, resolved against GitHub (read-only)."
+        description=(
+            "Every proved_by.ref in gates.yaml and every held_on ref in working.yaml,"
+            " resolved against GitHub (read-only)."
+        )
     )
     parser.add_argument("--root", default=".", help="the checkout (default: here)")
     parser.add_argument("--repo", default=DEFAULT_REPO, help="owner/repo a bare ref belongs to")
     args = parser.parse_args(argv)
     registry = pathlib.Path(args.root) / "gates.yaml"
+    working = pathlib.Path(args.root) / "working.yaml"
     try:
-        cited = collect(registry)
+        cited = collect(registry, working)
     except (OSError, KeyError, TypeError, yaml.YAMLError) as unreadable:
-        print(f"cannot read {registry}: {unreadable}", file=sys.stderr)
+        unreadable_file = registry if not registry.is_file() else "the catalogues"
+        print(f"cannot read {unreadable_file}: {unreadable}", file=sys.stderr)
         return 2
     findings: dict[str, str] = {}
     try:
@@ -160,10 +183,13 @@ def main(argv: list[str] | None = None) -> int:
     if findings:
         _report(findings, cited)
         return 1
-    rows = sum(len(gates) for gates in cited.values())
+    citations = [citer for citers in cited.values() for citer in citers]
+    proofs = sum(1 for citer in citations if citer.startswith("gate "))
+    holdings = len(citations) - proofs
     runs = sum(1 for text in cited if parse(text, args.repo).kind == "run")
     print(
-        f"every proved_by ref resolves: {len(cited)} distinct refs across {rows} rows,"
+        f"every ref resolves: {len(cited)} distinct refs across {len(citations)} citations"
+        f" — {proofs} proved_by rows and {holdings} held_on refs —"
         f" {runs} of them runs whose logs are still readable"
     )
     return 0
