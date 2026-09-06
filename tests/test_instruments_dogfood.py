@@ -875,7 +875,11 @@ def test_a_body_edit_reruns_the_checks_that_read_the_body() -> None:
 # 118 → 119 on 2026-09-04: one `ANN401` in `tests/test_working_catalogue.py`, for the
 # `**overrides` that builds a practice with one field replaced — the same shape, and the
 # same reason, as the one `tests/test_rules_catalogue.py` already carries.
-SUPPRESSED_LINES = 126  # every one with a reason; a new one moves this number, visibly
+# 126 → 128 on 2026-09-06: two `S603`, for the one question a scanner asks of another
+# program — `git check-ignore`, so that the sweep for a Dockerfile nobody named stops
+# reporting the vendored copies a project's own git ignores — and for the git the test
+# of that needs to build a repository with an opinion.
+SUPPRESSED_LINES = 128  # every one with a reason; a new one moves this number, visibly
 
 
 def test_every_job_in_our_own_workflows_declares_a_time_budget() -> None:

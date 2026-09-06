@@ -379,7 +379,7 @@ a theory) · **Enforced in the reference** (how one project enforces it today).
 
 **Maps to:** `scorecard:Pinned-Dependencies`
 
-**Reads:** the FROM lines of the root Dockerfile (scaffold.json dockerfiles), and .github/dependabot.yml for a docker ecosystem
+**Reads:** the FROM lines of the root Dockerfile (scaffold.json dockerfiles), .github/dependabot.yml for a docker ecosystem, and — when the project named no Dockerfile — every Dockerfile* in the tree that git does not ignore
 
 ### `ci-tools-hash-pinned`
 

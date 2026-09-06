@@ -73,7 +73,7 @@
     "image-digest-pinned": {
       "kind": "scan",
       "script": "checks/scan_dockerfile_digest.py",
-      "reads": "the FROM lines of the root Dockerfile (scaffold.json dockerfiles), and .github/dependabot.yml for a docker ecosystem",
+      "reads": "the FROM lines of the root Dockerfile (scaffold.json dockerfiles), .github/dependabot.yml for a docker ecosystem, and — when the project named no Dockerfile — every Dockerfile* in the tree that git does not ignore",
       "title": "The base image is pinned to a manifest-index digest and Dependabot moves it",
       "layer": "baseline",
       "born_from": "Pinning with nobody to move it freezes the vulnerabilities in place — the two must always arrive together, and the test enforces that the pair is not separated."
