@@ -236,6 +236,28 @@ walks `lint` and `test` as CI would, and `python -m verifiable_gates.harness
   its docstring; `tests/test_roles.py` holds it.
 - Vulnerabilities: see [`SECURITY.md`](SECURITY.md).
 
+## Anti-moves — the five things this repository will not trade away
+
+The rules above say what is done. These five say what is *not* done. Each is a strength
+that shows up only as an absence — no second configuration file, no third severity, no
+rule without a test — and an absence is the first thing a tidy-up removes, because
+nothing goes red when it does. They come out of the survey of what the gate, rule and
+action ecosystem has already paid for (`.local`-side rounds 22–28, 2026-09-04 →
+2026-09-06): every one is something another tool traded away and came to regret. The
+last column is the honest one — where nothing but this row holds an anti-move, it says
+so, and a row held by nothing is a row a reviewer has to argue with rather than a test.
+
+| what stays | what would trade it away | what holds it |
+|---|---|---|
+| **One record per project, and no second dialect.** A project says everything in `scaffold.json` and `gates.yaml`; the bundle reads no file of its own invention. | The next question that needs an answer per project — a waiver, a baseline, an exclude list — arriving as its own file with its own syntax. RuboCop, ESLint and Bandit each grew a second dialect that way, and an adopter learns three. | `DECISIONS.md` `rules-are-read-off-the-installed-bundle`. Mechanically: nothing refuses a second file. The last time the question was live, `waivers:` went **into** `scaffold.json` (`tests/test_install_and_doctor.py`), and that is the precedent this row keeps. |
+| **A rule the bundle decides has a scanner, and the scanner has a pair of trees of its own.** One that breaks the rule, one that keeps it, and a third answer for a tree with nothing to check. | A rule added to the catalogue with `script:` pointing at a scanner nobody showed a violation to — green from birth, which is the failure this project exists to name. | `tests/test_checks_behaviour.py` (the pair, per scanner) and `tests/test_scan_coverage.py` (a run that passed while reading less than it claimed). |
+| **Two severities, and something reads each of them: `blocking` and `watched`.** | A third word for "we would like this, but not enough to fail" — `warning`, `info`, `advisory`. It was in the vocabulary once, read by no scan, no doctor and no census, and a gate marked with it was as red as `blocking`. | `src/verifiable_gates/registry.py` (`SEVERITIES`, a closed vocabulary) and `tests/test_registry.py` — `warning` is refused by name, and `watched` without a `watched_by` is refused too. |
+| **An instruction file points at the installed bundle; it never copies what the bundle says.** | The convenience of pasting the nine rules into `AGENTS.md` so an agent needs one file fewer. The copy is right on the day it is written and silently wrong on the day the bundle moves. | `DECISIONS.md` `agent-instructions-point-and-do-not-copy` and `rules-are-read-off-the-installed-bundle`; the bundle ships no rules file, which `tests/test_manifest.py` holds. Mechanically: nothing refuses a copy pasted into an instruction file. |
+| **A gate arrives carrying the incident it caught, and the list of gates allowed to lack one only shrinks.** | A gate written for a rule nobody has seen broken, with `proved_by` left off "for now" — the register grows a name, then another, and the evidence becomes optional in practice while staying required on paper. | `tests/test_gate_evidence.py` (`UNPROVED`, empty since 2026-08-29 and shrink-only), `tests/test_proved_by_refs.py`, and `posture.yml` weekly, which resolves every ref on the platform. |
+
+`tests/test_anti_moves.py` holds this table: the five in this order, every path and every
+`DECISIONS.md` id the last column names, and the sentence a row uses when nothing holds it.
+
 ## Running everything locally
 
 ```bash
