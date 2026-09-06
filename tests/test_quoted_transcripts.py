@@ -29,6 +29,7 @@ that was never wrong.
 from __future__ import annotations
 
 import collections
+import json
 import pathlib
 import re
 from typing import NamedTuple
@@ -59,6 +60,10 @@ NA = re.compile(r"^\[\s*NA\] (?P<id>[a-z0-9-]+) —.*?— this rule reads (?P<te
 HEADING = re.compile(r"^(?P<id>[a-z0-9-]+) \[(?:baseline|business)\]\s*$")
 FIELD = re.compile(r"^\s{2,}(?P<key>rule|reads|born from):\s+(?P<text>.+?)\s*$")
 FIELD_TO_KEY = {"rule": "title", "reads": "reads", "born from": "born_from"}
+# The installer's two lines, which quote counts rather than sentences: how many gates the
+# bundle installs, how many of them a scanner decides, and how many practices it carries.
+INSTALLED = re.compile(r"^installed into .+ — (?P<gates>\d+) gates \((?P<scan>\d+) scan\)")
+CARRIES = re.compile(r"^this bundle also carries the working: (?P<practices>\d+) practices")
 
 
 class Quotation(NamedTuple):
@@ -105,6 +110,17 @@ def quotations() -> list[Quotation]:
     return found
 
 
+def counted_in_the_bundle() -> dict[str, int]:
+    """What the installer would print: the gates in the shipped overlay, and the practices."""
+    overlay = json.loads((ROOT / "src" / "verifiable_gates" / "overlay.json").read_text("utf-8"))
+    practices = yaml.safe_load((ROOT / "working.yaml").read_text("utf-8"))["practices"]
+    return {
+        "gates": len(overlay["gates"]),
+        "scan": sum(1 for gate in overlay["gates"].values() if gate.get("kind") == "scan"),
+        "practices": len(practices),
+    }
+
+
 def catalogue() -> dict[str, dict[str, object]]:
     return {r["id"]: r for r in yaml.safe_load((ROOT / "rules.yaml").read_text("utf-8"))["rules"]}
 
@@ -149,6 +165,31 @@ def test_every_quoted_sentence_is_the_one_the_catalogue_carries() -> None:
     assert not drifted, (
         "a document quotes a sentence the catalogue no longer carries:\n" + "\n".join(drifted)
     )
+
+
+def test_the_counts_the_install_transcript_shows_are_the_counts_the_bundle_installs() -> None:
+    """A number in a transcript ages the same way a sentence does, and reads as measured.
+
+    The quickstart shows what `python -m verifiable_gates.install .` prints, counts and all.
+    Nothing held them: `own_numbers` holds the counts the prose quotes, and these two lines
+    are output, not prose — so a tenth practice or a tenth scanner would leave both READMEs
+    showing the old number in the one place a reader is most likely to copy from.
+    """
+    truth = counted_in_the_bundle()
+    seen = 0
+    for path in documents():
+        for line in path.read_text(encoding="utf-8").splitlines():
+            installed = INSTALLED.match(line)
+            carries = CARRIES.match(line)
+            if installed:
+                seen += 1
+                assert int(installed["gates"]) == truth["gates"], f"{path.name}: {line}"
+                assert int(installed["scan"]) == truth["scan"], f"{path.name}: {line}"
+            if carries:
+                seen += 1
+                assert int(carries["practices"]) == truth["practices"], f"{path.name}: {line}"
+
+    assert seen == 4, f"the install transcript appears {seen} times, not four — READMEs, both lines"
 
 
 def test_every_rule_a_document_quotes_is_a_rule_that_exists() -> None:
