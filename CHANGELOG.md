@@ -6,6 +6,27 @@ Notable changes to this project. The format follows
 
 ## [Unreleased]
 
+## [0.5.0] - 2026-09-06
+
+A minor release, and all of it comes from four audit rounds that stopped asking whether this
+repository is right and started asking what it is like to be on the other end of it. Day one
+on a real brownfield is **772 findings**, 627 of them one gate's, and the only way through
+was silent — so this cut adds the way to say **"not yet"** that the record keeps: `waivers:`
+in `scaffold.json`, with a reason, an expiry and a name, printed on every run, red when it
+expires, refused when a field is missing, and carried into the SARIF as a suppression with
+the sentence attached. Beside it, four rules that answered `pass` when they should not have:
+a `tests_path` you named and do not have was silence, a `debug=` that falls back to a truthy
+default was a clean bill, `preflight` ran `python3 -m pip install` **into the environment you
+were standing in** while printing that it would not, and the test that claimed to hold *"the
+bundle opens no network"* had never looked at the one file that imports a socket. Then the
+measurements that priced our own sentences rather than repeating them: a rule held only by
+reading moved an agent's behaviour **one time in six** while a rule a tool decides moved it
+every time; of the nine the bundle decides, **six** are not a repackaging of anything an
+adopter already runs. `warning` is retired, because a severity nothing reads is a softness
+nobody delivers. Every SARIF result now carries a fingerprint that survives an edit above it.
+And the question an adopter asks first has an answer at last: `GOVERNANCE.md` — one
+maintainer, no promise about how long, and what survives if that stops.
+
 ### Added
 
 - **`GOVERNANCE.md`: one maintainer, and no promise about how long.** Round 28 asked the
@@ -3442,7 +3463,8 @@ order it happened.
 - **`gates.yaml`, deliberately empty.** This repository will not list a gate
   before the thing that enforces it exists.
 
-[Unreleased]: https://github.com/sayam/verifiable-gates/compare/v0.4.0...HEAD
+[Unreleased]: https://github.com/sayam/verifiable-gates/compare/v0.5.0...HEAD
+[0.5.0]: https://github.com/sayam/verifiable-gates/releases/tag/v0.5.0
 [0.4.0]: https://github.com/sayam/verifiable-gates/releases/tag/v0.4.0
 [0.3.1]: https://github.com/sayam/verifiable-gates/releases/tag/v0.3.1
 [0.3.0]: https://github.com/sayam/verifiable-gates/releases/tag/v0.3.0
