@@ -69,6 +69,17 @@ def test_a_prefixed_ref_names_its_own_repository() -> None:
     assert ref.path == "repos/sayam/flask-todolist/pulls/151"
 
 
+def test_a_bare_number_is_the_shape_a_document_uses() -> None:
+    """`#316` is how prose points at something, and `document_refs` hands it here. GitHub
+    numbers issues and pull requests in one sequence, so the issues endpoint answers for
+    both — while `issue/7` stays unaskable, because an issue is not evidence a gate cites."""
+    ref = proved_by_refs.parse("#316")
+    assert (ref.repo, ref.kind, ref.number) == (REPO, "number", "316")
+    assert ref.path == f"repos/{REPO}/issues/316"
+    other = proved_by_refs.parse("sayam/flask-todolist#225")
+    assert other.path == "repos/sayam/flask-todolist/issues/225"
+
+
 def test_runs_and_commits_have_paths_and_an_unknown_shape_has_none() -> None:
     assert proved_by_refs.parse("run/33244862480").path == f"repos/{REPO}/actions/runs/33244862480"
     assert proved_by_refs.parse("commit/e20fd24").path == f"repos/{REPO}/commits/e20fd24"

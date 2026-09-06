@@ -879,7 +879,10 @@ def test_a_body_edit_reruns_the_checks_that_read_the_body() -> None:
 # program — `git check-ignore`, so that the sweep for a Dockerfile nobody named stops
 # reporting the vendored copies a project's own git ignores — and for the git the test
 # of that needs to build a repository with an opinion.
-SUPPRESSED_LINES = 128  # every one with a reason; a new one moves this number, visibly
+# 128 → 129 on 2026-09-06: one `S603` in `tests/test_document_refs.py`, for the git that
+# builds the little repository the document reader is pointed at — the reader asks git what
+# a project tracks, so its test needs a project git has an opinion about.
+SUPPRESSED_LINES = 129  # every one with a reason; a new one moves this number, visibly
 
 
 def test_every_job_in_our_own_workflows_declares_a_time_budget() -> None:
@@ -980,6 +983,7 @@ RUFF_OFF_PER_FILE = {
     "src/verifiable_gates/proved_by_refs.py": ("T201",),
     "src/verifiable_gates/marketplace.py": ("T201",),
     "src/verifiable_gates/release_body.py": ("T201",),
+    "src/verifiable_gates/document_refs.py": ("T201",),
     "tests/**": ("INP001", "PLR2004", "S101"),
 }
 

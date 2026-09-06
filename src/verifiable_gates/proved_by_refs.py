@@ -15,6 +15,10 @@ platform is already being asked; never from the test job.
 The working catalogue is optional: a project that installed the bundle without `--working`
 has no `working.yaml`, and the resolver answers for the gates alone rather than refusing.
 
+The ref shapes live here, and one of them belongs to nobody's catalogue: `#N`, how a
+document points at a pull request, parsed for `document_refs` so that both readers agree on
+what a ref is and where it is asked about.
+
 Three answers, as every decider here:
 
 - exit 0 — every distinct ref resolves and every run's log is readable;
@@ -54,6 +58,12 @@ class Ref:
         target, _, rest = text.rpartition("#")
         self.repo = target or default_repo
         self.kind, _, self.number = rest.partition("/")
+        if not self.number and rest.isdigit():
+            # `#316` — how a document points at something, and the shape `document_refs`
+            # hands over. GitHub numbers issues and pull requests in one sequence, so the
+            # issues endpoint answers for both; `issue/7` stays a shape nobody can ask
+            # about, because an issue is not evidence a gate may cite.
+            self.kind, self.number = "number", rest
 
     @property
     def path(self) -> str | None:
@@ -64,6 +74,8 @@ class Ref:
             return f"repos/{self.repo}/actions/runs/{self.number}"
         if self.kind == "commit":
             return f"repos/{self.repo}/commits/{self.number}"
+        if self.kind == "number":
+            return f"repos/{self.repo}/issues/{self.number}"
         return None
 
 

@@ -114,6 +114,17 @@ jobs:
         run: python -m verifiable_gates.proved_by_refs --root .
         env:
           GH_TOKEN: ${{ github.token }}
+      # The prose half of the same promise. `CHANGELOG.md` alone points at more than a
+      # hundred pull requests — *this is where it happened, go and read it* — and nothing
+      # held them: no shape check, no resolution, nothing to notice a typo, a renumbering
+      # or a pull request that is not there any more (#318). Code spans and fenced blocks
+      # are not prose and are skipped; the four numbers deleted at the owner's request in
+      # the 2026-09-04 orphan purge are a register in the reader, held both ways.
+      - name: every number a document points at still opens
+        if: ${{ !cancelled() }}
+        run: python -m verifiable_gates.document_refs --root .
+        env:
+          GH_TOKEN: ${{ github.token }}
       # The two categories of the Marketplace listing are set on a release form, by a
       # person, and no API writes them. On 2026-09-05 the owner opened the form and found
       # them the other way round from the runbook that listed the action — and nothing here

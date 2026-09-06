@@ -29,6 +29,22 @@ Notable changes to this project. The format follows
 
 ### Added
 
+- **`verifiable_gates.document_refs`: every number a document points at is opened on the
+  platform, weekly.** The catalogues' refs are resolved — a gate's `proved_by.ref` since
+  0.6.0, a practice's `held_on` as of this release — and the prose was not, though it makes
+  the same claim: `CHANGELOG.md` alone points at more than a hundred pull requests, each one
+  saying *this is where it happened, go and read it*, with nothing to notice a typo, a
+  renumbering, or a pull request that is not there any more. Measured the day it was
+  written: **112 distinct numbers across 39 tracked documents, 108 of which open**. The four
+  that do not are the pull requests GitHub Support deleted at the owner's request in the
+  orphan purge of 2026-09-04 — a register in the reader, held both ways, so a number that
+  opens again and a number no document points at are each a finding. Code is not prose: a
+  fenced block and a code span are stripped before the scan, because `echo "step #1"` and
+  `&#10;` are in this repository's own documents and a check that reported them is one
+  nobody keeps; `*.py` is not read at all, because thirteen such numbers live in the suite
+  and four of them are invented fixtures. New gate
+  `a-number-a-document-points-at-opens`; a step of `posture.yml` beside the other readers.
+
 - **The working carries an eleventh practice: `an-instruction-is-run-from-what-the-reader-gets`.**
   A document's commands are run once from the artefact a reader will have — the published
   wheel in a fresh venv, the tag the hook fetches, the page the host renders — before the
