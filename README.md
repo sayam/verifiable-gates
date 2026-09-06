@@ -29,7 +29,7 @@ python -m verifiable_gates.install .     # writes tools/, scaffold.json, gates.y
 python3 tools/gates_doctor.py            # runs the checkers the project now holds
 ```
 
-What the two commands printed, in an empty git repository (2026-09-05, v0.3.0; the
+What the two commands printed, in an empty git repository (re-run 2026-09-06, v0.5.0+4; the
 install line's absolute path is shortened to `<your-project>`):
 
 ```text
@@ -44,7 +44,7 @@ $ python3 tools/gates_doctor.py
 [   NA] csp-no-inline — no app/templates — this rule reads .html, .htm, .jinja, .jinja2 and .j2 templates under app/templates (scaffold.json templates_path)
 [   NA] delete-means-soft-delete — no app — this rule reads Python modules under app (scaffold.json src_path) — session.delete calls outside the purge_paths
 [ pass] gates-registry-total
-[   NA] image-digest-pinned — no Dockerfile — this rule reads the FROM lines of the root Dockerfile (scaffold.json dockerfiles), and .github/dependabot.yml for a docker ecosystem
+[   NA] image-digest-pinned — no Dockerfile — this rule reads the FROM lines of the root Dockerfile (scaffold.json dockerfiles), .github/dependabot.yml for a docker ecosystem, and — when the project named no Dockerfile — every Dockerfile* in the tree that git does not ignore
 [   NA] logic-knows-no-http — no app/services — this rule reads Python modules under app/services (scaffold.json services_path) — their imports, for request-side symbols
 [   NA] no-debug-entrypoint — no entrypoint — this rule reads the Python entrypoints run.py, wsgi.py, app.py and main.py (scaffold.json entrypoints), as an AST
 

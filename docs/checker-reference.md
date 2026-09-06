@@ -3,7 +3,7 @@
 One section per checker the bundle ships, in the order the doctor prints them. What
 each *reads* is a field of its rule in `rules.yaml` (`reads:`) and is printed by
 `python3 tools/gates_doctor.py --rules` off the installed bundle; that command is the
-authority, and the transcript below is what it printed on 2026-09-05 (v0.3.0). The
+authority, and the transcript below is what it printed on 2026-09-06 (v0.5.0+4). The
 sections after it hold what the README used to carry about how each checker parses
 what it reads.
 
@@ -49,7 +49,7 @@ image-digest-pinned [baseline]
   rule:       The base image is pinned to a manifest-index digest and Dependabot moves it
   born from:  Pinning with nobody to move it freezes the vulnerabilities in place — the two must always arrive together, and the test enforces that the pair is not separated.
   decided by: tools/checks/scan_dockerfile_digest.py
-  reads:      the FROM lines of the root Dockerfile (scaffold.json dockerfiles), and .github/dependabot.yml for a docker ecosystem
+  reads:      the FROM lines of the root Dockerfile (scaffold.json dockerfiles), .github/dependabot.yml for a docker ecosystem, and — when the project named no Dockerfile — every Dockerfile* in the tree that git does not ignore
 logic-knows-no-http [baseline]
   rule:       All logic lives in the service layer and knows nothing about HTTP
   born from:  Phase 3 — logic buried in routes makes the HTML and the API diverge the instant a second adapter exists · an AST scan forbids services importing anything from the request side.
@@ -174,7 +174,9 @@ Reads the `FROM` lines of the root Dockerfile (`dockerfiles`) and
 `.github/dependabot.yml` for a `docker` ecosystem. A base image pinned with nobody to
 move it freezes the vulnerabilities in place, so the digest and the Dependabot entry
 must arrive together. A `Dockerfile*` the project has but never named in
-`scaffold.json` is a finding, not "no Dockerfile".
+`scaffold.json` is a finding, not "no Dockerfile" — unless the project's own git
+ignores it, which is how a vendored copy under `node_modules/` stays somebody
+else's file (`DECISIONS.md` `the-sweep-asks-git-what-is-not-yours`).
 
 ## csp-no-inline
 

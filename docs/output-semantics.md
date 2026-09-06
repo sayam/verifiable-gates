@@ -31,7 +31,7 @@ findings or `[error]`, **2** misuse — two questions asked at once, two roots, 
 | A finding a waiver covers — `waivers: [{gate, reason, until, decided_by, scope?}]` in `scaffold.json` | `[waived]`, and `waived: N findings under M waivers` on every run that declares one | Not silence: the count is printed on a green run too, a waiver that excused nothing is told so, and the SARIF keeps the result with the reason as its suppression. |
 | A waiver past its `until`, or missing a field, naming a scan the bundle does not run, or a scope that leads outside | finding under the doctor's own `waivers`, and it excuses nothing | A waiver with no reason is `# noqa`; one with no `until` is permanent; one nobody signed is nobody's. The tool never learned to write any of those. |
 | A `scaffold.json` key no scanner reads — `templates_pth` for `templates_path` | finding, naming the nearest key the bundle does read | Every scanner would answer from its default while the project pointed elsewhere (measured 2026-09-05, round 23). |
-| A `Dockerfile*` the project has but never named in `scaffold.json` | finding | Not "no Dockerfile": the file is there and unjudged. |
+| A `Dockerfile*` the project has but never named in `scaffold.json`, and that git does not ignore | finding | Not "no Dockerfile": the file is there and unjudged. One the project ignores is not its own (`DECISIONS.md` `the-sweep-asks-git-what-is-not-yours`). |
 | A directory that is *there* and holds no file of the kind a checker reads — an `app/` of Go, a templates directory of `.ejs` | `NA`, naming what it looked for | Not a pass: nothing was read. |
 | A scan that crashes | `[error]`, stderr passed through | Never `[found]`: a tool that crashed has judged nothing. Still red — an outside audit on 2026-08-30 fed a malformed config and saw `[found]` seven times with the tracebacks swallowed. |
 | A scan that hangs past its timeout | `[error]` | Same (the doctor tracebacked with `TimeoutExpired`, outside audit 2026-08-31). |
@@ -46,7 +46,7 @@ findings or `[error]`, **2** misuse — two questions asked at once, two roots, 
 
 The run from the README, in full: an empty repository that installed the bundle and
 then gained one workflow, `lint.yml`, with `uses: actions/checkout@v4` and
-`run: pip install ruff` (2026-09-05, v0.3.0). The third finding is the new job itself,
+`run: pip install ruff` (re-run 2026-09-06, v0.5.0+4). The third finding is the new job itself,
 which has no row in `gates.yaml`:
 
 ```text
@@ -63,7 +63,7 @@ ci-tools-hash-pinned: .github/workflows/lint.yml: pip install ruff
 [found] gates-registry-total — The gate index matches reality in both directions, and every test file is accounted for
   born from: semgrep was scanning only 71 of 136 files because its scope was declared in two places — an index nothing holds to reality is an index that quietly reports things that are not true · audit round 7 added another field (`guards:` — ADR 0062): a gate that is expensive and has never caught anything has to be able to say *which path* it earns its keep on, or the question "is it still worth it" is answered by feel every time.
 gates-registry-total: job with no gate in the index: lint — add a row to gates.yaml: id, title, kind: job, severity, enforced_by: {job: lint}
-[   NA] image-digest-pinned — no Dockerfile — this rule reads the FROM lines of the root Dockerfile (scaffold.json dockerfiles), and .github/dependabot.yml for a docker ecosystem
+[   NA] image-digest-pinned — no Dockerfile — this rule reads the FROM lines of the root Dockerfile (scaffold.json dockerfiles), .github/dependabot.yml for a docker ecosystem, and — when the project named no Dockerfile — every Dockerfile* in the tree that git does not ignore
 [   NA] logic-knows-no-http — no app/services — this rule reads Python modules under app/services (scaffold.json services_path) — their imports, for request-side symbols
 [   NA] no-debug-entrypoint — no entrypoint — this rule reads the Python entrypoints run.py, wsgi.py, app.py and main.py (scaffold.json entrypoints), as an AST
 
