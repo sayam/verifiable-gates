@@ -56,6 +56,14 @@ Notable changes to this project. The format follows
   and can be different releases, and nothing shipped checks that they agree. The row says so,
   says why a checker would have to leave the project to try, and names the condition that would
   change the answer.
+- **A decision row: `framework-inline-expressions-are-not-read`.** `csp-no-inline` reads what a
+  browser's `'unsafe-inline'` governs — an inline script, a `style=`, a `javascript:` URI, a
+  native `on*=` handler. The attribute families a framework evaluates for itself, from Vue,
+  Alpine and htmx, are an `'unsafe-eval'` matter and are not read: twenty-one spellings, taken
+  from those projects' own documentation, were measured against the shipped scanner and every
+  one passes. The row says so, says why the attribute alone cannot decide it — the same six
+  characters are Vue's shorthand and Alpine's, and Alpine ships a build in which they evaluate
+  nothing — and names the condition that would change the answer.
 ### Changed
 
 - **`write-scanner-reads-session-delete` says what the scanner now reads.** The row recorded that
