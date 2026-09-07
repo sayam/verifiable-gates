@@ -6,8 +6,13 @@ globs); everywhere else has to be a soft delete. This matches the ORM's
 `.delete(key)` is not the removal of somebody's data — dogfooding against the
 reference implementation caught that false positive.
 
-The deeper cases (bulk operations, Core DML, raw SQL) belong to the project's own
-test suite. This scan is the first layer, not the only one.
+Round 31 (2026-09-07) added the shapes a real project uses that this could not see: a
+session bound on its own line (`s = db.session` then `s.delete(obj)`), SQLAlchemy 2.0's
+`session.execute(delete(Model))`, and the 1.x bulk delete without its
+`synchronize_session` marker. Raw SQL in `text("DELETE FROM …")`, a session that arrives
+as the return of a call, and one reached through `getattr` are still the project's own
+test suite's, and `DECISIONS.md write-scanner-reads-session-delete` measures both what
+this reads and what it lets through. This scan is the first layer, not the only one.
 
 It reads code, not prose: comments and string literals — a docstring that says
 "never call session.delete( here" — are blanked before the match, and the session

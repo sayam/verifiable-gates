@@ -143,7 +143,7 @@ this list off the installed bundle, with each rule's incident.
 | [`csp-no-inline`](https://github.com/sayam/verifiable-gates/blob/main/docs/checker-reference.md#csp-no-inline) | Inline script, style or handler in a template | `.html`, `.htm`, `.jinja`, `.jinja2`, `.j2` under the templates path |
 | [`no-debug-entrypoint`](https://github.com/sayam/verifiable-gates/blob/main/docs/checker-reference.md#no-debug-entrypoint) | An entrypoint that can open a debug console, including one whose `debug=` falls back to a truthy default | `run.py`, `wsgi.py`, `app.py`, `main.py`, as an AST |
 | [`logic-knows-no-http`](https://github.com/sayam/verifiable-gates/blob/main/docs/checker-reference.md#logic-knows-no-http) | A service module importing from the request side | Python modules under the services path, their imports |
-| [`delete-means-soft-delete`](https://github.com/sayam/verifiable-gates/blob/main/docs/checker-reference.md#delete-means-soft-delete) | A `session.delete` outside the one purge path (layer `business`) | Python modules under the source path |
+| [`delete-means-soft-delete`](https://github.com/sayam/verifiable-gates/blob/main/docs/checker-reference.md#delete-means-soft-delete) | A hard delete — `session.delete`, a session bound to a local name, either bulk form — outside the declared purge paths (layer `business`) | Python modules under the source path |
 | [`adr-index-complete`](https://github.com/sayam/verifiable-gates/blob/main/docs/checker-reference.md#adr-index-complete) | An ADR missing from the index, a repeated or skipped number, a supersession recorded one way | `.md` records and the `README.md` index under the ADR path |
 
 The paths are the defaults `scaffold.json` carries; the project moves them there.

@@ -6,13 +6,19 @@ regex**, because these files like to explain in a comment or docstring why they 
 *not* set `debug=True` — the same characters, the opposite meaning. Dogfooding
 against the reference implementation caught that false positive on day one.
 
-`debug=True` is one spelling of five. Flask's `run()` does `self.debug = bool(debug)`
+`debug=True` is one spelling of nine. Flask's `run()` does `self.debug = bool(debug)`
 and hands werkzeug `use_debugger=self.debug`, so `debug=1`, `app.debug = True` before
 the run, `app.config["DEBUG"] = True`, `run(use_debugger=True)` and `run(**{"debug":
 True})` all open the same console — and all five passed a scanner that read only the
-literal keyword (self-audit, 2026-08-31, each proved live against Flask 3.1.3). Every
-spelling with a real constant behind it is judged; a value computed at runtime is not,
-because a scanner that guesses at `os.environ` is a scanner that lies.
+literal keyword (self-audit, 2026-08-31, each proved live against Flask 3.1.3). Round 31
+(2026-09-07) added the four this one still could not see, every one from ordinary code:
+`app.config.update(DEBUG=True)` and `.from_mapping(...)`, which is how the Flask
+documentation writes it; `setattr(app, "debug", True)`, the same write spelled as a
+call; and a mapping bound to a literal and then splatted, `opts = {"debug": True}`
+followed by `app.run(**opts)`. Every spelling with a real constant behind it is judged;
+a value computed at runtime is not, because a scanner that guesses at `os.environ` is a
+scanner that lies — and neither is a name the file says two things about, one bound
+twice or changed after binding (`DECISIONS.md a-computed-debug-switch-is-not-read`).
 
 exit 0 = clean or N/A · 1 = findings · 2 = called wrongly
 
