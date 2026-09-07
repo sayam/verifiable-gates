@@ -9,6 +9,7 @@ had been proved on fixtures and never asked about this tree.
 from __future__ import annotations
 
 import fnmatch
+import hashlib
 import json
 import os
 import pathlib
@@ -294,6 +295,98 @@ def test_the_secret_scan_runs_a_checksummed_binary_over_the_whole_history() -> N
     assert "gitleaks_8.30.1_linux_x64.tar.gz" in fetch["run"]
     assert "--exit-code 1" in scan["run"]
     assert "--redact" in scan["run"], "a found secret must not be printed into the log"
+
+
+# A stand-in for curl that answers the way the runner's would in three situations, chosen by
+# an environment variable, and that honours `--fail` the way curl does: with it an HTTP error
+# writes nothing and exits 22; without it the error body lands in the file, where only the
+# digest notices. `run/34133643603` (2026-09-07) was that second case — a checksum that matched
+# upstream's own published digest an hour later, with nothing in the log to say so.
+FAKE_CURL = """#!/bin/sh
+dest=""
+fail=""
+while [ $# -gt 0 ]; do
+  case "$1" in
+    --fail) fail=yes ;;
+    -o) dest="$2"; shift ;;
+  esac
+  shift
+done
+case "$FAKE_CURL_MODE" in
+  ok) cp "$FAKE_CURL_BODY" "$dest" ;;
+  truncated) head -c 64 "$FAKE_CURL_BODY" > "$dest" ;;
+  server-error)
+    if [ -n "$fail" ]; then
+      echo "curl: (22) The requested URL returned error: 502" >&2
+      exit 22
+    fi
+    printf '<html>502 Bad Gateway</html>' > "$dest" ;;
+esac
+"""
+
+
+def _fetch_step_run() -> str:
+    """The `run:` block of the step that fetches the binary, as the runner would get it."""
+    steps = preflight.jobs_on_disk(ROOT)["secret-scan"]["steps"]
+    return str(next(s for s in steps if "sha256sum -c" in str(s.get("run")))["run"])
+
+
+def _fetch_under(tmp_path: pathlib.Path, mode: str) -> subprocess.CompletedProcess[str]:
+    """Run that block in a throwaway directory, with a tarball standing in for the release."""
+    home = tmp_path / mode
+    (home / "bin").mkdir(parents=True)
+    (home / "bin" / "curl").write_text(FAKE_CURL, encoding="utf-8")
+    (home / "bin" / "curl").chmod(0o755)
+    (home / "gitleaks").write_text("#!/bin/sh\necho gitleaks\n", encoding="utf-8")
+    body = home / "release.tar.gz"
+    subprocess.run(  # noqa: S603 — argv is built here; tar from PATH, as the runner has it
+        ["tar", "-czf", str(body), "-C", str(home), "gitleaks"],  # noqa: S607 — tar from PATH
+        check=True,
+    )
+    (home / "gitleaks").unlink()
+    digest = hashlib.sha256(body.read_bytes()).hexdigest()
+    block = _fetch_step_run().replace(
+        "551f6fc83ea457d62a0d98237cbad105af8d557003051f41f3e7ca7b3f2470eb", digest
+    )
+    return subprocess.run(  # noqa: S603 — the step's own block, under bash from PATH
+        ["bash", "-c", block],  # noqa: S607 — bash from PATH, as the runner finds it
+        cwd=home,
+        check=False,
+        capture_output=True,
+        text=True,
+        env={
+            "PATH": f"{home / 'bin'}:/usr/bin:/bin",
+            "FAKE_CURL_MODE": mode,
+            "FAKE_CURL_BODY": str(body),
+        },
+    )
+
+
+def test_the_fetch_says_which_failure_it_caught(tmp_path: pathlib.Path) -> None:
+    """A pinned digest catches a tampered artefact and a transfer that died halfway, and used
+    to report them identically — which is the red somebody re-runs instead of reading. The
+    three arms are the three things that can happen at that step."""
+    good = _fetch_under(tmp_path, "ok")
+    assert good.returncode == 0, good.stderr
+    assert (tmp_path / "ok" / "gitleaks").exists(), "the binary is what the step is for"
+
+    half = _fetch_under(tmp_path, "truncated")
+    assert half.returncode == 1, half.stdout + half.stderr
+    said = half.stdout + half.stderr
+    assert "what arrived:" in said, said
+    assert "bytes, sha256" in said, said
+    assert "expected:" in said, said
+
+    # `--fail` is the half a message cannot give: an error page never reaches the file, so the
+    # step stops at curl and never reports a digest mismatch for something that is not the
+    # artefact at all.
+    refused = _fetch_under(tmp_path, "server-error")
+    assert refused.returncode != 0
+    assert "what arrived:" not in refused.stdout + refused.stderr, refused.stdout
+
+    # The retry cannot be observed through a stand-in — curl does it inside itself — so it is
+    # held by the text of the block, which is the honest half of this check.
+    assert "--retry 3" in _fetch_step_run()
 
 
 # ---------------------------------------------------------------- the release workflow
@@ -882,7 +975,11 @@ def test_a_body_edit_reruns_the_checks_that_read_the_body() -> None:
 # 128 → 129 on 2026-09-06: one `S603` in `tests/test_document_refs.py`, for the git that
 # builds the little repository the document reader is pointed at — the reader asks git what
 # a project tracks, so its test needs a project git has an opinion about.
-SUPPRESSED_LINES = 129  # every one with a reason; a new one moves this number, visibly
+# 129 -> 133 on 2026-09-07: four in `tests/test_instruments_dogfood.py` itself, for the two
+# calls the fetch-step arms need — a `tar` that builds the tarball standing in for the
+# release, and the `bash` that runs the step's own block, each naming its interpreter and
+# its argv here.
+SUPPRESSED_LINES = 133  # every one with a reason; a new one moves this number, visibly
 
 
 def test_every_job_in_our_own_workflows_declares_a_time_budget() -> None:

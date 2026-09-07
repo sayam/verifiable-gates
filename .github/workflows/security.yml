@@ -59,12 +59,25 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
+      # `--fail` so an HTTP error body is never written to the file, and a retry because a
+      # transfer that died halfway and a substituted binary failed this step identically:
+      # run/34133643603 (2026-09-07) was red on a checksum that matched upstream's own
+      # published digest an hour later, and nothing in the log said which of the two it was.
       - name: fetch gitleaks 8.30.1 and verify its checksum
         run: |
           set -euo pipefail
-          curl -sSL -o gitleaks.tar.gz \
-            https://github.com/gitleaks/gitleaks/releases/download/v8.30.1/gitleaks_8.30.1_linux_x64.tar.gz
-          echo "551f6fc83ea457d62a0d98237cbad105af8d557003051f41f3e7ca7b3f2470eb  gitleaks.tar.gz" | sha256sum -c -
+          url=https://github.com/gitleaks/gitleaks/releases/download/v8.30.1/gitleaks_8.30.1_linux_x64.tar.gz
+          expected=551f6fc83ea457d62a0d98237cbad105af8d557003051f41f3e7ca7b3f2470eb
+          curl --fail --location --show-error --silent \
+            --retry 3 --retry-all-errors --retry-delay 2 \
+            -o gitleaks.tar.gz "$url"
+          if ! echo "$expected  gitleaks.tar.gz" | sha256sum -c -; then
+            echo "what arrived: $(stat -c%s gitleaks.tar.gz) bytes, sha256 $(sha256sum gitleaks.tar.gz | cut -d' ' -f1)"
+            echo "expected:     sha256 $expected (the size is not pinned here; read it off the release)"
+            echo "from:         $url"
+            echo "A wrong size is a transfer that did not finish; the right size with a wrong digest is the artefact itself. Check the digest against the release's own gitleaks_8.30.1_checksums.txt before re-running (DECISIONS.md: gitleaks-pinned-by-our-checksum)."
+            exit 1
+          fi
           tar -xzf gitleaks.tar.gz gitleaks
       - name: no secret in any commit of the history
         run: ./gitleaks git --no-banner --redact --exit-code 1 .

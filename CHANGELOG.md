@@ -89,6 +89,15 @@ Notable changes to this project. The format follows
   nothing — and names the condition that would change the answer.
 ### Changed
 
+- **The secret-scan fetch says which failure it caught.** A pinned digest catches a substituted
+  artefact and a transfer that died halfway, and this step reported them identically: on
+  2026-09-07 it went red on a checksum that matched upstream's own published digest an hour later
+  — a bad download, and nothing in the log said so. `curl` now runs with `--fail` (an HTTP error
+  body never reaches the file) and retries, and a mismatch prints what arrived, its digest, and
+  the digest that was expected, with the sentence that tells the two apart. Held by three arms run
+  through `bash` against the step's own block with a stand-in for `curl` — a good tarball, a
+  truncated one, and a 502 — and four mutations, all red.
+
 - **The scaffold-key register reads syntax, not text.** The test that holds
   `gates_doctor.SCAFFOLD_KEYS` equal to what the shipped files actually read found those reads by
   grepping each file for `config, "<key>"`. A docstring explaining a scanner — one that spelled
