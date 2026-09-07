@@ -3,7 +3,7 @@
 One section per checker the bundle ships, in the order the doctor prints them. What
 each *reads* is a field of its rule in `rules.yaml` (`reads:`) and is printed by
 `python3 tools/gates_doctor.py --rules` off the installed bundle; that command is the
-authority, and the transcript below is what it printed on 2026-09-06 (v0.5.0+4). The
+authority, and the transcript below is what it printed on 2026-09-07 (v0.8.0+10). The
 sections after it hold what the README used to carry about how each checker parses
 what it reads.
 
@@ -87,10 +87,10 @@ sections below already do, said in one place.
 | `actions-sha-pinned` | **content**: every `uses:` in every workflow and composite action, read as a line | that the commit pinned is one you want. A pin says nothing about which version (`DECISIONS.md` `a-pin-says-nothing-about-which-version`) — an agent once pinned `@v4` to the SHA of v7.0.1, truthfully labelled |
 | `ci-tools-hash-pinned` | **content**: every install line in a workflow, a composite action, or a script a `run:` hands off to | that the lock or hash resolves to something safe, nor that tools arriving another way — a container image, the runner's pre-installed set — are pinned at all |
 | `image-digest-pinned` | **content** (the `FROM` and `COPY --from` lines) **and presence** (a `docker` ecosystem in `.github/dependabot.yml`; a `Dockerfile*` the project never named and git does not ignore) | that the image is free of vulnerabilities. A digest fixes *which* image you get, and the Dependabot half is there because a pin nobody moves freezes what it pinned |
-| `csp-no-inline` | **content**: every template under the templates path, read the way a browser reads one | that the application sends a Content-Security-Policy header, or that it holds at run time. Nothing here makes a request |
+| `csp-no-inline` | **content**: every template under the templates path, read the way a browser reads one — the surface `'unsafe-inline'` governs | that the application sends a Content-Security-Policy header, or that it holds at run time. Nothing here makes a request, and the attribute families a framework evaluates for itself are an `'unsafe-eval'` matter it does not read (`DECISIONS.md` `framework-inline-expressions-are-not-read`) |
 | `no-debug-entrypoint` | **content**: the named entrypoints, as an AST | that no debug console can be opened another way — a framework default, a server flag, a value this scanner cannot see (`debug=settings.DEBUG` is unknown, and unknown is not a finding) |
 | `logic-knows-no-http` | **content**: the imports of the modules under the services path | that the layer is free of request-shaped coupling. A function handed the request object as an argument imports nothing and passes |
-| `delete-means-soft-delete` | **content**: `session.delete` calls outside the declared purge paths | that the deletes it left alone are the right ones. The purge path is a declaration, and this scanner reads the declaration |
+| `delete-means-soft-delete` | **content**: the hard-delete shapes — `session.delete`, a session bound to a local name, and the two bulk deletes — outside the declared purge paths | that the deletes it left alone are the right ones. The purge path is a declaration, and this scanner reads the declaration. It reads shapes, not types, so what that admits and what it still misses are both in `DECISIONS.md` `write-scanner-reads-session-delete` |
 | `adr-index-complete` | **presence and consistency**: records against the index, both ways | that a decision was ever recorded. A decision nobody wrote down has no record to be missing from — which is why `DECISIONS.md` is a register with a test, not a directory nobody has to fill |
 
 Two things follow from the table. **A pass is about what the scanner read**, and every one
@@ -137,7 +137,7 @@ judged: a `name:` or an `env:` that quotes the command is prose.
 | `pip install …` | `--no-index` · a wheel installed with `--no-deps` | fetch nothing |
 | `pipx install …`, `uv tool install`, `uv tool run`, `uv add`, `uvx`, `uv run --with`, `poetry add`, `pdm add`, `pipenv install` | `uv run --locked`, `uv sync --locked`, `uv build` | install from a lock |
 | `pip wheel`, `python -m build` | held to `--no-build-isolation` | both build in an isolated environment that fetches |
-| `npm install`, `npm exec`, `npx`, `yarn add`, `pnpm add`, `pnpm dlx` | `npm ci`, `yarn install --immutable`, `pnpm install --frozen-lockfile` — install from a lock · `npx --no`, `npm exec --no`, `pnpm exec` — run the installed copy and refuse to fetch | |
+| `npm install`, `npm exec`, `npx`, `yarn add`, `yarn global add`, `yarn dlx`, `pnpm add`, `pnpm dlx` | `npm ci`, `yarn install --immutable`, `pnpm install --frozen-lockfile` — install from a lock · `npx --no`, `npm exec --no`, `pnpm exec`, `yarn exec` — run the installed copy and refuse to fetch | |
 
 A Node finding says what replaces that line — `npm ci` for `npm install`,
 `npx --no <tool>` for `npx <tool>` — and names the lock it needs, or says to commit one
@@ -188,6 +188,15 @@ an attribute value decoded before the scheme is read (`&#106;avascript:`). A tem
 directory that holds no file of these kinds — `.ejs`, say — is `NA` naming what it
 looked for.
 
+What it reads is the surface a browser's own policy governs, which is the half
+`'unsafe-inline'` allows. The attribute families a JavaScript framework evaluates for
+itself — Vue's `v-on:` and `@`, Alpine's `x-on:` and `x-data`, htmx's `hx-on:` and the
+`js:` values of `hx-vals` — are an `'unsafe-eval'` matter and are **not** read: twenty-one
+such spellings pass. The same six characters are Vue's shorthand and Alpine's, and Alpine
+ships a build in which they evaluate nothing, so the attribute alone cannot decide it
+(`DECISIONS.md` `framework-inline-expressions-are-not-read`, which names the mitigation and
+the condition that would change the answer).
+
 ## no-debug-entrypoint
 
 Reads the Python entrypoints `run.py`, `wsgi.py`, `app.py` and `main.py`
@@ -195,25 +204,65 @@ Reads the Python entrypoints `run.py`, `wsgi.py`, `app.py` and `main.py`
 `self.debug = bool(debug)` and hands werkzeug `use_debugger=self.debug`, so the
 spellings are one console: `run(debug=1)`, `run(use_debugger=True)`,
 `run(**{"debug": True})`, `app.debug = True` and `app.config["DEBUG"] = True`
-before the run. It also reads a truthy literal sitting in a **default** —
+before the run. Flask's config is set by a method as often as by a subscript, so
+`app.config.update(DEBUG=True)` and `app.config.from_mapping({"DEBUG": True})` are the
+same switch and are read; so is `setattr(app, "debug", True)`, which is
+`app.debug = True` spelled as a call. A mapping the file binds to a literal once and
+then splats — `opts = {"debug": True}` followed by `app.run(**opts)` — is resolved to
+that literal. It also reads a truthy literal sitting in a **default** —
 `run(debug=os.environ.get("DEBUG", True))`, `os.getenv("DEBUG", 1)`,
 `... or True` — because that is a debug console on every machine where the
-variable is unset. A value with no literal in it, `debug=settings.DEBUG`, is
-unknown and is not a finding.
+variable is unset.
+
+A value with no literal in it, `debug=settings.DEBUG`, is unknown and is not a finding.
+Neither is a name the file says two things about: one bound more than once, or one
+**changed after it was bound** — a key written or deleted, the name augmented in place,
+or `.update(`, `.setdefault(`, `.pop(`, `.popitem(` or `.clear(` called on it. That
+refusal is what keeps `opts = {"debug": True}` followed by `opts["debug"] = False` off
+the report, and it costs the other direction: `opts = {}` then `opts["debug"] = True` is
+missed. Both are in `DECISIONS.md` `a-computed-debug-switch-is-not-read`, with the
+mitigation an adopter can take.
 
 ## logic-knows-no-http
 
 Reads the Python modules under the services path (`services_path`), their imports,
-for request-side symbols. An `app/` of Go is `NA` naming what it looked for, not a
-pass.
+for request-side symbols. The symbol arrives by more roads than
+`from flask import request`: `import flask` then `flask.request`, `from flask import *`,
+`from flask.globals import request`, `import flask.globals as fg` then `fg.request`,
+`import flask.globals` — which binds `flask`, not the dotted name — then
+`flask.request`, and `from flask import globals [as g]` then `g.request`. A module
+fetched at run time by `importlib.import_module("flask")` or `__import__("flask")` is
+read, used on the spot or bound to a name, and so is the attribute spelled as a string,
+`getattr(flask, "request")`. Werkzeug's own request side counts
+(`werkzeug.wrappers`, `.local`, `.exceptions`, `.routing`) and `werkzeug.security` does
+not; `current_app` is allowed, being bound to the application rather than to a request.
+**Not read**, because neither is in the file: a module name computed at run time, and a
+request-side symbol re-exported by a module of the project's own. An `app/` of Go is
+`NA` naming what it looked for, not a pass.
 
 ## delete-means-soft-delete
 
 Layer `business`: a choice this kind of application makes and may decide differently
 — in `scaffold.json` and `gates.yaml`, where the decision is on the record — never by
 working around the scanner. Reads the Python modules under the source path
-(`src_path`) for `session.delete` calls outside the `purge_paths`
-(`DECISIONS.md` `write-scanner-reads-session-delete`).
+(`src_path`) — `.py` and `.pyw`, which is a module Windows runs without a console — for
+hard deletes outside the `purge_paths`, with comments and string literals blanked first.
+
+It reads them by the **shape of the line**, not by resolving names: `session.delete(`
+with or without a prefix (`db_session.delete(`), a session bound on its own line
+(`s = db.session` then `s.delete(obj)`), SQLAlchemy 2.0's construct
+(`session.execute(delete(Model))`, by a name this file bound to `delete`, or any
+`delete(` inside an `.execute(`), and the 1.x bulk delete by `query` in the receiver
+chain of `.delete(` — with or without its `synchronize_session` marker. A `purge_paths`
+glob is matched **segment by segment**, so a `*` stops at a separator and `app/*`
+exempts the modules directly under `app/` rather than every module beneath it.
+
+Reading shapes instead of types has a price in both directions, and
+`DECISIONS.md` `write-scanner-reads-session-delete` measures both: what it admits (an
+attribute literally named `session`, a name bound from any call whose text contains
+`query(`, any `.delete(` inside an `.execute(`) and what it still does not see (a
+session or query returned by a call, one rebound, one reached through `getattr`, a bare
+`.query` attribute bound to a name, and raw SQL inside `text(...)`).
 
 ## adr-index-complete
 
@@ -221,6 +270,20 @@ Reads the `.md` records and the `README.md` index under the ADR path (`adr_path`
 reports two records sharing a number as well as a gap, and a supersession recorded in
 one direction only. Records that exist with no `README.md` index is a finding; no ADR
 directory at all is `NA`.
+
+The index is read with **fenced code blocks and HTML comments blanked out**: a fence
+shows a reader what an entry looks like and a comment is an entry somebody took out, and
+counting either as a listing made a record missing from the real index read as present.
+Newlines are kept, so every line number still means what it meant. An indented block is
+not blanked — four spaces before `- [0002](…)` is how a nested list is written.
+
+A supersession is a **field at the head of a line**, behind whitespace, bold markers, a
+list marker or a table pipe — the metadata bullet several ADR templates use, MADR among
+them. Written as prose it is not read, because a claim read from English makes
+`Note: this does not supersede 0001` a finding (`DECISIONS.md`
+`a-supersession-is-a-field-not-a-sentence`). A numbered list marker is deliberately not
+one of the leads: `1.` before a field is a numbered record, and reading it would make
+the ordinal look like the number.
 
 
 ## What the nine deliberately do not decide

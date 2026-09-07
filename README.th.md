@@ -123,7 +123,7 @@ action อยู่บน [GitHub Marketplace](https://github.com/marketplace/ac
 | [`csp-no-inline`](https://github.com/sayam/verifiable-gates/blob/main/docs/checker-reference.md#csp-no-inline) | script · style · handler แบบ inline ใน template | `.html` `.htm` `.jinja` `.jinja2` `.j2` ใต้พาธ template |
 | [`no-debug-entrypoint`](https://github.com/sayam/verifiable-gates/blob/main/docs/checker-reference.md#no-debug-entrypoint) | entrypoint ที่เปิด debug console ได้ รวมถึงตัวที่ `debug=` ตกกลับไปเป็นค่าตั้งต้นที่เป็นจริง | `run.py` `wsgi.py` `app.py` `main.py` อ่านเป็น AST |
 | [`logic-knows-no-http`](https://github.com/sayam/verifiable-gates/blob/main/docs/checker-reference.md#logic-knows-no-http) | โมดูล service ที่ import จากฝั่ง request | โมดูล Python ใต้พาธ services · import ของมัน |
-| [`delete-means-soft-delete`](https://github.com/sayam/verifiable-gates/blob/main/docs/checker-reference.md#delete-means-soft-delete) | `session.delete` นอกทาง purge ทางเดียว (layer `business`) | โมดูล Python ใต้พาธ source |
+| [`delete-means-soft-delete`](https://github.com/sayam/verifiable-gates/blob/main/docs/checker-reference.md#delete-means-soft-delete) | การลบจริง — `session.delete`, session ที่ผูกกับชื่อในเครื่อง, bulk delete ทั้งสองแบบ — นอกพาธ purge ที่ประกาศไว้ (layer `business`) | โมดูล Python ใต้พาธ source |
 | [`adr-index-complete`](https://github.com/sayam/verifiable-gates/blob/main/docs/checker-reference.md#adr-index-complete) | ADR ที่หายจาก index · เลขซ้ำหรือขาด · supersession ที่จดทางเดียว | บันทึก `.md` และ index `README.md` ใต้พาธ ADR |
 
 พาธในตารางคือค่าเริ่มต้นที่ `scaffold.json` พกมา โปรเจกต์ย้ายมันได้ที่นั่น

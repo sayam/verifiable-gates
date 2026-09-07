@@ -46,7 +46,7 @@ findings or `[error]`, **2** misuse — two questions asked at once, two roots, 
 
 The run from the README, in full: an empty repository that installed the bundle and
 then gained one workflow, `lint.yml`, with `uses: actions/checkout@v4` and
-`run: pip install ruff` (re-run 2026-09-06, v0.5.0+4). The third finding is the new job itself,
+`run: pip install ruff` (re-run 2026-09-07, v0.8.0+10). The third finding is the new job itself,
 which has no row in `gates.yaml`:
 
 ```text
@@ -76,6 +76,15 @@ A finding carries two lines above the scanner's own — `[found] <gate> — <rul
 `born from: <incident>` — read off the installed manifest. Off a bundle the installed
 record no longer vouches for (below), it carries the gate alone and one line saying
 why; the scanner's findings are printed either way.
+
+The scanner's own line is `<rule>: <file>:<line>: <what was decided>`, and the last part
+is **what the scanner decided, not a quotation of the source line**. On the roads where
+a scanner resolves something, the two differ: a mapping bound above and splatted prints
+`.run(**{'debug': True})`, so grepping the file for the printed text finds nothing. The
+line number is still the line a fix belongs on, and `scan_write_discipline` prints the
+source line because everything it decides is on it. Carrying both was weighed and
+refused — the finding line is a format people and other tools have read since v0.1.0
+(`DECISIONS.md` `a-finding-prints-what-was-decided`).
 
 ## `--installed`: the record of what was installed
 
