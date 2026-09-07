@@ -598,10 +598,12 @@ def _report_found(
     split: tuple[list[str], dict[Waiver, list[str]]],
     entry: dict[str, Any],
     unheld: list[str],
+    excused_by: dict[int, int],
 ) -> tuple[list[str], list[Outcome]]:
     """Print what a scan found, less what a waiver covers: the gate as failed (or not),
     and the outcomes for the SARIF — the live lines under the gate, the excused ones
-    under each waiver that covers them."""
+    under each waiver that covers them. What each waiver excused is counted **here**,
+    into `excused_by` by the waiver's ordinal, where the waiver is still in hand."""
     live, excused = split
     outcomes: list[Outcome] = []
     if live:
@@ -611,27 +613,40 @@ def _report_found(
         for waiver, lines in excused.items():
             print(f"  waived: {_plural(len(lines), 'finding')} under the waiver {waiver.terms}")
     else:
-        ((waiver, lines),) = excused.items()
-        print(f"[waived] {gid} — {_plural(len(lines), 'finding')} under the waiver {waiver.terms}")
+        # One waiver, or several with a scope each: a gate two scoped waivers cover between
+        # them unpacked as one and died of a ValueError, the same day fix 3 was measured.
+        under = [
+            f"{_plural(len(lines), 'finding')} under the waiver {waiver.terms}"
+            for waiver, lines in excused.items()
+        ]
+        print(f"[waived] {gid} — {' · '.join(under)}")
     outcomes += [(gid, "waived", lines, waiver.justification) for waiver, lines in excused.items()]
+    for waiver, lines in excused.items():
+        excused_by[waiver.ordinal] = excused_by.get(waiver.ordinal, 0) + len(lines)
     return [gid] if live else [], outcomes
 
 
-def _report_waivers(waivers: list[Waiver], outcomes: list[Outcome]) -> None:
+def _report_waivers(waivers: list[Waiver], excused_by: dict[int, int]) -> None:
     """Every run that declares a waiver says what it excused — a reader of a green run
-    sees the count too, and a waiver that excused nothing is told so; it can go."""
+    sees the count too, and a waiver that excused nothing is told so; it can go.
+
+    The count arrives by the waiver's **ordinal**. It used to be recovered from each
+    waived outcome's sentence with `startswith(reason)`, which credits every finding to
+    the first waiver whose reason opens the sentence: nine waivers that all say "later"
+    were "10 findings under 9 waivers" and eight lines of "excused nothing this run" on a
+    run where each had excused one — and a reader who took a line at its word and removed
+    that waiver had a red run next (measured 2026-09-08, bypass case B4, against the v0.9.0
+    wheel). A reason that opens another reason ("later" / "later this quarter") collided
+    the same way. A summary that has to find its cause by string prefix is a join on a
+    field somebody typed; the cause travels with the effect instead.
+    """
     if not waivers:
         return
-    excused: dict[int, int] = {}
-    for _gid, kind, said, sentence in outcomes:
-        if kind == "waived":
-            ordinal = next(w.ordinal for w in waivers if sentence.startswith(w.reason))
-            excused[ordinal] = excused.get(ordinal, 0) + len(said)
-    total = sum(excused.values())
+    total = sum(excused_by.values())
     print(f"waived: {_plural(total, 'finding')} under {_plural(len(waivers), 'waiver')}")
     for waiver in waivers:
         where = f" {waiver.scope}" if waiver.scope else ""
-        idle = "" if excused.get(waiver.ordinal) else " — excused nothing this run"
+        idle = "" if excused_by.get(waiver.ordinal) else " — excused nothing this run"
         print(f"  {waiver.gate}{where} {waiver.terms}{idle}")
 
 
@@ -727,6 +742,7 @@ def run_scans(
     if unheld:
         _say_unheld(home, unheld)
     waivers, failed, outcomes = _before_the_scans(root, manifest)
+    excused_by: dict[int, int] = {}
     for gid, script in scan_entries(manifest):
         try:
             result = subprocess.run(  # noqa: S603 — argv is built here, interpreter is sys.executable
@@ -771,7 +787,7 @@ def run_scans(
             # line is one finding whatever the tree it read was named (round 21).
             said = [_shown(line) for line in result.stdout.strip().splitlines()]
             split = _excused(root, waivers, gid, said)
-            still, reported = _report_found(gid, split, manifest["gates"][gid], unheld)
+            still, reported = _report_found(gid, split, manifest["gates"][gid], unheld, excused_by)
             failed += still
             outcomes += reported
         else:
@@ -781,7 +797,7 @@ def run_scans(
             outcomes.append((gid, "error", [], f"{reason}\n{_as_prose(result.stderr)}".strip()))
 
     print(f"\nwaiting on this project's own tests: {suite_count(manifest)} gates")
-    _report_waivers(waivers, outcomes)
+    _report_waivers(waivers, excused_by)
     verdict = _close(failed, broken, unheld)
     if sarif is not None and not write_sarif(sarif, root, manifest, outcomes, unheld):
         return 2

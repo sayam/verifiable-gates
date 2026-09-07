@@ -8,6 +8,17 @@ Notable changes to this project. The format follows
 
 ### Fixed
 
+- **Each waiver is credited with what it excused, by its ordinal.** The summary under the
+  gate lines found a waived finding's waiver by matching the waiver's *reason* against the
+  head of the finding's sentence, so waivers sharing a reason all credited the first: nine
+  waivers that said "later" read as `10 findings under 9 waivers` and eight lines of
+  *excused nothing this run* — the sentence that says a waiver can go — on a run where each
+  had excused one, and removing any of the eight would have been red next (bypass case B4,
+  measured 2026-09-08 against the v0.9.0 wheel). A reason that opens another reason collided
+  the same way. The count now travels with the waiver from where the finding was excused.
+  Writing the test found a second one beside it: a gate that two *scoped* waivers covered
+  between them, with no finding left live, unpacked its waivers as one and the doctor died
+  of a `ValueError` — the `[waived]` line now names each waiver and its count.
 - **A bundle the installed record does not vouch for is no verdict — said first, exit 2.**
   The doctor has held the bundle to `tools/installed.json` on every plain run since round
   4, and used the answer in one place: the `rule:` line under a `[found]`. So a scanner

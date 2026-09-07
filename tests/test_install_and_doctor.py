@@ -2255,6 +2255,47 @@ def test_a_waiver_is_printed_on_every_run_even_when_it_excuses_nothing(
     )
 
 
+def test_waivers_with_one_reason_are_each_credited_with_what_they_excused(
+    installed: pathlib.Path,
+) -> None:
+    """Three waivers on the gate with the two findings (`app/a.py`, `lib/b.py`): one over
+    `docs/` that excuses nothing, one over `app/` and one over `lib/` that excuse one each
+    — the first two with the same reason, the third with a reason the first one opens.
+    The summary used to find a finding's waiver with `startswith(reason)`, so the first
+    waiver was credited with all three and the other two were told "excused nothing this
+    run" — the sentence that says *this waiver can go* — on a run where removing either
+    would have been red (bypass case B4, 2026-09-08, against the v0.9.0 wheel)."""
+    _waiving(
+        installed,
+        _a_waiver(scope="docs/", reason="later"),
+        _a_waiver(scope="app/", reason="later"),
+        _a_waiver(scope="lib/", reason="later this quarter"),
+    )
+    done = run_doctor(installed)
+    assert done.returncode == 0, done.stdout + done.stderr
+    assert "[waived] delete-means-soft-delete — " in done.stdout, (
+        "two scoped waivers covering one gate between them unpacked as one (ValueError)"
+    )
+    assert (
+        "[waived] delete-means-soft-delete — 1 finding under the waiver until 2999-12-31,"
+        " decided by the maintainer: later · 1 finding under the waiver until 2999-12-31,"
+        " decided by the maintainer: later this quarter"
+    ) in done.stdout, done.stdout
+    assert "waived: 2 findings under 3 waivers" in done.stdout
+    lines = [line for line in done.stdout.splitlines() if line.startswith("  delete-means")]
+    assert lines == [
+        (
+            "  delete-means-soft-delete docs/ until 2999-12-31, decided by the maintainer: later"
+            " — excused nothing this run"
+        ),
+        "  delete-means-soft-delete app/ until 2999-12-31, decided by the maintainer: later",
+        (
+            "  delete-means-soft-delete lib/ until 2999-12-31, decided by the maintainer:"
+            " later this quarter"
+        ),
+    ], done.stdout
+
+
 def test_no_waivers_means_no_waiver_lines(installed: pathlib.Path) -> None:
     done = run_doctor(installed)
     assert "waived" not in done.stdout
