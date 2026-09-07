@@ -66,6 +66,20 @@ Notable changes to this project. The format follows
   nothing — and names the condition that would change the answer.
 ### Changed
 
+- **Two decision rows now say what they let through, not only what they keep out.** A row that
+  lists a scanner's controls and not its admitted surface tells an adopter half of what it knows.
+  `write-scanner-reads-session-delete` names the three shapes its textual read admits — an
+  attribute literally named `session` (`s = redis.session` then `s.delete('k')`), a name bound
+  from any call whose text contains `query(`, and any `.delete(` inside an `.execute(` — three
+  findings on code that deletes no row, measured rather than reasoned about.
+  `a-computed-debug-switch-is-not-read` gains a third refusal, with its cost in the same
+  sentence: a mapping the file changes after it binds it is read as the literal it was bound to
+  and nothing else, so `opts = {}` then `opts["debug"] = True` is missed and — the same read the
+  other way — a mapping bound to `{"debug": True}` whose key is later turned off, updated away or
+  deleted is **reported** on a file that ships with the console shut. Eight spellings measured;
+  the row names the fix that would end it (refuse a name the file mutates, the way a name bound
+  twice is already refused) and says plainly that it is not made yet. No scanner changed.
+
 - **`write-scanner-reads-session-delete` says what the scanner now reads.** The row recorded that
   a session aliased to another name was not seen; three of this release's fixes make that untrue,
   and a row changes with the code rather than being worked around. It now names the shapes it
