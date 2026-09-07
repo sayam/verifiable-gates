@@ -147,13 +147,64 @@ CONFIG_SETTERS = frozenset({"update", "from_mapping"})
 DEBUG_CONFIG_KEY = "DEBUG"
 
 
+# The methods that change a mapping where it stands. A name changed after it is bound says
+# something its binding does not, exactly as a name bound twice does, so it is refused the
+# same way (`DECISIONS.md a-computed-debug-switch-is-not-read`). Refusing costs the misses
+# that row already names and takes away a false positive: `opts = {"debug": True}` then
+# `opts["debug"] = False` was a finding on a file that ships with the console shut.
+MAPPING_MUTATORS = frozenset({"update", "setdefault", "pop", "popitem", "clear"})
+
+
+def _subscripts_written(targets: list[ast.expr]) -> list[str]:
+    """The names written through a subscript among these targets — `opts["debug"]`."""
+    return [
+        target.value.id
+        for target in targets
+        if isinstance(target, ast.Subscript) and isinstance(target.value, ast.Name)
+    ]
+
+
+def _writes_a_key(node: ast.AST) -> list[str]:
+    """The mapping a statement writes into: `opts["debug"] = True`, `del opts["debug"]`, or an
+    augmented assignment to the name itself (`opts |= {"debug": False}`)."""
+    if isinstance(node, ast.AugAssign):
+        if isinstance(node.target, ast.Name):
+            return [node.target.id]
+        return _subscripts_written([node.target])
+    if isinstance(node, ast.Assign | ast.Delete):
+        return _subscripts_written(list(node.targets))
+    return []
+
+
+def _mutates_a_mapping(node: ast.AST) -> list[str]:
+    """The name a call changes where it stands — `opts.update(...)`, `opts.setdefault(...)`."""
+    if not isinstance(node, ast.Call) or not isinstance(node.func, ast.Attribute):
+        return []
+    if node.func.attr not in MAPPING_MUTATORS or not isinstance(node.func.value, ast.Name):
+        return []
+    return [node.func.value.id]
+
+
+def _changed_after_binding(tree: ast.AST) -> set[str]:
+    """The names this file changes after it binds them, by any of the shapes above."""
+    changed: set[str] = set()
+    for node in ast.walk(tree):
+        changed.update(_writes_a_key(node))
+        changed.update(_mutates_a_mapping(node))
+    return changed
+
+
 def _dicts_bound(tree: ast.AST) -> dict[str, ast.Dict]:
-    """The names this file binds to a literal mapping, so a `**name` can be read.
+    """The names this file binds to a literal mapping **and leaves alone**, so a `**name`
+    can be read.
 
     `.run(**{"debug": True})` was read and `opts = {"debug": True}` then `app.run(**opts)` was
     not: the splatted value is a `Name`, and nothing resolved it (round 31, 2026-09-07). A name
     bound **more than once** is deliberately left out — the file says two things about it, and a
-    scanner that picked one would be guessing which line runs.
+    scanner that picked one would be guessing which line runs. A name the file **changes** after
+    binding says two things in the same way, and is left out for the same reason: reading the
+    binding alone missed `opts = {}` then `opts["debug"] = True`, and reported `{"debug": True}`
+    turned off on the next line as though the console shipped open.
     """
     seen: dict[str, list[ast.Dict]] = {}
     for node in ast.walk(tree):
@@ -162,7 +213,10 @@ def _dicts_bound(tree: ast.AST) -> dict[str, ast.Dict]:
         for target in node.targets:
             if isinstance(target, ast.Name):
                 seen.setdefault(target.id, []).append(node.value)
-    return {name: found[0] for name, found in seen.items() if len(found) == 1}
+    changed = _changed_after_binding(tree)
+    return {
+        name: found[0] for name, found in seen.items() if len(found) == 1 and name not in changed
+    }
 
 
 def _mapping(node: ast.AST, dicts: dict[str, ast.Dict]) -> ast.Dict | None:

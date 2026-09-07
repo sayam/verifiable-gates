@@ -8,6 +8,20 @@ Notable changes to this project. The format follows
 
 ### Fixed
 
+- **A mapping turned off on the next line is no longer a finding.** Round 31's widening let
+  `no-debug-entrypoint` read a mapping the file binds once to a literal and then splats
+  (`opts = {"debug": True}` then `app.run(**opts)`). It read the binding and nothing after it, so
+  a file that shipped with the console **shut** was reported three ways — `opts["debug"] = False`,
+  `opts.update(debug=False)`, `del opts["debug"]` — each a false positive on honest code, and the
+  kind that gets a gate switched off. A name the file changes after binding now says two things
+  the way a name bound twice does, and is refused the same way: a key written or deleted, the
+  name augmented in place, or `.update(`, `.setdefault(`, `.pop(`, `.popitem(` or `.clear(`
+  called on it. The refusal reaches no further than the name that was changed — another name
+  changed in the same file, a call that only reads the mapping, and a key written through an
+  attribute all leave the road intact. It keeps the miss it always had (`opts = {}` then
+  `opts["debug"] = True` is still silent), which the decision row says in the same sentence.
+  **17 new cases**, ten of them red against the scanner as it was.
+
 - **Thirteen spellings nine scanners could not see, on ordinary code.** Round 31 asked each
   scanner the question the maturity list has been asking since it was written — *does it know
   how a real project spells the thing it forbids?* — and thirteen answers were no, every one on
