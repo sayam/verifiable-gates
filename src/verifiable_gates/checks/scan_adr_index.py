@@ -189,14 +189,62 @@ FILENAME = re.compile(r"^(\d{4})-[a-z0-9-]+\.md$", re.IGNORECASE)
 # `[0001](file)`, `[0001: Use X](file)`, or a table row `| 0001 | [Use X](file) |`.
 INDEX_LINK = re.compile(r"\[(\d{4})(?:[^\]]*)\]\(([^)]+)\)")
 INDEX_ROW = re.compile(r"^[ \t]*\|[ \t]*(\d{4})[ \t]*\|[^\n]*?\[[^\]]*\]\(([^)]+)\)", re.MULTILINE)
+# The field may open the line behind a **list marker** or a **table pipe**: a metadata bullet
+# list is how several ADR templates are written (MADR among them), and `- Supersedes: 0001`
+# read as nothing, so a one-directional supersession written that way passed the gate
+# (measured 2026-09-07, round 31). This reads no English — it is the same field with a
+# marker in front — which is what makes it a different change from the prose case the
+# `DECISIONS.md` row `a-supersession-is-a-field-not-a-sentence` records and keeps refusing.
+# A numbered list (`1. Supersedes: 0001`) is deliberately not here: `1.` before a field is
+# a numbered *record*, and reading it would make the ordinal look like the number.
+FIELD_LEAD = r"^[ \t]*(?:[-*+][ \t]+|\|[ \t]*)?"
+# `:` or a second table pipe separates the label from the number.
+FIELD_SEPARATOR = r"[ \t]*[:|]?[ \t]*\**[ \t]*(?:ADR[- ]?)?"
 SUPERSEDES = re.compile(
-    r"^[ \t]*\**supersedes\**[ \t]*:?[ \t]*\**[ \t]*(?:ADR[- ]?)?(\d{4})",
+    FIELD_LEAD + r"\**supersedes\**" + FIELD_SEPARATOR + r"(\d{4})",
     re.IGNORECASE | re.MULTILINE,
 )
 SUPERSEDED_BY = re.compile(
-    r"^[ \t]*\**superseded[- ]by\**[ \t]*:?[ \t]*\**[ \t]*(?:ADR[- ]?)?(\d{4})",
+    FIELD_LEAD + r"\**superseded[- ]by\**" + FIELD_SEPARATOR + r"(\d{4})",
     re.IGNORECASE | re.MULTILINE,
 )
+
+
+# A fenced block shows a reader what an entry *looks like*; an HTML comment is an entry
+# somebody took out. The index was read with `findall` over the raw text, so both counted as
+# listings and a record missing from the real index was reported as present — a stale index,
+# green (round 31, 2026-09-07). Both are blanked before the read, newlines kept, so every
+# line number and every `^` anchor still means what it meant. Indented code blocks are
+# **not** blanked: four spaces in front of `- [0002](…)` is how a nested list is written,
+# and blanking those would lose real entries.
+FENCE = re.compile(r"^[ \t]*(?:```|~~~)")
+HTML_COMMENT = re.compile(r"<!--.*?(?:-->|\Z)", re.DOTALL)
+
+
+def _blanked(text: str) -> str:
+    """`text` with every character but the newlines replaced by a space."""
+    return re.sub(r"[^\n]", " ", text)
+
+
+def _entries_only(text: str) -> str:
+    """The index with fenced blocks and HTML comments blanked out.
+
+    The fence is tracked by line, opening and closing on its own marker, so an unclosed
+    fence blanks the rest of the file — which is what a reader's renderer does with it too.
+    """
+    kept: list[str] = []
+    fence: str | None = None
+    for line in text.splitlines(keepends=True):
+        marker = found.group().strip() if (found := FENCE.match(line)) else None
+        if fence is None and marker is None:
+            kept.append(line)
+            continue
+        if fence is None:
+            fence = marker
+        elif marker is not None and marker[0] == fence[0]:
+            fence = None
+        kept.append(_blanked(line))
+    return HTML_COMMENT.sub(lambda block: _blanked(block.group()), "".join(kept))
 
 
 def _supersession_findings(adr_dir: pathlib.Path, on_disk: dict[str, str]) -> list[str]:
@@ -346,7 +394,7 @@ def _judge(root: pathlib.Path) -> int:
     index = adr_dir / "README.md"
     listed: dict[str, str] = {}
     if index.is_file():
-        text = _text(index)
+        text = _entries_only(_text(index))
         listed = dict(INDEX_LINK.findall(text)) | dict(INDEX_ROW.findall(text))
 
     findings: list[str] = []

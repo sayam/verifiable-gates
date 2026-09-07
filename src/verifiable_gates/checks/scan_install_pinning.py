@@ -133,7 +133,8 @@ PIP_INSTALL = re.compile(
 # --frozen-lockfile`/`--immutable` and `pnpm install --frozen-lockfile` install from a
 # lock and are left alone.
 NPM_INSTALL = re.compile(
-    r"(?:^|[\s/])(?:npm\s+(?:install|i|add|exec)|npx|yarn\s+add|pnpm\s+(?:add|dlx))\b"
+    r"(?:^|[\s/])(?:npm\s+(?:install|i|add|exec)|npx"
+    r"|yarn\s+(?:global\s+add|add|dlx)|pnpm\s+(?:add|dlx))\b"
 )
 # `pipx install` / `pipx run` resolve the tool from the index like `pip install`.
 PIPX_INSTALL = re.compile(r"(?:^|[\s/])pipx\s+(?:install|run)\b")
@@ -227,6 +228,17 @@ NODE_SHAPES = (
         "pnpm exec",
         ("pnpm-lock.yaml",),
     ),
+    # `yarn dlx` is yarn 2+ spelling `npx`, and `yarn global add` is yarn 1 spelling
+    # `npm install -g`. Both were unread while every sibling verb of npm and pnpm was
+    # read, and `yarn` is a family this rule's own `reads:` names (round 31, 2026-09-07).
+    Shape(
+        re.compile(r"(?:^|[\s/])yarn\s+dlx\b"),
+        RUN_LOCAL,
+        "yarn dlx",
+        "yarn install --immutable",
+        "yarn exec",
+        ("yarn.lock",),
+    ),
     Shape(
         re.compile(r"(?:^|[\s/])npm\s+(?:install|i|add)\b"),
         INSTALL_LOCKED,
@@ -236,7 +248,7 @@ NODE_SHAPES = (
         NPM_LOCKS,
     ),
     Shape(
-        re.compile(r"(?:^|[\s/])yarn\s+add\b"),
+        re.compile(r"(?:^|[\s/])yarn\s+(?:global\s+)?add\b"),
         INSTALL_LOCKED,
         "",
         "yarn install --immutable",

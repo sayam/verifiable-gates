@@ -3507,3 +3507,389 @@ def test_a_finding_that_quotes_the_file_is_still_one_printable_line(
     assert "\x1b" not in printed, "an escape from the project reached a terminal"
     assert "\\x1b[2K\\x1b[A" in printed, printed
     assert len(printed.splitlines()) == len([x for x in printed.splitlines() if x.strip()])
+
+
+# ---------------------------------------------------------------------------------------
+# Round 31's thirteen fixes, each road in both directions. Every case below is a spelling a
+# real project writes; each was measured against the scanner before the fix (green, and
+# wrong) and after it. The clean twin beside each is what says the read is narrow: a matcher
+# is judged by what it must still let pass, not by what it now catches.
+# ---------------------------------------------------------------------------------------
+
+DEBUG_APP = "import os\napp = object()\nsettings = object()\n"
+
+
+@pytest.mark.parametrize(
+    ("source", "shape"),
+    [
+        # fix 1 — Flask's config is set by a method as often as by a subscript.
+        ("app.config.update(DEBUG=True)\n", ".config.update(DEBUG=True)"),
+        ("app.config.from_mapping(DEBUG=True)\n", ".config.from_mapping(DEBUG=True)"),
+        ('app.config.update({"DEBUG": True})\n', ".config.update(DEBUG=True)"),
+        ('app.config.from_mapping({"DEBUG": 1})\n', ".config.from_mapping(DEBUG=1)"),
+        ('app.config.update(**{"DEBUG": True})\n', ".config.update(DEBUG=True)"),
+        # Two values for the same key, the first of them off: the loop reads on rather than
+        # stopping at the first thing it is handed.
+        (
+            'app.config.update(DEBUG=False, **{"DEBUG": True})\n',
+            ".config.update(DEBUG=True)",
+        ),
+        # …including the fallback road, which the setters inherit rather than repeat.
+        (
+            'app.config.update(DEBUG=os.environ.get("D", True))\n',
+            ".config.update(DEBUG=os.environ.get('D', True))",
+        ),
+        # fix 12 — the mapping named once and splatted, for `run` and for a config setter.
+        ('opts = {"debug": True}\napp.run(**opts)\n', ".run(**{'debug': True})"),
+        ('cfg = {"DEBUG": True}\napp.config.update(**cfg)\n', ".config.update(DEBUG=True)"),
+        (
+            'cfg = {"DEBUG": True}\napp.config.from_mapping(cfg)\n',
+            ".config.from_mapping(DEBUG=True)",
+        ),
+        # fix 6 — the same write spelled as a call is not an `ast.Assign`.
+        ('setattr(app, "debug", True)\napp.run()\n', 'setattr(…, "debug", True)'),
+        ('setattr(app, "debug", 1)\napp.run()\n', 'setattr(…, "debug", 1)'),
+    ],
+)
+def test_the_config_setters_the_splat_and_setattr_open_the_console_too(
+    tmp_path: pathlib.Path, capsys: pytest.CaptureFixture[str], source: str, shape: str
+) -> None:
+    """Three roads the scanner did not read until round 31 (2026-09-07), each measured green
+    on the scanner as it was: the two Flask config setters, a mapping the file bound to a name
+    and splatted, and `setattr`. The shape a finding prints is what the scanner decided, which
+    for a named mapping is the value it resolved rather than the text on the line."""
+    assert scan_entrypoint_debug.main(build(tmp_path, {"run.py": DEBUG_APP + source})) == 1
+    assert shape in capsys.readouterr().out
+
+
+@pytest.mark.parametrize(
+    "source",
+    [
+        # The key Flask reads is upper case; `debug=` in the config sets a key nothing reads.
+        "app.config.update(debug=True)\n",
+        'app.config.update({"debug": True})\n',
+        # Another key entirely, by every road.
+        "app.config.update(TESTING=True)\n",
+        'app.config.from_mapping({"TESTING": True})\n',
+        # A setter on something that is not the config.
+        "app.session.update(DEBUG=True)\n",
+        # Not a setter at all.
+        'app.config.get("DEBUG")\n',
+        # fix 12's own boundary: a name the file binds **twice** says two things, and a
+        # scanner that picked one would be guessing which line runs.
+        'opts = {"debug": True}\nopts = {"debug": False}\napp.run(**opts)\n',
+        # …and a mapping that comes from a call is computed, which this rule does not read
+        # (`DECISIONS.md a-computed-debug-switch-is-not-read`).
+        "opts = load_options()\napp.run(**opts)\n",
+        # A mapping bound to something that is not a name.
+        "app.run(**settings.options)\n",
+        # fix 6's boundaries: another attribute, a false value, and a call of another arity.
+        'setattr(app, "name", "x")\napp.run()\n',
+        'setattr(app, "debug", False)\napp.run()\n',
+        'setattr(app, "debug")\napp.run()\n',
+        'setattr(app, "debug", True, "extra")\napp.run()\n',
+        # `setattr` reached through a module is not the builtin this reads.
+        'builtins.setattr(app, "debug", True)\napp.run()\n',
+        # A mapping written out whose `debug` is false: the key is read, the value is not
+        # the console, and the call's other keywords are still looked at.
+        'app.run(**{"debug": False}, host="0.0.0.0")\n',
+        # An assignment whose target is not a name binds nothing this can resolve.
+        'settings.opts = {"debug": True}\napp.run(**settings.opts)\n',
+    ],
+)
+def test_the_new_debug_roads_stay_narrow(
+    tmp_path: pathlib.Path, capsys: pytest.CaptureFixture[str], source: str
+) -> None:
+    """What the three new roads must still let pass. Each of these is honest code, and a
+    finding on any of them is the false positive that gets a gate switched off."""
+    files = {"run.py": DEBUG_APP + "builtins = object()\ndef load_options(): return {}\n" + source}
+    assert scan_entrypoint_debug.main(build(tmp_path, files)) == 0
+    assert capsys.readouterr().out == ""
+
+
+@pytest.mark.parametrize(
+    ("source", "shape"),
+    [
+        # fix 5 — `import a.b` binds `a`, so the alias set must record what Python binds.
+        ("import flask.globals\ndef do(): return flask.request.args\n", "flask.request"),
+        ("import flask.globals as fg\ndef do(): return fg.request.args\n", "fg.request"),
+        # fix 9 — the module fetched at run time, with a name and without one.
+        (
+            (
+                "import importlib\nfl = importlib.import_module('flask')\n"
+                "def do(): return fl.request.args\n"
+            ),
+            "fl.request",
+        ),
+        (
+            ("import importlib\ndef do(): return importlib.import_module('flask').request.args\n"),
+            "an import of flask at run time, then .request",
+        ),
+        (
+            "def do(): return __import__('flask').request.args\n",
+            "an import of flask at run time, then .request",
+        ),
+        # fix 9 — the attribute spelled as a string.
+        ("import flask\nx = getattr(flask, 'request')\n", "getattr(..., 'request')"),
+    ],
+)
+def test_every_road_the_request_side_takes_into_a_service(
+    tmp_path: pathlib.Path, capsys: pytest.CaptureFixture[str], source: str, shape: str
+) -> None:
+    """Round 31, 2026-09-07: five roads into a service layer that answered `pass`. Each is
+    the request side arriving under another spelling, which is what the rule is about — not
+    the word `flask`."""
+    files = {"app/services/svc.py": source}
+    assert scan_service_layer.main(build(tmp_path, files, SERVICES)) == 1
+    assert shape in capsys.readouterr().out
+
+
+@pytest.mark.parametrize(
+    "source",
+    [
+        # A look-alike distribution is not flask, by any road.
+        "import flaskish\ndef do(): return flaskish.request\n",
+        "import importlib\nfl = importlib.import_module('flaskish')\ndef do(): return fl.request\n",
+        # A run-time import of something else entirely.
+        "import importlib\nfl = importlib.import_module('json')\ndef do(): return fl.dumps({})\n",
+        # A computed module name is not in the tree to read (a BOUNDARY, deliberately).
+        (
+            "import importlib\nname = 'fl' + 'ask'\n"
+            "fl = importlib.import_module(name)\ndef do(): return fl.request\n"
+        ),
+        # `getattr` on something that is not flask, and on a name that is allowed.
+        "import json\nx = getattr(json, 'dumps')\n",
+        "import flask\nx = getattr(flask, 'current_app')\n",
+        # `getattr` with a computed attribute name, and with too few arguments.
+        "import flask\nname = 'req' + 'uest'\nx = getattr(flask, name)\n",
+        "import flask\nx = getattr(flask)\n",
+        # An import of the submodule with nothing reached through it.
+        "import flask.globals\ndef do(): return 1\n",
+        # The safe side of flask, reached the new ways.
+        "import flask.globals\ndef do(): return flask.current_app.config\n",
+    ],
+)
+def test_the_new_service_roads_stay_narrow(
+    tmp_path: pathlib.Path, capsys: pytest.CaptureFixture[str], source: str
+) -> None:
+    """A service may import; what it may not do is read the request. These are the shapes the
+    five new roads must still let pass, including the two the round left deliberately unread."""
+    assert scan_service_layer.main(build(tmp_path, {"app/services/svc.py": source}, SERVICES)) == 0
+    assert capsys.readouterr().out == ""
+
+
+PURGE = {"src_path": "app", "purge_paths": ["app/purge.py"]}
+
+
+@pytest.mark.parametrize(
+    ("source", "quoted"),
+    [
+        # fix 4 — a session bound to a name first carries no `session.delete` text at all.
+        ("s = db.session\ns.delete(user)\n", "s.delete(user)"),
+        ("s = self.session\ns.delete(user)\n", "s.delete(user)"),
+        # fix 7 — the SQLAlchemy 2.0 bulk delete: the construct by a bound name…
+        (
+            "from sqlalchemy import delete\ndb.session.execute(delete(User))\n",
+            "db.session.execute(delete(User))",
+        ),
+        (
+            "from sqlalchemy import delete as sa_delete\nrun(sa_delete(User))\n",
+            "run(sa_delete(User))",
+        ),
+        (
+            "from sqlalchemy import (delete, select)\nrun(delete(User))\n",
+            "run(delete(User))",
+        ),
+        ("import sqlalchemy\nrun(sqlalchemy.delete(User))\n", "run(sqlalchemy.delete(User))"),
+        ("import sqlalchemy as sa\nrun(sa.delete(User))\n", "run(sa.delete(User))"),
+        # …and a `delete(` inside an `.execute(`, whatever bound it.
+        ("db.session.execute(db.delete(User))\n", "db.session.execute(db.delete(User))"),
+        # fix 8 — the 1.x bulk delete without its marker.
+        ("session.query(User).delete()\n", "session.query(User).delete()"),
+        ("User.query.filter_by(x=1).delete()\n", "User.query.filter_by(x=1).delete()"),
+        ("q = session.query(User)\nq.delete()\n", "q.delete()"),
+    ],
+)
+def test_every_spelling_of_a_hard_delete_round_31_could_not_see(
+    tmp_path: pathlib.Path, capsys: pytest.CaptureFixture[str], source: str, quoted: str
+) -> None:
+    """Four fixes, one rule: rows leaving the database. Each of these answered `pass` on the
+    scanner as it was (round 31, 2026-09-07), and each is how a real project spells it."""
+    files = {"app/models.py": "db = object()\nUser = object()\nself = object()\n" + source}
+    assert scan_write_discipline.main(build(tmp_path, files, PURGE)) == 1
+    assert quoted in capsys.readouterr().out
+
+
+@pytest.mark.parametrize(
+    "source",
+    [
+        # The false positive that made the match textual in the first place, four ways.
+        "cache.delete('k')\n",
+        "cache.delete(query)\n",
+        "query_cache.delete('k')\n",
+        "client.delete('/users/1')\n",
+        # A binding alone is not a delete, and a bare attribute is not a query object.
+        "s = db.session\ns.add(user)\n",
+        "s = db.query\ns.delete(user)\n",
+        # The project's own soft delete — the thing this rule asks for.
+        "def soft_delete(obj):\n    obj.deleted_at = now()\n",
+        # `delete` imported from somewhere that is not SQLAlchemy.
+        "from cachetools import delete\nrun(delete(key))\n",
+        # A read, not a delete, through the same construct's module.
+        "import sqlalchemy as sa\nrun(sa.select(User))\n",
+        # `query` in the arguments rather than the receiver.
+        "results = search(query='x')\nresults.pop()\n",
+    ],
+)
+def test_the_widened_delete_reads_still_let_honest_code_pass(
+    tmp_path: pathlib.Path, capsys: pytest.CaptureFixture[str], source: str
+) -> None:
+    """Every widening in round 31 kept these, and they are the reason the reads are narrow:
+    a cache client, a REST client, a binding, a soft delete, a read (`DECISIONS.md`
+    `write-scanner-reads-session-delete`)."""
+    files = {
+        "app/models.py": "db = object()\nUser = object()\ncache = object()\nclient = object()\n"
+        "query = 'q'\nquery_cache = object()\nkey = 'k'\ndef now(): return 1\n"
+        "def run(x): return x\ndef search(query): return []\n" + source
+    }
+    assert scan_write_discipline.main(build(tmp_path, files, PURGE)) == 0
+    assert capsys.readouterr().out == ""
+
+
+def test_a_pyw_module_is_python_and_is_read(
+    tmp_path: pathlib.Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """fix 3: the suffix tells Windows to run it without a console; it is a module either way.
+    Where one was the only module present, the answer was `NA: no Python under …` — a scanner
+    reporting that a tree it could not see holds nothing."""
+    files = {"app/models.pyw": "db = object()\ndb.session.delete(user)\n"}
+    assert scan_write_discipline.main(build(tmp_path, files, PURGE)) == 1
+    assert "models.pyw" in capsys.readouterr().out
+
+
+@pytest.mark.parametrize(
+    ("patterns", "where", "code"),
+    [
+        # fix 2 — a `*` stops at a separator, so `app/*` is the files directly under app.
+        (["app/*"], "app/services/models.py", 1),
+        (["app/*"], "app/purge.py", 0),
+        # `**` is the one glob that crosses a separator, and it stands for whole segments.
+        (["app/**"], "app/services/models.py", 0),
+        (["app/**/purge.py"], "app/services/purge.py", 0),
+        (["app/**/purge.py"], "app/purge.py", 0),
+        (["**"], "app/anywhere/models.py", 0),
+        # A pattern that names more segments than the path has matches nothing.
+        (["app/services/deep/purge.py"], "app/services/purge.py", 1),
+    ],
+)
+def test_a_purge_exemption_is_matched_segment_by_segment(
+    tmp_path: pathlib.Path,
+    capsys: pytest.CaptureFixture[str],
+    patterns: list[str],
+    where: str,
+    code: int,
+) -> None:
+    """`purge_paths: ["app/*"]` read as *the whole subtree* exempted every module in the
+    project, so a real `session.delete` answered `pass` (round 31, 2026-09-07). Segment by
+    segment, `*` stops at the separator and `**` is the only glob that crosses it — the
+    meaning a developer already has from `.gitignore`."""
+    files = {where: "db = object()\ndb.session.delete(user)\n"}
+    config = {"src_path": "app", "purge_paths": patterns}
+    assert scan_write_discipline.main(build(tmp_path, files, config)) == code
+    capsys.readouterr()
+
+
+ADR_ONE = "# 1. One\n\nStatus: accepted\n"
+
+
+@pytest.mark.parametrize(
+    ("index", "code", "why"),
+    [
+        # fix 10 — a fenced block shows what an entry looks like; it is not one.
+        ("# Index\n\n```\n[0001](0001-one.md)\n```\n", 1, "a link inside a fence"),
+        ("# Index\n\n~~~\n[0001](0001-one.md)\n~~~\n", 1, "a tilde fence too"),
+        ("# Index\n\n<!-- [0001](0001-one.md) -->\n", 1, "an entry somebody took out"),
+        ("# Index\n\n```\n[0001](0001-one.md)\n", 1, "an unclosed fence runs to the end"),
+        # …and the entry that is really there is still read.
+        ("# Index\n\n```\nexample\n```\n\n[0001](0001-one.md)\n", 0, "a real entry beside a fence"),
+        ("# Index\n\n<!-- a note -->\n\n[0001](0001-one.md)\n", 0, "a real entry beside a comment"),
+        # A fence closed by a longer marker of the same character is still closed.
+        ("# Index\n\n```\nexample\n````\n\n[0001](0001-one.md)\n", 0, "a longer closing fence"),
+    ],
+)
+def test_a_link_that_only_looks_like_an_index_entry_is_not_one(
+    tmp_path: pathlib.Path, capsys: pytest.CaptureFixture[str], index: str, code: int, why: str
+) -> None:
+    """A record linked only from a code fence or an HTML comment is a record nobody can find
+    from the index, and the gate said the index was complete (round 31, 2026-09-07)."""
+    files = {"docs/adr/README.md": index, "docs/adr/0001-one.md": ADR_ONE}
+    assert scan_adr_index.main(build(tmp_path, files, ADR_CONFIG)) == code, why
+    capsys.readouterr()
+
+
+@pytest.mark.parametrize(
+    ("lead", "code", "why"),
+    [
+        # fix 11 — the field written as a metadata bullet, which is how MADR writes it.
+        ("- Supersedes: 0002", 0, "a metadata bullet"),
+        ("* Supersedes: 0002", 0, "a star bullet"),
+        ("+ Supersedes: 0002", 0, "a plus bullet"),
+        ("| Supersedes | 0002 |", 0, "a table row"),
+        ("Supersedes: 0002", 0, "the plain field"),
+        ("**Supersedes:** 0002", 0, "the field in bold"),
+        # The boundaries: an ordinal in front of a field is a numbered record, and prose is
+        # prose (`DECISIONS.md a-supersession-is-a-field-not-a-sentence`).
+        ("1. Supersedes: 0002", 1, "an ordinal would read as the record number"),
+        ("This supersedes 0002.", 1, "a sentence is not a field"),
+    ],
+)
+def test_a_supersession_is_read_behind_a_marker_and_not_behind_an_ordinal(
+    tmp_path: pathlib.Path, capsys: pytest.CaptureFixture[str], lead: str, code: int, why: str
+) -> None:
+    """0001 says it supersedes 0002 and 0002 says it is superseded by 0001: both directions
+    agree, so the pair is clean **when the field is read**. Where the lead hides it, only one
+    side is read and the gate reports the disagreement — which is how a one-directional
+    supersession written as a bullet passed before round 31 (2026-09-07)."""
+    files = {
+        "docs/adr/README.md": "# Index\n\n[0001](0001-one.md)\n[0002](0002-two.md)\n",
+        "docs/adr/0001-one.md": f"# 1. One\n\nStatus: accepted\n{lead}\n",
+        "docs/adr/0002-two.md": "# 2. Two\n\nStatus: superseded\nSuperseded by: 0001\n",
+    }
+    assert scan_adr_index.main(build(tmp_path, files, ADR_CONFIG)) == code, why
+    capsys.readouterr()
+
+
+@pytest.mark.parametrize(
+    ("command", "shape"),
+    [
+        # fix 13 — two verbs of yarn, a family the rule's own `reads:` already named.
+        ("yarn dlx eslint", "yarn dlx"),
+        ("yarn global add eslint", "yarn global add"),
+    ],
+)
+def test_the_yarn_verbs_that_reach_an_index_are_read_like_their_siblings(
+    tmp_path: pathlib.Path, capsys: pytest.CaptureFixture[str], command: str, shape: str
+) -> None:
+    """`npx` and `pnpm dlx` were read and `yarn dlx` was not; `npm i -g` was read and
+    `yarn global add` was not. Both answered NA, exit 0 — a rule naming yarn and not reading
+    it (round 31's red-team sweep, 2026-09-07)."""
+    files = {".github/workflows/ci.yml": f"jobs:\n  a:\n    steps:\n      - run: {command}\n"}
+    assert scan_install_pinning.main(build(tmp_path, files)) == 1
+    assert shape in capsys.readouterr().out
+
+
+@pytest.mark.parametrize(
+    "command",
+    ["yarn install --immutable", "yarn exec eslint", "yarn run build"],
+)
+def test_the_yarn_verbs_that_fetch_nothing_stay_clean(
+    tmp_path: pathlib.Path, capsys: pytest.CaptureFixture[str], command: str
+) -> None:
+    """A locked install and a local runner reach no index, so they are not this rule's
+    business — the other direction of fix 13."""
+    files = {
+        ".github/workflows/ci.yml": f"jobs:\n  a:\n    steps:\n      - run: {command}\n",
+        "yarn.lock": "# lock\n",
+    }
+    assert scan_install_pinning.main(build(tmp_path, files)) == 0
+    capsys.readouterr()

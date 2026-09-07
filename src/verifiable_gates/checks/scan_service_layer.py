@@ -9,6 +9,15 @@ and then `flask.request.args`, `from flask import *`, `from flask.globals import
 request`, and werkzeug's own request side (`werkzeug.wrappers`, `.local`,
 `.exceptions`, `.routing` — not `werkzeug.security`, which a service may use to
 hash a password). Each road was open (self-audit, 2026-08-31, all four exited 0).
+Two more were open until round 31 (2026-09-07): `import flask.globals as fg` and
+then `fg.request`, and `import flask.globals` — which binds `flask`, not the
+dotted name — and then `flask.request`. Four more were closed the same day:
+`from flask import globals [as g]` and then `g.request`; the module fetched at
+run time by `importlib.import_module("flask")` or `__import__("flask")`, used on
+the spot or bound to a name; and the attribute spelled as a string,
+`getattr(flask, "request")`. A module name computed at run time, and a symbol
+re-exported by a module of the project's own, are **not** read: neither is in
+this file, and a rule the tool cannot check must not look like one it checked.
 
 exit 0 = clean or no such directory (N/A) · 1 = findings · 2 = called wrongly
 
@@ -103,6 +112,14 @@ class _UnreadableError(Exception):
     """Bytes nobody can decode, or a tree nobody can walk. No verdict — never a clean one."""
 
 
+# A `.pyw` is a Python module; the suffix only tells Windows to run it without a console.
+# The walk kept `.py` alone, so a module named that way was not read at all — and where one
+# was the only module present the answer was `NA: no Python under …`, a scanner reporting
+# that a tree it could not see holds nothing (round 31, 2026-09-07). `.pyi` is deliberately
+# not here: a stub declares names and runs none of them.
+PYTHON_SUFFIXES = frozenset({".py", ".pyw"})
+
+
 def _walk(top: pathlib.Path) -> list[pathlib.Path]:
     """Every file under `top`, sorted — or `_UnreadableError` naming what stopped the walk.
 
@@ -136,44 +153,138 @@ def _forbidden_module(name: str) -> str | None:
     return next((m for m in FORBIDDEN_MODULES if name == m or name.startswith(m + ".")), None)
 
 
+# `importlib.import_module("flask")` and `__import__("flask")` fetch the module the import
+# statement would have, and neither is an `ast.Import`, so the alias reader never saw them —
+# `importlib.import_module("flask").request.args` exited 0 (round 31, 2026-09-07). Only a
+# **constant** module name is read: a name computed at run time is not in the tree, and a
+# rule that guessed at it would be a rule the tool cannot check.
+DYNAMIC_IMPORT = ("import_module", "__import__")
+
+
+def _is_flask_module(name: str | None) -> bool:
+    """`flask` itself, or a module under it — never `flaskish`, which only starts the same."""
+    return bool(name) and (name == "flask" or str(name).startswith("flask."))
+
+
+def _imports_flask_dynamically(node: ast.AST) -> bool:
+    """`importlib.import_module("flask…")` or `__import__("flask…")`, with a literal name."""
+    if not isinstance(node, ast.Call) or not node.args:
+        return False
+    called = node.func.attr if isinstance(node.func, ast.Attribute) else None
+    if called is None and isinstance(node.func, ast.Name):
+        called = node.func.id
+    first = node.args[0]
+    return (
+        called in DYNAMIC_IMPORT
+        and isinstance(first, ast.Constant)
+        and isinstance(first.value, str)
+        and _is_flask_module(first.value)
+    )
+
+
+def _bound_by_import(node: ast.AST) -> set[str]:
+    """The names one import statement binds, when it is an import of flask."""
+    if isinstance(node, ast.Import):
+        return {
+            alias.asname or alias.name.split(".")[0]
+            for alias in node.names
+            if _is_flask_module(alias.name)
+        }
+    if isinstance(node, ast.ImportFrom) and _is_flask_module(node.module):
+        # `from flask import globals [as g]` binds a **submodule**, and the request-side
+        # globals live under it — `g.request` was unread. A request-side symbol imported by
+        # name is reported at the import itself and needs no alias.
+        return {
+            alias.asname or alias.name
+            for alias in node.names
+            if alias.name not in FORBIDDEN_FLASK_SYMBOLS and alias.name != "*"
+        }
+    if isinstance(node, ast.Assign) and _imports_flask_dynamically(node.value):
+        return {target.id for target in node.targets if isinstance(target, ast.Name)}
+    return set()
+
+
 def _flask_aliases(tree: ast.AST) -> set[str]:
-    """The names `import flask [as x]` binds in this file."""
-    return {
-        alias.asname or alias.name
-        for node in ast.walk(tree)
-        if isinstance(node, ast.Import)
-        for alias in node.names
-        if alias.name == "flask"
-    }
+    """The names an `import flask…` statement binds in this file.
+
+    Two roads past this were open (round 31, 2026-09-07). `import flask.globals as fg`
+    binds `fg`, and the request-side globals live under exactly that submodule, so
+    `fg.request` reached a service with the gate green — matching `flask` alone read
+    neither. And `import flask.globals` with **no** `as` binds the *top package*, `flask`,
+    never the dotted name, so recording `alias.name` missed `flask.request` on the line
+    after it. What a statement binds is the alias where there is one and the first segment
+    where there is not, which is what Python does.
+    """
+    bound: set[str] = set()
+    for node in ast.walk(tree):
+        bound |= _bound_by_import(node)
+    return bound
+
+
+def _reached_by_getattr(node: ast.Call, aliases: set[str]) -> str | None:
+    """The request-side symbol a `getattr(flask, "request")` reaches, or nothing.
+
+    The attribute road reads `flask.request` as an `ast.Attribute`; spelled as a string it is
+    a `Call` and was unread (round 31, 2026-09-07). Only a literal second argument is read.
+    """
+    if not (isinstance(node.func, ast.Name) and node.func.id == "getattr"):
+        return None
+    if len(node.args) < 2:
+        return None
+    holder, named = node.args[0], node.args[1]
+    reaches_flask = (
+        isinstance(holder, ast.Name) and holder.id in aliases
+    ) or _imports_flask_dynamically(holder)
+    if not reaches_flask or not isinstance(named, ast.Constant):
+        return None
+    return named.value if named.value in FORBIDDEN_FLASK_SYMBOLS else None
+
+
+def _import_findings(node: ast.AST, at: str) -> list[str]:
+    """The request side arriving by an import statement — a symbol by name, or a module."""
+    found: list[str] = []
+    if isinstance(node, ast.ImportFrom) and (node.module or "").split(".")[0] == "flask":
+        names = {a.name for a in node.names}
+        bad = sorted(names & FORBIDDEN_FLASK_SYMBOLS) + (["*"] if "*" in names else [])
+        if bad:
+            found.append(f"{at} from {node.module} import {', '.join(bad)}")
+    if isinstance(node, ast.Import | ast.ImportFrom):
+        modules = (
+            [a.name for a in node.names] if isinstance(node, ast.Import) else [node.module or ""]
+        )
+        bad = sorted({m for n in modules if (m := _forbidden_module(n))})
+        if bad:
+            found.append(f"{at} import {', '.join(bad)}")
+    return found
+
+
+def _reach_findings(node: ast.AST, aliases: set[str], at: str) -> list[str]:
+    """The request side reached through a bound name, a run-time import, or a string attribute."""
+    if isinstance(node, ast.Attribute) and node.attr in FORBIDDEN_FLASK_SYMBOLS:
+        if isinstance(node.value, ast.Name) and node.value.id in aliases:
+            return [f"{at} {node.value.id}.{node.attr}"]
+        # The module fetched and used on the spot, with no name bound to it at all.
+        if _imports_flask_dynamically(node.value):
+            return [f"{at} an import of flask at run time, then .{node.attr}"]
+    # `getattr(flask, "request")` — the attribute spelled as a string.
+    if isinstance(node, ast.Call) and (reached := _reached_by_getattr(node, aliases)):
+        return [f"{at} getattr(..., {reached!r})"]
+    return []
 
 
 def _findings_in(tree: ast.AST, where: str) -> list[str]:
-    """Every road a request-side symbol takes into one file."""
+    """Every road a request-side symbol takes into one file.
+
+    One road per helper: the statement that imports it, and the expression that reaches it.
+    Round 31 (2026-09-07) added three roads to this loop and put it over the complexity
+    ceiling the repository holds itself to, which is the ceiling doing its job.
+    """
     found: list[str] = []
     aliases = _flask_aliases(tree)
     for node in ast.walk(tree):
         at = f"{where}:{getattr(node, 'lineno', 0)}"
-        if isinstance(node, ast.ImportFrom) and (node.module or "").split(".")[0] == "flask":
-            names = {a.name for a in node.names}
-            bad = sorted(names & FORBIDDEN_FLASK_SYMBOLS) + (["*"] if "*" in names else [])
-            if bad:
-                found.append(f"{at} from {node.module} import {', '.join(bad)}")
-        if isinstance(node, ast.Import | ast.ImportFrom):
-            modules = (
-                [a.name for a in node.names]
-                if isinstance(node, ast.Import)
-                else [node.module or ""]
-            )
-            bad = sorted({m for n in modules if (m := _forbidden_module(n))})
-            if bad:
-                found.append(f"{at} import {', '.join(bad)}")
-        if (
-            isinstance(node, ast.Attribute)
-            and isinstance(node.value, ast.Name)
-            and node.value.id in aliases
-            and node.attr in FORBIDDEN_FLASK_SYMBOLS
-        ):
-            found.append(f"{at} {node.value.id}.{node.attr}")
+        found += _import_findings(node, at)
+        found += _reach_findings(node, aliases, at)
     return found
 
 
@@ -326,7 +437,7 @@ def _judge(root: pathlib.Path) -> int:
     if services is None:
         return code
 
-    readable = [path for path in _walk(services) if path.suffix == ".py"]
+    readable = [path for path in _walk(services) if path.suffix in PYTHON_SUFFIXES]
     # A directory that is there and holds nothing this scanner reads is not a clean
     # project — it is one this scanner cannot see, which the manifest's own words
     # forbid reporting as checked: "A rule the tool cannot check must not look like
