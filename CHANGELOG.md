@@ -51,7 +51,11 @@ Notable changes to this project. The format follows
   or a table pipe. Written as prose it is not read, because a claim read from English makes
   `Note: this does not supersede 0001` a finding — the false positive that gets a gate switched
   off within the week.
-
+- **A decision row: `the-skill-and-the-bundle-are-not-checked-against-each-other`.** The rule
+  sheets an agent reads and the scanners a project runs are installed through different pipes
+  and can be different releases, and nothing shipped checks that they agree. The row says so,
+  says why a checker would have to leave the project to try, and names the condition that would
+  change the answer.
 ### Changed
 
 - **`write-scanner-reads-session-delete` says what the scanner now reads.** The row recorded that
@@ -59,6 +63,11 @@ Notable changes to this project. The format follows
   and a row changes with the code rather than being worked around. It now names the shapes it
   reads by, and — in the same sentence — what it still does not: a session or query returned by a
   call, one rebound, one reached through `getattr`, and raw SQL in `text(...)`.
+- **Both sheets now name `--working` where they already named `--rules`.** The front page told a
+  reader to run `python3 tools/gates_doctor.py --rules` before trusting a rule entry and said
+  only that `--rules` never prints a practice — never naming the flag that does. The practices
+  sheet is the one that actually moves between releases, and it now carries the same pointer at
+  the top: where a sheet and the installed bundle disagree, the bundle is what binds the project.
 
 ## [0.8.0] - 2026-09-06
 
