@@ -6,6 +6,24 @@ Notable changes to this project. The format follows
 
 ## [Unreleased]
 
+## [0.9.0] - 2026-09-07
+
+A minor release about the distance between a rule and the code it is meant to read. Round 31
+asked each of the nine scanners the question the maturity list has been asking since it was
+written — *does it know how a real project spells the thing it forbids?* — and thirteen answers
+were no, every one on ordinary, non-adversarial code a reader would call a violation at a
+glance: Flask's config set by a method rather than a subscript, a session bound to a local name,
+SQLAlchemy's two bulk deletes, an ADR link inside a code fence, a supersession written as a
+metadata bullet, two verbs of yarn a rule's own `reads:` already claimed. Each fix is a narrow
+read with its false positive written as a test first — and one of them was still too wide: a
+mapping the file turns off on the next line was reported on a file that ships with the console
+shut, which is the kind of finding that gets a gate switched off. It is refused now, with the
+miss that refusal costs said in the same sentence. Five decision rows say what the scanners
+deliberately do not read, and two older rows learned to say what they let **in** as well as what
+they keep out, measured rather than reasoned about. No rule, gate or scanner id moved: the
+registers stand at 66 gates, 92 rules and 14 practices, all unchanged since 0.8.0. Pull requests
+#321-#332.
+
 ### Fixed
 
 - **A mapping turned off on the next line is no longer a finding.** Round 31's widening let
@@ -3875,7 +3893,8 @@ order it happened.
 - **`gates.yaml`, deliberately empty.** This repository will not list a gate
   before the thing that enforces it exists.
 
-[Unreleased]: https://github.com/sayam/verifiable-gates/compare/v0.8.0...HEAD
+[Unreleased]: https://github.com/sayam/verifiable-gates/compare/v0.9.0...HEAD
+[0.9.0]: https://github.com/sayam/verifiable-gates/releases/tag/v0.9.0
 [0.8.0]: https://github.com/sayam/verifiable-gates/releases/tag/v0.8.0
 [0.7.0]: https://github.com/sayam/verifiable-gates/releases/tag/v0.7.0
 [0.6.0]: https://github.com/sayam/verifiable-gates/releases/tag/v0.6.0
