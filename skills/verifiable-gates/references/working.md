@@ -34,7 +34,11 @@ Most say `reading`, and that is the honest word. A rule this bundle cannot check
 never look like one it checked; a practice nothing enforces must never look like one
 something does.
 
-**How to use this sheet.** Read it once. Then, when a session teaches you something — a
+**How to use this sheet.** If the project has installed the bundle, run
+`python3 tools/gates_doctor.py --working` first: it prints the practices *that* installation
+carries and whether this tree has turned each one on. Where this sheet and that output
+disagree, the output is the one that is true of your project — this sheet may have been
+rendered from an older release than the bundle beside it. Read it once. Then, when a session teaches you something — a
 guard that did not guard, a tool that lied, a green that proved nothing — start your own
 ledger and write the entry in that turn. In a few months some of your entries will have
 held on three pull requests, and those are your practices, not ours. This sheet is worth

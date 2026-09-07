@@ -176,6 +176,9 @@ HELD = {
     "the-sweep-asks-git-what-is-not-yours": "",
     "a-computed-debug-switch-is-not-read": "",
     "a-supersession-is-a-field-not-a-sentence": "",
+    # 2026-09-07: the skill and the bundle can be different releases on a consumer's machine,
+    # and what binds the project is what the installed bundle prints.
+    "the-skill-and-the-bundle-are-not-checked-against-each-other": "",
 }
 
 # The rows whose `expires when` is `Never` — an expiry rewritten to "Never" was

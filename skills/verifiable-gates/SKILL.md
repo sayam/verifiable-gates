@@ -30,7 +30,11 @@ metadata:
 4. **[`references/working.md`](references/working.md) is a different kind of sheet** and
    optional. It is not rules — it is how the work is done: fourteen practices, each with the
    ledger entry that paid for it and the pull requests it held on. Nothing there is
-   decided by a scanner, and `--rules` never prints one. Read it once, then keep your own
+   decided by a scanner, and `--rules` never prints one — `python3 tools/gates_doctor.py
+   --working` does: it lists the practices *that* installation carries and whether this tree
+   has turned each one on. Where this sheet and that output disagree, the output is the one
+   that is true of your project, because a sheet may have been rendered from an older release
+   than the bundle beside it. Read it once, then keep your own
    ledger; in a few months your entries will be better for your project than ours are.
 
 Every rule is **framework-agnostic**. What enforces a rule is not: enforcement is
