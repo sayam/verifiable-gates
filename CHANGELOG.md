@@ -89,6 +89,17 @@ Notable changes to this project. The format follows
   nothing — and names the condition that would change the answer.
 ### Changed
 
+- **The scaffold-key register reads syntax, not text.** The test that holds
+  `gates_doctor.SCAFFOLD_KEYS` equal to what the shipped files actually read found those reads by
+  grepping each file for `config, "<key>"`. A docstring explaining a scanner — one that spelled
+  `setattr(app.config, "DEBUG", True)` to say that shape sets *no* config key — therefore
+  registered as a scanner reading a scaffold key called `DEBUG`, and a green register test went
+  red for a reason that had nothing to do with scaffold keys. The reader now walks the parse tree,
+  so prose about an accessor is prose and only a call is a read; the sentence that caused it is
+  back in `_setattr_debug`'s docstring, as the example a reader needs. Proved both ways: the
+  planted docstring is green here and red against the reader as it was, while a key renamed in a
+  scanner, in `preflight` or in the doctor is still red.
+
 - **Two decision rows now say what they let through, not only what they keep out.** A row that
   lists a scanner's controls and not its admitted surface tells an adopter half of what it knows.
   `write-scanner-reads-session-delete` names the three shapes its textual read admits — an

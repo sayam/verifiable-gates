@@ -20,6 +20,7 @@ Three properties, and the second is the one that decays quietly:
 
 from __future__ import annotations
 
+import ast
 import contextlib
 import datetime
 import io
@@ -4283,23 +4284,58 @@ def test_the_key_finding_travels_into_sarif_as_a_result_with_its_rule(
     assert location["physicalLocation"]["artifactLocation"]["uri"] == "scaffold.json"
 
 
+def _keys_handed_to(source: str, receiver: str) -> set[str]:
+    """Every key this file reads through the accessor shape `<f>(<receiver>, "<key>", …)`,
+    read from the file's **syntax** rather than from its text."""
+    read: set[str] = set()
+    for node in ast.walk(ast.parse(source)):
+        if not isinstance(node, ast.Call) or len(node.args) < 2:
+            continue
+        first, key = node.args[0], node.args[1]
+        if not (isinstance(first, ast.Name) and first.id == receiver):
+            continue
+        if isinstance(key, ast.Constant) and isinstance(key.value, str):
+            read.add(key.value)
+    return read
+
+
+def _keys_fetched_from(source: str, receiver: str) -> set[str]:
+    """Every `<receiver>.get("<key>")` in this file, read the same way."""
+    read: set[str] = set()
+    for node in ast.walk(ast.parse(source)):
+        if not (isinstance(node, ast.Call) and isinstance(node.func, ast.Attribute)):
+            continue
+        function = node.func
+        if function.attr != "get" or not isinstance(function.value, ast.Name):
+            continue
+        if function.value.id != receiver or len(node.args) != 1:
+            continue
+        key = node.args[0]
+        if isinstance(key, ast.Constant) and isinstance(key.value, str):
+            read.add(key.value)
+    return read
+
+
 def test_the_keys_the_doctor_knows_are_the_keys_the_scanners_read() -> None:
     """A register held two-way: `SCAFFOLD_KEYS` equals what the shipped files actually
     read, found in their source, and every key is named in `scaffold.json.default`."""
     # The accessor shape of each shipped reader: `_configured_*(config, "<key>", …)` in
-    # the scanners, `document.get("<key>")` in preflight. Each pattern is applied to its
-    # own file only — the registry scanner's `document.get("gates")` reads gates.yaml.
-    scanners = re.compile(r'config,\s*"(\w+)"')
-    preflight = re.compile(r'document\.get\("(\w+)"\)')
-    # The doctor reads one key itself — `waivers` (round 26) — as `config.get("<key>")`.
-    doctor = re.compile(r'config\.get\("(\w+)"\)')
+    # the scanners, `document.get("<key>")` in preflight. Each shape is asked of its own
+    # file only — the registry scanner's `document.get("gates")` reads gates.yaml.
+    #
+    # Read from the parse tree, never from the text: a regex here counted a `config, "DEBUG"`
+    # written inside a **docstring** as a key a scanner reads, and a sentence that explained a
+    # scanner turned this register red (round 31, 2026-09-07). It is L-0202's shape — the
+    # suppression counter that counted a switch-off directive written in prose — and the
+    # parser is the only thing that can tell code from a sentence about code.
     read: set[str] = set()
     for path in sorted(CHECKS.glob("scan_*.py")):
-        read |= set(scanners.findall(path.read_text(encoding="utf-8")))
+        read |= _keys_handed_to(path.read_text(encoding="utf-8"), "config")
     source = ROOT_OF_REPO / "src" / "verifiable_gates" / "preflight.py"
-    read |= set(preflight.findall(source.read_text(encoding="utf-8")))
+    read |= _keys_fetched_from(source.read_text(encoding="utf-8"), "document")
+    # The doctor reads one key itself — `waivers` (round 26) — as `config.get("<key>")`.
     source = ROOT_OF_REPO / "src" / "verifiable_gates" / "gates_doctor.py"
-    read |= set(doctor.findall(source.read_text(encoding="utf-8")))
+    read |= _keys_fetched_from(source.read_text(encoding="utf-8"), "config")
     assert read == set(gates_doctor.SCAFFOLD_KEYS)
     default = ROOT_OF_REPO / "src" / "verifiable_gates" / "scaffold.json.default"
     comment = json.loads(default.read_text(encoding="utf-8"))["_comment"]

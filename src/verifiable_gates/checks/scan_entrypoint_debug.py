@@ -268,11 +268,8 @@ def _config_call_debug(node: ast.Call, dicts: dict[str, ast.Dict]) -> tuple[int,
 def _setattr_debug(node: ast.Call) -> tuple[int, str] | None:
     """`setattr(app, "debug", True)` — the same write as `app.debug = True`, spelled as a
     call, so it is not an `ast.Assign` and the assignment road never saw it (round 31,
-    2026-09-07). Only the `debug` attribute counts: a `setattr` on `app.config` with the
-    key named as its second argument puts an attribute on a dict subclass and sets no
-    config key, so it opens nothing. (Written without the literal call because the
-    scaffold-key register finds a scanner's reads by grepping for that exact shape —
-    L-0327.)
+    2026-09-07). Only the `debug` attribute counts: `setattr(app.config, "DEBUG", True)`
+    puts an attribute on a dict subclass and sets no config key, so it opens nothing.
     """
     if not (isinstance(node.func, ast.Name) and node.func.id == "setattr"):
         return None
