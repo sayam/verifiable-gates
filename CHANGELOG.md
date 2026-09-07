@@ -6,6 +6,22 @@ Notable changes to this project. The format follows
 
 ## [Unreleased]
 
+### Fixed
+
+- **A bundle the installed record does not vouch for is no verdict — said first, exit 2.**
+  The doctor has held the bundle to `tools/installed.json` on every plain run since round
+  4, and used the answer in one place: the `rule:` line under a `[found]`. So a scanner
+  replaced with `sys.exit(0)`, on a tree whose only violation is the one it reads, printed
+  `[ pass]` and exited 0 with the edit said nowhere, and a deleted record was a sentence
+  printed nowhere — while `--installed` saw both at once, in the mode the shipped workflow
+  never runs (measured 2026-09-08 against the v0.9.0 wheel, bypass cases B5b and B24). The
+  run now opens with what the record says, runs and prints every scan as before — the
+  findings are the scanners' words — closes with `** no verdict`, and exits 2. The SARIF
+  carries it as an error notification **and** a result of the doctor's own rule
+  `bundle-not-the-one-installed`, the shape GitHub keeps. The record is the bundle's
+  home's: a run with `--manifest` naming a bundle elsewhere holds that bundle, not the
+  root. An edited doctor stays outside the tree's reach, as the record's docstring says.
+
 ## [0.9.0] - 2026-09-07
 
 A minor release about the distance between a rule and the code it is meant to read. Round 31

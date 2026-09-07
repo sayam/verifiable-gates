@@ -6,8 +6,9 @@ to tell apart, what each answers, and why it does not answer the other thing. Th
 form is in the README under *Reading the output*; this is where the cases live.
 
 The exit codes are the contract every scanner shares: **0** clean or `NA`, **1**
-findings or `[error]`, **2** misuse — two questions asked at once, two roots, a bundle
-`--rules` cannot vouch for.
+findings or `[error]`, **2** misuse — two questions asked at once, two roots — or a
+bundle the installed record cannot vouch for, whether `--rules` was asked or the scans
+were run: could-not-check is not checked.
 
 ## The four answers
 
@@ -41,6 +42,7 @@ findings or `[error]`, **2** misuse — two questions asked at once, two roots, 
 | A directory the scanner cannot walk — closed to it | `[error]` | A directory closed to the scanner is *not* the answer a directory that is not there gets, which stays `NA`. |
 | A fresh install | `pass` for `gates-registry-total` only; `NA` for the two pinning checkers | The shipped index has to be true about itself. The starting workflow the installer wrote is the bundle's own file until a line of it changes — a green on that file says nothing about the project. |
 | A gate whose job cannot turn the build red — a workflow with no trigger, `if: false`, or `continue-on-error: true` | finding from `gates-registry-total` | A row nothing can fail is a row and nothing else. Each finding names the file to open and the row to add or change, so the first line a stranger reads points at the second. |
+| The installed record does not vouch for the bundle — a scanner edited or gone, `tools/installed.json` unreadable or missing | the scans still run and print; the run is **no verdict**, said above the first gate line and below the last, **exit 2** | Could-not-check is not checked. The check ran on every plain run and reached only the `rule:` line under a `[found]`, so a scanner replaced with `sys.exit(0)` on a tree with nothing else wrong was `[ pass]` at exit 0 with the edit said nowhere (measured 2026-09-08 against the v0.9.0 wheel). An edited *doctor* stays outside the tree's reach; what holds it is the copy in the package. |
 
 ## A finding, as printed
 
@@ -75,7 +77,8 @@ waiting on this project's own tests: 0 gates
 A finding carries two lines above the scanner's own — `[found] <gate> — <rule>` and
 `born from: <incident>` — read off the installed manifest. Off a bundle the installed
 record no longer vouches for (below), it carries the gate alone and one line saying
-why; the scanner's findings are printed either way.
+why; the scanner's findings are printed either way — and the run opens and closes with
+what the record says, and exits 2.
 
 The scanner's own line is `<rule>: <file>:<line>: <what was decided>`, and the last part
 is **what the scanner decided, not a quotation of the source line**. On the roads where
@@ -98,6 +101,11 @@ An install that stopped partway is read as one: the doctor leads with *the last 
 into this tree did not finish* rather than reporting the files that did land as files
 somebody edited. One still under way is read as one too, because the record is written
 before the first file and names what each file is about to become.
+
+The plain run holds the bundle to the same record. A record that does not hold — or
+none — is printed above the first gate line with the same sentences `--installed`
+gives, the scans run and print as they would, and the run ends `** no verdict` at
+exit 2: the lines are the scanners' words, and what ran them cannot be vouched for.
 
 ## `--rules`: the rules the bundle decides
 
@@ -123,6 +131,7 @@ reviewdog or an IDE. The mapping, measured against GitHub's Security tab in roun
 | a finding | a **result** | It is what a reader counts. |
 | `NA` | a **notification** on the invocation, never a result | GitHub keeps a SARIF's results and drops its invocation, so a reader counting results must not see "could not look" as "looked and found nothing". |
 | a scan that did not answer | **both** — an error notification, and a result of the doctor's own rule `scan-did-not-answer` | Same reason: the result is the one shape that reader keeps. |
+| a run the installed record does not vouch for | **both** — an error notification per sentence of the record, and a result of the doctor's own rule `bundle-not-the-one-installed` on the file the record names; the invocation names exit 2 and why | Same reason. |
 | every result | carries a **location** the tree has — the file the finding names, else `scaffold.json` | GitHub refuses a whole file over one result without one. |
 | every result | carries a **fingerprint** (`partialFingerprints.primaryLocationLineHash`): the rule, the message with its line number taken out, and its place among identical sentences in the run | GitHub matches an alert across commits on it; a line inserted above a finding moves its region and its `:N`, and must not re-open it (round 26). |
 | a waived finding | a **result with `suppressions`** — `kind: external`, the waiver's reason, `until` and `decided_by` as the justification | A reader counts it, and sees why it does not fail the run; code scanning shows a suppressed result as dismissed with its justification rather than gone (what GitHub does with it was not measured in round 26; the file is). |

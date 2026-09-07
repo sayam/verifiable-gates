@@ -89,6 +89,10 @@ Two consequences to know before trusting a green:
   a passed one (`DECISIONS.md` `doctor-all-na-exits-zero`).
 - A path that `scaffold.json` names and the project does not have is a finding, not
   `NA`: a broken configuration is a defect, not an absence.
+- **A bundle the installed record does not vouch for is no verdict.** An edited or
+  missing scanner, or no `tools/installed.json`, is said above the first gate line and the
+  run exits 2 whatever the scans printed; `--installed` gives the whole account. An edited
+  doctor cannot be caught from inside the tree.
 - **Saying "not yet" goes through the record, not around it.** There is no `# noqa` here
   and no warn-only mode; a finding a project will not fix this week gets a waiver in
   `scaffold.json` (`waivers: [{gate, reason, until, decided_by, scope?}]`), which the

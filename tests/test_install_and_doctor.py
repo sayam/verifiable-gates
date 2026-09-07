@@ -23,6 +23,7 @@ from __future__ import annotations
 import ast
 import contextlib
 import datetime
+import hashlib
 import io
 import json
 import os
@@ -229,6 +230,7 @@ def test_a_scan_that_says_nothing_and_exits_zero_is_a_pass(
             "reads": "nothing",
         }
     manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
+    _as_installed(project, manifest_path)
 
     done = run_doctor(project)
 
@@ -309,7 +311,7 @@ def test_the_rule_and_its_incident_are_printed_only_off_a_bundle_still_the_one_i
     manifest.write_text(json.dumps(loaded), encoding="utf-8")
 
     done = run_doctor(project)
-    assert done.returncode == 1
+    assert done.returncode == 2, "no verdict off a bundle the record does not vouch for"
     head, why, finding = _found_block(done.stdout, "no-debug-entrypoint")
     assert head == "[found] no-debug-entrypoint", head
     assert why.startswith("  rule: (not printed: "), why
@@ -317,13 +319,101 @@ def test_the_rule_and_its_incident_are_printed_only_off_a_bundle_still_the_one_i
     assert finding == "no-debug-entrypoint: run.py:2 .run(debug=True)", finding
     assert "IMPORTANT UPDATE" not in done.stdout
     assert "born from" not in done.stdout
+    assert done.stdout.startswith("** the bundle under "), done.stdout
+    assert done.stdout.rstrip().endswith(gates_doctor.NO_VERDICT), done.stdout
 
     (project / "tools" / "installed.json").unlink()
     done = run_doctor(project)
-    assert done.returncode == 1
+    assert done.returncode == 2
     head, why, _ = _found_block(done.stdout, "no-debug-entrypoint")
     assert head == "[found] no-debug-entrypoint", head
     assert "no tools/installed.json" in why, why
+
+
+def test_an_edited_scanner_on_a_tree_with_nothing_else_wrong_is_no_verdict(
+    tmp_path: pathlib.Path, bundle_copy: pathlib.Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """`check_installed_record` ran on every plain run and reached only the `rule:` line
+    under a `[found]`, so a scanner replaced with `sys.exit(0)` on a tree whose only
+    violation is the one it reads printed `[ pass]` and exited 0 with the edit said nowhere
+    (bypass case B5b, 2026-09-08, against the v0.9.0 wheel). Now it is said first, above
+    the gate lines, said last, and the run is exit 2 — and the scans still run."""
+    project = tmp_path / "project"
+    assert do_install(project, bundle_copy) == 0
+    capsys.readouterr()
+    (project / "run.py").write_text("app = object()\napp.run(debug=True)\n", encoding="utf-8")
+    control = run_doctor(project)
+    assert control.returncode == 1, control.stdout
+    assert "** the bundle under" not in control.stdout, "an intact bundle says nothing of it"
+    assert gates_doctor.NO_VERDICT not in control.stdout
+
+    scanner = project / "tools" / "checks" / "scan_entrypoint_debug.py"
+    scanner.write_text("import sys\nsys.exit(0)\n", encoding="utf-8")
+    done = run_doctor(project)
+    assert done.returncode == 2, done.stdout
+    lines = done.stdout.splitlines()
+    assert lines[0] == (
+        f"** the bundle under {project} is not the one that was installed — what it"
+        " answers cannot be vouched for"
+    ), lines[0]
+    assert lines[1] == (
+        "   tools/checks/scan_entrypoint_debug.py is not what was installed — its contents"
+        " have changed"
+    ), lines[1]
+    assert lines[2] == "   re-run the installer, or ask for the whole account with --installed"
+    assert lines[3] == "", "one blank line, then the gates"
+    assert lines[4].startswith("[   NA] actions-sha-pinned"), "the scans still run"
+    assert "[ pass] no-debug-entrypoint" in lines, "the scanner's own word is still printed"
+    assert lines[-1] == f"** {gates_doctor.NO_VERDICT}", lines[-1]
+
+    # The record told about the edit: the same tree, the same neutered scanner, and the
+    # bundle *is* the one installed — exit 0 and not a word, which is the boundary the
+    # record's docstring names (B6): what closes it is the copy in the package.
+    _as_installed(project, scanner)
+    agreed = run_doctor(project)
+    assert agreed.returncode == 0, agreed.stdout
+    assert "** the bundle under" not in agreed.stdout
+
+
+def test_in_process_a_finding_off_an_unheld_bundle_carries_the_gate_alone(
+    installed: pathlib.Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """The `rule:` parenthesis under a `[found]` stays — it is where the doctor said the
+    edit before the edit reached the exit — and now the block above it and the exit say
+    it too. In-process, so the line is the doctor's own and not a subprocess's."""
+    (installed / "run.py").write_text("app = object()\napp.run(debug=True)\n", encoding="utf-8")
+    (installed / "tools" / "checks" / "scan_workflow_pinning.py").write_text(
+        "raise SystemExit(0)\n", encoding="utf-8"
+    )
+    code = gates_doctor.main(
+        [str(installed), "--manifest", str(installed / "tools" / "overlay.json")]
+    )
+    out = capsys.readouterr().out
+    assert code == 2
+    assert out.startswith("** the bundle under "), out
+    head, why, finding = _found_block(out, "no-debug-entrypoint")
+    assert head == "[found] no-debug-entrypoint", head
+    assert why == (
+        "  rule: (not printed: tools/checks/scan_workflow_pinning.py is not what was installed"
+        " — its contents have changed)"
+    ), why
+    assert finding == "no-debug-entrypoint: run.py:2 .run(debug=True)", finding
+    assert out.rstrip().endswith(gates_doctor.NO_VERDICT)
+
+
+def test_a_missing_record_is_no_verdict_even_on_a_clean_tree(
+    installed: pathlib.Path,
+) -> None:
+    """With no `tools/installed.json` the sentence "this bundle was installed before the
+    installer recorded what it wrote" was printed nowhere on a clean run (bypass case B24,
+    2026-09-08). Could-not-check is not checked: exit 2, said first."""
+    assert run_doctor(installed).returncode == 0, "the control: a fresh install is clean"
+    (installed / "tools" / "installed.json").unlink()
+    done = run_doctor(installed)
+    assert done.returncode == 2, done.stdout
+    assert done.stdout.startswith("** the bundle under "), done.stdout
+    assert "no tools/installed.json" in done.stdout.splitlines()[1], done.stdout
+    assert done.stdout.rstrip().endswith(gates_doctor.NO_VERDICT), done.stdout
 
 
 def test_the_rule_and_its_incident_go_through_the_guard_like_a_scanners_line(
@@ -529,9 +619,7 @@ def test_a_scan_that_hangs_is_an_error_not_a_traceback(
     """The doctor used to die of `TimeoutExpired`; a hang is an answer the report carries."""
     project = tmp_path / "project"
     assert do_install(project, bundle_copy) == 0
-    (project / "tools" / "checks" / "scan_workflow_pinning.py").write_text(
-        "import time\ntime.sleep(30)\n", encoding="utf-8"
-    )
+    _plant(project, "scan_workflow_pinning.py", "import time\ntime.sleep(30)\n")
     monkeypatch.setattr(gates_doctor, "SCAN_TIMEOUT", 1)
     capsys.readouterr()
 
@@ -548,9 +636,10 @@ def test_a_scan_that_prints_half_a_verdict_and_crashes_is_an_error(
     """Exit 1 with stdout *and* a traceback on stderr: the scan did not finish judging."""
     project = tmp_path / "project"
     assert do_install(project, bundle_copy) == 0
-    (project / "tools" / "checks" / "scan_workflow_pinning.py").write_text(
+    _plant(
+        project,
+        "scan_workflow_pinning.py",
         "print('actions-sha-pinned: x.yml: half a verdict')\nraise RuntimeError('boom')\n",
-        encoding="utf-8",
     )
     capsys.readouterr()
 
@@ -567,10 +656,11 @@ def test_a_scan_that_warns_on_stderr_beside_a_real_finding_is_still_found(
     """The other direction: a warning is not a traceback; the verdict stands."""
     project = tmp_path / "project"
     assert do_install(project, bundle_copy) == 0
-    (project / "tools" / "checks" / "scan_workflow_pinning.py").write_text(
+    _plant(
+        project,
+        "scan_workflow_pinning.py",
         "import sys\nprint('actions-sha-pinned: x.yml: actions/checkout@v4')\n"
         "print('warning: slow tree', file=sys.stderr)\nsys.exit(1)\n",
-        encoding="utf-8",
     )
     capsys.readouterr()
 
@@ -587,8 +677,10 @@ def test_a_scan_that_is_called_wrongly_is_an_error_too(
     project = tmp_path / "project"
     assert do_install(project, bundle_copy) == 0
     capsys.readouterr()
-    (project / "tools" / "checks" / "scan_workflow_pinning.py").write_text(
-        "import sys\nprint('usage: nope', file=sys.stderr)\nsys.exit(2)\n", encoding="utf-8"
+    _plant(
+        project,
+        "scan_workflow_pinning.py",
+        "import sys\nprint('usage: nope', file=sys.stderr)\nsys.exit(2)\n",
     )
 
     done = run_doctor(project)
@@ -2001,7 +2093,9 @@ def test_the_refusal_in_process_says_every_sentence_the_account_would(
 def test_an_edited_scanner_also_stops_the_rules_being_printed(installed: pathlib.Path) -> None:
     """A rule is what a scanner decides; a bundle whose scanner was rewritten does not
     decide what its manifest says it decides, whoever edited which file."""
-    _plant(installed, "scan_workflow_pinning.py", "raise SystemExit(0)\n")
+    (installed / "tools" / "checks" / "scan_workflow_pinning.py").write_text(
+        "raise SystemExit(0)\n", encoding="utf-8"
+    )
 
     done = _rules(installed)
 
@@ -2374,8 +2468,23 @@ def _sarif_after(project: pathlib.Path, *args: str) -> tuple[int, dict[str, Any]
     return done.returncode, json.loads(out.read_text(encoding="utf-8")), done.stdout
 
 
+def _as_installed(project: pathlib.Path, path: pathlib.Path) -> None:
+    """Tell the record about `path` as it is now, so the bundle is still the one installed."""
+    record = project / "tools" / "installed.json"
+    written = json.loads(record.read_text(encoding="utf-8"))
+    name = next(k for k in written["files"] if k.endswith(path.name))
+    written["files"][name] = hashlib.sha256(path.read_bytes()).hexdigest()
+    record.write_text(json.dumps(written, indent=2), encoding="utf-8")
+
+
 def _plant(project: pathlib.Path, scanner: str, body: str) -> None:
-    (project / "tools" / "checks" / scanner).write_text(body, encoding="utf-8")
+    """A scanner with this body, **as installed**: the record is told, because these
+    tests are about what a scanner says, not about whether the bundle is the one the
+    installer wrote — a planted scanner the record did not know would make every run
+    below no verdict (exit 2) whatever the scanner said."""
+    path = project / "tools" / "checks" / scanner
+    path.write_text(body, encoding="utf-8")
+    _as_installed(project, path)
 
 
 def test_a_finding_with_a_line_is_a_located_result_and_the_rules_carry_their_incident(
@@ -2793,7 +2902,7 @@ def test_in_process_a_record_with_no_version_leaves_the_driver_without_one(
     (installed / "tools" / "installed.json").write_text("[]", encoding="utf-8")
     code, log = _sarif_in_process(installed)
     capsys.readouterr()
-    assert code == 0
+    assert code == 2, "a record that cannot be read is no verdict — and still no version"
     assert "version" not in log["runs"][0]["tool"]["driver"]
     (installed / "tools" / "installed.json").unlink()
     code, log = _sarif_in_process(installed)
@@ -4511,3 +4620,37 @@ def test_every_shipped_data_file_is_in_the_wheel() -> None:
         f"shipped by the manifest but matched by no package-data glob, so absent from the wheel: "
         f"{missing} — add a pattern to [tool.setuptools.package-data] in pyproject.toml"
     )
+
+
+def test_a_run_the_record_does_not_vouch_for_says_so_where_github_keeps_it(
+    installed: pathlib.Path,
+) -> None:
+    """The SARIF of a run off an edited scanner: the invocation names exit 2 and why, is
+    not successful, carries an error notification — and a **result** of the doctor's own
+    rule located on the file the record names, since GitHub drops the notifications
+    (round 23, D2). The rule appears only when a result hangs on it."""
+    control_code, control, _ = _sarif_after(installed)
+    assert control_code == 0
+    assert not [
+        r for r in control["runs"][0]["tool"]["driver"]["rules"] if r["id"] == gates_doctor.UNHELD
+    ], "an intact bundle carries no such rule"
+    scanner = installed / "tools" / "checks" / "scan_entrypoint_debug.py"
+    scanner.write_text("import sys\nsys.exit(0)\n", encoding="utf-8")
+    code, log, report = _sarif_after(installed)
+    assert code == 2
+    assert report.startswith("** the bundle under "), "the text report says it first"
+    (run,) = log["runs"]
+    (invocation,) = run["invocations"]
+    assert invocation["executionSuccessful"] is False
+    assert invocation["exitCode"] == 2
+    assert invocation["exitCodeDescription"] == gates_doctor.NO_VERDICT
+    (error,) = [n for n in invocation["toolExecutionNotifications"] if n["level"] == "error"]
+    assert error["message"]["text"].startswith("tools/checks/scan_entrypoint_debug.py is not")
+    (result,) = [r for r in run["results"] if r["ruleId"] == gates_doctor.UNHELD]
+    assert result["level"] == "error"
+    assert result["message"]["text"] == error["message"]["text"]
+    (location,) = result["locations"]
+    uri = location["physicalLocation"]["artifactLocation"]["uri"]
+    assert uri == "tools/checks/scan_entrypoint_debug.py", "located on the file the record names"
+    (rule,) = [r for r in run["tool"]["driver"]["rules"] if r["id"] == gates_doctor.UNHELD]
+    assert "not the one that was installed" in rule["shortDescription"]["text"]
