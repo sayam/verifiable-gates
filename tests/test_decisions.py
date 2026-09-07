@@ -185,6 +185,9 @@ HELD = {
     # 2026-09-07: the owner's decision — no 1.0.0 while nobody outside has used it,
     # because 1.0.0 is a promise about a public API and this one has held nobody.
     "no-1-0-0-until-somebody-else-has-used-it": "2027-02-28",
+    # 2026-09-07: a finding's shape is what the scanner decided, not the text on the
+    # line it names; the two differ where the value was written somewhere else.
+    "a-finding-prints-what-was-decided": "2027-02-28",
 }
 
 # The rows whose `expires when` is `Never` — an expiry rewritten to "Never" was

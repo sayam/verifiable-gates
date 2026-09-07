@@ -54,6 +54,15 @@ Notable changes to this project. The format follows
 
 ### Added
 
+- **A decision row: `a-finding-prints-what-was-decided`.** The shape a finding prints after
+  `<rule>: <file>:<line>` is what the scanner decided, not a quotation of that line, and on two
+  roads the two differ: a mapping bound above and splatted (`app.run(**opts)`) prints
+  `.run(**{'debug': True})`, so a reader grepping that line for the printed text finds nothing.
+  The line number is still the line a fix belongs on. Carrying both — `.run(**opts) →
+  {'debug': True}` — was weighed and refused: the finding line is a format people and other tools
+  have read since v0.1.0. The row says which scanner does which (`scan_write_discipline` prints
+  the source line, because everything it decides is on it) and what would end the decision.
+
 - **A decision row: `a-computed-debug-switch-is-not-read`.** `no-debug-entrypoint` decides a
   constant and a truthy fallback; a switch whose value is computed — `debug=settings.DEBUG`, a
   mapping from a call, or a name the file binds more than once — is not read, and will not be.
