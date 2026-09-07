@@ -42,7 +42,14 @@ roots that differ would leave the report silently about one of them.
   is done, and a doctor grading that would be a rule the tool cannot check dressed as
   one it did. Enabled means one thing — `.local/LESSONS.md` exists — because a second
   place saying so would be a register nobody holds.
-- Without any of them it **runs the scans** and exits 1 if any found something.
+- Without any of them it **runs the scans** and exits 1 if any found something — and
+  exits 2, *no verdict*, when the installed record does not vouch for the bundle that
+  ran them: an edited or missing scanner, a record that cannot be read, or none at all.
+  That check has run on every plain run since round 4 and reached only a parenthesis
+  under other gates' findings, so a scanner replaced with `sys.exit(0)` on a tree whose
+  only violation was the one it reads was `[ pass]` at exit 0, with the edit said
+  nowhere (2026-09-08, measured against the v0.9.0 wheel). It is said first, above the
+  gate lines, and last, and the scans still run: the findings are the scanners' words.
 
 Asking two of them at once is a misuse (exit 2), for the same reason two roots
 are: they are different questions, and one report cannot answer both.
@@ -106,7 +113,8 @@ the length of a read and a rename, not of a scan.
 
 exit 0 = clean · 1 = findings, or an incomplete install · 2 = called wrongly, or
 asked a question this bundle cannot answer for itself — the SARIF that could not be
-written, and the rules of a bundle whose record does not vouch for it
+written, the rules of a bundle whose record does not vouch for it, and a run of the
+scans off such a bundle, which is no verdict
 
 Role: reader — it reports where a project stands. Its evidence is that each
 scanner's own tests decide the verdicts it relays, and that NA is never a pass.
@@ -128,7 +136,7 @@ import sys
 from typing import TYPE_CHECKING, Any, NamedTuple, TypeGuard
 
 if TYPE_CHECKING:
-    from collections.abc import Callable
+    from collections.abc import Callable, Sequence
 
 
 def _is_manifest(raw: object) -> TypeGuard[dict[str, Any]]:
@@ -658,6 +666,38 @@ def _before_the_scans(
     return waivers, failed, outcomes
 
 
+# The doctor's own rule for a run the installed record does not vouch for, and the one
+# sentence the run ends on: the bundle that produced the lines is not the one the installer
+# wrote, so none of them is a verdict.
+UNHELD = "bundle-not-the-one-installed"
+NO_VERDICT = (
+    "no verdict: the bundle is not the one that was installed — the lines above are the"
+    " scanners' words, and what ran them cannot be vouched for"
+)
+
+
+def _say_unheld(root: pathlib.Path, unheld: list[str]) -> None:
+    """What the installed record says, above the first gate line, so it is read before
+    the lines it disqualifies.
+
+    `check_installed_record` has run on every plain run since round 4 and was right each
+    time; its answer went to one place, the `rule:` line under a `[found]`. A scanner
+    replaced with `sys.exit(0)`, on a tree whose only violation is the one it reads, was
+    therefore `[ pass]` at exit 0 with the edit said nowhere, and a deleted record was a
+    sentence printed nowhere — while `--installed` saw both at once, in the mode the
+    shipped workflow never runs (measured 2026-09-08 against the v0.9.0 wheel, bypass
+    cases B5b and B24). A check whose only road to the output runs through another
+    check's finding counts when it does not matter and is silent when it does.
+    """
+    print(
+        f"** the bundle under {_shown(root)} is not the one that was installed — what it"
+        " answers cannot be vouched for"
+    )
+    for problem in unheld:
+        print(f"   {problem}")
+    print("   re-run the installer, or ask for the whole account with --installed\n")
+
+
 def run_scans(
     root: pathlib.Path,
     manifest: dict[str, Any],
@@ -674,10 +714,18 @@ def run_scans(
     the tree it holds to account, so they are printed only off a bundle that is still the
     one installed — the rule `--rules` already keeps (`DECISIONS.md`
     `the-rules-are-read-off-a-bundle-that-is-still-intact`). The findings themselves are
-    printed either way: they are the scanner's words, marked as the tree's.
+    printed either way: they are the scanner's words, marked as the tree's. What is
+    not printed either way is a verdict: a record that does not hold is said above the
+    first gate line and again below the last, and the run exits 2 (`_say_unheld`).
     """
     broken: list[str] = []
-    unheld = check_installed_record(root)
+    # The record describes the bundle's home — the tree the installer wrote `tools/` into —
+    # which is the root on every plain run and is not when `--manifest` names a bundle
+    # elsewhere: then the root has no record to hold, and the bundle still does.
+    home = bundle.parent
+    unheld = check_installed_record(home)
+    if unheld:
+        _say_unheld(home, unheld)
     waivers, failed, outcomes = _before_the_scans(root, manifest)
     for gid, script in scan_entries(manifest):
         try:
@@ -734,14 +782,23 @@ def run_scans(
 
     print(f"\nwaiting on this project's own tests: {suite_count(manifest)} gates")
     _report_waivers(waivers, outcomes)
+    verdict = _close(failed, broken, unheld)
+    if sarif is not None and not write_sarif(sarif, root, manifest, outcomes, unheld):
+        return 2
+    return verdict
+
+
+def _close(failed: list[str], broken: list[str], unheld: list[str]) -> int:
+    """The `**` summary lines, and the exit they stand for: findings 1, a scan that did
+    not answer 1, a bundle the record does not vouch for 2 — the last whatever the
+    others said, since none of their lines is a verdict off such a bundle."""
     if failed:
         print(f"** scans found problems in {len(failed)} gates: {', '.join(failed)}")
     if broken:
         print(f"** {len(broken)} scans did not answer, which is no verdict: {', '.join(broken)}")
-    verdict = 1 if failed or broken else 0
-    if sarif is not None and not write_sarif(sarif, root, manifest, outcomes):
-        return 2
-    return verdict
+    if unheld:
+        print(f"** {NO_VERDICT}")
+    return 2 if unheld else 1 if failed or broken else 0
 
 
 # ---------------------------------------------------------------- SARIF
@@ -922,7 +979,7 @@ def _fingerprint(results: list[dict[str, Any]]) -> None:
         result["partialFingerprints"] = {"primaryLocationLineHash": digest}
 
 
-def _exit_of(outcomes: list[Outcome]) -> tuple[int, str]:
+def _exit_of(outcomes: list[Outcome], unheld: Sequence[str]) -> tuple[int, str]:
     """The doctor's exit for this run and the sentence behind it, for the invocation.
 
     GitHub code scanning keeps a SARIF's results and drops its invocation — every
@@ -932,6 +989,8 @@ def _exit_of(outcomes: list[Outcome]) -> tuple[int, str]:
     So the invocation names the exit the doctor actually gives and why, in the words of
     the report's own summary lines: the one thing about the run that reader will keep.
     """
+    if unheld:
+        return 2, NO_VERDICT
     found = sorted({gid for gid, kind, _said, _sentence in outcomes if kind == "found"})
     unanswered = sorted({gid for gid, kind, _said, _sentence in outcomes if kind == "error"})
     if not found and not unanswered:
@@ -946,9 +1005,12 @@ def _exit_of(outcomes: list[Outcome]) -> tuple[int, str]:
     return 1, "; ".join(parts)
 
 
-def _sarif_rules(manifest: dict[str, Any], outcomes: list[Outcome]) -> list[dict[str, Any]]:
-    """The driver's rules: one per installed scan, and the doctor's own two only when a
-    result of this run hangs on them — a key no scanner reads, a scan that did not answer."""
+def _sarif_rules(
+    manifest: dict[str, Any], outcomes: list[Outcome], unheld: Sequence[str]
+) -> list[dict[str, Any]]:
+    """The driver's rules: one per installed scan, and the doctor's own only when a result
+    of this run hangs on them — a key no scanner reads, a waiver that is not one, a scan
+    that did not answer, a bundle the record does not vouch for."""
     gates = manifest["gates"]
     rules = []
     for gid, _script in scan_entries(manifest):
@@ -993,14 +1055,30 @@ def _sarif_rules(manifest: dict[str, Any], outcomes: list[Outcome]) -> list[dict
                 },
             }
         )
+    if unheld:
+        rules.append(
+            {
+                "id": UNHELD,
+                "shortDescription": {"text": "the bundle is not the one that was installed"},
+                "fullDescription": {
+                    "text": "tools/installed.json records what the installer wrote, and a "
+                    "file named in the message is not that — edited, gone, or unreadable — "
+                    "or the record itself is missing or unreadable. The scans still ran and "
+                    "their lines are theirs; the run is no verdict. Re-run the installer."
+                },
+            }
+        )
     return rules
 
 
 def sarif_log(
-    root: pathlib.Path, manifest: dict[str, Any], outcomes: list[Outcome]
+    root: pathlib.Path,
+    manifest: dict[str, Any],
+    outcomes: list[Outcome],
+    unheld: Sequence[str] = (),
 ) -> dict[str, Any]:
     """The whole run as one SARIF 2.1.0 log. Pure: the same outcomes give the same log."""
-    rules = _sarif_rules(manifest, outcomes)
+    rules = _sarif_rules(manifest, outcomes, unheld)
     results: list[dict[str, Any]] = []
     notes: list[dict[str, Any]] = []
     for gid, kind, said, sentence in outcomes:
@@ -1023,8 +1101,15 @@ def sarif_log(
             )
             if kind == "error":
                 results.append(_sarif_unanswered(root, gid, sentence))
+    for problem in unheld:
+        # The run's own disqualification, in both shapes: the notification that marks the
+        # invocation unsuccessful, and a result of the doctor's own rule — the one shape
+        # GitHub keeps (round 23, D2), located on the file the record names when the tree
+        # has it, else on the last resort.
+        notes.append({"level": "error", "message": {"text": problem}})
+        results.append(_located(root, UNHELD, problem))
     _fingerprint(results)
-    exit_code, exit_sentence = _exit_of(outcomes)
+    exit_code, exit_sentence = _exit_of(outcomes, unheld)
     driver: dict[str, Any] = {
         "name": "verifiable-gates",
         "informationUri": INFORMATION_URI,
@@ -1042,7 +1127,8 @@ def sarif_log(
                 "originalUriBaseIds": {"%SRCROOT%": {"uri": root.as_uri() + "/"}},
                 "invocations": [
                     {
-                        "executionSuccessful": not any(k == "error" for _g, k, _s, _t in outcomes),
+                        "executionSuccessful": not unheld
+                        and not any(k == "error" for _g, k, _s, _t in outcomes),
                         "exitCode": exit_code,
                         "exitCodeDescription": exit_sentence,
                         "toolExecutionNotifications": notes,
@@ -1148,14 +1234,18 @@ def _whose_run(raw: bytes, root: pathlib.Path) -> str | None:
 
 
 def write_sarif(
-    out: pathlib.Path, root: pathlib.Path, manifest: dict[str, Any], outcomes: list[Outcome]
+    out: pathlib.Path,
+    root: pathlib.Path,
+    manifest: dict[str, Any],
+    outcomes: list[Outcome],
+    unheld: Sequence[str] = (),
 ) -> bool:
     """The log on disk, or a sentence on stderr and False — never a traceback.
 
     Two sentences, apart on purpose: a file that *cannot* be written, and one this
     doctor *will not* write over because of what is already there.
     """
-    text = json.dumps(sarif_log(root, manifest, outcomes), indent=2) + "\n"
+    text = json.dumps(sarif_log(root, manifest, outcomes, unheld), indent=2) + "\n"
     try:
         held = _write_whole(out, text, unless=lambda target: _not_this_run(target, root))
     except OSError as problem:
