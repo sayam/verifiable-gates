@@ -174,6 +174,8 @@ HELD = {
     "one-maintainer-and-no-promise": "2027-02-28",
     # 2026-09-06: the sweep that walks a whole tree asks git which files are the project's.
     "the-sweep-asks-git-what-is-not-yours": "",
+    "a-computed-debug-switch-is-not-read": "",
+    "a-supersession-is-a-field-not-a-sentence": "",
 }
 
 # The rows whose `expires when` is `Never` — an expiry rewritten to "Never" was

@@ -120,22 +120,116 @@ def _opens_the_console(node: ast.AST) -> bool:
     return _truthy_constant(node) or _truthy_default(node)
 
 
-def _run_call_debug(node: ast.Call) -> tuple[int, str] | None:
+def _run_call_debug(node: ast.Call, dicts: dict[str, ast.Dict]) -> tuple[int, str] | None:
     """`<x>.run(debug=1)`, `.run(use_debugger=True)` or `.run(**{"debug": True})`."""
     if not (isinstance(node.func, ast.Attribute) and node.func.attr == "run"):
         return None
     for keyword in node.keywords:
         if keyword.arg in DEBUG_KEYWORDS and _opens_the_console(keyword.value):
             return node.lineno, f".run({keyword.arg}={ast.unparse(keyword.value)})"
-        if keyword.arg is None and isinstance(keyword.value, ast.Dict):
-            for key, value in zip(keyword.value.keys, keyword.value.values, strict=True):
-                if (
-                    isinstance(key, ast.Constant)
-                    and key.value in DEBUG_KEYWORDS
-                    and _opens_the_console(value)
-                ):
-                    return node.lineno, f".run(**{{{key.value!r}: {ast.unparse(value)}}})"
+        if keyword.arg is None and (
+            found := _debug_in_mapping(keyword.value, dicts, DEBUG_KEYWORDS)
+        ):
+            key, value = found
+            if _opens_the_console(value):
+                return node.lineno, f".run(**{{{key!r}: {ast.unparse(value)}}})"
     return None
+
+
+# Flask's config is set by a method as often as by a subscript, and the two spell the same
+# switch. Only `.config["DEBUG"] = …` and `.debug = …` were read, so an entrypoint that opens
+# the console the way the Flask documentation writes it — `app.config.update(DEBUG=True)` —
+# answered `pass` over a real debug console (round 31, 2026-09-07). The idiomatic spelling is
+# the one a project actually uses, so it is the one a scanner has to know.
+CONFIG_SETTERS = frozenset({"update", "from_mapping"})
+# Upper case because Flask's config is: `config["debug"]` sets a key nothing reads, so it
+# opens nothing and is not a finding.
+DEBUG_CONFIG_KEY = "DEBUG"
+
+
+def _dicts_bound(tree: ast.AST) -> dict[str, ast.Dict]:
+    """The names this file binds to a literal mapping, so a `**name` can be read.
+
+    `.run(**{"debug": True})` was read and `opts = {"debug": True}` then `app.run(**opts)` was
+    not: the splatted value is a `Name`, and nothing resolved it (round 31, 2026-09-07). A name
+    bound **more than once** is deliberately left out — the file says two things about it, and a
+    scanner that picked one would be guessing which line runs.
+    """
+    seen: dict[str, list[ast.Dict]] = {}
+    for node in ast.walk(tree):
+        if not isinstance(node, ast.Assign) or not isinstance(node.value, ast.Dict):
+            continue
+        for target in node.targets:
+            if isinstance(target, ast.Name):
+                seen.setdefault(target.id, []).append(node.value)
+    return {name: found[0] for name, found in seen.items() if len(found) == 1}
+
+
+def _mapping(node: ast.AST, dicts: dict[str, ast.Dict]) -> ast.Dict | None:
+    """A literal mapping, or the one a name in this file was bound to."""
+    if isinstance(node, ast.Dict):
+        return node
+    return dicts.get(node.id) if isinstance(node, ast.Name) else None
+
+
+def _debug_in_mapping(
+    node: ast.AST, dicts: dict[str, ast.Dict], keys: tuple[str, ...] = (DEBUG_CONFIG_KEY,)
+) -> tuple[str, ast.AST] | None:
+    """The key and value a mapping gives to one of `keys` — the mapping written out, or a
+    name this file bound to one."""
+    mapping = _mapping(node, dicts)
+    if mapping is None:
+        return None
+    for key, value in zip(mapping.keys, mapping.values, strict=True):
+        if isinstance(key, ast.Constant) and key.value in keys:
+            return str(key.value), value
+    return None
+
+
+def _debug_values_given(node: ast.Call, dicts: dict[str, ast.Dict]) -> list[ast.AST]:
+    """Every value this call hands to `DEBUG` — by keyword, by a mapping argument, or by
+    a mapping splatted with `**`, written out or bound to a name."""
+    mappings = [*node.args, *(word.value for word in node.keywords if word.arg is None)]
+    given: list[ast.AST] = [word.value for word in node.keywords if word.arg == DEBUG_CONFIG_KEY]
+    given += [found[1] for arg in mappings if (found := _debug_in_mapping(arg, dicts))]
+    return given
+
+
+def _config_call_debug(node: ast.Call, dicts: dict[str, ast.Dict]) -> tuple[int, str] | None:
+    """`<x>.config.update(DEBUG=True)` or `<x>.config.from_mapping({"DEBUG": True})`."""
+    if not (
+        isinstance(node.func, ast.Attribute)
+        and node.func.attr in CONFIG_SETTERS
+        and isinstance(node.func.value, ast.Attribute)
+        and node.func.value.attr == "config"
+    ):
+        return None
+    for value in _debug_values_given(node, dicts):
+        if _opens_the_console(value):
+            shape = f".config.{node.func.attr}({DEBUG_CONFIG_KEY}={ast.unparse(value)})"
+            return node.lineno, shape
+    return None
+
+
+def _setattr_debug(node: ast.Call) -> tuple[int, str] | None:
+    """`setattr(app, "debug", True)` — the same write as `app.debug = True`, spelled as a
+    call, so it is not an `ast.Assign` and the assignment road never saw it (round 31,
+    2026-09-07). Only the `debug` attribute counts: a `setattr` on `app.config` with the
+    key named as its second argument puts an attribute on a dict subclass and sets no
+    config key, so it opens nothing. (Written without the literal call because the
+    scaffold-key register finds a scanner's reads by grepping for that exact shape —
+    L-0327.)
+    """
+    if not (isinstance(node.func, ast.Name) and node.func.id == "setattr"):
+        return None
+    if len(node.args) != 3:
+        return None
+    named, value = node.args[1], node.args[2]
+    if not (isinstance(named, ast.Constant) and named.value == "debug"):
+        return None
+    if not _opens_the_console(value):
+        return None
+    return node.lineno, f'setattr(…, "debug", {ast.unparse(value)})'
 
 
 def _assignment_debug(node: ast.Assign) -> tuple[int, str] | None:
@@ -156,9 +250,11 @@ def _assignment_debug(node: ast.Assign) -> tuple[int, str] | None:
     return None
 
 
-def _shape(node: ast.AST) -> tuple[int, str] | None:
+def _shape(node: ast.AST, dicts: dict[str, ast.Dict]) -> tuple[int, str] | None:
     if isinstance(node, ast.Call):
-        return _run_call_debug(node)
+        return (
+            _run_call_debug(node, dicts) or _config_call_debug(node, dicts) or _setattr_debug(node)
+        )
     if isinstance(node, ast.Assign):
         return _assignment_debug(node)
     return None
@@ -166,7 +262,8 @@ def _shape(node: ast.AST) -> tuple[int, str] | None:
 
 def _debug_findings(tree: ast.AST) -> list[tuple[int, str]]:
     """Every line that opens the debugger with a real constant — and how it spells it."""
-    return sorted(found for node in ast.walk(tree) if (found := _shape(node)))
+    dicts = _dicts_bound(tree)
+    return sorted(found for node in ast.walk(tree) if (found := _shape(node, dicts)))
 
 
 OUTSIDE = (

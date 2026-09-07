@@ -6,6 +6,60 @@ Notable changes to this project. The format follows
 
 ## [Unreleased]
 
+### Fixed
+
+- **Thirteen spellings nine scanners could not see, on ordinary code.** Round 31 asked each
+  scanner the question the maturity list has been asking since it was written — *does it know
+  how a real project spells the thing it forbids?* — and thirteen answers were no, every one on
+  honest, non-adversarial code that a reader would call a violation at a glance. Flask's config
+  is set by a method as often as by a subscript, so `app.config.update(DEBUG=True)` and
+  `from_mapping` open a console the gate called clean; `setattr(app, "debug", True)` is the same
+  write spelled as a call, and the assignment road never saw it; a mapping the file names once
+  and splats — `opts = {"debug": True}` then `app.run(**opts)` — was read only when it was
+  written out at the call. A session bound to a local name (`s = db.session`) carries no
+  `session.delete` text anywhere, and neither does SQLAlchemy's 2.0 bulk delete
+  (`session.execute(delete(Model))`) or the 1.x form without its `synchronize_session` marker;
+  `purge_paths: ["app/*"]` was matched over the whole path rather than segment by segment, so one
+  pattern exempted every module in the project. A `.pyw` is a module Windows runs without a
+  console, and the walk read `.py` alone — where one was the only module present, the answer was
+  `NA: no Python under …`, a scanner saying a tree it could not see holds nothing. `import
+  flask.globals` binds `flask`, which the alias set recorded as the string `"flask.globals"`, a
+  name nothing in the file ever uses; a module fetched at run time or an attribute reached
+  through `getattr` were roads into a service layer with no gate on them. An ADR link inside a
+  code fence or an HTML comment was counted as an index entry, so a record missing from the real
+  index read as present; the supersession field behind a list marker or a table pipe — how MADR
+  writes it — read as nothing. And two verbs of yarn, a family the rule's own `reads:` already
+  named, were not read while both their siblings were.
+
+  Each fix is a **narrow** read with its false positive written first: a cache client's
+  `.delete(`, a bare `.query` attribute, a look-alike package, a project's own `soft_delete`, a
+  locked `yarn install` and a computed debug switch all stay clean, and the suite holds them
+  there. **93 new cases** in `tests/test_checks_behaviour.py`, 42 of which are red against the
+  scanners as they were; the other 51 are the clean twins that say the widening did not
+  overreach. No rule, gate, `READS` or published id moved, and no scanner gained a dependency.
+
+### Added
+
+- **A decision row: `a-computed-debug-switch-is-not-read`.** `no-debug-entrypoint` decides a
+  constant and a truthy fallback; a switch whose value is computed — `debug=settings.DEBUG`, a
+  mapping from a call, or a name the file binds more than once — is not read, and will not be.
+  The row says so plainly, says why (to decide it the tool would have to know what the project
+  intended, and the intention is not in the tree), and names the mitigation an adopter can take:
+  make `False` the default and the computed road fails safe.
+- **A decision row: `a-supersession-is-a-field-not-a-sentence`.** `adr-index-complete` reads a
+  supersession as a field at the head of a line, behind whitespace, bold markers, a list marker
+  or a table pipe. Written as prose it is not read, because a claim read from English makes
+  `Note: this does not supersede 0001` a finding — the false positive that gets a gate switched
+  off within the week.
+
+### Changed
+
+- **`write-scanner-reads-session-delete` says what the scanner now reads.** The row recorded that
+  a session aliased to another name was not seen; three of this release's fixes make that untrue,
+  and a row changes with the code rather than being worked around. It now names the shapes it
+  reads by, and — in the same sentence — what it still does not: a session or query returned by a
+  call, one rebound, one reached through `getattr`, and raw SQL in `text(...)`.
+
 ## [0.8.0] - 2026-09-06
 
 A minor release with one entry, and it is the smallest kind this project cuts: a rule this

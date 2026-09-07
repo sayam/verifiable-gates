@@ -185,6 +185,14 @@ def _config(path: pathlib.Path) -> dict[str, object]:
     return config
 
 
+# A `.pyw` is a Python module; the suffix only tells Windows to run it without a console.
+# The walk kept `.py` alone, so a module named that way was not read at all — and where one
+# was the only module present the answer was `NA: no Python under …`, a scanner reporting
+# that a tree it could not see holds nothing (round 31, 2026-09-07). `.pyi` is deliberately
+# not here: a stub declares names and runs none of them.
+PYTHON_SUFFIXES = frozenset({".py", ".pyw"})
+
+
 DELETE_CALL = re.compile(r"\w*session\.delete\s*\(|synchronize_session")
 # The middle of an f-string is its own token from Python 3.12 on; older tokenizers
 # have no such name and yield the whole literal as STRING.
@@ -296,6 +304,115 @@ def _src_dir(root: pathlib.Path, config: dict[str, object]) -> tuple[pathlib.Pat
     return src, 0
 
 
+# `session.delete(...)` is not the only spelling of the call. A session bound to a local name
+# first — `s = db.session` — and then deleted through that name carries no `session.delete`
+# text anywhere, so the gate answered `pass` over a real hard delete (round 31, 2026-09-07).
+# The binding is read out of the same file, so an alias counts only where that file made it:
+# a name is not a session because some other module used it for one.
+SESSION_BOUND = re.compile(r"^\s*(?P<alias>\w+)\s*=\s*[\w.]*\bsession\s*$")
+
+
+def _session_aliases(code: list[str]) -> set[str]:
+    """The names this file binds to a session, so that `<name>.delete(` is a delete too."""
+    bound = {found.group("alias") for line in code if (found := SESSION_BOUND.match(line))}
+    return {alias for alias in bound if alias != "session"}
+
+
+# The SQLAlchemy 2.0 way to delete rows names no `session.delete(` and no
+# `synchronize_session`: `session.execute(delete(Model).where(...))`. Matching every
+# `delete(` would flag the cache clients that made the textual match the choice in the first
+# place (DECISIONS.md `write-scanner-reads-session-delete`), so two narrower reads flag only
+# the rows. First, a name this file bound to SQLAlchemy's construct — `from sqlalchemy import
+# delete [as d]`, on one line or in parentheses, or the module itself, `import sqlalchemy
+# [as sa]` — called bare (`delete(Model)`, `sa.delete(Model)`) is the construct, whichever
+# line executes it. Second, a `delete(` **inside an `.execute(`** on the same line is a row
+# delete whatever bound it: that is the shape `db.session.execute(db.delete(Model))` takes
+# in Flask-SQLAlchemy, where `db` is imported from elsewhere and this file holds no evidence
+# of what it is. A letter or `_` before `delete` is not a match, so a project's own
+# `soft_delete(obj)` — the function this rule asks for — stays what it is (round 31,
+# 2026-09-07).
+FROM_SQLALCHEMY = re.compile(
+    r"^[ \t]*from[ \t]+sqlalchemy(?:\.\w+)*[ \t]+import[ \t]+(?P<names>\([^)]*\)|[^\n]+)",
+    re.MULTILINE,
+)
+IMPORT_SQLALCHEMY = re.compile(
+    r"^[ \t]*import[ \t]+sqlalchemy(?:[ \t]+as[ \t]+(?P<alias>\w+))?[ \t]*$", re.MULTILINE
+)
+EXECUTES_A_DELETE = re.compile(r"\.execute\s*\(.*(?<![\w.])(?:\w+\.)?delete\s*\(")
+
+
+def _delete_constructs(code: list[str]) -> tuple[set[str], set[str]]:
+    """The names this file binds to SQLAlchemy's `delete` construct, and to the module."""
+    text = "\n".join(code)
+    constructs: set[str] = set()
+    for found in FROM_SQLALCHEMY.finditer(text):
+        for item in found.group("names").strip("()").split(","):
+            words = item.split()
+            if words and words[0] == "delete":
+                constructs.add(words[-1])  # `delete`, or what `as` renamed it to
+    modules = {found.group("alias") or "sqlalchemy" for found in IMPORT_SQLALCHEMY.finditer(text)}
+    return constructs, modules
+
+
+# The 1.x bulk delete was read only when it spelled `synchronize_session=`; the bare form —
+# `session.query(Model).filter(...).delete()`, and Flask-SQLAlchemy's
+# `Model.query.filter_by(...).delete()` — exited 0 (measured, round 31, 2026-09-07). What
+# marks it is `query` in the receiver chain of `.delete(` — `.query`/`query(` then a method
+# chain — never `query` sitting in the args (`cache.delete(query)`); a cache client has none, so the
+# read stays as narrow as the row that chose the textual match asks. A name bound to a query
+# *call* on its own line — `q = session.query(Model)` — makes `q.delete(` the same call one
+# line later; a bare `.query` attribute (`s = db.query`) is not a query object and is not
+# bound. Like a session alias, the binding counts only in the file that made it.
+QUERY_DELETE = re.compile(r"\bquery\b(?:[\w.]|\([^()]*\))*\.delete\s*\(")
+QUERY_BOUND = re.compile(r"^\s*(?P<alias>\w+)\s*=.*\bquery\s*\(")
+
+
+def _query_aliases(code: list[str]) -> set[str]:
+    """The names this file binds to a query, so that `<name>.delete(` is a bulk delete."""
+    return {found.group("alias") for line in code if (found := QUERY_BOUND.match(line))}
+
+
+def _deletes_a_row(line: str, receivers: set[str], constructs: set[str], modules: set[str]) -> bool:
+    """Does this line delete rows — through the session by its name or an alias, through
+    SQLAlchemy's `delete` construct by a name this file bound to it, or inside an `.execute(`?"""
+    if DELETE_CALL.search(line) or EXECUTES_A_DELETE.search(line) or QUERY_DELETE.search(line):
+        return True
+    if any(re.search(rf"\b{re.escape(name)}\.delete\s*\(", line) for name in receivers):
+        return True
+    if any(re.search(rf"(?<![\w.]){re.escape(name)}\s*\(", line) for name in constructs):
+        return True
+    return any(re.search(rf"\b{re.escape(name)}\.delete\s*\(", line) for name in modules)
+
+
+def _segments_match(parts: list[str], globs: list[str]) -> bool:
+    """One path against one pattern, segment by segment.
+
+    `**` is the only glob that crosses a separator, and it stands for zero or more whole
+    segments — the meaning every developer already has from `.gitignore` and `pathlib`.
+    """
+    if not globs:
+        return not parts
+    head, rest = globs[0], globs[1:]
+    if head == "**":
+        return any(_segments_match(parts[at:], rest) for at in range(len(parts) + 1))
+    return bool(parts) and fnmatch.fnmatch(parts[0], head) and _segments_match(parts[1:], rest)
+
+
+def _exempt(relative: pathlib.PurePath, patterns: list[str]) -> bool:
+    """Is this module one the project declared as the place that may purge?
+
+    Matched **segment by segment**, so a `*` stops at a separator. Over the whole path it
+    does not: `purge_paths: ["app/*"]` reads as *the files directly under app* and exempted
+    `app/services/models.py` and every other module in the tree, so the gate answered `pass`
+    over a real `session.delete` (round 31, 2026-09-07). It is round 17's shape a second
+    time — there a list written as one string was read a character at a time and the `*`
+    among those characters exempted everything, refused by checking the value's *shape*;
+    here the value is well formed and the pattern did not mean what it looked like.
+    """
+    parts = relative.as_posix().split("/")
+    return any(_segments_match(parts, pattern.strip("/").split("/")) for pattern in patterns)
+
+
 def _judge(root: pathlib.Path) -> int:
     if not root.is_dir():
         # NA means "this project has nothing of that kind"; a root that is not
@@ -322,7 +439,7 @@ def _judge(root: pathlib.Path) -> int:
     if src is None:
         return code
 
-    readable = [path for path in _walk(src) if path.suffix == ".py"]
+    readable = [path for path in _walk(src) if path.suffix in PYTHON_SUFFIXES]
     # A directory that is there and holds nothing this scanner reads is not a
     # clean project — it is a project this scanner cannot see, which the manifest's
     # own words forbid reporting as checked: "A rule the tool cannot check must not
@@ -338,12 +455,15 @@ def _judge(root: pathlib.Path) -> int:
     findings: list[str] = []
     for path in readable:
         relative = path.relative_to(root)
-        if any(fnmatch.fnmatch(str(relative), pattern) for pattern in patterns):
+        if _exempt(relative, patterns):
             continue
         text = _text(path)
         shown = text.splitlines()
-        for lineno, line in enumerate(_code_lines(text), 1):
-            if DELETE_CALL.search(line):
+        lines = _code_lines(text)
+        receivers = _session_aliases(lines) | _query_aliases(lines)
+        constructs, modules = _delete_constructs(lines)
+        for lineno, line in enumerate(lines, 1):
+            if _deletes_a_row(line, receivers, constructs, modules):
                 findings.append(
                     f"{_shown(path.relative_to(root))}:{lineno} {shown[lineno - 1].strip()[:70]}"
                 )
