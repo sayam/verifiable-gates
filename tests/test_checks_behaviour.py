@@ -3607,6 +3607,74 @@ def test_the_new_debug_roads_stay_narrow(
     assert capsys.readouterr().out == ""
 
 
+# ---------------------------------------------------------------------------------------
+# Round 31, after the review: a name the file **changes** after binding is refused the way a
+# name bound twice is. Reading only the binding failed in two directions, and the second one
+# was the one nobody had asked about — `opts = {"debug": True}` then `opts["debug"] = False`
+# was a finding on a file that ships with the console shut (`DECISIONS.md
+# a-computed-debug-switch-is-not-read`).
+# ---------------------------------------------------------------------------------------
+
+
+@pytest.mark.parametrize(
+    "source",
+    [
+        # The three that were findings on code whose console is shut.
+        'opts = {"debug": True}\nopts["debug"] = False\napp.run(**opts)\n',
+        'opts = {"debug": True}\nopts.update(debug=False)\napp.run(**opts)\n',
+        'opts = {"debug": True}\ndel opts["debug"]\napp.run(**opts)\n',
+        # An augmented assignment to the name itself, and to a key of it.
+        'opts = {"debug": True}\nopts |= {"debug": False}\napp.run(**opts)\n',
+        'opts = {"debug": True}\nopts["debug"] += 1\napp.run(**opts)\n',
+        # A mutator that leaves `debug` alone is still a change to the mapping: the file says
+        # something its binding does not, which is the whole of the refusal.
+        'opts = {"debug": True}\nopts.setdefault("host", "x")\napp.run(**opts)\n',
+        'opts = {"debug": True}\nopts.pop("host")\napp.run(**opts)\n',
+        'opts = {"debug": True}\nopts.popitem()\napp.run(**opts)\n',
+        'opts = {"debug": True}\nopts.clear()\napp.run(**opts)\n',
+        # The miss this row has always named, now arrived at by the same road.
+        'opts = {}\nopts["debug"] = True\napp.run(**opts)\n',
+    ],
+)
+def test_a_mapping_the_file_changes_after_binding_is_not_read(
+    tmp_path: pathlib.Path, capsys: pytest.CaptureFixture[str], source: str
+) -> None:
+    """Every one of these was measured against the scanner before the refusal: the first five
+    were findings, on files that hand `run` a mapping with the console shut or no `debug` key
+    at all. A read that carries a value from one line to another fails in two directions, and
+    refusing is what makes both of them silence."""
+    assert scan_entrypoint_debug.main(build(tmp_path, {"run.py": DEBUG_APP + source})) == 0
+    assert capsys.readouterr().out == ""
+
+
+@pytest.mark.parametrize(
+    "source",
+    [
+        # Another name is changed; the one that is splatted is left alone.
+        'other = {}\nother["x"] = 1\nopts = {"debug": True}\napp.run(**opts)\n',
+        # A call on the mapping that changes nothing.
+        'opts = {"debug": True}\nprint(opts.get("host"))\napp.run(**opts)\n',
+        # A mutator whose receiver is not a name.
+        'opts = {"debug": True}\nsettings.cache.update(x=1)\napp.run(**opts)\n',
+        # A call that is not a method call at all.
+        'opts = {"debug": True}\nload_options()\napp.run(**opts)\n',
+        # A key written on something that is not a name.
+        'settings.opts["debug"] = False\nopts = {"debug": True}\napp.run(**opts)\n',
+        # An augmented assignment, and a `del`, of things that are not the mapping.
+        'n = 0\nn += 1\nopts = {"debug": True}\napp.run(**opts)\n',
+        'other = 1\ndel other\nopts = {"debug": True}\napp.run(**opts)\n',
+    ],
+)
+def test_the_refusal_reaches_no_further_than_the_name_that_was_changed(
+    tmp_path: pathlib.Path, capsys: pytest.CaptureFixture[str], source: str
+) -> None:
+    """What the refusal must not cost: every one of these still opens the console, and a
+    refusal that swallowed them would have taken fix 12's road away with the false positive."""
+    files = {"run.py": DEBUG_APP + "def load_options(): return {}\n" + source}
+    assert scan_entrypoint_debug.main(build(tmp_path, files)) == 1
+    assert ".run(**{'debug': True})" in capsys.readouterr().out
+
+
 @pytest.mark.parametrize(
     ("source", "shape"),
     [
