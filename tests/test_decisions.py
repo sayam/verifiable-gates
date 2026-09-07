@@ -179,6 +179,9 @@ HELD = {
     # 2026-09-07: the skill and the bundle can be different releases on a consumer's machine,
     # and what binds the project is what the installed bundle prints.
     "the-skill-and-the-bundle-are-not-checked-against-each-other": "",
+    # 2026-09-07: csp-no-inline reads what 'unsafe-inline' governs; the framework
+    # attribute families are an 'unsafe-eval' matter and the attribute alone cannot decide.
+    "framework-inline-expressions-are-not-read": "2027-02-28",
 }
 
 # The rows whose `expires when` is `Never` — an expiry rewritten to "Never" was
