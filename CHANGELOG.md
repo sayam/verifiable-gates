@@ -8,6 +8,15 @@ Notable changes to this project. The format follows
 
 ### Fixed
 
+- **The comparison measurer removes the registry the installer writes, like its other
+  artefacts.** `OVERLAY_ARTIFACTS` had not been told that `install.py` has written a starting
+  `gates.yaml` since 2026-08-25, so the registry stayed in the tree while the workflow it
+  points at was removed — and `gates-registry-total` reported **nine findings on each of five
+  apps** that had never touched the file, the measurer's own work counted against the arm that
+  installed it (measured 2026-09-08, the comparison re-run at v0.9.0). A list of what another
+  module writes is a register held by copy: `test_measure_apps.py` now plants the installer's
+  own artefacts and holds the tuple to them, so the next file the installer learns cannot go
+  missing from the list in silence.
 - **The installed record is asked of an installation, not of the package it was copied from.**
   Since the record reached the plain run's verdict, `python -m verifiable_gates.gates_doctor
   --root X` — the package form — answered `exit 2, no verdict` against every tree, clean or
