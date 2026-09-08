@@ -46,6 +46,11 @@ Notable changes to this project. The format follows
   (row S2/F4, in the register since round 2). The record is now asked when the bundle is an
   installation — the `tools/` directory the installer writes, or a record beside it — and a
   `tools/` bundle with no record is still refused. What vouches for the package is the wheel.
+- **`PYTHON_SUFFIXES` is held equal across its two shipped copies** by a test — a scanner is
+  standalone, so the copies stay; the test is what holds them. And the decision row for the
+  debug switch says the refusal is by name **in any scope of the file**: `opts` changed
+  inside some other function silences a module-level `app.run(**opts)` — a miss, never a
+  finding, and now a written one (round 1 of the context-rot audit, measured in round 2).
 - **The ADR records are read with fences and comments blanked, like the index.** Round 31
   taught `adr-index-complete` that a fenced block shows what an entry looks like and an HTML
   comment is an entry somebody took out — and applied it to one of the module's two readers.
