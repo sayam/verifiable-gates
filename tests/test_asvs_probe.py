@@ -365,6 +365,81 @@ def test_a_length_rule_on_something_else_does_not_count(tmp_path: pathlib.Path) 
     assert probe(app)["V2.1.1-password-min-length"] is False
 
 
+@pytest.mark.parametrize(
+    ("code", "token_in_form", "expected", "why"),
+    [
+        ("def index():\n    pass\n", True, False, "a token in the form and no check behind it"),
+        (
+            'def csrf_token():\n    return session.get("_csrf", "")\n',
+            True,
+            False,
+            "minted and never compared",
+        ),
+        (
+            (
+                'def check_csrf():\n    if request.form.get("csrf_token") != "x":\n'
+                "        abort(400)\n"
+            ),
+            True,
+            False,
+            "compared against a literal, nothing held for the session",
+        ),
+        (
+            (
+                'def check_csrf():\n    held = session.get("_csrf")\n'
+                '    sent = request.form.get("csrf_token")\n    return sent == held\n'
+            ),
+            True,
+            False,
+            "read and held, and nothing refuses",
+        ),
+        (
+            (
+                'CSRF_FIELD = "csrf_token"\n\n\ndef check_csrf():\n'
+                '    held = session.get("_csrf")\n    sent = request.form.get(CSRF_FIELD)\n'
+                "    if not held or sent != held:\n        abort(400)\n"
+            ),
+            True,
+            True,
+            "the hand-rolled synchronizer token, whole",
+        ),
+        (
+            (
+                "def check_csrf(  # this file does not parse\n"
+                '    held = session.get("_csrf")\n'
+                '    sent = request.form.get("csrf_token")\n'
+                "    if sent != held:\n        abort(400)\n"
+            ),
+            True,
+            True,
+            "a module that does not parse is still read, as text",
+        ),
+        ("CSRFProtect(app)\n", True, True, "the library"),
+        ("CSRFProtect(app)\n", False, False, "the library with no token in the form"),
+    ],
+)
+def test_csrf_is_the_defence_and_not_the_library(
+    tmp_path: pathlib.Path,
+    code: str,
+    why: str,
+    *,
+    token_in_form: bool,
+    expected: bool,
+) -> None:
+    """`_csrf` accepted `CSRFProtect(` and `csrf.init_app` and nothing else, so a project that
+    wrote its own synchronizer token — what a project does when the brief forbids installing
+    dependencies — was reported as having no CSRF at all: 14 of 20 apps failed on 2026-09-08
+    and 19 of them defend. The item names the property now, and these are the shapes that must
+    still fail."""
+    field = '<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">'
+    form = f'<form method="post">{field if token_in_form else ""}<button>go</button></form>\n'
+    app = _plant(
+        tmp_path / why.replace(" ", "-")[:40],
+        {"app/x.py": code, "app/templates/i.html": form},
+    )
+    assert probe(app)["V4.2.2-csrf"] is expected, why
+
+
 def test_csrf_needs_both_the_guard_and_the_token(tmp_path: pathlib.Path) -> None:
     """The guard installed but no token in the form is still a failure.
 

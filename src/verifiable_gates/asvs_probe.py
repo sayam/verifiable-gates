@@ -327,13 +327,55 @@ def _password_length(files: list[pathlib.Path]) -> bool:
 CSRF_IN_TEMPLATE = ("csrf_token", "csrf_field(", "hidden_tag(")
 
 
+# A token this file mints, holds and compares — the shape a project writes when it has no
+# CSRF library. Kept beside the library check rather than instead of it.
+CSRF_NAME = re.compile(r"\bcsrf\w*|\w*_csrf\w*", re.IGNORECASE)
+SUBMITTED = re.compile(r"request\.(form|values|headers|json)")
+SESSION_HELD = re.compile(r"session\s*(\.get\(|\[)")
+REFUSES = re.compile(r"\babort\(|\b40[13]\b|\braise\b|BadRequest|Forbidden")
+
+
+def _hand_rolled_csrf(code: str) -> bool:
+    """A token held for the session, read back off the request, and refused when it differs.
+
+    Looked for across the csrf-named functions **together with** the module body, because the
+    field name and the session key are usually constants and the mint, the compare and the
+    refusal are often three helpers: of the twenty apps measured on 2026-09-08, three split
+    them that way and a function-scoped read missed all three.
+    """
+    regions: list[str] = []
+    try:
+        tree = ast.parse(code)
+    except SyntaxError:
+        regions = [code]
+    else:
+        for node in ast.walk(tree):
+            if isinstance(node, ast.FunctionDef | ast.AsyncFunctionDef):
+                body = ast.get_source_segment(code, node) or ""
+                if CSRF_NAME.search(node.name) or CSRF_NAME.search(body):
+                    regions.append(body)
+        regions.append(code)
+    joined = "\n".join(regions)
+    return bool(SESSION_HELD.search(joined) and SUBMITTED.search(joined) and REFUSES.search(joined))
+
+
 def _csrf(code: str, templates: str) -> bool | None:
-    """No posting form at all is not applicable. One present needs a real check,
-    not merely an import."""
+    """No posting form at all is not applicable. One present needs a real check, not merely
+    an import — and not merely a *library*.
+
+    This read `CSRFProtect(` or `csrf.init_app` and nothing else, so it answered "no CSRF"
+    for every project that wrote its own synchronizer token. It was quiet for a year because
+    the models under measurement reached for Flask-WTF; on 2026-09-08, under a brief that
+    forbids installing dependencies, it failed **14 of 20 apps of which 19 defend** and
+    decided the gap between three arms of the experiment it was serving. An item that names a
+    library measures fashion. The property is: a token held for the session, submitted with
+    the form, and the request refused when the two disagree.
+    """
     if 'method="post"' not in templates.lower():
         return None
-    protected = "CSRFProtect(" in code or "csrf.init_app" in code
-    return protected and any(mark in templates for mark in CSRF_IN_TEMPLATE)
+    if not any(mark in templates for mark in CSRF_IN_TEMPLATE):
+        return False
+    return "CSRFProtect(" in code or "csrf.init_app" in code or _hand_rolled_csrf(code)
 
 
 def _decorator_names(func: ast.FunctionDef) -> set[str]:
