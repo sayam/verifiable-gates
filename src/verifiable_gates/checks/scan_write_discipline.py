@@ -457,11 +457,23 @@ def _judge(root: pathlib.Path) -> int:
         )
         return 0
 
+    judged = [path for path in readable if not _exempt(path.relative_to(root), patterns)]
+    # `purge_paths: ["**"]` exempted every module and the gate said `pass` over a real
+    # `session.delete` — the NA case wearing a pass (bypass case B18, measured 2026-09-08
+    # against the v0.9.0 wheel). A scanner that read nothing outside the purge modules has
+    # not agreed with anybody, and it has a sentence for that already. Round 31 drafted this
+    # as a *finding* and dropped it, because a project may really keep every module that
+    # deletes under one glob; an NA judges nothing, and names the count so a reader can.
+    if not judged:
+        print(
+            f"NA: every Python module under {src.relative_to(root)} is in purge_paths"
+            f" ({len(readable)} of {len(readable)}) — this rule reads {READS}; nothing outside"
+            " the purge modules to read"
+        )
+        return 0
+
     findings: list[str] = []
-    for path in readable:
-        relative = path.relative_to(root)
-        if _exempt(relative, patterns):
-            continue
+    for path in judged:
         text = _text(path)
         shown = text.splitlines()
         lines = _code_lines(text)
