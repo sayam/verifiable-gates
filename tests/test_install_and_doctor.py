@@ -401,6 +401,38 @@ def test_in_process_a_finding_off_an_unheld_bundle_carries_the_gate_alone(
     assert out.rstrip().endswith(gates_doctor.NO_VERDICT)
 
 
+def test_the_package_is_not_an_installation_and_is_not_asked_for_a_record(
+    tmp_path: pathlib.Path, bundle_copy: pathlib.Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """`python -m verifiable_gates.gates_doctor --root X` runs the package's own copy, whose
+    home is `site-packages` and which has no `tools/installed.json` by construction. Holding it
+    to a record made every tree it was pointed at `exit 2, no verdict` (round 30's sweep, row
+    S2/F4, 2026-09-08). The record is a question about an installation; the package is what an
+    installation is copied from."""
+    project = tmp_path / "project"
+    project.mkdir()
+    (project / "app").mkdir()
+    (project / "app" / "m.py").write_text("x = 1\n", encoding="utf-8")
+    manifest = str(bundle_copy / "overlay.json")
+
+    assert not (bundle_copy / "installed.json").exists(), "the package carries no record"
+    assert gates_doctor.main([str(project), "--manifest", manifest]) == 0, "a clean tree is clean"
+    out = capsys.readouterr().out
+    assert "the bundle under" not in out, out
+    assert gates_doctor.NO_VERDICT not in out, out
+
+    # …and a bundle that *is* an installation is still held to its record, with or without one.
+    installed = tmp_path / "installed"
+    assert do_install(installed, bundle_copy) == 0
+    capsys.readouterr()
+    (installed / "tools" / "installed.json").unlink()
+    assert (
+        gates_doctor.main([str(installed), "--manifest", str(installed / "tools" / "overlay.json")])
+        == 2
+    ), "a tools/ bundle with no record is still no verdict"
+    assert "no tools/installed.json" in capsys.readouterr().out
+
+
 def test_a_manifest_with_no_scan_gate_is_no_verdict(
     installed: pathlib.Path, capsys: pytest.CaptureFixture[str]
 ) -> None:

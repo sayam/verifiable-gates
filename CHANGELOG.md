@@ -8,6 +8,16 @@ Notable changes to this project. The format follows
 
 ### Fixed
 
+- **The installed record is asked of an installation, not of the package it was copied from.**
+  Since the record reached the plain run's verdict, `python -m verifiable_gates.gates_doctor
+  --root X` — the package form — answered `exit 2, no verdict` against every tree, clean or
+  broken alike: it asks the record at the bundle's home, and the package's home is
+  `site-packages`, which has no `tools/installed.json` and never will. The installed form,
+  which is what CI, the edit hook, the quickstart and `docs/auditing.md` use, was never
+  affected, so the battery and every check stayed green; round 30's 147-row sweep found it
+  (row S2/F4, in the register since round 2). The record is now asked when the bundle is an
+  installation — the `tools/` directory the installer writes, or a record beside it — and a
+  `tools/` bundle with no record is still refused. What vouches for the package is the wheel.
 - **The ADR records are read with fences and comments blanked, like the index.** Round 31
   taught `adr-index-complete` that a fenced block shows what an entry looks like and an HTML
   comment is an entry somebody took out — and applied it to one of the module's two readers.
