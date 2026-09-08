@@ -86,7 +86,8 @@ ci-tools-hash-pinned: .github/workflows/lint.yml: pip install ruff
 Two consequences to know before trusting a green:
 
 - **A project where every rule is `NA` exits 0. That is an unmeasured project**, not
-  a passed one (`DECISIONS.md` `doctor-all-na-exits-zero`).
+  a passed one (`DECISIONS.md` `doctor-all-na-exits-zero`). A manifest that names no
+  scan gate at all is different: nothing ran, and the run is no verdict — exit 2.
 - A path that `scaffold.json` names and the project does not have is a finding, not
   `NA`: a broken configuration is a defect, not an absence.
 - **A bundle the installed record does not vouch for is no verdict.** An edited or

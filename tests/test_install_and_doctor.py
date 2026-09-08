@@ -401,6 +401,42 @@ def test_in_process_a_finding_off_an_unheld_bundle_carries_the_gate_alone(
     assert out.rstrip().endswith(gates_doctor.NO_VERDICT)
 
 
+def test_a_manifest_with_no_scan_gate_is_no_verdict(
+    installed: pathlib.Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """`--manifest` at `{"gates": {}}` printed one line and exited 0 — a green over zero
+    subjects (bypass case B13, 2026-09-08, against the v0.9.0 wheel). A run that ran no scan
+    checked nothing: exit 2, said last. A manifest of suites alone is the same run: the
+    suites are counted as waiting, and nothing here decided anything. Both manifests sit
+    beside the installed one, so the bundle's home is the project and its record holds."""
+    empty = installed / "tools" / "empty-manifest.json"
+    empty.write_text(json.dumps({"gates": {}}), encoding="utf-8")
+    done = run_doctor(installed, "--manifest", str(empty))
+    assert done.returncode == 2, done.stdout + done.stderr
+    assert done.stdout.rstrip().endswith(gates_doctor.NOTHING_RAN), done.stdout
+    assert "** the bundle under" not in done.stdout, "the record is not the complaint here"
+
+    suites = installed / "tools" / "suites-only.json"
+    suites.write_text(
+        json.dumps({"gates": {"a-suite": {"kind": "suite", "title": "theirs"}}}), encoding="utf-8"
+    )
+    done = run_doctor(installed, "--manifest", str(suites))
+    assert done.returncode == 2, done.stdout
+    assert "waiting on this project's own tests: 1 gates" in done.stdout
+    assert done.stdout.rstrip().endswith(gates_doctor.NOTHING_RAN), done.stdout
+
+    out = installed / "gates.sarif"
+    code = gates_doctor.main([str(installed), "--manifest", str(empty), "--sarif", str(out)])
+    assert code == 2, capsys.readouterr().out
+    assert capsys.readouterr().out.rstrip().endswith(gates_doctor.NOTHING_RAN)
+    (invocation,) = json.loads(out.read_text(encoding="utf-8"))["runs"][0]["invocations"]
+    assert invocation["exitCode"] == 2
+    assert invocation["exitCodeDescription"] == gates_doctor.NOTHING_RAN
+    assert invocation["executionSuccessful"] is False
+    (error,) = [n for n in invocation["toolExecutionNotifications"] if n["level"] == "error"]
+    assert error["message"]["text"] == gates_doctor.NOTHING_RAN
+
+
 def test_a_missing_record_is_no_verdict_even_on_a_clean_tree(
     installed: pathlib.Path,
 ) -> None:

@@ -26,6 +26,7 @@ were run: could-not-check is not checked.
 |---|---|---|
 | A rule the doctor cannot decide here — nothing of the kind the checker reads exists | `NA` | A rule the tool cannot check must not look like a rule it checked. |
 | Every rule is `NA` | exit 0 | That is "nothing was measured", not "the project passed". The doctor cannot know how many scans *should* apply; a floor belongs to the project (`DECISIONS.md` `doctor-all-na-exits-zero`). |
+| No scan ran at all — the manifest names no `scan` gate | **exit 2**, `** no verdict: no scan ran` | A run that ran nothing checked nothing; `--manifest` at `{"gates": {}}` was one line and exit 0 (measured 2026-09-08 against the v0.9.0 wheel). Not the all-NA case above, which stays decided as it is. |
 | A path `scaffold.json` *names* and the project does not have | finding | A broken configuration is a defect, not an absence. |
 | A `scaffold.json` value of the wrong shape — a list where one path goes, a string where a list of names goes | finding, naming the key | Same: the configuration is broken, and the finding says where. |
 | A `scaffold.json` path that leads outside the project | finding, naming the key | Same. |

@@ -113,8 +113,8 @@ the length of a read and a rename, not of a scan.
 
 exit 0 = clean · 1 = findings, or an incomplete install · 2 = called wrongly, or
 asked a question this bundle cannot answer for itself — the SARIF that could not be
-written, the rules of a bundle whose record does not vouch for it, and a run of the
-scans off such a bundle, which is no verdict
+written, the rules of a bundle whose record does not vouch for it, a run of the
+scans off such a bundle, and a run in which no scan ran at all — both no verdict
 
 Role: reader — it reports where a project stands. Its evidence is that each
 scanner's own tests decide the verdicts it relays, and that NA is never a pass.
@@ -689,6 +689,16 @@ NO_VERDICT = (
     "no verdict: the bundle is not the one that was installed — the lines above are the"
     " scanners' words, and what ran them cannot be vouched for"
 )
+# A manifest with no `scan` gate runs nothing, and a run that ran nothing printed one line
+# and exited 0 — a green over zero subjects (bypass case B13, 2026-09-08, measured against
+# the v0.9.0 wheel). Every scanner has a floor for its own subjects; this is the doctor's
+# for its list of scans. It is **not** the all-NA case: scans that ran and each answered NA
+# are a project the bundle could not measure, which `DECISIONS.md doctor-all-na-exits-zero`
+# decides and this leaves alone.
+NOTHING_RAN = (
+    "no verdict: no scan ran — this manifest names no scan gate, so nothing about the"
+    " project was checked"
+)
 
 
 def _say_unheld(root: pathlib.Path, unheld: list[str]) -> None:
@@ -743,7 +753,8 @@ def run_scans(
         _say_unheld(home, unheld)
     waivers, failed, outcomes = _before_the_scans(root, manifest)
     excused_by: dict[int, int] = {}
-    for gid, script in scan_entries(manifest):
+    scans = scan_entries(manifest)
+    for gid, script in scans:
         try:
             result = subprocess.run(  # noqa: S603 — argv is built here, interpreter is sys.executable
                 [sys.executable, str(bundle / script), str(root)],
@@ -798,23 +809,26 @@ def run_scans(
 
     print(f"\nwaiting on this project's own tests: {suite_count(manifest)} gates")
     _report_waivers(waivers, excused_by)
-    verdict = _close(failed, broken, unheld)
+    verdict = _close(failed, broken, unheld, ran=len(scans))
     if sarif is not None and not write_sarif(sarif, root, manifest, outcomes, unheld):
         return 2
     return verdict
 
 
-def _close(failed: list[str], broken: list[str], unheld: list[str]) -> int:
+def _close(failed: list[str], broken: list[str], unheld: list[str], ran: int) -> int:
     """The `**` summary lines, and the exit they stand for: findings 1, a scan that did
-    not answer 1, a bundle the record does not vouch for 2 — the last whatever the
-    others said, since none of their lines is a verdict off such a bundle."""
+    not answer 1, a bundle the record does not vouch for 2, no scan run at all 2 — the
+    last two whatever the others said, since a verdict needs a scan that ran off a bundle
+    that is the one installed."""
     if failed:
         print(f"** scans found problems in {len(failed)} gates: {', '.join(failed)}")
     if broken:
         print(f"** {len(broken)} scans did not answer, which is no verdict: {', '.join(broken)}")
     if unheld:
         print(f"** {NO_VERDICT}")
-    return 2 if unheld else 1 if failed or broken else 0
+    if not ran:
+        print(f"** {NOTHING_RAN}")
+    return 2 if unheld or not ran else 1 if failed or broken else 0
 
 
 # ---------------------------------------------------------------- SARIF
@@ -995,7 +1009,7 @@ def _fingerprint(results: list[dict[str, Any]]) -> None:
         result["partialFingerprints"] = {"primaryLocationLineHash": digest}
 
 
-def _exit_of(outcomes: list[Outcome], unheld: Sequence[str]) -> tuple[int, str]:
+def _exit_of(outcomes: list[Outcome], unheld: Sequence[str], ran: int) -> tuple[int, str]:
     """The doctor's exit for this run and the sentence behind it, for the invocation.
 
     GitHub code scanning keeps a SARIF's results and drops its invocation — every
@@ -1007,6 +1021,8 @@ def _exit_of(outcomes: list[Outcome], unheld: Sequence[str]) -> tuple[int, str]:
     """
     if unheld:
         return 2, NO_VERDICT
+    if not ran:
+        return 2, NOTHING_RAN
     found = sorted({gid for gid, kind, _said, _sentence in outcomes if kind == "found"})
     unanswered = sorted({gid for gid, kind, _said, _sentence in outcomes if kind == "error"})
     if not found and not unanswered:
@@ -1125,7 +1141,11 @@ def sarif_log(
         notes.append({"level": "error", "message": {"text": problem}})
         results.append(_located(root, UNHELD, problem))
     _fingerprint(results)
-    exit_code, exit_sentence = _exit_of(outcomes, unheld)
+    ran = len(scan_entries(manifest))
+    if not ran:
+        # No rule to hang a result on — there is none — so the invocation carries it alone.
+        notes.append({"level": "error", "message": {"text": NOTHING_RAN}})
+    exit_code, exit_sentence = _exit_of(outcomes, unheld, ran)
     driver: dict[str, Any] = {
         "name": "verifiable-gates",
         "informationUri": INFORMATION_URI,
@@ -1144,6 +1164,7 @@ def sarif_log(
                 "invocations": [
                     {
                         "executionSuccessful": not unheld
+                        and ran > 0
                         and not any(k == "error" for _g, k, _s, _t in outcomes),
                         "exitCode": exit_code,
                         "exitCodeDescription": exit_sentence,
