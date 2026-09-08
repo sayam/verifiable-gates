@@ -8,6 +8,18 @@ Notable changes to this project. The format follows
 
 ### Fixed
 
+- **The ASVS probe's CSRF item states the property instead of naming a library.** `_csrf`
+  accepted `CSRFProtect(` and `csrf.init_app` and nothing else, so a project that wrote its own
+  synchronizer token — which is what a project does when the brief forbids installing
+  dependencies — was reported as having no CSRF at all: **14 of 20 apps failed the item on
+  2026-09-08 while 19 of them defend**. It now reads the property: a token held for the session,
+  read back off the request, and the request refused when the two differ — across the
+  csrf-named functions together with the module body, because the field name and the session key
+  are usually constants and the mint, the compare and the refusal are often three helpers
+  (three of the twenty split them that way, and a function-scoped read missed all three). The
+  library spelling is still accepted, beside the property rather than instead of it. Measured
+  against the cohort with the shipped code: 20 of 20 agree with the by-eye reading, and the nine
+  violating shapes still fail. A rule that names a library measures fashion, not defence.
 - **The comparison measurer removes the registry the installer writes, like its other
   artefacts.** `OVERLAY_ARTIFACTS` had not been told that `install.py` has written a starting
   `gates.yaml` since 2026-08-25, so the registry stayed in the tree while the workflow it
