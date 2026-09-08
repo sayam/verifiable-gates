@@ -8,6 +8,13 @@ Notable changes to this project. The format follows
 
 ### Fixed
 
+- **A run in which no scan ran is no verdict — exit 2.** `--manifest` at `{"gates": {}}`
+  printed `waiting on this project's own tests: 0 gates` and exited 0, a green over zero
+  subjects (bypass case B13, measured 2026-09-08 against the v0.9.0 wheel). Every scanner
+  has a floor for its own subjects; this is the doctor's for its list of scans: no `scan`
+  gate in the manifest ends the run `** no verdict: no scan ran` at exit 2, and the SARIF
+  invocation says so. The all-NA run — scans that ran and each answered NA — is a different
+  case and stays as `DECISIONS.md doctor-all-na-exits-zero` decides it.
 - **Each waiver is credited with what it excused, by its ordinal.** The summary under the
   gate lines found a waived finding's waiver by matching the waiver's *reason* against the
   head of the finding's sentence, so waivers sharing a reason all credited the first: nine
