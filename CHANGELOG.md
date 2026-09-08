@@ -6,6 +6,15 @@ Notable changes to this project. The format follows
 
 ## [Unreleased]
 
+### Corrected
+
+- **0.9.0's "17 new cases, ten of them red against the scanner as it was" — nine.** The
+  tenth, `opts = {}` then `opts["debug"] = True`, was green on `91f1619` too: that scanner
+  read the binding `{}` and found no debug in it, and the change kept the miss on purpose
+  (`DECISIONS.md a-computed-debug-switch-is-not-read`). Measured 2026-09-08 with HEAD's tests
+  against that commit's scanners, twice, blind to each other. The released section stays as
+  it was cut — the release body is held to it byte for byte — so the correction lives here.
+
 ### Fixed
 
 - **An exemption that covers every module is `NA`, not `pass`.** `purge_paths: ["**"]` left
