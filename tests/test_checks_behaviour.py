@@ -2754,6 +2754,36 @@ def test_a_heredoc_is_read_by_who_receives_it(
 
 
 @pytest.mark.parametrize(
+    ("patterns", "code", "head"),
+    [
+        (["**"], 0, "NA: every Python module under app is in purge_paths (2 of 2)"),
+        (["app/**"], 0, "NA: every Python module under app is in purge_paths (2 of 2)"),
+        (["app/purge/*"], 1, "delete-means-soft-delete: app/models.py:1"),
+        ([], 1, "delete-means-soft-delete: app/models.py:1"),
+    ],
+    ids=["everything", "the-whole-src", "one-purge-dir", "no-exemption"],
+)
+def test_an_exemption_that_covers_every_module_is_na_not_pass(
+    tmp_path: pathlib.Path,
+    capsys: pytest.CaptureFixture[str],
+    patterns: list[str],
+    code: int,
+    head: str,
+) -> None:
+    """`purge_paths: ["**"]` left the rule nothing to read and it answered `pass` over a
+    real hard delete (bypass case B18, 2026-09-08). Nothing read is NA, with the count, so a
+    reader can tell "no module deletes" from "every module may". A glob that leaves one
+    module outside is judged as before."""
+    files = {
+        "app/models.py": "session.delete(obj)\n",
+        "app/purge/jobs.py": "session.delete(old)\n",
+    }
+    config = {"src_path": "app", "purge_paths": patterns}
+    assert scan_write_discipline.main(build(tmp_path, files, config)) == code
+    assert capsys.readouterr().out.startswith(head)
+
+
+@pytest.mark.parametrize(
     "case",
     [
         (scan_write_discipline, "app", "main.go", "no Python under app"),

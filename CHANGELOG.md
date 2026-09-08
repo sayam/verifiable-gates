@@ -8,6 +8,13 @@ Notable changes to this project. The format follows
 
 ### Fixed
 
+- **An exemption that covers every module is `NA`, not `pass`.** `purge_paths: ["**"]` left
+  `delete-means-soft-delete` nothing to read and it answered `pass` over a real
+  `session.delete` (bypass case B18, measured 2026-09-08 against the v0.9.0 wheel). It now
+  answers `NA: every Python module under app is in purge_paths (N of N)` — nothing read is the
+  third answer, and the count lets a reader tell "no module deletes" from "every module may".
+  Not the *finding* round 31 drafted and dropped: a project may really keep every module that
+  deletes under one glob, and an NA judges nothing.
 - **The ASVS probe's CSRF item states the property instead of naming a library.** `_csrf`
   accepted `CSRFProtect(` and `csrf.init_app` and nothing else, so a project that wrote its own
   synchronizer token — which is what a project does when the brief forbids installing
