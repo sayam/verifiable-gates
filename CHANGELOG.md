@@ -8,6 +8,15 @@ Notable changes to this project. The format follows
 
 ### Fixed
 
+- **The ADR records are read with fences and comments blanked, like the index.** Round 31
+  taught `adr-index-complete` that a fenced block shows what an entry looks like and an HTML
+  comment is an entry somebody took out — and applied it to one of the module's two readers.
+  A `Supersedes:` field inside a fenced example in a *record*, which is how a template
+  documents the field, was read as a supersession and reported as one-directional (measured
+  2026-09-08, round 2 of the context-rot audit). Both readers blank the same way now, and
+  comments are blanked before fences are tracked: a fence marker inside a multi-line comment
+  opened a fence that never closed and reported every record below it missing. The one shape
+  that order costs — an unclosed `<!--` inside a fence — is red, never green.
 - **A run in which no scan ran is no verdict — exit 2.** `--manifest` at `{"gates": {}}`
   printed `waiting on this project's own tests: 0 gates` and exited 0, a green over zero
   subjects (bypass case B13, measured 2026-09-08 against the v0.9.0 wheel). Every scanner

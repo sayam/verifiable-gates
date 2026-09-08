@@ -271,11 +271,15 @@ reports two records sharing a number as well as a gap, and a supersession record
 one direction only. Records that exist with no `README.md` index is a finding; no ADR
 directory at all is `NA`.
 
-The index is read with **fenced code blocks and HTML comments blanked out**: a fence
-shows a reader what an entry looks like and a comment is an entry somebody took out, and
-counting either as a listing made a record missing from the real index read as present.
-Newlines are kept, so every line number still means what it meant. An indented block is
-not blanked — four spaces before `- [0002](…)` is how a nested list is written.
+The index **and the records** are read with **fenced code blocks and HTML comments
+blanked out**: a fence shows a reader what an entry looks like and a comment is an entry
+somebody took out, and counting either as a listing made a record missing from the real
+index read as present — and a template's fenced example of `Supersedes:` read as a
+supersession. Comments are blanked before fences are tracked, so a fence marker inside a
+comment is a comment; the one shape that order costs, an unclosed `<!--` inside a fence,
+blanks to the end of the file and reads red, never green. Newlines are kept, so every line
+number still means what it meant. An indented block is not blanked — four spaces before
+`- [0002](…)` is how a nested list is written.
 
 A supersession is a **field at the head of a line**, behind whitespace, bold markers, a
 list marker or a table pipe — the metadata bullet several ADR templates use, MADR among

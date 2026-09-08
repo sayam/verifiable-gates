@@ -3883,6 +3883,12 @@ ADR_ONE = "# 1. One\n\nStatus: accepted\n"
         ("# Index\n\n<!-- a note -->\n\n[0001](0001-one.md)\n", 0, "a real entry beside a comment"),
         # A fence closed by a longer marker of the same character is still closed.
         ("# Index\n\n```\nexample\n````\n\n[0001](0001-one.md)\n", 0, "a longer closing fence"),
+        # Comments are blanked before fences are tracked (2026-09-08): a fence marker inside
+        # a multi-line comment is a comment, a complete comment inside a fence is code — and
+        # the one shape the order costs, an unclosed comment inside a fence, is red, not green.
+        ("# Index\n\n<!--\n```\n-->\n\n[0001](0001-one.md)\n", 0, "a fence marker in a comment"),
+        ("# Index\n\n```\n<!-- x -->\n```\n\n[0001](0001-one.md)\n", 0, "a comment in a fence"),
+        ("# Index\n\n```\n<!--\n```\n\n[0001](0001-one.md)\n", 1, "an unclosed comment in a fence"),
     ],
 )
 def test_a_link_that_only_looks_like_an_index_entry_is_not_one(
@@ -3891,6 +3897,31 @@ def test_a_link_that_only_looks_like_an_index_entry_is_not_one(
     """A record linked only from a code fence or an HTML comment is a record nobody can find
     from the index, and the gate said the index was complete (round 31, 2026-09-07)."""
     files = {"docs/adr/README.md": index, "docs/adr/0001-one.md": ADR_ONE}
+    assert scan_adr_index.main(build(tmp_path, files, ADR_CONFIG)) == code, why
+    capsys.readouterr()
+
+
+@pytest.mark.parametrize(
+    ("body", "code", "why"),
+    [
+        ("```\nSupersedes: 0002\n```\n", 0, "a fenced example of the field is not the field"),
+        ("<!-- Supersedes: 0002 -->\n", 0, "a supersession somebody took out"),
+        ("<!--\nSupersedes: 0002\n-->\n", 0, "taken out over several lines"),
+        ("Supersedes: 0002\n", 1, "the control: the field itself, unanswered, is a finding"),
+    ],
+)
+def test_a_supersession_inside_a_fence_or_a_comment_in_a_record_is_not_one(
+    tmp_path: pathlib.Path, capsys: pytest.CaptureFixture[str], body: str, code: int, why: str
+) -> None:
+    """The index learned fences and comments in round 31; the records, read by the same
+    module for the same field, did not — a template's fenced example of `Supersedes:` was
+    reported as a one-directional supersession (measured 2026-09-08, context-rot audit
+    round 2). 0002 answers nothing, so whatever is read as the field is a finding."""
+    files = {
+        "docs/adr/README.md": "# Index\n\n[0001](0001-one.md)\n[0002](0002-two.md)\n",
+        "docs/adr/0001-one.md": f"# 1. One\n\nStatus: accepted\n\nHow to write it:\n\n{body}",
+        "docs/adr/0002-two.md": "# 2. Two\n\nStatus: accepted\n",
+    }
     assert scan_adr_index.main(build(tmp_path, files, ADR_CONFIG)) == code, why
     capsys.readouterr()
 
