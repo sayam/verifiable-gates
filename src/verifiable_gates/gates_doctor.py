@@ -701,6 +701,17 @@ NOTHING_RAN = (
 )
 
 
+def _is_an_installation(bundle: pathlib.Path) -> bool:
+    """Is this bundle a copy the installer wrote into a project, or the package itself?
+
+    `install.py` writes into `<project>/tools`, always under that name, and puts its record
+    beside the files. Either mark is enough: the name says where a copy lives, and the record
+    says one arrived — a bundle with the name and no record is round 4's case, still refused,
+    while the package, which has neither, is not asked a question it cannot answer.
+    """
+    return bundle.name == "tools" or (bundle / "installed.json").is_file()
+
+
 def _say_unheld(root: pathlib.Path, unheld: list[str]) -> None:
     """What the installed record says, above the first gate line, so it is read before
     the lines it disqualifies.
@@ -747,8 +758,16 @@ def run_scans(
     # The record describes the bundle's home — the tree the installer wrote `tools/` into —
     # which is the root on every plain run and is not when `--manifest` names a bundle
     # elsewhere: then the root has no record to hold, and the bundle still does.
+    #
+    # And it is asked **only of an installation**. The package this bundle was copied from is
+    # not one: run as `python -m verifiable_gates.gates_doctor`, the home is `site-packages`,
+    # which has no record and never will, so every tree came back `no verdict` whatever it
+    # held (round 30's sweep, row S2/F4, 2026-09-08 — the row existed and the change did not
+    # ask it). What vouches for the package is the wheel it came in; what vouches for a copy
+    # in a project's `tools/` is the record the installer wrote there, and that is the copy
+    # somebody can edit.
     home = bundle.parent
-    unheld = check_installed_record(home)
+    unheld = check_installed_record(home) if _is_an_installation(bundle) else []
     if unheld:
         _say_unheld(home, unheld)
     waivers, failed, outcomes = _before_the_scans(root, manifest)
