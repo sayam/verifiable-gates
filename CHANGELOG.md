@@ -6,6 +6,31 @@ Notable changes to this project. The format follows
 
 ## [Unreleased]
 
+## [0.10.0] - 2026-09-08
+
+A minor release, not a patch, although every entry below is a fix or a correction: two runs
+that were **green under 0.9.0 are no verdict now**, measured against that tag rather than
+reasoned about — a clean tree whose `tools/installed.json` is missing went exit 0 → **exit 2**,
+and a manifest naming no scan gate went exit 0 → **exit 2**. A consumer who changes nothing
+sees CI turn red, and the SARIF gains a rule id that did not exist before,
+`bundle-not-the-one-installed`, which code scanning ingests. The installed record reaching the
+doctor's verdict is a *mechanism*, and this repository's own rule is a minor for a rule or a
+mechanism, a patch for a fix (`DECISIONS.md` `no-1-0-0-until-somebody-else-has-used-it`); the
+one patch in this history, 0.3.1, said of itself that nothing in the package's behaviour changed
+except that it installed, and that is the line this release is on the far side of.
+
+The subject is the same one 0.9.0 had, one level up: **a green that measured nothing**. Round 1
+of the bypass audit asked how many ways a project could get a pass out of this bundle without
+being held to anything, and the answers were not exotic — an empty manifest, an exemption glob
+covering every module, a scanner replaced with `sys.exit(0)`, a deleted record, waivers sharing
+a reason. Each is now a refusal that says what it could not answer, which is the same rule the
+doctor already kept for `NA` against `pass`, applied to itself. One of those refusals was too
+wide and shipped broken for a morning — the package form answered *no verdict* against every
+tree — and the 147-row register caught it after the battery and nine checks had all gone green.
+The two measuring instruments were wrong in the other direction and are fixed here too: a CSRF
+item that named a library rather than the defence failed 14 of 20 apps that defend, and the
+comparison measurer counted its own installer's registry against the arm that received it.
+
 ### Corrected
 
 - **0.9.0's "17 new cases, ten of them red against the scanner as it was" — nine.** The
@@ -3988,7 +4013,8 @@ order it happened.
 - **`gates.yaml`, deliberately empty.** This repository will not list a gate
   before the thing that enforces it exists.
 
-[Unreleased]: https://github.com/sayam/verifiable-gates/compare/v0.9.0...HEAD
+[Unreleased]: https://github.com/sayam/verifiable-gates/compare/v0.10.0...HEAD
+[0.10.0]: https://github.com/sayam/verifiable-gates/releases/tag/v0.10.0
 [0.9.0]: https://github.com/sayam/verifiable-gates/releases/tag/v0.9.0
 [0.8.0]: https://github.com/sayam/verifiable-gates/releases/tag/v0.8.0
 [0.7.0]: https://github.com/sayam/verifiable-gates/releases/tag/v0.7.0
