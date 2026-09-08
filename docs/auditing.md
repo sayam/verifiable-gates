@@ -243,6 +243,19 @@ form of it is the sample, not the ratio.
   public; read one.
 - **Whether the rules are any good.** That is the judgment this page exists to make
   possible, and it is not a command.
+- **That a project which says "we pass verifiable-gates" does.** The doctor's exit is held
+  by the workflow that runs it, and the workflow is a file in the same tree: `|| true` on
+  the run line is green on GitHub and read by nothing here (`continue-on-error: true` is
+  read, by `gates-registry-total`). What can be checked is the **log** — the doctor prints
+  every gate's answer and refuses a verdict off a bundle the installed record does not vouch
+  for (exit 2, and `--installed` for the whole account) — and that record compared to the
+  release's own digests. An edit to the doctor **is** caught by the record — measured
+  2026-09-08: one line appended to the doctor of a fresh installation ends the plain run at
+  `** no verdict … cannot be vouched for`, exit 2, and `--installed` names the file. What no
+  reading inside the tree can catch is the doctor and the record edited *together*, which is
+  why the record is compared against the release's own digests rather than trusted where it
+  sits. Ask for the log and the record; a badge is neither (measured 2026-09-08, 23 ways to
+  fool the gate, six of which are the log's job to expose).
 
 ## When you find something
 
