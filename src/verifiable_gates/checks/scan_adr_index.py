@@ -217,6 +217,11 @@ SUPERSEDED_BY = re.compile(
 # line number and every `^` anchor still means what it meant. Indented code blocks are
 # **not** blanked: four spaces in front of `- [0002](…)` is how a nested list is written,
 # and blanking those would lose real entries.
+#
+# The **records** are read the same way. The blanking was written for the index and applied
+# to one of this module's two readers: a `Supersedes:` field inside a fenced example in a
+# record — which is how a template documents the field — was read as a supersession and
+# reported as one-directional (measured 2026-09-08, context-rot audit round 2).
 FENCE = re.compile(r"^[ \t]*(?:```|~~~)")
 HTML_COMMENT = re.compile(r"<!--.*?(?:-->|\Z)", re.DOTALL)
 
@@ -227,14 +232,21 @@ def _blanked(text: str) -> str:
 
 
 def _entries_only(text: str) -> str:
-    """The index with fenced blocks and HTML comments blanked out.
+    """The text — an index or a record — with HTML comments and fenced blocks blanked out.
 
-    The fence is tracked by line, opening and closing on its own marker, so an unclosed
-    fence blanks the rest of the file — which is what a reader's renderer does with it too.
+    Comments go first, then fences. A fence marker on its own line inside a multi-line
+    comment is a commented-out example, and read fences-first it opened a fence that never
+    closed and blanked every entry below it (round 2 of the context-rot audit, 2026-09-08,
+    the other order's cost measured the same day). The order costs the exotic case instead:
+    an **unclosed** `<!--` inside a fence blanks to the end of the file. Either way the
+    failure is a record reported *missing* — red, never a green over an entry that was not
+    read. The fence is tracked by line, opening and closing on its own marker, so an
+    unclosed fence blanks the rest of the file — which is what a renderer does with it too.
     """
+    uncommented = HTML_COMMENT.sub(lambda block: _blanked(block.group()), text)
     kept: list[str] = []
     fence: str | None = None
-    for line in text.splitlines(keepends=True):
+    for line in uncommented.splitlines(keepends=True):
         marker = found.group().strip() if (found := FENCE.match(line)) else None
         if fence is None and marker is None:
             kept.append(line)
@@ -244,7 +256,7 @@ def _entries_only(text: str) -> str:
         elif marker is not None and marker[0] == fence[0]:
             fence = None
         kept.append(_blanked(line))
-    return HTML_COMMENT.sub(lambda block: _blanked(block.group()), "".join(kept))
+    return "".join(kept)
 
 
 def _supersession_findings(adr_dir: pathlib.Path, on_disk: dict[str, str]) -> list[str]:
@@ -264,8 +276,9 @@ def _supersession_findings(adr_dir: pathlib.Path, on_disk: dict[str, str]) -> li
                 " scanner reads whole"
             )
             raise _UnreadableError(message)
-        supersedes[number] = set(SUPERSEDES.findall(text))
-        superseded_by[number] = set(SUPERSEDED_BY.findall(text))
+        fields = _entries_only(text)
+        supersedes[number] = set(SUPERSEDES.findall(fields))
+        superseded_by[number] = set(SUPERSEDED_BY.findall(fields))
     forward = [
         f"{new} supersedes {old}, but {old} does not say it is superseded by {new}"
         for new, olds in sorted(supersedes.items())
