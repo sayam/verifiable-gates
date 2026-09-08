@@ -3897,6 +3897,15 @@ def test_a_purge_exemption_is_matched_segment_by_segment(
     capsys.readouterr()
 
 
+def test_the_two_walkers_agree_on_what_python_is() -> None:
+    """`scan_service_layer` and `scan_write_discipline` each carry `PYTHON_SUFFIXES`, because
+    a shipped scanner is standalone and cannot import the other. Two copies of a register
+    with nothing holding them equal is how `.pyw` reached one walker and not the other in
+    the first draft of round 31 (2026-09-07); this holds them."""
+    assert scan_service_layer.PYTHON_SUFFIXES == scan_write_discipline.PYTHON_SUFFIXES
+    assert ".py" in scan_write_discipline.PYTHON_SUFFIXES
+
+
 ADR_ONE = "# 1. One\n\nStatus: accepted\n"
 
 
