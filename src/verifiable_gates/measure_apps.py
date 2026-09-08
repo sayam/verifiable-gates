@@ -69,7 +69,16 @@ BUNDLE = pathlib.Path(__file__).resolve().parent
 # What the installer places itself — not any arm's work, so it comes out of every
 # app before measuring. The arm that installed nothing does not have these anyway,
 # which is why removing them takes nothing away from it.
-OVERLAY_ARTIFACTS = ("tools", ".github/workflows/gates.yml", "scaffold.json")
+#
+# `gates.yaml` is here because the installer has written a starting registry since
+# 2026-08-25 and this tuple was not told. Left in the tree, that registry points every
+# scan row at the job of the workflow removed on the line above, and
+# `gates-registry-total` answered **nine findings on each of five apps** that had not
+# touched the file — the measurer's own work, counted against the arm that installed it
+# (measured 2026-09-08, the comparison re-run at v0.9.0). A list of what another module
+# writes is a register held by copy; `test_measure_apps.py` now plants the installer's
+# own artefacts and holds this tuple to them.
+OVERLAY_ARTIFACTS = ("tools", ".github/workflows/gates.yml", "scaffold.json", "gates.yaml")
 
 
 def checkers(bundle: pathlib.Path = BUNDLE) -> list[pathlib.Path]:

@@ -20,6 +20,7 @@ import pytest
 if TYPE_CHECKING:
     import pathlib
 
+from verifiable_gates import install as install_module
 from verifiable_gates import measure_apps
 
 APP = {
@@ -56,6 +57,37 @@ def test_what_the_installer_added_is_removed_before_measuring(tmp_path: pathlib.
     assert not (staged / "scaffold.json").exists()
     assert not (staged / ".github" / "workflows" / "gates.yml").exists()
     assert (staged / "run.py").is_file(), "the app's own work has to survive"
+
+
+def test_every_artefact_the_installer_writes_is_removed_before_measuring(
+    tmp_path: pathlib.Path,
+) -> None:
+    """The measurer's list of what the installer leaves behind, held to the installer.
+
+    `gates.yaml` was missing from it: the installer has written a starting registry since
+    2026-08-25, and a registry pointing at the removed workflow's job made
+    `gates-registry-total` report nine findings on every app that installed the bundle —
+    nine of the measurer's own, against one arm of the measurer's own experiment
+    (2026-09-08). A scan whose answer changes when a file the *installer* wrote is left in
+    place is not measuring the app.
+    """
+    app = tmp_path / "app"
+    (app / "app").mkdir(parents=True)
+    (app / "app" / "views.py").write_text("x = 1\n", encoding="utf-8")
+    assert install_module.main([str(app)]) == 0, "the installer writes its own artefacts"
+    written = {
+        name
+        for name in ("tools", ".github/workflows/gates.yml", "scaffold.json", "gates.yaml")
+        if (app / name).exists()
+    }
+    assert written, "the installer wrote nothing, so this test measures nothing"
+    assert written <= set(measure_apps.OVERLAY_ARTIFACTS), (
+        f"the installer writes {sorted(written - set(measure_apps.OVERLAY_ARTIFACTS))},"
+        " which the measurer would count as the app's own work"
+    )
+    staged = measure_apps.staged(app, tmp_path / "staged")
+    for name in written:
+        assert not (staged / name).exists(), f"{name} survived staging"
 
 
 def test_an_app_that_installed_nothing_loses_nothing(tmp_path: pathlib.Path) -> None:
