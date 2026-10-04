@@ -2246,7 +2246,7 @@ would reopen each. No gate, rule or badge was added: the registers stand at
   under `pip-audit` and `cyclonedx-bom`. The decision is unchanged and still
   right — they are build and test tools this repository does not distribute, so
   no obligation reaches the published work — but the row now says that instead
-  of the stronger thing (five-model round 5, kimi F-8 and grok-4.5 F-3, both
+  of the stronger thing (five-model round 5, two of its findings, both
   re-read against the installed metadata on 2026-09-01).
 
 ### Fixed
