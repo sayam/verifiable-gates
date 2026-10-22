@@ -123,7 +123,7 @@ scanner's own tests decide the verdicts it relays, and that NA is never a pass.
 from __future__ import annotations
 
 import argparse
-import datetime
+import datetime as dt
 import difflib
 import hashlib
 import json
@@ -445,7 +445,7 @@ class Waiver(NamedTuple):
     ordinal: int
     gate: str
     reason: str
-    until: datetime.date
+    until: dt.date
     decided_by: str
     scope: str | None
 
@@ -506,7 +506,7 @@ def _leads_out(scope: str) -> bool:
 
 
 def _waiver(
-    ordinal: int, entry: dict[str, Any], scans: set[str], today: datetime.date
+    ordinal: int, entry: dict[str, Any], scans: set[str], today: dt.date
 ) -> tuple[Waiver | None, list[str]]:
     """One well-shaped entry as a waiver in force, or the findings about it."""
     gate = str(entry["gate"])
@@ -519,7 +519,7 @@ def _waiver(
             )
         ]
     try:
-        until = datetime.date.fromisoformat(str(entry["until"]))
+        until = dt.date.fromisoformat(str(entry["until"]))
     except ValueError:
         given = _shown(repr(entry["until"]))
         return None, [f"waiver {ordinal} gives until {given}, which is not a date (YYYY-MM-DD)"]
@@ -536,7 +536,7 @@ def _waiver(
 
 
 def read_waivers(
-    root: pathlib.Path, manifest: dict[str, Any], today: datetime.date
+    root: pathlib.Path, manifest: dict[str, Any], today: dt.date
 ) -> tuple[list[Waiver], list[str]]:
     """The waivers in force from `scaffold.json`, and every finding about the ones that
     are not — a field missing, a date that is not one, a gate no scan decides, an expiry
@@ -650,10 +650,10 @@ def _report_waivers(waivers: list[Waiver], excused_by: dict[int, int]) -> None:
         print(f"  {waiver.gate}{where} {waiver.terms}{idle}")
 
 
-def today() -> datetime.date:
+def today() -> dt.date:
     """The date a waiver's `until` is held against: UTC, the clock CI runs on, so a
     waiver expires on the same day for everybody who runs the doctor."""
-    return datetime.datetime.now(datetime.UTC).date()
+    return dt.datetime.now(dt.UTC).date()
 
 
 def _before_the_scans(

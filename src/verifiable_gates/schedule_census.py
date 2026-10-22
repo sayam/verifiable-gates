@@ -40,7 +40,7 @@ that nothing is dropped in silence.
 from __future__ import annotations
 
 import argparse
-import datetime
+import datetime as dt
 import pathlib
 import sys
 from typing import Any
@@ -223,12 +223,12 @@ def first_seen(root: pathlib.Path, files: list[str]) -> dict[str, str | None]:
     return born
 
 
-def _waited_hours(born: dict[str, Any], name: str, moment: datetime.datetime) -> float | None:
+def _waited_hours(born: dict[str, Any], name: str, moment: dt.datetime) -> float | None:
     """How long since the file was added — `None` when its birthday is unknown."""
     birth = born.get(name)
     if birth is None:
         return None
-    return (moment - datetime.datetime.fromisoformat(birth)).total_seconds() / 3600
+    return (moment - dt.datetime.fromisoformat(birth)).total_seconds() / 3600
 
 
 def not_due_yet(
@@ -244,7 +244,7 @@ def not_due_yet(
     a reader has to be able to see that the census knows about them, and the line
     says the date they stop being excused so nobody has to work it out later.
     """
-    moment = datetime.datetime.fromisoformat(now)
+    moment = dt.datetime.fromisoformat(now)
     rows = []
     for name, hours in sorted(schedules.items()):
         if last.get(name) is not None:
@@ -252,9 +252,7 @@ def not_due_yet(
         waited = _waited_hours(born, name, moment)
         if waited is None or waited > hours * tolerance:
             continue
-        deadline = datetime.datetime.fromisoformat(born[name]) + datetime.timedelta(
-            hours=hours * tolerance
-        )
+        deadline = dt.datetime.fromisoformat(born[name]) + dt.timedelta(hours=hours * tolerance)
         rows.append(
             f"{name}: declared {waited / 24:.1f} days ago and has not come round yet — "
             f"red from {deadline:%Y-%m-%d %H:%M %Z} if it still has not fired by then"
@@ -270,7 +268,7 @@ def problems(
     born: dict[str, Any] | None = None,
 ) -> list[str]:
     """A schedule that stopped firing must be louder than one that never existed."""
-    moment = datetime.datetime.fromisoformat(now)
+    moment = dt.datetime.fromisoformat(now)
     found = []
     for name, hours in sorted(schedules.items()):
         stamp = last.get(name)
@@ -284,7 +282,7 @@ def problems(
                 "schedules were disabled for inactivity look identical from here"
             )
             continue
-        age = (moment - datetime.datetime.fromisoformat(stamp)).total_seconds() / 3600
+        age = (moment - dt.datetime.fromisoformat(stamp)).total_seconds() / 3600
         if age > hours * tolerance:
             found.append(
                 f"{name}: last scheduled run was {age / 24:.1f} days ago, but it "
@@ -349,7 +347,7 @@ def main(argv: list[str] | None = None) -> int:
             if stamp is not None and not isinstance(stamp, str):
                 raise history.UnreadableError(f"{name}: last run is {stamp!r}, not a stamp")
             if stamp is not None:
-                datetime.datetime.fromisoformat(stamp)
+                dt.datetime.fromisoformat(stamp)
     except (PermissionError, RuntimeError, ValueError, UnicodeDecodeError) as problem:
         print(
             f"cannot read the run history: {problem}\n"
@@ -360,7 +358,7 @@ def main(argv: list[str] | None = None) -> int:
         )
         return 2
 
-    now = args.now or datetime.datetime.now(datetime.UTC).isoformat()
+    now = args.now or dt.datetime.now(dt.UTC).isoformat()
     born = first_seen(pathlib.Path(args.root), list(schedules))
     found = problems(schedules, last, now, args.tolerance, born)
 

@@ -13,7 +13,7 @@ at exactly the wrong moment.
 
 from __future__ import annotations
 
-import datetime
+import datetime as dt
 import subprocess
 from typing import TYPE_CHECKING, Any
 
@@ -435,7 +435,7 @@ def test_first_seen_reads_the_commit_that_added_the_file(tmp_path: pathlib.Path)
         {"weekly.yml": census.WEEK},
         {"weekly.yml": None},
         born,
-        datetime.datetime.now(datetime.UTC).isoformat(),
+        dt.datetime.now(dt.UTC).isoformat(),
         2,
     ), "a file committed a moment ago should still be inside its allowance"
 

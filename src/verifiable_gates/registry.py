@@ -30,7 +30,7 @@ Its evidence is a planted defect per rule, in `tests/test_registry.py`.
 
 from __future__ import annotations
 
-import datetime
+import datetime as dt
 import pathlib
 import re
 import sys
@@ -111,23 +111,23 @@ def load(path: str | pathlib.Path) -> list[dict[str, Any]]:
     return gates
 
 
-def _as_date(value: object) -> datetime.date | None:
+def _as_date(value: object) -> dt.date | None:
     """A real calendar date written YYYY-MM-DD — `9999-99-99` has the shape and is not one.
 
     PyYAML already turns an unquoted `2026-08-29` into a `datetime.date`, so a
     date object is one that parsed; what arrives as a string did not.
     """
-    if isinstance(value, datetime.date):
+    if isinstance(value, dt.date):
         return value
     if not isinstance(value, str) or len(value) != len("YYYY-MM-DD"):
         return None
     try:
-        return datetime.date.fromisoformat(value)
+        return dt.date.fromisoformat(value)
     except ValueError:
         return None
 
 
-def latest_today(now: datetime.datetime | None = None) -> datetime.date:
+def latest_today(now: dt.datetime | None = None) -> dt.date:
     """The date it already is somewhere on Earth (UTC+14) — a proof written today in
     Bangkok at 02:00 is dated tomorrow in UTC, and that is not a proof from the future.
 
@@ -137,8 +137,8 @@ def latest_today(now: datetime.datetime | None = None) -> datetime.date:
     future" and turned the suite red, while the same date in a `proved_by` row passed
     (self-audit round 7, 2026-09-01). One question, one answer, one place.
     """
-    now = now or datetime.datetime.now(datetime.UTC)
-    return (now + datetime.timedelta(hours=14)).date()
+    now = now or dt.datetime.now(dt.UTC)
+    return (now + dt.timedelta(hours=14)).date()
 
 
 def _proof_problems(where: str, proofs: Any) -> list[str]:  # noqa: ANN401 — shape is what we check

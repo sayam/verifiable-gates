@@ -22,7 +22,7 @@ from __future__ import annotations
 
 import ast
 import contextlib
-import datetime
+import datetime as dt
 import hashlib
 import io
 import json
@@ -2467,7 +2467,7 @@ def test_a_broken_waiver_is_a_result_under_the_doctors_own_rule(installed: pathl
 def test_the_waiver_reader_in_process_for_every_shape_of_file(installed: pathlib.Path) -> None:
     """Coverage is collected in this process; the doctor above ran as a child."""
     manifest = gates_doctor.load_manifest(installed / "tools" / "overlay.json")
-    today = datetime.date(2026, 9, 5)
+    today = dt.date(2026, 9, 5)
     path = installed / "scaffold.json"
     for text in ("{bad", "[1, 2]", "{}"):
         path.write_text(text, encoding="utf-8")
@@ -2565,7 +2565,7 @@ def test_the_waiver_roads_in_process(
 
 def test_today_is_a_utc_date() -> None:
     """The clock a waiver's `until` is held against — one for every runner, in UTC."""
-    assert abs((gates_doctor.today() - datetime.datetime.now(datetime.UTC).date()).days) <= 1
+    assert abs((gates_doctor.today() - dt.datetime.now(dt.UTC).date()).days) <= 1
 
 
 # ---------------------------------------------------------------- SARIF, a format
