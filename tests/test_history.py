@@ -8,14 +8,14 @@ One reader, one contract, one test file that holds it.
 
 from __future__ import annotations
 
-import datetime
+import datetime as dt
 from typing import TYPE_CHECKING
 
 import pytest
 
 from verifiable_gates import history
 
-STAMP = (datetime.datetime,)
+STAMP = (dt.datetime,)
 
 if TYPE_CHECKING:
     import pathlib

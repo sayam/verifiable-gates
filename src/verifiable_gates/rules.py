@@ -53,7 +53,7 @@ resolvable. Its evidence is a planted defect per rule in `tests/test_rules_catal
 
 from __future__ import annotations
 
-import datetime
+import datetime as dt
 import pathlib
 import re
 import sys
@@ -378,11 +378,11 @@ def _retracted_date_problems(rule_id: str, value: object) -> list[str]:
     """The date it was withdrawn: a real one, and not one that has not happened yet."""
     if value is None:
         return []
-    if isinstance(value, datetime.date) and not isinstance(value, datetime.datetime):
+    if isinstance(value, dt.date) and not isinstance(value, dt.datetime):
         date = value
     else:
         try:
-            date = datetime.date.fromisoformat(str(value))
+            date = dt.date.fromisoformat(str(value))
         except ValueError:
             return [f"{rule_id}: retracted date must be a real YYYY-MM-DD date, got {value!r}"]
     if date > registry.latest_today():

@@ -27,7 +27,7 @@ of not seeing comes out the same, proved in its own tests and the censuses'.
 
 from __future__ import annotations
 
-import datetime
+import datetime as dt
 import json
 import pathlib
 import sys
@@ -94,18 +94,18 @@ def read(
 
 def _hold_kind(index: int, field: str, value: object, kinds: tuple[type, ...]) -> None:
     """One field that is there is of a kind the census reads — a stamp among them parses."""
-    plain = tuple(k for k in kinds if k is not datetime.datetime)
+    plain = tuple(k for k in kinds if k is not dt.datetime)
     if isinstance(value, plain):
         return
-    if datetime.datetime in kinds and isinstance(value, str):
+    if dt.datetime in kinds and isinstance(value, str):
         try:
-            datetime.datetime.fromisoformat(value)
+            dt.datetime.fromisoformat(value)
         except ValueError as problem:
             raise UnreadableError(
                 f"record {index}: {field} is {value!r}, not an ISO timestamp"
             ) from problem
         return
-    wanted = " or ".join("ISO timestamp" if k is datetime.datetime else k.__name__ for k in kinds)
+    wanted = " or ".join("ISO timestamp" if k is dt.datetime else k.__name__ for k in kinds)
     raise UnreadableError(f"record {index}: {field} is a {type(value).__name__}, not {wanted}")
 
 

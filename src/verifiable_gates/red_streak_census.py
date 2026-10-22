@@ -40,7 +40,7 @@ from __future__ import annotations
 
 import argparse
 import collections
-import datetime
+import datetime as dt
 import pathlib
 import sys
 from typing import Any
@@ -125,17 +125,17 @@ def longest_red_hours(runs: list[dict[str, Any]]) -> dict[str, float]:
     longest: dict[str, float] = {}
     for path, rows in grouped.items():
         rows.sort()
-        started: datetime.datetime | None = None
+        started: dt.datetime | None = None
         worst = 0.0
         for stamp, conclusion in rows:
-            moment = datetime.datetime.fromisoformat(stamp)
+            moment = dt.datetime.fromisoformat(stamp)
             if conclusion == "failure" and started is None:
                 started = moment
             elif conclusion == "success" and started is not None:
                 worst = max(worst, (moment - started).total_seconds() / 3600)
                 started = None
         if started is not None and newest:
-            still = (datetime.datetime.fromisoformat(newest) - started).total_seconds() / 3600
+            still = (dt.datetime.fromisoformat(newest) - started).total_seconds() / 3600
             worst = max(worst, still)
         longest[path] = round(worst, 1)
     return longest
@@ -207,7 +207,7 @@ def main(argv: list[str] | None = None) -> int:
             must_hold_something=True,
             fields={
                 "path": (str,),
-                "created_at": (datetime.datetime,),
+                "created_at": (dt.datetime,),
                 "?conclusion": (str, type(None)),
             },
         )

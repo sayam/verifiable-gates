@@ -8,7 +8,7 @@ validator only tested on broken input passes just as happily on everything.
 
 from __future__ import annotations
 
-import datetime
+import datetime as dt
 import importlib
 import json
 import os
@@ -387,14 +387,12 @@ def test_a_date_yaml_already_parsed_is_taken_as_the_date_it_is() -> None:
     sees it — which is the shape every real withdrawal will arrive in, and the one a test
     writing the date as a string never reaches. A `datetime` with a time on it is not a
     day and is refused: a withdrawal is dated by the day it was decided."""
-    assert complaints(a_rule(retracted=a_withdrawal(date=datetime.date(2026, 9, 5)))) == ""
+    assert complaints(a_rule(retracted=a_withdrawal(date=dt.date(2026, 9, 5)))) == ""
     assert "has not happened yet" in complaints(
-        a_rule(retracted=a_withdrawal(date=datetime.date(2099, 1, 1)))
+        a_rule(retracted=a_withdrawal(date=dt.date(2099, 1, 1)))
     )
     assert "must be a real YYYY-MM-DD date" in complaints(
-        a_rule(
-            retracted=a_withdrawal(date=datetime.datetime(2026, 9, 5, 12, 0, tzinfo=datetime.UTC))
-        )
+        a_rule(retracted=a_withdrawal(date=dt.datetime(2026, 9, 5, 12, 0, tzinfo=dt.UTC)))
     )
 
 
