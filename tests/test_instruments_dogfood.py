@@ -979,7 +979,10 @@ def test_a_body_edit_reruns_the_checks_that_read_the_body() -> None:
 # calls the fetch-step arms need — a `tar` that builds the tarball standing in for the
 # release, and the `bash` that runs the step's own block, each naming its interpreter and
 # its argv here.
-SUPPRESSED_LINES = 133  # every one with a reason; a new one moves this number, visibly
+# 133 → 134 on 2026-10-22: one `S603` in `tests/test_lint_commits.py`, for the bash that
+# runs the CI block's trailer regex on each body the module judges — the third half of
+# the commit gate held the way the subject and sign-off halves already were.
+SUPPRESSED_LINES = 134  # every one with a reason; a new one moves this number, visibly
 
 
 def test_every_job_in_our_own_workflows_declares_a_time_budget() -> None:

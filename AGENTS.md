@@ -46,8 +46,10 @@ repository keeps on itself").
 - English in every file; `CLA.md` is bilingual, and the Thai README is
   `README.th.md` beside the English one (`tests/test_language_policy.py`).
 - Commits: Conventional Commits, a subject of at most 72 characters,
-  `git commit -s`, and no `Co-authored-by:` or `Claude-Session:` trailer
-  (`src/verifiable_gates/lint_commits.py`, job `commit-lint`).
+  `git commit -s`, and no attribution trailer or footer — `Co-authored-by:`,
+  `Claude-Session:`, `Generated-by:`, a line starting "Generated with", and the
+  rest of `FORBIDDEN_TRAILERS` (`src/verifiable_gates/lint_commits.py`, job
+  `commit-lint`).
 - A pull request body carries the CLA line — `CONTRIBUTING.md` § "Two things
   every pull request needs", job `cla`.
 - One gate per test file and every test file claimed by exactly one gate: a new
